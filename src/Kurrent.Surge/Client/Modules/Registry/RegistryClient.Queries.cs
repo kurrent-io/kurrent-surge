@@ -32,10 +32,6 @@ public partial class RegistryClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
-                SchemaNotFoundException.From,
-                SchemaDeletedException.From,
-                SchemaAlreadyExistsException.From,
-
                 // StatusCode fallbacks
                 StatusCode.NotFound.MapTo(new SchemaNotFoundException(schemaName)),
                 StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException(schemaName)));
@@ -89,10 +85,6 @@ public partial class RegistryClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
-                SchemaNotFoundException.From,
-                SchemaDeletedException.From,
-                SchemaAlreadyExistsException.From,
-
                 // StatusCode fallbacks
                 StatusCode.NotFound.MapTo(new SchemaNotFoundException(schemaName)),
                 StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException(schemaName)));
@@ -126,10 +118,6 @@ public partial class RegistryClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
-                SchemaNotFoundException.From,
-                SchemaDeletedException.From,
-                SchemaAlreadyExistsException.From,
-
                 // StatusCode fallbacks
                 StatusCode.NotFound.MapTo(new SchemaNotFoundException($"Schema version '{schemaVersionId}' was not found.")),
                 StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException($"Schema for version '{schemaVersionId}' has been deleted.")));
@@ -189,10 +177,6 @@ public partial class RegistryClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
-                SchemaNotFoundException.From,
-                SchemaDeletedException.From,
-                SchemaAlreadyExistsException.From,
-
                 // StatusCode fallbacks
                 StatusCode.NotFound.MapTo(new SchemaNotFoundException($"Schema '{options.Identifier}' was not found.")),
                 StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException($"Schema '{options.Identifier}' has been deleted.")));

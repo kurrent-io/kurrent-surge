@@ -61,8 +61,6 @@ public partial class RegistryClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
-                SchemaAlreadyExistsException.From,
-
                 // StatusCode fallbacks
                 StatusCode.AlreadyExists.MapTo(new SchemaAlreadyExistsException(options.SchemaName)));
         }
@@ -93,10 +91,6 @@ public partial class RegistryClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
-                SchemaNotFoundException.From,
-                SchemaDeletedException.From,
-                SchemaAlreadyExistsException.From,
-
                 // StatusCode fallbacks
                 StatusCode.NotFound.MapTo(new SchemaNotFoundException(schemaName)),
                 StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException(schemaName)));
@@ -137,10 +131,6 @@ public partial class RegistryClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
-                SchemaNotFoundException.From,
-                SchemaDeletedException.From,
-                SchemaAlreadyExistsException.From,
-
                 // StatusCode fallbacks
                 StatusCode.NotFound.MapTo(new SchemaNotFoundException(schemaName)),
                 StatusCode.FailedPrecondition.MapTo(new SchemaDeletedException(schemaName)));

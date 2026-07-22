@@ -1,76 +1,114 @@
 // ReSharper disable CheckNamespace
-// ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
-using Grpc.Core;
+using Kurrent.Surge.Client.Errors;
 using Kurrent.Surge.Client.Streams;
 using static System.String;
 
-using Contracts = KurrentDB.Protocol.V2.Streams;
-using Status = Google.Rpc.Status;
-
 namespace Kurrent.Surge.Client.Exceptions;
 
-[KurrentOperationError(Contracts.Errors.StreamsError.StreamNotFound)]
-public partial class StreamNotFoundException {
-    public StreamNotFoundException(StreamName stream) : this(Format("Stream '{0}' was not found.", stream)) =>
-        Stream = stream;
+/// <remarks>
+/// Plain contract types: they carry error data and nothing else. Each exposes its
+/// <see cref="ErrorCode"/> so callers and retry predicates can name the error, a constructor for
+/// raising it directly, and a constructor the client's transport mapper fills from a wire status.
+/// Nothing here knows what gRPC is.
+/// </remarks>
+[PublicAPI]
+public class StreamNotFoundException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamNotFound;
 
-    public StreamName Stream { get; }
+    public StreamNotFoundException(StreamName stream)
+        : this(Format("Stream '{0}' was not found.", stream)) => Stream = stream;
+
+    public StreamNotFoundException(string message) : base(Code, message) { }
+
+    public StreamNotFoundException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public StreamName Stream { get; init; } = StreamName.Unset;
 }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.StreamAlreadyExists)]
-public partial class StreamAlreadyExistsException {
-    public Revision   ActualRevision { get; private set; } = Revision.Unset;
-    public StreamName Stream         { get; private set; } = StreamName.Unset;
+[PublicAPI]
+public class StreamAlreadyExistsException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamAlreadyExists;
 
+    // The leading "" and the resulting argument shift are carried over verbatim from before this type
+    // was moved. The rendered message is wrong — the stream lands in the "Expected revision" slot and
+    // actualRevision is dropped — but fixing it changes user-visible text, so it is reported, not fixed.
     public StreamAlreadyExistsException(StreamName stream, Revision actualRevision)
         : this(Format("Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", "", stream, ExpectedStreamState.NoStream, actualRevision)) {
-        ActualRevision = actualRevision;
         Stream         = stream;
+        ActualRevision = actualRevision;
     }
+
+    public StreamAlreadyExistsException(string message) : base(Code, message) { }
+
+    public StreamAlreadyExistsException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public StreamName Stream         { get; init; } = StreamName.Unset;
+    public Revision   ActualRevision { get; init; } = Revision.Unset;
 }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.StreamDeleted)]
-public partial class StreamDeletedException {
-    public StreamDeletedException(StreamName stream) : this(Format("Stream '{0}' has been soft deleted. It will not be visible in the stream list, until it is restored by appending to it again.", stream)) =>
+[PublicAPI]
+public class StreamDeletedException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamDeleted;
+
+    public StreamDeletedException(StreamName stream)
+        : this(Format("Stream '{0}' has been soft deleted. It will not be visible in the stream list, until it is restored by appending to it again.", stream)) =>
         Stream = stream;
 
-    public StreamName Stream { get; }
+    public StreamDeletedException(string message) : base(Code, message) { }
+
+    public StreamDeletedException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public StreamName Stream { get; init; } = StreamName.Unset;
 }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.StreamTombstoned)]
-public partial class StreamTombstonedException {
-    public StreamTombstonedException(StreamName stream) : this(Format("Stream '{0}' has been tombstoned. It has been permanently removed from the system and cannot be restored.", stream)) =>
+[PublicAPI]
+public class StreamTombstonedException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamTombstoned;
+
+    public StreamTombstonedException(StreamName stream)
+        : this(Format("Stream '{0}' has been tombstoned. It has been permanently removed from the system and cannot be restored.", stream)) =>
         Stream = stream;
 
-    public StreamName Stream { get; }
+    public StreamTombstonedException(string message) : base(Code, message) { }
+
+    public StreamTombstonedException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public StreamName Stream { get; init; } = StreamName.Unset;
 }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.StreamRevisionConflict)]
-public partial class StreamRevisionConflictException {
-    public Revision   ExpectedRevision { get; private set; } = Revision.Unset;
-    public Revision   ActualRevision   { get; private set; } = Revision.Unset;
-    public StreamName Stream           { get; private set; } = StreamName.Unset;
+[PublicAPI]
+public class StreamRevisionConflictException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamRevisionConflict;
 
     public StreamRevisionConflictException(StreamName stream, Revision expectedRevision, Revision actualRevision)
-        : this(Format(format: "Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", args: [stream, expectedRevision, actualRevision])) {
+        : this(Format("Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", stream, expectedRevision, actualRevision)) {
+        Stream           = stream;
         ExpectedRevision = expectedRevision;
         ActualRevision   = actualRevision;
-        Stream           = stream;
     }
 
-    public void AfterParseRpcStatus(Status status, StreamRevisionConflictException self) {
-        var details = status.GetDetail<Contracts.Errors.StreamRevisionConflictErrorDetails>()!;
-        self.ExpectedRevision = ExpectedStreamState.FromWireValue(details.ExpectedRevision);
-        self.ActualRevision   = ActualStreamState.FromWireValue(details.ActualRevision);
-        self.Stream           = details.Stream;
-    }
+    public StreamRevisionConflictException(string message) : base(Code, message) { }
+
+    public StreamRevisionConflictException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public StreamName Stream           { get; init; } = StreamName.Unset;
+    public Revision   ExpectedRevision { get; init; } = Revision.Unset;
+    public Revision   ActualRevision   { get; init; } = Revision.Unset;
 }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.AppendConsistencyViolation)]
-public partial class AppendConsistencyViolationException {
-    public IReadOnlyList<ConsistencyViolation> Violations { get; private set; } = [];
+[PublicAPI]
+public class AppendConsistencyViolationException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.AppendConsistencyViolation;
 
+    // Carried over verbatim. This throws FormatException: violations binds to Format(string, object?),
+    // not the params overload, so {1} and {2} have no argument. Reported, not fixed — the mapper never
+    // reaches it, so the break is latent.
     public AppendConsistencyViolationException(IReadOnlyList<ConsistencyViolation> violations)
         : this(Format("Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", violations)) =>
         Violations = violations;
@@ -79,76 +117,82 @@ public partial class AppendConsistencyViolationException {
 
     public AppendConsistencyViolationException(QueryPredicateViolation violation) : this([violation]) { }
 
-    public void AfterParseRpcStatus(Status status, AppendConsistencyViolationException self) {
-        var details = status.GetDetail<Contracts.Errors.AppendConsistencyViolationErrorDetails>();
+    public AppendConsistencyViolationException(string message) : base(Code, message) { }
 
-        if (details is null) return;
+    public AppendConsistencyViolationException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
 
-        self.Violations = details.Violations.Select(v => {
-            ConsistencyViolation violation = v.TypeCase switch {
-                Contracts.Errors.ConsistencyViolation.TypeOneofCase.StreamState => new StreamStateViolation {
-                    Stream        = v.StreamState.Stream,
-                    ExpectedState = ExpectedStreamState.FromWireValue(v.StreamState.ExpectedState),
-                    ActualState   = ActualStreamState.FromWireValue(v.StreamState.ActualState)
-                },
-                // Contracts.Errors.ConsistencyViolation.TypeOneofCase.QueryPredicate => new QueryPredicateViolation {
-                //     Message = v.QueryPredicate.Message
-                // },
-                _ => throw new ArgumentOutOfRangeException($"Unknown consistency check error type: {v.TypeCase}")
-            };
-
-            return violation with { CheckIndex = v.CheckIndex };
-        }).ToList();
-    }
+    public IReadOnlyList<ConsistencyViolation> Violations { get; init; } = [];
 }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.MaxAppendRecordSizeExceeded)]
-public partial class MaxAppendRecordSizeExceededException {
-    public Guid RecordId         { get; internal set; }
-    public int  RecordActualSize { get; internal set; }
-    public int  RecordMaxSize    { get; internal set; }
+[PublicAPI]
+public class MaxAppendRecordSizeExceededException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.MaxAppendRecordSizeExceeded;
 
-    public void AfterParseRpcStatus(Status status, MaxAppendRecordSizeExceededException self) {
-        var details = status.GetDetail<Contracts.Errors.AppendRecordSizeExceededErrorDetails>()!;
-        self.RecordId         = Guid.Parse(details.RecordId);
-        self.RecordActualSize = details.Size;
-        self.RecordMaxSize    = details.MaxSize;
-    }
+    public MaxAppendRecordSizeExceededException(string message) : base(Code, message) { }
+
+    public MaxAppendRecordSizeExceededException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public Guid RecordId         { get; init; }
+    public int  RecordActualSize { get; init; }
+    public int  RecordMaxSize    { get; init; }
 }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.MaxAppendTransactionSizeExceeded)]
-public partial class MaxAppendTransactionSizeExceededException {
-    public int TransactionActualSize { get; internal set; }
-    public int TransactionMaxSize    { get; internal set; }
+[PublicAPI]
+public class MaxAppendTransactionSizeExceededException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.MaxAppendTransactionSizeExceeded;
 
-    public void AfterParseRpcStatus(Status status, MaxAppendTransactionSizeExceededException self) {
-        var details = status.GetDetail<Contracts.Errors.AppendTransactionSizeExceededErrorDetails>()!;
-        self.TransactionActualSize = details.Size;
-        self.TransactionMaxSize    = details.MaxSize;
-    }
+    public MaxAppendTransactionSizeExceededException(string message) : base(Code, message) { }
+
+    public MaxAppendTransactionSizeExceededException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public int TransactionActualSize { get; init; }
+    public int TransactionMaxSize    { get; init; }
 }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.StreamAlreadyInAppendSession)]
-public partial class StreamAlreadyInAppendSessionException;
+[PublicAPI]
+public class StreamAlreadyInAppendSessionException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamAlreadyInAppendSession;
 
-[KurrentOperationError(Contracts.Errors.StreamsError.AppendSessionNoRequests)]
-public partial class AppendSessionNoRequestsException;
+    public StreamAlreadyInAppendSessionException(string message) : base(Code, message) { }
 
-[KurrentOperationError(Contracts.Errors.StreamsError.LogPositionNotFound)]
-public partial class LogPositionNotFoundException {
+    public StreamAlreadyInAppendSessionException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+}
+
+[PublicAPI]
+public class AppendSessionNoRequestsException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.AppendSessionNoRequests;
+
+    public AppendSessionNoRequestsException(string message) : base(Code, message) { }
+
+    public AppendSessionNoRequestsException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+}
+
+[PublicAPI]
+public class LogPositionNotFoundException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Streams.LogPositionNotFound;
+
     public LogPositionNotFoundException(ulong position)
         : this($"Failed to find log position: {position}") { }
 
-    public LogPositionNotFoundException(ulong position, RpcException originalException)
+    // The originating failure is taken as a plain Exception, not an RpcException: the detail we want
+    // is its message tail, and typing the parameter to the transport would drag gRPC into the contract.
+    //
+    // The message it carries looks like:
+    //   StatusCode="Unknown", Detail="
+    //     Unexpected ReadAllResult: InvalidPosition >>
+    //     There is not enough space to read full record (length prefix: 143170). Actual pre-position: 144798632.
+    //     Something is seriously wrong in chunk #1-1 (chunk-000001.000000).
+    //   "
+    public LogPositionNotFoundException(ulong position, Exception originalException)
         : this($"Failed to find log position: {position} Details: {originalException.Message.Split(">>").Last().Trim()}") { }
 
-    public static bool IsMatch(RpcException rex) =>
-        rex.StatusCode == StatusCode.Unknown &&
-        rex.Message.Contains("InvalidPosition >>", StringComparison.OrdinalIgnoreCase);
+    public LogPositionNotFoundException(string message) : base(Code, message) { }
 
-    // StatusCode="Unknown", Detail="
-    //   Unexpected ReadAllResult: InvalidPosition >>
-    //   There is not enough space to read full record (length prefix: 143170). Actual pre-position: 144798632.
-    //   Something is seriously wrong in chunk #1-1 (chunk-000001.000000).
-    // "
+    public LogPositionNotFoundException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
 }

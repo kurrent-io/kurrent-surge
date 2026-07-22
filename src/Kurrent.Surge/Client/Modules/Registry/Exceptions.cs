@@ -1,68 +1,63 @@
 // ReSharper disable CheckNamespace
 
+using Kurrent.Surge.Client.Errors;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Schema;
-using KurrentDB.Protocol.V2.Registry.Errors;
 using static System.String;
-
-using Status = Google.Rpc.Status;
 
 namespace Kurrent.Surge.Client.Exceptions;
 
-[KurrentOperationError(RegistryError.SchemaNotFound)]
-public partial class SchemaNotFoundException {
-    public SchemaName? Schema { get; private set; }
+[PublicAPI]
+public class SchemaNotFoundException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Registry.SchemaNotFound;
 
     public SchemaNotFoundException(SchemaName schema)
-        : this(Format("Schema '{0}' was not found.", schema)) {
-        Schema = schema;
-    }
+        : this(Format("Schema '{0}' was not found.", schema)) => Schema = schema;
 
-    public void AfterParseRpcStatus(Status status, SchemaNotFoundException self) {
-        var details = status.GetDetail<SchemaNotFoundErrorDetails>();
-        if (details is null) return;
-        self.Schema = SchemaName.From(details.Schema);
-    }
+    public SchemaNotFoundException(string message) : base(Code, message) { }
+
+    public SchemaNotFoundException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public SchemaName? Schema { get; init; }
 }
 
-[KurrentOperationError(RegistryError.SchemaAlreadyExists)]
-public partial class SchemaAlreadyExistsException {
-    public SchemaName? Schema { get; private set; }
+[PublicAPI]
+public class SchemaAlreadyExistsException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Registry.SchemaAlreadyExists;
 
     public SchemaAlreadyExistsException(SchemaName schema)
-        : this(Format("Schema '{0}' already exists.", schema)) {
-        Schema = schema;
-    }
+        : this(Format("Schema '{0}' already exists.", schema)) => Schema = schema;
 
-    public void AfterParseRpcStatus(Status status, SchemaAlreadyExistsException self) {
-        var details = status.GetDetail<SchemaAlreadyExistsErrorDetails>();
-        if (details is null) return;
-        self.Schema = SchemaName.From(details.Schema);
-    }
+    public SchemaAlreadyExistsException(string message) : base(Code, message) { }
+
+    public SchemaAlreadyExistsException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public SchemaName? Schema { get; init; }
 }
 
-[KurrentOperationError(RegistryError.SchemaDeleted)]
-public partial class SchemaDeletedException {
-    public SchemaName? Schema { get; private set; }
+[PublicAPI]
+public class SchemaDeletedException : KurrentException {
+    public static ErrorCode Code => KurrentErrorCodes.Registry.SchemaDeleted;
 
     public SchemaDeletedException(SchemaName schema)
-        : this(Format("Schema '{0}' has been deleted.", schema)) {
-        Schema = schema;
-    }
+        : this(Format("Schema '{0}' has been deleted.", schema)) => Schema = schema;
 
-    public void AfterParseRpcStatus(Status status, SchemaDeletedException self) {
-        var details = status.GetDetail<SchemaDeletedErrorDetails>();
-        if (details is null) return;
-        self.Schema = SchemaName.From(details.Schema);
-    }
+    public SchemaDeletedException(string message) : base(Code, message) { }
+
+    public SchemaDeletedException(KurrentErrorDetails details, string reason, Exception? innerException = null)
+        : base(details, reason, innerException) { }
+
+    public SchemaName? Schema { get; init; }
 }
 
-public class SchemaIncompatibleException : KurrentException {
-    public SchemaCompatibilityErrors Errors { get; }
-
-    public SchemaIncompatibleException(SchemaCompatibilityErrors errors)
-        : base(ErrorCode.From("SchemaIncompatible"),
-            "Schema compatibility check failed.") {
-        Errors = errors;
-    }
+/// <summary>
+/// A schema failed its compatibility check. Not part of the server error-code vocabulary — the server
+/// reports the failing rules rather than a single code — so it carries a locally derived code.
+/// </summary>
+[PublicAPI]
+public class SchemaIncompatibleException(SchemaCompatibilityErrors errors)
+    : KurrentException(ErrorCode.From("SchemaIncompatible"), "Schema compatibility check failed.") {
+    public SchemaCompatibilityErrors Errors { get; } = errors;
 }

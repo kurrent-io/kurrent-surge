@@ -86,9 +86,6 @@ public partial class ConnectorsClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From,
-
                 // StatusCode fallbacks
                 StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
                 StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));
@@ -128,9 +125,6 @@ public partial class ConnectorsClient {
         }
         catch (Exception ex) {
             throw ex.ToException(
-                ConnectorNotFoundException.From,
-                ConnectorDeletedException.From,
-
                 // StatusCode fallbacks
                 StatusCode.NotFound.MapTo(new ConnectorNotFoundException(connectorId)),
                 StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(connectorId)));

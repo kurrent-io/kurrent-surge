@@ -75,10 +75,7 @@ public partial class StreamsClient {
             return rsp.ToResponse();
         }
         catch (Exception ex) {
-            throw ex.AsWellKnownException(
-                AppendConsistencyViolationException.From,
-                MaxAppendRecordSizeExceededException.From,
-                MaxAppendTransactionSizeExceededException.From);
+            throw ex.AsWellKnownException();
         }
 
         static void EnsureValid(AppendRecord record) {
