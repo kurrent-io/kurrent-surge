@@ -27,7 +27,7 @@ sealed class BatchDispatcher(
         // Track is transparent (checkpointer + progress together), so a user ctx.Track updates the gauges.
         var ctx = context.ForBatch(Progress.Progress, batch, requestTrack: Track);
 
-        var start     = GetTimestamp();
+        var start     = timeProvider.GetTimestamp();
         var outcome   = RecordOutcome.Processed;
         var processed = 0;
 
@@ -48,7 +48,7 @@ sealed class BatchDispatcher(
         finally {
             // Measured at handler exit: the frontier fold, throughput count and frontier scan below are
             // framework bookkeeping and do not belong in the handler's duration.
-            var elapsed = GetElapsedTime(start);
+            var elapsed = timeProvider.GetElapsedTime(start);
 
             // The bookkeeping only runs on the success path; a throw unwinds straight through here, so the
             // terminal event still fires exactly once with ProcessedCount 0 — the frontier is then whatever

@@ -34,17 +34,6 @@ abstract class ProcessorDispatcher(
     protected DateTimeOffset Now => timeProvider.GetUtcNow();
 
     /// <summary>
-    /// Timestamp for measuring handler duration, from the drone's <see cref="TimeProvider"/> rather
-    /// than <see cref="System.Diagnostics.Stopwatch"/> so tests can drive elapsed time deterministically.
-    /// </summary>
-    protected long GetTimestamp() => timeProvider.GetTimestamp();
-
-    /// <summary>
-    /// Elapsed time since <paramref name="startingTimestamp"/>, taken from <see cref="GetTimestamp"/>.
-    /// </summary>
-    protected TimeSpan GetElapsedTime(long startingTimestamp) => timeProvider.GetElapsedTime(startingTimestamp);
-
-    /// <summary>
     /// Dispatches a batch to the processor shape this dispatcher owns.
     /// </summary>
     /// <remarks>

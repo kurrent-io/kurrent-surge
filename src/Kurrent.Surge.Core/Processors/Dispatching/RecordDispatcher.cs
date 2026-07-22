@@ -39,7 +39,7 @@ sealed class RecordDispatcher(
         // updates the gauges, not just the commit position (see ProcessorDispatcher.Track).
         var ctx = context.ForProcessRecord(Progress.Progress, record, requestTrack: Track);
         
-        var start   = GetTimestamp();
+        var start   = timeProvider.GetTimestamp();
         var outcome = RecordOutcome.Processed;
 
         Exception? error = null;
@@ -59,7 +59,7 @@ sealed class RecordDispatcher(
         finally {
             // Measured at handler exit, before the bookkeeping below — the manual checkpoint raise awaits
             // a channel write, which is framework time and does not belong in the handler's duration.
-            var elapsed = GetElapsedTime(start);
+            var elapsed = timeProvider.GetElapsedTime(start);
 
             // The bookkeeping only runs on the success path; a throw unwinds straight through here, so the
             // terminal event still fires exactly once and reports the progress as it stands.
