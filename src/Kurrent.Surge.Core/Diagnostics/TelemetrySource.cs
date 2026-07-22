@@ -45,7 +45,7 @@ abstract class TelemetrySource(DiagnosticSource diagnosticSource, ActivitySource
     /// <br />Example: <c>GameOverEvent</c> becomes <c>GameOver</c>
     /// </summary>
     public void Publish<T>(T message) where T : notnull {
-        var eventName = message.GetType().Name;
+        var eventName = typeof(T).Name;
 
         if (eventName.EndsWith("Event", StringComparison.OrdinalIgnoreCase))
             eventName = eventName[..^"Event".Length];
