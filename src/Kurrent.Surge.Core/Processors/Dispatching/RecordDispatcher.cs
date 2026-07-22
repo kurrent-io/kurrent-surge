@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
@@ -34,13 +33,13 @@ sealed class RecordDispatcher(
     async ValueTask<RecordProcessingResult> DispatchRecord(DroneContext context, Record record) {
         // Ready carries the live record: observers enrich metadata and open the tracing span here, and
         // the handler sees the mutation.
-        Observers.RecordReady(new RecordReady(Info, record, Now));
+        Observers.RecordReady(new(Info, record, Now));
 
         // Track is transparent — it advances the checkpointer AND progress together — so a user ctx.Track
         // updates the gauges, not just the commit position (see ProcessorDispatcher.Track).
         var ctx = context.ForProcessRecord(Progress.Progress, record, requestTrack: Track);
-
-        var start   = Stopwatch.GetTimestamp();
+        
+        var start   = GetTimestamp();
         var outcome = RecordOutcome.Processed;
 
         Exception? error = null;
@@ -60,7 +59,7 @@ sealed class RecordDispatcher(
         finally {
             // Measured at handler exit, before the bookkeeping below — the manual checkpoint raise awaits
             // a channel write, which is framework time and does not belong in the handler's duration.
-            var elapsed = Stopwatch.GetElapsedTime(start);
+            var elapsed = GetElapsedTime(start);
 
             // The bookkeeping only runs on the success path; a throw unwinds straight through here, so the
             // terminal event still fires exactly once and reports the progress as it stands.
@@ -75,8 +74,7 @@ sealed class RecordDispatcher(
                     Track(record.Position);
             }
 
-            Observers.RecordCompleted(
-                new RecordCompleted(Info, record, outcome, elapsed, Progress.Progress, Now, error));
+            Observers.RecordCompleted(new(Info, record, outcome, elapsed, Progress.Progress, Now, error));
         }
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown

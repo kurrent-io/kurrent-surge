@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
@@ -23,12 +22,12 @@ sealed class BatchDispatcher(
     public override async ValueTask<RecordProcessingResult> Dispatch(DroneContext context, RecordBatch batch) {
         // Ready carries the live records: observers enrich metadata and open the tracing span here, and
         // the handler sees the mutation.
-        Observers.BatchReady(new BatchReady(Info, batch, Now));
+        Observers.BatchReady(new(Info, batch, Now));
 
         // Track is transparent (checkpointer + progress together), so a user ctx.Track updates the gauges.
         var ctx = context.ForBatch(Progress.Progress, batch, requestTrack: Track);
 
-        var start     = Stopwatch.GetTimestamp();
+        var start     = GetTimestamp();
         var outcome   = RecordOutcome.Processed;
         var processed = 0;
 
@@ -49,7 +48,7 @@ sealed class BatchDispatcher(
         finally {
             // Measured at handler exit: the frontier fold, throughput count and frontier scan below are
             // framework bookkeeping and do not belong in the handler's duration.
-            var elapsed = Stopwatch.GetElapsedTime(start);
+            var elapsed = GetElapsedTime(start);
 
             // The bookkeeping only runs on the success path; a throw unwinds straight through here, so the
             // terminal event still fires exactly once with ProcessedCount 0 — the frontier is then whatever
@@ -65,7 +64,7 @@ sealed class BatchDispatcher(
                 // with AutoTrack off and nothing committed). The batch is pre-pruned upstream, so Count is
                 // the dispatched count — advanced in one step, not a per-record loop.
                 if (batch.Count > 0)
-                    Progress.CountThroughput(batch.Count, batch[batch.Count - 1].Timestamp);
+                    Progress.CountThroughput(batch.Count, batch[^1].Timestamp);
 
                 // records_processed is the committed/durable prefix: records at or below the resolved
                 // frontier (PendingPositions = the last tracked position per partition). It never
@@ -75,13 +74,13 @@ sealed class BatchDispatcher(
             }
 
             Observers.BatchCompleted(
-                new BatchCompleted(Info, batch, outcome, processed, elapsed, Progress.Progress, Now, error));
+                new(Info, batch, outcome, processed, elapsed, Progress.Progress, Now, error));
         }
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
         // barrier is the single OnCheckpoint + commit point, so raising a Manual barrier here would
         // double-commit. ctx.Checkpoint() already threw if a stop was requested before it.
-        if (ctx.CheckpointRequested && !ctx.StopRequested)
+        if (ctx is { CheckpointRequested: true, StopRequested: false })
             await Checkpointer
                 .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
                 .ConfigureAwait(false);
@@ -101,7 +100,7 @@ sealed class BatchDispatcher(
             var position = record.Position;
 
             // At most one entry per owned partition, never per record — size to the partition count.
-            frontier ??= new Dictionary<Partition, RecordPosition>(_maxParallelism);
+            frontier ??= new(_maxParallelism);
 
             if (!frontier.TryGetValue(position.Partition, out var current) || position > current)
                 frontier[position.Partition] = position;
