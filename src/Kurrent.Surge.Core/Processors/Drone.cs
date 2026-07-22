@@ -11,14 +11,14 @@ using Kurrent.Surge.Streaming.Gateway;
 namespace Kurrent.Surge.Streaming;
 
 sealed class Drone : IDrone {
-    readonly IDataSource        _dataSource;
-    readonly IProcessor         _processor;
-    readonly Checkpointer       _checkpointer;
-    readonly IStreamsClient     _streams;
-    readonly DroneTelemetry     _telemetry;
-    readonly ProgressTracker    _progress;
-    readonly HybridLogicalClock _clock;
-    readonly TimeProvider       _timeProvider;
+    readonly IDataSource         _dataSource;
+    readonly ProcessorDispatcher _dispatcher;
+    readonly Checkpointer        _checkpointer;
+    readonly IStreamsClient      _streams;
+    readonly DroneTelemetry      _telemetry;
+    readonly ProgressTracker     _progress;
+    readonly HybridLogicalClock  _clock;
+    readonly TimeProvider        _timeProvider;
 
     readonly Channel<DataSourceMessage> _channel;
 
@@ -47,19 +47,22 @@ sealed class Drone : IDrone {
         _clock        = new HybridLogicalClock(timeProvider);
         _timeProvider = timeProvider;
 
-        _processor = processor switch {
-            IRecordBatchProcessor bp => new SafeRecordBatchProcessor(bp),
-            IRecordProcessor rp      => new SafeRecordProcessor(rp),
-            _ => throw new ArgumentException(
-                $"Processor must implement {nameof(IRecordProcessor)} or {nameof(IRecordBatchProcessor)}.",
-                nameof(processor))
-        };
-
         _progress = new ProgressTracker(timeProvider, options.MaxParallelism);
 
         var logger = loggerFactory.CreateLogger<Drone>();
 
         _telemetry = new DroneTelemetry(logger, options.ProcessorId, options.DroneId);
+
+        // The composition root: the single point where the processor shape is discriminated. Each
+        // dispatcher owns its shape's bookkeeping end-to-end, so the run loop below stays branch-free.
+        // Progress and telemetry must already be constructed — the dispatchers take them.
+        _dispatcher = processor switch {
+            IRecordBatchProcessor bp => new BatchDispatcher(bp, checkpointer, _progress, _telemetry, options),
+            IRecordProcessor rp      => new RecordDispatcher(rp, checkpointer, _progress, _telemetry, options),
+            _ => throw new ArgumentException(
+                $"Processor must implement {nameof(IRecordProcessor)} or {nameof(IRecordBatchProcessor)}.",
+                nameof(processor))
+        };
 
         DroneContext = new DroneContext {
             ProcessorId = ProcessorId,
@@ -170,191 +173,25 @@ sealed class Drone : IDrone {
                     await HandleConnected(c).ConfigureAwait(false);
                 break;
 
-                case RecordBatch batch:
-                    switch (_processor) {
-                        case IRecordBatchProcessor bp: {
-                            var result = await HandleBatch(bp, batch).ConfigureAwait(false);
+                case RecordBatch batch: {
+                    var result = await _dispatcher.Dispatch(DroneContext, batch).ConfigureAwait(false);
 
-                            if (result.ShouldStop && !stopping) {
-                                stopping = true;
+                    if (result.ShouldStop && !stopping) {
+                        stopping = true;
 
-                                await _checkpointer
-                                    .RaiseCheckpoint(CheckpointTrigger.Shutdown, result.Reason)
-                                    .ConfigureAwait(false);
-                            }
-
-                            break;
-                        }
-
-                        case IRecordProcessor rp:
-                            await DispatchPerRecord(rp, batch).ConfigureAwait(false);
-                            break;
+                        await _checkpointer
+                            .RaiseCheckpoint(CheckpointTrigger.Shutdown, result.Reason)
+                            .ConfigureAwait(false);
                     }
 
                     break;
+                }
 
                 case Checkpoint checkpoint:
                     await HandleCheckpoint(checkpoint, partitions).ConfigureAwait(false);
                     break;
             }
         }
-
-        // Inner stop scope: closure over `stopping` so a record requesting stop can break out of its
-        // batch and close the outer scope.
-        async ValueTask DispatchPerRecord(IRecordProcessor processor, RecordBatch batch) {
-            foreach (var record in batch) {
-                var result = await HandleRecord(processor, record).ConfigureAwait(false);
-
-                if (result.ShouldStop) {
-                    stopping = true;
-
-                    await _checkpointer
-                        .RaiseCheckpoint(CheckpointTrigger.Shutdown, result.Reason)
-                        .ConfigureAwait(false);
-
-                    break; // skip the remaining records in this batch
-                }
-            }
-        }
-    }
-
-    async ValueTask<RecordProcessingResult> HandleRecord(IRecordProcessor processor, Record record) {
-        using var scope = _telemetry.TrackRecord();
-
-        var autoTrack = Options.Checkpoint.AutoTrack;
-
-        // Track is transparent — it advances the checkpointer AND progress together — so a user ctx.Track
-        // updates the gauges, not just the commit position (see Track(RecordPosition)).
-        var ctx = DroneContext.ForProcessRecord(
-            Progress, record,
-            requestTrack: Track);
-
-        await processor
-            .ProcessRecord(ctx)
-            .ConfigureAwait(false);
-
-        // Count every dispatched record toward throughput, independent of tracking mode.
-        _progress.CountThroughput(record);
-
-        // Auto-track this record only when AutoTrack is on and no stop was requested; otherwise the user
-        // owns the frontier via ctx.Track (already transparent above). Re-tracking the same position is
-        // idempotent on progress and harmless on the checkpointer snapshot.
-        if (autoTrack && !ctx.StopRequested)
-            Track(record.Position);
-
-        // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
-        // barrier is the single OnCheckpoint + commit point, so raising a Manual barrier here would
-        // double-commit. ctx.Checkpoint() already threw if a stop was requested before it.
-        if (ctx.CheckpointRequested && !ctx.StopRequested)
-            await _checkpointer
-                .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
-                .ConfigureAwait(false);
-
-        // Cheap scalar reads — never materialize the full DroneProgress snapshot on the per-record path.
-        scope.Complete(_progress.TotalRecords, _progress.UncommittedRecords, _progress.UncommittedBytes);
-
-        return ctx.StopRequested
-            ? RecordProcessingResult.Stop(ctx.StopReason)
-            : RecordProcessingResult.Continue;
-    }
-
-    async ValueTask<RecordProcessingResult> HandleBatch(IRecordBatchProcessor processor, RecordBatch batch) {
-        // One scope around the REAL work: times ProcessBatch (not the bookkeeping that follows it).
-        using var scope = _telemetry.TrackBatch(batch.Count);
-
-        // Track is transparent (checkpointer + progress together), so a user ctx.Track updates the gauges.
-        var ctx = DroneContext.ForBatch(
-            Progress, batch,
-            requestTrack: Track);
-
-        await processor
-            .ProcessBatch(ctx)
-            .ConfigureAwait(false);
-
-        // Resolve the committed frontier (the invariant): auto-track the whole-batch frontier (max position
-        // per partition) only when AutoTrack is on AND no stop was requested — a stop caps the commit at
-        // exactly what the user tracked via ctx.Track*. In every other case the commit is the user's tracks.
-        if (Options.Checkpoint.AutoTrack && !ctx.StopRequested)
-            Track(batch);
-
-        // Throughput counts every dispatched record (the "batch trap": delivered records count even with
-        // AutoTrack off and nothing committed). The batch is pre-pruned in Run, so Count is the dispatched
-        // count — advanced in one step, not a per-record loop.
-        if (batch.Count > 0)
-            _progress.CountThroughput(batch.Count, batch[batch.Count - 1].Timestamp);
-
-        // records_processed is the committed/durable prefix: records at or below the resolved frontier
-        // (PendingPositions = the last tracked position per partition). It never over-counts a stop's
-        // un-committed remainder, and counts a replay only when it is eventually committed, never twice.
-        var processed = CountUpToFrontier(batch, _checkpointer.PendingPositions());
-
-        scope.Complete(processed, _progress.TotalRecords, _progress.UncommittedRecords, _progress.UncommittedBytes);
-
-        // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
-        // barrier is the single OnCheckpoint + commit point, so raising a Manual barrier here would
-        // double-commit. ctx.Checkpoint() already threw if a stop was requested before it.
-        if (ctx.CheckpointRequested && !ctx.StopRequested)
-            await _checkpointer
-                .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
-                .ConfigureAwait(false);
-
-        return ctx.StopRequested
-            ? RecordProcessingResult.Stop(ctx.StopReason)
-            : RecordProcessingResult.Continue;
-    }
-
-    // The transparent tracking primitive — advances the checkpointer AND progress together. Wired as the
-    // batch/record RequestTrack delegate so a user ctx.Track* updates the uncommitted gauges (closing the
-    // transparency gap), and used by auto-track so every tracking source folds progress identically.
-    void Track(RecordPosition position) {
-        _checkpointer.Track(position);
-        _progress.TrackPosition(position);
-    }
-
-    // Auto-track the whole batch: one pass to the max position per partition, then Track each through the
-    // transparent primitive. NOT PartitionedPositionTracker.Track(IEnumerable) — that folds max-per-partition
-    // but bypasses _progress, and tracking must fold progress too.
-    void Track(RecordBatch batch) {
-        Dictionary<Partition, RecordPosition>? frontier = null;
-
-        foreach (var record in batch) {
-            var position = record.Position;
-
-            // At most one entry per owned partition, never per record — size to the partition count.
-            frontier ??= new Dictionary<Partition, RecordPosition>(Options.MaxParallelism);
-
-            if (!frontier.TryGetValue(position.Partition, out var current) || position > current)
-                frontier[position.Partition] = position;
-        }
-
-        if (frontier is null)
-            return;
-
-        foreach (var position in frontier.Values)
-            Track(position);
-    }
-
-    // Effective batch size = the count of records at or below the committed frontier. The frontier is the
-    // last tracked position per partition (PendingPositions); a record counts when its position is at or
-    // below its partition's frontier. Index the frontier by partition once (it holds one entry per owned
-    // partition) so the per-record check is a single O(1) lookup rather than a scan.
-    static int CountUpToFrontier(RecordBatch batch, RecordPosition[] frontier) {
-        if (frontier.Length == 0 || batch.Count == 0)
-            return 0;
-
-        var ceilingByPartition = new Dictionary<Partition, LogPosition>(frontier.Length);
-        foreach (var f in frontier)
-            ceilingByPartition[f.Partition] = f.LogPosition;
-
-        var count = 0;
-
-        foreach (var record in batch) {
-            if (ceilingByPartition.TryGetValue(record.Position.Partition, out var ceiling)
-             && record.Position.LogPosition <= ceiling)
-                count++;
-        }
-
-        return count;
     }
 
     #region ->> Message Handlers <<-
@@ -365,7 +202,7 @@ sealed class Drone : IDrone {
         
         _telemetry.Processing(connected.SessionId);
         
-        await _processor
+        await _dispatcher
             .OnConnected(DroneContext.ForConnected())
             .ConfigureAwait(false);
         
@@ -413,7 +250,7 @@ sealed class Drone : IDrone {
         ) with { CancellationToken = checkpointToken };
 
         try {
-            await _processor.OnCheckpoint(ctx).ConfigureAwait(false);
+            await _dispatcher.OnCheckpoint(ctx).ConfigureAwait(false);
         }
         catch (Exception ex) {
             _telemetry.CheckpointFailed(checkpoint.Id, trigger, pending, ex);
@@ -527,14 +364,4 @@ sealed class Drone : IDrone {
     }
 
     #endregion
-}
-
-/// <summary>
-/// Outcome of dispatching a single channel message to the drone's handlers.
-/// </summary>
-readonly record struct RecordProcessingResult(bool ShouldStop, string? Reason) {
-    public static readonly RecordProcessingResult Continue = new(false, null);
-
-    public static RecordProcessingResult Stop(string? reason) =>
-        new(true, reason);
 }
