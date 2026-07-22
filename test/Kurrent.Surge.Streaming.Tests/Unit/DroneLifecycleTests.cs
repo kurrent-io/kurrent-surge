@@ -426,7 +426,8 @@ public class DroneLifecycleTests {
 		await Assert.That(filterCheckpoints.Count).IsGreaterThanOrEqualTo(1);
 		await Assert.That(filterCheckpoints[0].ScanPosition).IsNotNull();
 		await Assert.That(filterCheckpoints[0].ScanPosition!.Value.LogPosition).IsEqualTo(watermark);
-		await Assert.That(drone.Progress.LowestCommittedPosition).IsEqualTo(RecordPosition.Unset);
+		// Nothing committed: the watermark never moved off the resume point the run started from.
+		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(LogPosition.Earliest);
 	}
 
 	[Test]
@@ -461,7 +462,8 @@ public class DroneLifecycleTests {
 		// though the watermark itself carried a non-owned partition.
 		var ownedPartition = Partition.From(0);
 
-		await Assert.That(drone.Progress.LowestCommittedPosition).IsNotEqualTo(RecordPosition.Unset);
+		// Something committed: the watermark advanced past the resume point.
+		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsGreaterThan(LogPosition.Earliest);
 		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(watermark);
 	}
 
@@ -487,7 +489,8 @@ public class DroneLifecycleTests {
 		// Assert — the watermark was auto-folded and committed at the owned partition.
 		var ownedPartition = Partition.From(0);
 
-		await Assert.That(drone.Progress.LowestCommittedPosition).IsNotEqualTo(RecordPosition.Unset);
+		// Something committed: the watermark advanced past the resume point.
+		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsGreaterThan(LogPosition.Earliest);
 		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(watermark);
 	}
 
@@ -518,7 +521,8 @@ public class DroneLifecycleTests {
 
 		// Assert — the batch was delivered, but nothing tracked, so no checkpoint ever committed
 		await Assert.That(processor.Records.Count).IsEqualTo(records.Length);
-		await Assert.That(drone.Progress.LowestCommittedPosition).IsEqualTo(RecordPosition.Unset);
+		// Nothing committed: the watermark never moved off the resume point the run started from.
+		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(LogPosition.Earliest);
 	}
 
 	[Test]
@@ -847,10 +851,26 @@ public class DroneLifecycleTests {
 	}
 
 	[Test]
-	public async ValueTask uncommitted_bytes_is_zero_before_first_commit() {
-		// Arrange — tracked but never committed: no baseline, so nothing is measurably at risk in bytes
+	public async ValueTask uncommitted_bytes_measures_from_the_resume_point_before_any_commit() {
+		// Arrange — the whole point of seeding: a catch-up that has tracked 500 but never checkpointed
+		// has 300 bytes at risk from its resume point at 200. Reporting zero here would say "nothing to
+		// replay" while an entire catch-up is pending.
 		var tracker = NewTracker();
 
+		tracker.Initialize([At(200, 0)]);
+		tracker.TrackPosition(At(500, 0));
+
+		// Act & Assert
+		await Assert.That(tracker.Progress.UncommittedBytes).IsEqualTo(300L);
+	}
+
+	[Test]
+	public async ValueTask uncommitted_bytes_is_zero_when_the_run_starts_at_the_live_edge() {
+		// Arrange — Latest is a sentinel, not a position: there is no resolved edge to measure from
+		// until the first checkpoint lands, so nothing is claimed.
+		var tracker = NewTracker();
+
+		tracker.Initialize([RecordPosition.From(LogPosition.Latest, Partition.From(0))]);
 		tracker.TrackPosition(At(500, 0));
 
 		// Act & Assert

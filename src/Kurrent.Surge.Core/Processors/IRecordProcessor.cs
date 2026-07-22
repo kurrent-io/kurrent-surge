@@ -344,8 +344,9 @@ public readonly record struct DroneProgress {
 
     /// <summary>
     /// Lowest committed position across owned partitions — the point a restart resumes from, since a
-    /// resuming run is only as durable as its least-advanced partition. <see cref="RecordPosition.Unset"/>
-    /// until the first checkpoint commits.
+    /// resuming run is only as durable as its least-advanced partition. Seeded at startup with the
+    /// position the checkpointer resolved, so it is meaningful before the first checkpoint;
+    /// <see cref="RecordPosition.Unset"/> only when the run started at the live edge.
     /// </summary>
     public RecordPosition LowestCommittedPosition { get; init; } = RecordPosition.Unset;
 
@@ -363,7 +364,8 @@ public readonly record struct DroneProgress {
 
     /// <summary>
     /// Bytes tracked but not yet committed — the same replay window in bytes, summed across
-    /// partitions. Log positions are byte offsets, so this is the distance still at risk.
+    /// partitions. Log positions are byte offsets, so this is the distance from the resume point to
+    /// the tracked frontier: what a crash would replay, measured in bytes.
     /// </summary>
     public long UncommittedBytes { get; init; }
 

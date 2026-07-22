@@ -41,6 +41,27 @@ sealed class ProgressTracker {
     }
 
     /// <summary>
+    /// Seeds each owned partition's committed position with the resume point the checkpointer
+    /// resolved at startup — loaded from the store, or the configured initial position.
+    /// </summary>
+    /// <remarks>
+    /// Without this the committed side reads <c>Unset</c> until the first checkpoint, and
+    /// <see cref="DroneProgress.UncommittedBytes"/> — a distance from the resume point — has nothing to
+    /// measure against and reports zero while an entire catch-up sits at risk. A start of
+    /// <see cref="LogPosition.Latest"/> is skipped: it is a sentinel, not a position, and the real edge
+    /// is only known once the subscription lands on it.
+    /// </remarks>
+    public void Initialize(RecordPosition[] startPositions) {
+        foreach (var position in startPositions) {
+            if (position.LogPosition == LogPosition.Latest || position.LogPosition == LogPosition.Unset)
+                continue;
+
+            ref var slot = ref _partitions[position.Partition.Value];
+            slot = slot with { LastCommittedPosition = position };
+        }
+    }
+
+    /// <summary>
     /// Counts a dispatched record toward throughput and advances the source-lag clock. Always
     /// called, independent of tracking, so throughput reflects every dispatched record even when
     /// AutoTrack is off.

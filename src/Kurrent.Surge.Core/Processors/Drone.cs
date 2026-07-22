@@ -124,6 +124,10 @@ sealed class Drone : IDrone {
             .Initialize(partitions, Options.Subscription.InitialPosition, Options.Subscription.StartPosition, stoppingToken)
             .ConfigureAwait(false);
 
+        // Hand the resume point to progress as well: it is the baseline every at-risk measurement is
+        // taken from, and without it nothing at risk is measurable until the first checkpoint.
+        _progress.Initialize(startPositions);
+
         // The data source is feed-only: it subscribes from the least-advanced start, tags partitions, and prunes
         // the caught-up prefix against the floors these positions carry — so the Run loop below sees only new
         // records. It writes to the channel and completes it when done (faulting it on failure). Never throws.
