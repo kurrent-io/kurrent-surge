@@ -2,7 +2,6 @@ using System.Diagnostics.Metrics;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Schema.Naming;
 using Kurrent.Surge.Streaming;
-using Kurrent.Surge.Streaming.Diagnostics.Metrics;
 using Kurrent.Surge.Streaming.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -92,8 +91,6 @@ public static class KurrentProcessorServiceCollectionExtensions {
         Func<IServiceProvider, TProcessor> processorFactory,
         Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordProcessor {
-        EnsureDiagnosticsRegistered(services);
-
         services.TryRegisterHostedService<DroneService<TProcessor>>(sp => {
             var configuration = sp.GetService<IConfiguration>();
             var options       = new ProcessorOptions();
@@ -119,10 +116,13 @@ public static class KurrentProcessorServiceCollectionExtensions {
                     ResolveClientOptions(options, configuration);
             }
 
-            // 4. Resolve the processor instance — factory fires once, at host startup.
+            // 5. Route metrics through the container's meter factory unless the caller set one.
+            UseContainerMeterFactory(options, sp);
+
+            // 6. Resolve the processor instance — factory fires once, at host startup.
             var processor = processorFactory(sp);
 
-            // 5. Build the drone eagerly so connection/validation errors surface at host startup.
+            // 7. Build the drone eagerly so connection/validation errors surface at host startup.
             var drone  = new KurrentProcessor(options, processor).Build();
             var logger = sp.GetRequiredService<ILogger<DroneService<TProcessor>>>();
             return new DroneService<TProcessor>(drone, logger);
@@ -209,8 +209,6 @@ public static class KurrentProcessorServiceCollectionExtensions {
         Func<IServiceProvider, TProcessor> processorFactory,
         Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordBatchProcessor {
-        EnsureDiagnosticsRegistered(services);
-
         services.TryRegisterHostedService<DroneService<TProcessor>>(sp => {
             var configuration = sp.GetService<IConfiguration>();
             var options       = new ProcessorOptions();
@@ -230,6 +228,8 @@ public static class KurrentProcessorServiceCollectionExtensions {
                 else if (configuration is not null)
                     ResolveClientOptions(options, configuration);
             }
+
+            UseContainerMeterFactory(options, sp);
 
             var processor = processorFactory(sp);
             var drone     = new KurrentProcessor(options, processor).Build();
@@ -267,12 +267,17 @@ public static class KurrentProcessorServiceCollectionExtensions {
 
     #endregion
 
-    static void EnsureDiagnosticsRegistered(IServiceCollection services) {
-        services.TryRegister(sp => {
-            var meterFactory = sp.GetRequiredService<IMeterFactory>();
-            return new DroneMetricsObserver(meterFactory).Start();
-        });
-    }
+    /// <summary>
+    /// Hands the container's <see cref="IMeterFactory"/> to the processor when the caller has not set
+    /// one, so meter lifetime and per-container isolation stay with the host.
+    /// </summary>
+    /// <remarks>
+    /// Resolved optionally: hosts register <see cref="IMeterFactory"/> automatically from .NET 8, but a
+    /// bare <see cref="IServiceCollection"/> need not have called <c>AddMetrics</c>. When it is absent
+    /// the processor falls back to its shared meter rather than failing to start.
+    /// </remarks>
+    static void UseContainerMeterFactory(ProcessorOptions options, IServiceProvider sp) =>
+        options.MeterFactory ??= sp.GetService<IMeterFactory>();
 
     /// <summary>
     /// Looks up the connection string under <c>ConnectionStrings:{ProcessorId}</c> first, then

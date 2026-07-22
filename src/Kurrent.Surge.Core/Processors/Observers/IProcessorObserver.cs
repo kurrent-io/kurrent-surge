@@ -53,6 +53,11 @@ public interface IProcessorObserver {
     void OnBatchCompleted(in BatchCompleted evt) { }
 
     /// <summary>
+    /// Called when the source-lag probe samples how far the drone trails the log head.
+    /// </summary>
+    void OnSourceLagSampled(in SourceLagSampled evt) { }
+
+    /// <summary>
     /// Called when a checkpoint has been committed.
     /// </summary>
     void OnCheckpointCommitted(in CheckpointCommitted evt) { }

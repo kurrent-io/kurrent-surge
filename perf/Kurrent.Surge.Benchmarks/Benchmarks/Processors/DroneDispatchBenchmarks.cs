@@ -76,9 +76,12 @@ public class DroneDispatchBenchmarks {
 
         var dataSource = new BenchDataSource(_connected, _records);
 
+        // No observers: the benchmark measures dispatch, not telemetry. Registering the composite here
+        // would fold logging, metrics and span creation into the numbers.
         var drone = new Drone(
             options, dataSource, checkpointer, channel,
-            streams: null!, NullLoggerFactory.Instance, TimeProvider.System, processor);
+            streams: null!, NullLoggerFactory.Instance, TimeProvider.System, processor,
+            observers: []);
 
         await drone.RunAsync(CancellationToken.None).ConfigureAwait(false);
 

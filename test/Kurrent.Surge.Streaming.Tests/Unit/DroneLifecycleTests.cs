@@ -25,7 +25,8 @@ public class DroneLifecycleTests {
 		Action<ProcessorOptions>? configure     = null,
 		TimeProvider?             timeProvider  = null,
 		ICheckpointStore?         store         = null,
-		ILoggerFactory?           loggerFactory = null
+		ILoggerFactory?           loggerFactory = null,
+		IProcessorObserver[]?     observers     = null
 	) {
 		processor     ??= new TestableRecordProcessor();
 		timeProvider  ??= TimeProvider.System;
@@ -53,7 +54,8 @@ public class DroneLifecycleTests {
 			settings, subscription, checkpointer, channel,
 			null!, // StreamsClient not needed for lifecycle tests
 			loggerFactory, timeProvider,
-			processor);
+			processor,
+			observers ?? []);
 
 		return (drone, subscription);
 	}
@@ -1049,7 +1051,7 @@ public class DroneLifecycleTests {
 			}
 		};
 
-		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+		var (drone, subscription) = CreateDrone(processor, observers: [probe.Observer], configure: opts => {
 			opts.ProcessorId                  = processorId;
 			opts.Batching.MaxBatchSize        = records.Length;
 			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
@@ -1064,8 +1066,8 @@ public class DroneLifecycleTests {
 		await drone.RunAsync(ct);
 
 		// Assert — exactly one batch span, and it was the active Activity during ProcessBatch
-		await Assert.That(probe.Activities("processor.process_batch").Count).IsEqualTo(1);
-		await Assert.That(spanDuringProcess).IsEqualTo("processor.process_batch");
+		await Assert.That(probe.Activities("process").Count).IsEqualTo(1);
+		await Assert.That(spanDuringProcess).IsEqualTo("process");
 	}
 
 	[Test]
@@ -1085,7 +1087,7 @@ public class DroneLifecycleTests {
 			OnProcessBatch = async _ => await Task.Delay(processDelay, ct)
 		};
 
-		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+		var (drone, subscription) = CreateDrone(processor, observers: [probe.Observer], configure: opts => {
 			opts.ProcessorId                  = processorId;
 			opts.Batching.MaxBatchSize        = records.Length;
 			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
@@ -1118,7 +1120,7 @@ public class DroneLifecycleTests {
 		var expectedCount = (double)records.Length;
 		var processor     = new TestRecordBatchProcessor();
 
-		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+		var (drone, subscription) = CreateDrone(processor, observers: [probe.Observer], configure: opts => {
 			opts.ProcessorId                  = processorId;
 			opts.Batching.MaxBatchSize        = records.Length;
 			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
@@ -1152,7 +1154,7 @@ public class DroneLifecycleTests {
 			OnProcessBatch = async _ => await Task.Delay(TimeSpan.FromMilliseconds(40), ct)
 		};
 
-		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+		var (drone, subscription) = CreateDrone(processor, observers: [probe.Observer], configure: opts => {
 			opts.ProcessorId                  = processorId;
 			opts.Batching.MaxBatchSize        = records.Length;
 			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;

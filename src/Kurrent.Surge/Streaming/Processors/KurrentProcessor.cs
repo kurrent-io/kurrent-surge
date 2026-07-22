@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using System.Threading.Channels;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
@@ -131,15 +132,29 @@ public sealed class KurrentProcessor {
 			streams,
 			_options.ClientOptions.LoggerFactory);
 
+		// The built-in telemetry observer runs first, then any the caller registered via Observe(...).
+		// Without a container there is no IMeterFactory to resolve, so fall back to the shared meter —
+		// this is what closes the gap where Build()-path processors emitted no metrics at all.
+		var meter = _options.MeterFactory?.Create(ProcessorTelemetryObserver.MeterName)
+		         ?? ProcessorTelemetryObserver.SharedMeter;
+
+		var loggerFactory = client.Options.LoggerFactory;
+
+		IProcessorObserver[] observers = [
+			new ProcessorTelemetryObserver(loggerFactory.CreateLogger<ProcessorTelemetryObserver>(), meter),
+			.. _options.Observers
+		];
+
 		return new Drone(
 			_options,
 			dataSource,
 			checkpointer,
 			channel,
 			streams,
-			client.Options.LoggerFactory,
+			loggerFactory,
 			TimeProvider.System,
-			_processor
+			_processor,
+			observers
 		);
 	}
 

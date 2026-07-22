@@ -1,4 +1,6 @@
+using System.Diagnostics.Metrics;
 using Kurrent.Surge.Client;
+using Kurrent.Surge.Streaming;
 using Kurrent.Surge.Streaming.Models;
 using Kurrent.Validation;
 using Polly;
@@ -64,6 +66,38 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// so it is opt-in; the local <c>uncommitted_*</c> gauges are always free.
     /// </summary>
     public bool TrackSourceLag { get; set; }
+
+    /// <summary>
+    /// Factory used to create the <see cref="Meter"/> the processor records its instruments on.
+    /// Default: null, in which case the processor constructs and owns its own meter.
+    /// </summary>
+    /// <remarks>
+    /// Set this under dependency injection so the container owns meter lifetime and keeps
+    /// identically-named meters isolated per service collection — the registration helpers wire it
+    /// automatically. There is no public <see cref="IMeterFactory"/> implementation outside a
+    /// container, so leaving it null is the correct choice for a standalone
+    /// <c>KurrentProcessor.Build()</c>. Mirrors <c>HttpClientHandler.MeterFactory</c>.
+    /// </remarks>
+    public IMeterFactory? MeterFactory { get; set; }
+
+    /// <summary>
+    /// Observers registered on the processor's lifecycle seam, in registration order.
+    /// </summary>
+    internal List<IProcessorObserver> Observers { get; } = [];
+
+    /// <summary>
+    /// Registers an observer for the processor's lifecycle events.
+    /// </summary>
+    /// <remarks>
+    /// Observers are invoked synchronously on the processing thread in registration order, after the
+    /// built-in telemetry observer. An observer that throws is logged and skipped — it never disturbs
+    /// the pipeline or the remaining observers. Observers that transform or replace records do not
+    /// belong here; wrap the processor in a decorator instead.
+    /// </remarks>
+    public ProcessorOptions Observe(IProcessorObserver observer) {
+        Observers.Add(observer);
+        return this;
+    }
 
     /// <summary>
     /// Maximum number of partitions (key groups). Range: 1-32768.

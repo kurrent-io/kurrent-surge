@@ -1,8 +1,8 @@
+using System.Diagnostics;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Diagnostics;
 
 namespace Kurrent.Surge.Streaming;
 
@@ -14,47 +14,69 @@ sealed class BatchDispatcher(
     IRecordBatchProcessor processor,
     Checkpointer checkpointer,
     ProgressTracker progress,
-    DroneTelemetry telemetry,
-    ProcessorOptions options
-) : ProcessorDispatcher(processor, checkpointer, progress, telemetry, options) {
+    ObserverDispatcher observers,
+    ProcessorOptions options,
+    TimeProvider timeProvider
+) : ProcessorDispatcher(processor, checkpointer, progress, observers, options, timeProvider) {
     readonly int _maxParallelism = options.MaxParallelism;
 
     public override async ValueTask<RecordProcessingResult> Dispatch(DroneContext context, RecordBatch batch) {
-        // One scope around the REAL work: times ProcessBatch (not the bookkeeping that follows it).
-        using var scope = Telemetry.TrackBatch(batch.Count);
+        // Ready carries the live records: observers enrich metadata and open the tracing span here, and
+        // the handler sees the mutation.
+        Observers.BatchReady(new BatchReady(Info, batch, Now));
 
         // Track is transparent (checkpointer + progress together), so a user ctx.Track updates the gauges.
         var ctx = context.ForBatch(Progress.Progress, batch, requestTrack: Track);
 
+        var start     = Stopwatch.GetTimestamp();
+        var outcome   = RecordOutcome.Processed;
+        var processed = 0;
+
+        Exception? error = null;
+
         try {
             await processor.ProcessBatch(ctx).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException) {
+        catch (OperationCanceledException) {
+            outcome = RecordOutcome.Cancelled;
+            throw;
+        }
+        catch (Exception ex) {
+            outcome = RecordOutcome.Failed;
+            error   = ex;
             throw DroneException.ProcessBatchFailed(ex);
         }
+        finally {
+            // Measured at handler exit: the frontier fold, throughput count and frontier scan below are
+            // framework bookkeeping and do not belong in the handler's duration.
+            var elapsed = Stopwatch.GetElapsedTime(start);
 
-        // Stop the clock here, not at scope.Complete: the frontier fold, throughput count and frontier
-        // scan below are framework bookkeeping, not handler time.
-        scope.StopTimer();
+            // The bookkeeping only runs on the success path; a throw unwinds straight through here, so the
+            // terminal event still fires exactly once with ProcessedCount 0 — the frontier is then whatever
+            // the user tracked before throwing, and the Shutdown barrier commits exactly that.
+            if (outcome is RecordOutcome.Processed) {
+                // Resolve the committed frontier (the invariant): auto-track the whole-batch frontier (max
+                // position per partition) only when AutoTrack is on AND no stop was requested — a stop caps
+                // the commit at exactly what the user tracked. Otherwise the commit is the user's tracks.
+                if (AutoTrack && !ctx.StopRequested)
+                    TrackFrontier(batch);
 
-        // Resolve the committed frontier (the invariant): auto-track the whole-batch frontier (max position
-        // per partition) only when AutoTrack is on AND no stop was requested — a stop caps the commit at
-        // exactly what the user tracked via ctx.Track. In every other case the commit is the user's tracks.
-        if (AutoTrack && !ctx.StopRequested)
-            TrackFrontier(batch);
+                // Throughput counts every dispatched record (the "batch trap": delivered records count even
+                // with AutoTrack off and nothing committed). The batch is pre-pruned upstream, so Count is
+                // the dispatched count — advanced in one step, not a per-record loop.
+                if (batch.Count > 0)
+                    Progress.CountThroughput(batch.Count, batch[batch.Count - 1].Timestamp);
 
-        // Throughput counts every dispatched record (the "batch trap": delivered records count even with
-        // AutoTrack off and nothing committed). The batch is pre-pruned upstream, so Count is the dispatched
-        // count — advanced in one step, not a per-record loop.
-        if (batch.Count > 0)
-            Progress.CountThroughput(batch.Count, batch[batch.Count - 1].Timestamp);
+                // records_processed is the committed/durable prefix: records at or below the resolved
+                // frontier (PendingPositions = the last tracked position per partition). It never
+                // over-counts a stop's un-committed remainder, and counts a replay only when it is
+                // eventually committed, never twice.
+                processed = CountUpToFrontier(batch, Checkpointer.PendingPositions());
+            }
 
-        // records_processed is the committed/durable prefix: records at or below the resolved frontier
-        // (PendingPositions = the last tracked position per partition). It never over-counts a stop's
-        // un-committed remainder, and counts a replay only when it is eventually committed, never twice.
-        var processed = CountUpToFrontier(batch, Checkpointer.PendingPositions());
-
-        scope.Complete(processed, Progress.TotalRecords, Progress.UncommittedRecords, Progress.UncommittedBytes);
+            Observers.BatchCompleted(
+                new BatchCompleted(Info, batch, outcome, processed, elapsed, Progress.Progress, Now, error));
+        }
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
         // barrier is the single OnCheckpoint + commit point, so raising a Manual barrier here would

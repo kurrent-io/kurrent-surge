@@ -82,6 +82,17 @@ sealed partial class ObserverDispatcher {
         }
     }
 
+    public void SourceLagSampled(in SourceLagSampled evt) {
+        foreach (var observer in _observers) {
+            try {
+                observer.OnSourceLagSampled(in evt);
+            }
+            catch (Exception ex) {
+                LogObserverFailed(ex, observer.GetType().Name, nameof(Streaming.SourceLagSampled));
+            }
+        }
+    }
+
     public void CheckpointCommitted(in CheckpointCommitted evt) {
         foreach (var observer in _observers) {
             try {

@@ -1,8 +1,8 @@
+using System.Diagnostics;
 using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Diagnostics;
 
 namespace Kurrent.Surge.Streaming;
 
@@ -14,9 +14,10 @@ sealed class RecordDispatcher(
     IRecordProcessor processor,
     Checkpointer checkpointer,
     ProgressTracker progress,
-    DroneTelemetry telemetry,
-    ProcessorOptions options
-) : ProcessorDispatcher(processor, checkpointer, progress, telemetry, options) {
+    ObserverDispatcher observers,
+    ProcessorOptions options,
+    TimeProvider timeProvider
+) : ProcessorDispatcher(processor, checkpointer, progress, observers, options, timeProvider) {
     public override async ValueTask<RecordProcessingResult> Dispatch(DroneContext context, RecordBatch batch) {
         foreach (var record in batch) {
             var result = await DispatchRecord(context, record).ConfigureAwait(false);
@@ -31,31 +32,52 @@ sealed class RecordDispatcher(
     }
 
     async ValueTask<RecordProcessingResult> DispatchRecord(DroneContext context, Record record) {
-        using var scope = Telemetry.TrackRecord();
+        // Ready carries the live record: observers enrich metadata and open the tracing span here, and
+        // the handler sees the mutation.
+        Observers.RecordReady(new RecordReady(Info, record, Now));
 
         // Track is transparent — it advances the checkpointer AND progress together — so a user ctx.Track
         // updates the gauges, not just the commit position (see ProcessorDispatcher.Track).
         var ctx = context.ForProcessRecord(Progress.Progress, record, requestTrack: Track);
 
+        var start   = Stopwatch.GetTimestamp();
+        var outcome = RecordOutcome.Processed;
+
+        Exception? error = null;
+
         try {
             await processor.ProcessRecord(ctx).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException) {
+        catch (OperationCanceledException) {
+            outcome = RecordOutcome.Cancelled;
+            throw;
+        }
+        catch (Exception ex) {
+            outcome = RecordOutcome.Failed;
+            error   = ex;
             throw DroneException.ProcessRecordFailed(ex);
         }
+        finally {
+            // Measured at handler exit, before the bookkeeping below — the manual checkpoint raise awaits
+            // a channel write, which is framework time and does not belong in the handler's duration.
+            var elapsed = Stopwatch.GetElapsedTime(start);
 
-        // Stop the clock here, not at scope.Complete: everything below — tracking, and the manual
-        // checkpoint raise that awaits a channel write — is framework bookkeeping, not handler time.
-        scope.StopTimer();
+            // The bookkeeping only runs on the success path; a throw unwinds straight through here, so the
+            // terminal event still fires exactly once and reports the progress as it stands.
+            if (outcome is RecordOutcome.Processed) {
+                // Count every dispatched record toward throughput, independent of tracking mode.
+                Progress.CountThroughput(record);
 
-        // Count every dispatched record toward throughput, independent of tracking mode.
-        Progress.CountThroughput(record);
+                // Auto-track this record only when AutoTrack is on and no stop was requested; otherwise the
+                // user owns the frontier via ctx.Track (already transparent above). Re-tracking the same
+                // position is idempotent on progress and harmless on the checkpointer snapshot.
+                if (AutoTrack && !ctx.StopRequested)
+                    Track(record.Position);
+            }
 
-        // Auto-track this record only when AutoTrack is on and no stop was requested; otherwise the user
-        // owns the frontier via ctx.Track (already transparent above). Re-tracking the same position is
-        // idempotent on progress and harmless on the checkpointer snapshot.
-        if (AutoTrack && !ctx.StopRequested)
-            Track(record.Position);
+            Observers.RecordCompleted(
+                new RecordCompleted(Info, record, outcome, elapsed, Progress.Progress, Now, error));
+        }
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
         // barrier is the single OnCheckpoint + commit point, so raising a Manual barrier here would
@@ -64,9 +86,6 @@ sealed class RecordDispatcher(
             await Checkpointer
                 .RaiseCheckpoint(CheckpointTrigger.Manual, ctx.CheckpointReason)
                 .ConfigureAwait(false);
-
-        // Cheap scalar reads — never materialize the full DroneProgress snapshot on the per-record path.
-        scope.Complete(Progress.TotalRecords, Progress.UncommittedRecords, Progress.UncommittedBytes);
 
         return ctx.StopRequested
             ? RecordProcessingResult.Stop(ctx.StopReason)

@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Kurrent.Surge.Streaming.Diagnostics;
-using Kurrent.Surge.Streaming.Diagnostics.Metrics;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kurrent.Surge.Streaming.Tests.Fakes;
 
@@ -12,33 +12,38 @@ namespace Kurrent.Surge.Streaming.Tests.Fakes;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Drives the real <see cref="DroneMetricsObserver"/> through a <see cref="TestMeterFactory"/>, then
-/// reads the resulting instruments with a <see cref="MeterListener"/>. The observer subscribes to the
-/// process-global <c>Kurrent.Surge.Streaming</c> diagnostic listener, so it receives events from every drone
-/// running in parallel; measurements are therefore filtered to the probe's own <c>processor_id</c>.
-/// Each test must use a unique processor id (see <see cref="DroneTelemetryProbe(string)"/>).
+/// Builds the real <see cref="ProcessorTelemetryObserver"/> over a <see cref="TestMeterFactory"/> and
+/// exposes it as <see cref="Observer"/> — register it on the drone under test. Instruments are read
+/// back with a <see cref="MeterListener"/> scoped to this probe's meter, so parallel tests cannot
+/// bleed measurements into one another.
 /// </para>
 /// <para>
-/// Subscribing the observer also flips <c>DiagnosticSource.IsEnabled("BatchProcessed")</c> on, which is
-/// what makes the drone capture the batch duration timestamp — so a probe must exist before the run.
+/// Spans still travel the process-global <c>ActivitySource</c>, so activities are filtered by the
+/// probe's own <c>processor.id</c> tag. Each test must use a unique processor id
+/// (see <see cref="DroneTelemetryProbe(string)"/>).
 /// </para>
 /// </remarks>
 sealed class DroneTelemetryProbe : IDisposable {
-    readonly string               _processorId;
-    readonly TestMeterFactory     _meterFactory = new();
-    readonly DroneMetricsObserver _observer;
-    readonly Meter                _meter;
-    readonly MeterListener        _meterListener;
-    readonly ActivityListener     _activityListener;
+    readonly string           _processorId;
+    readonly TestMeterFactory _meterFactory = new();
+    readonly Meter            _meter;
+    readonly MeterListener    _meterListener;
+    readonly ActivityListener _activityListener;
 
     readonly ConcurrentQueue<(string Name, double Value)> _measurements = new();
     readonly ConcurrentQueue<Activity>                    _activities   = new();
 
+    /// <summary>
+    /// The observer to register on the drone under test — the same composite the shipping
+    /// composition roots build.
+    /// </summary>
+    public ProcessorTelemetryObserver Observer { get; }
+
     public DroneTelemetryProbe(string processorId) {
         _processorId = processorId;
 
-        _observer = new DroneMetricsObserver(_meterFactory).Start();
-        _meter    = _meterFactory.Meters.Single();
+        Observer = new ProcessorTelemetryObserver(NullLogger.Instance, _meterFactory);
+        _meter   = _meterFactory.Meters.Single();
 
         _meterListener = new MeterListener {
             // Only enable instruments published by THIS probe's meter, so parallel tests' observers
@@ -66,8 +71,8 @@ sealed class DroneTelemetryProbe : IDisposable {
         ActivitySource.AddActivityListener(_activityListener);
     }
 
-    // Filter to this probe's processor — the observer maps EVERY drone's events onto this meter, but
-    // each instrument carries the originating processor_id tag.
+    // The meter is already per-probe, but instruments still carry processor_id — filter on it so a
+    // probe shared across drones in one test reports only the drone it was pointed at.
     void Capture(Instrument instrument, double value, ReadOnlySpan<KeyValuePair<string, object?>> tags) {
         foreach (var tag in tags) {
             if (tag is { Key: "processor_id" } && tag.Value as string == _processorId) {
@@ -88,7 +93,6 @@ sealed class DroneTelemetryProbe : IDisposable {
     public void Dispose() {
         _activityListener.Dispose();
         _meterListener.Dispose();
-        _observer.Dispose();
         _meterFactory.Dispose();
     }
 }

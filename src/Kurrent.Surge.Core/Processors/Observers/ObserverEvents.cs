@@ -134,6 +134,22 @@ public readonly record struct BatchCompleted(
 );
 
 /// <summary>
+/// Event raised when the source-lag probe samples how far the drone trails the log head.
+/// </summary>
+/// <remarks>
+/// Opt-in: raised only when <c>ProcessorOptions.TrackSourceLag</c> is set. The probe reads the
+/// readable log head on a fixed cadence — the only way a gRPC client learns the head moved ahead —
+/// so samples arrive on the probe's timer, not on the record path.
+/// </remarks>
+[PublicAPI]
+public readonly record struct SourceLagSampled(
+    ProcessorInfo  Info,
+    long           LagBytes,
+    double         LagSeconds,
+    DateTimeOffset Timestamp
+);
+
+/// <summary>
 /// Event raised when a checkpoint has been committed.
 /// </summary>
 [PublicAPI]

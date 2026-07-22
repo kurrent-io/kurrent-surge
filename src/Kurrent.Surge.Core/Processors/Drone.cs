@@ -13,6 +13,8 @@ namespace Kurrent.Surge.Streaming;
 sealed class Drone : IDrone {
     readonly IDataSource         _dataSource;
     readonly ProcessorDispatcher _dispatcher;
+    readonly ObserverDispatcher  _observers;
+    readonly ProcessorInfo       _info;
     readonly Checkpointer        _checkpointer;
     readonly IStreamsClient      _streams;
     readonly DroneTelemetry      _telemetry;
@@ -36,7 +38,8 @@ sealed class Drone : IDrone {
         IStreamsClient streams,
         ILoggerFactory loggerFactory,
         TimeProvider timeProvider,
-        IProcessor processor
+        IProcessor processor,
+        IEnumerable<IProcessorObserver> observers
     ) {
         Options = options;
 
@@ -53,12 +56,15 @@ sealed class Drone : IDrone {
 
         _telemetry = new DroneTelemetry(logger, options.ProcessorId, options.DroneId);
 
+        _observers = new ObserverDispatcher(observers, logger);
+        _info      = new ProcessorInfo(options.ProcessorId, options.DroneId);
+
         // The composition root: the single point where the processor shape is discriminated. Each
         // dispatcher owns its shape's bookkeeping end-to-end, so the run loop below stays branch-free.
-        // Progress and telemetry must already be constructed — the dispatchers take them.
+        // Progress and observers must already be constructed — the dispatchers take them.
         _dispatcher = processor switch {
-            IRecordBatchProcessor bp => new BatchDispatcher(bp, checkpointer, _progress, _telemetry, options),
-            IRecordProcessor rp      => new RecordDispatcher(rp, checkpointer, _progress, _telemetry, options),
+            IRecordBatchProcessor bp => new BatchDispatcher(bp, checkpointer, _progress, _observers, options, timeProvider),
+            IRecordProcessor rp      => new RecordDispatcher(rp, checkpointer, _progress, _observers, options, timeProvider),
             _ => throw new ArgumentException(
                 $"Processor must implement {nameof(IRecordProcessor)} or {nameof(IRecordBatchProcessor)}.",
                 nameof(processor))
@@ -79,15 +85,30 @@ sealed class Drone : IDrone {
 
     public DroneStatus Status { get; private set; } = DroneStatus.Starting;
 
+    /// <summary>
+    /// Moves the drone to <paramref name="status"/> and raises the transition on the observer seam.
+    /// </summary>
+    /// <remarks>
+    /// The seam is the single place lifecycle status is published, so status and notification cannot
+    /// drift apart. A subscription re-session raises Processing → Processing carrying the new session;
+    /// reconnects are lifecycle facts, not a separate event.
+    /// </remarks>
+    void TransitionTo(DroneStatus status, Exception? error = null, SessionId sessionId = default) {
+        var from = Status;
+
+        Status = status;
+
+        _observers.StateChanged(
+            new ProcessorStateChanged(_info, from, status, _timeProvider.GetUtcNow(), error, sessionId));
+    }
+
     public DroneProgress Progress => _progress.Progress;
 
     public async Task RunAsync(CancellationToken stoppingToken) {
         if (Interlocked.Exchange(ref _started, 1) == 1)
             throw new InvalidOperationException("This drone has already been started. Create a new instance to run again.");
 
-        Status = DroneStatus.Starting;
-
-        _telemetry.Starting();
+        TransitionTo(DroneStatus.Starting);
 
         DroneContext = DroneContext with { CancellationToken = stoppingToken };
 
@@ -116,7 +137,9 @@ sealed class Drone : IDrone {
             _sourceLagProbe = new(
                 readHead: ct => _streams.InspectRecord(LogPosition.Latest, skipDecoding: true, ct),
                 snapshot: () => Progress,
-                onSample: _telemetry.SourceLagSample,
+                onSample: (lagBytes, lagSeconds) =>
+                    _observers.SourceLagSampled(
+                        new SourceLagSampled(_info, lagBytes, lagSeconds, _timeProvider.GetUtcNow())),
                 timeProvider: _timeProvider);
 
             _sourceLagProbe.Start(stoppingToken);
@@ -198,10 +221,10 @@ sealed class Drone : IDrone {
 
     async ValueTask<RecordProcessingResult> HandleConnected(Connected connected) {
         DroneContext = DroneContext with { SessionId = connected.SessionId };
-        Status       = DroneStatus.Processing;
-        
-        _telemetry.Processing(connected.SessionId);
-        
+
+        TransitionTo(DroneStatus.Processing, sessionId: connected.SessionId);
+
+
         await _dispatcher
             .OnConnected(DroneContext.ForConnected())
             .ConfigureAwait(false);
@@ -253,7 +276,8 @@ sealed class Drone : IDrone {
             await _dispatcher.OnCheckpoint(ctx).ConfigureAwait(false);
         }
         catch (Exception ex) {
-            _telemetry.CheckpointFailed(checkpoint.Id, trigger, pending, ex);
+            _observers.CheckpointFailed(
+                new CheckpointFailed(_info, trigger, checkpoint.Id, pending, ex, _timeProvider.GetUtcNow()));
 
             if (Options.Debug)
                 throw;
@@ -278,10 +302,15 @@ sealed class Drone : IDrone {
                 .ConfigureAwait(false);
 
             _progress.TrackCheckpoint(checkpoint, positions);
-            _telemetry.CheckpointComplete(checkpoint.Id, trigger, positions, _timeProvider.GetElapsedTime(start).TotalSeconds);
+
+            _observers.CheckpointCommitted(
+                new CheckpointCommitted(
+                    _info, trigger, checkpoint.Id, positions,
+                    _timeProvider.GetElapsedTime(start), _timeProvider.GetUtcNow()));
         }
         catch (Exception ex) {
-            _telemetry.CheckpointFailed(checkpoint.Id, trigger, positions, ex);
+            _observers.CheckpointFailed(
+                new CheckpointFailed(_info, trigger, checkpoint.Id, positions, ex, _timeProvider.GetUtcNow()));
 
             if (Options.Checkpoint.FailurePolicy == CheckpointFailurePolicy.Fail)
                 throw;
@@ -343,24 +372,20 @@ sealed class Drone : IDrone {
         }
 
         if (errors.Count > 0) {
-            Status = DroneStatus.Error;
-
             var aex = new AggregateException(
                 fatalError is not null
                     ? "Fatal error in processor drone"
                     : "Errors during graceful shutdown",
                 errors).Flatten();
 
-            _telemetry.Error(aex);
+            TransitionTo(DroneStatus.Error, aex);
 
             if (fatalError is not null)
                 throw aex;
         }
         else {
-            Status = DroneStatus.Stopped;
+            TransitionTo(DroneStatus.Stopped);
         }
-
-        _telemetry.Stopped(throughput.TotalRecords, throughput.Elapsed);
     }
 
     #endregion

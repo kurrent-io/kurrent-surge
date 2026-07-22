@@ -21,9 +21,20 @@ namespace Kurrent.Surge.Streaming;
 /// </remarks>
 sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObserver {
     public ProcessorTelemetryObserver(ILogger logger, IMeterFactory meterFactory)
-        : base(TelemetryConstants.Listener, TelemetryConstants.Activities, logger) {
-        var meter = meterFactory.Create("Kurrent.Surge.Client.Processors");
+        : this(logger, meterFactory.Create(MeterName)) { }
 
+    /// <summary>
+    /// Creates the observer around a caller-owned <see cref="Meter"/>.
+    /// </summary>
+    /// <remarks>
+    /// The <see cref="IMeterFactory"/> overload is the right choice under dependency injection — the
+    /// container owns meter lifetime and keeps identically-named meters isolated per service
+    /// collection. No public factory implementation exists outside a container, so the
+    /// <c>KurrentProcessor.Build()</c> path constructs a <see cref="Meter"/> directly and passes it
+    /// here; the caller owns disposal in that case.
+    /// </remarks>
+    public ProcessorTelemetryObserver(ILogger logger, Meter meter)
+        : base(TelemetryConstants.Listener, TelemetryConstants.Activities, logger) {
         _recordsProcessed     = ProcessorMetrics.CreateRecordsProcessed(meter);
         _recordDuration       = ProcessorMetrics.CreateRecordDuration(meter);
         _batchDuration        = ProcessorMetrics.CreateBatchDuration(meter);
@@ -34,7 +45,26 @@ sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObs
         _droneErrors          = ProcessorMetrics.CreateDroneErrors(meter);
         _uncommittedRecords   = ProcessorMetrics.CreateUncommittedRecords(meter);
         _uncommittedBytes     = ProcessorMetrics.CreateUncommittedBytes(meter);
+        _sourceLagBytes       = ProcessorMetrics.CreateSourceLagBytes(meter);
+        _sourceLagSeconds     = ProcessorMetrics.CreateSourceLagSeconds(meter);
     }
+
+    /// <summary>
+    /// Meter name for every processor instrument. Unchanged from the retired bus-listener observer so
+    /// existing dashboards keep resolving.
+    /// </summary>
+    internal const string MeterName = "Kurrent.Surge.Client.Processors";
+
+    /// <summary>
+    /// Process-wide meter for processors built without a container.
+    /// </summary>
+    /// <remarks>
+    /// The documented pattern outside dependency injection is a <see cref="Meter"/> in a static field —
+    /// no public <see cref="IMeterFactory"/> implementation exists to call instead. A shared meter
+    /// conflates nothing: every instrument is tagged with processor and drone id. Held for the process
+    /// lifetime, so nothing owns disposal.
+    /// </remarks>
+    internal static readonly Meter SharedMeter = new(MeterName);
 
     readonly RecordsProcessedCounter     _recordsProcessed;
     readonly RecordDurationHistogram     _recordDuration;
@@ -46,6 +76,8 @@ sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObs
     readonly DroneErrorsCounter          _droneErrors;
     readonly UncommittedRecordsGauge     _uncommittedRecords;
     readonly UncommittedBytesGauge       _uncommittedBytes;
+    readonly SourceLagBytesGauge         _sourceLagBytes;
+    readonly SourceLagSecondsGauge       _sourceLagSeconds;
 
     // Dispatch is synchronous on the processing thread and Ready(n) always precedes the matching
     // Completed(n) with no interleaving, so one slot per unit type replaces a correlation map.
@@ -71,6 +103,14 @@ sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObs
                 _droneErrors.Add(1, evt.Info.ProcessorId.Value);
                 break;
         }
+
+        Publish(evt);
+    }
+
+    public void OnSourceLagSampled(in SourceLagSampled evt) {
+        // Synchronous gauges export their last recorded value — each sample overwrites the previous one.
+        _sourceLagBytes.Record(evt.LagBytes, evt.Info.ProcessorId.Value, evt.Info.DroneId);
+        _sourceLagSeconds.Record(evt.LagSeconds, evt.Info.ProcessorId.Value, evt.Info.DroneId);
 
         Publish(evt);
     }

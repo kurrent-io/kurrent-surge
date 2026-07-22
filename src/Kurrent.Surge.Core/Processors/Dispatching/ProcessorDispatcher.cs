@@ -2,7 +2,6 @@ using Kurrent.Processors.Checkpointing;
 using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Diagnostics;
 
 namespace Kurrent.Surge.Streaming;
 
@@ -21,13 +20,18 @@ abstract class ProcessorDispatcher(
     IProcessor processor,
     Checkpointer checkpointer,
     ProgressTracker progress,
-    DroneTelemetry telemetry,
-    ProcessorOptions options
+    ObserverDispatcher observers,
+    ProcessorOptions options,
+    TimeProvider timeProvider
 ) {
-    protected Checkpointer    Checkpointer { get; } = checkpointer;
-    protected ProgressTracker Progress     { get; } = progress;
-    protected DroneTelemetry  Telemetry    { get; } = telemetry;
-    protected bool            AutoTrack    { get; } = options.Checkpoint.AutoTrack;
+    protected Checkpointer       Checkpointer { get; } = checkpointer;
+    protected ProgressTracker    Progress     { get; } = progress;
+    protected ObserverDispatcher Observers    { get; } = observers;
+    protected bool               AutoTrack    { get; } = options.Checkpoint.AutoTrack;
+
+    protected ProcessorInfo Info { get; } = new(options.ProcessorId, options.DroneId);
+
+    protected DateTimeOffset Now => timeProvider.GetUtcNow();
 
     /// <summary>
     /// Dispatches a batch to the processor shape this dispatcher owns.
