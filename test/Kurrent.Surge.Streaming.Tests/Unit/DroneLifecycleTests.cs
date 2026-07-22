@@ -1367,4 +1367,152 @@ public class DroneLifecycleTests {
 
 	#endregion // batch frontier bookkeeping & telemetry
 
+	#region ->> skipped records <<-
+
+	// A decoded record: MessageProcessor dispatches on the CLR type of the deserialized value, so a
+	// record only reaches a handler once both Value and ValueType are set.
+	static Record DecodedAs<T>(Record record, T value) =>
+		record with { Value = value!, ValueType = typeof(T) };
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask records_without_a_matching_handler_are_reported_as_skipped(CancellationToken ct) {
+		// Arrange — a handler for OrderPlaced only; the stream carries OrderShipped, which nothing handles
+		var observer = new RecordingObserver();
+		var handled  = 0;
+
+		var records = RecordsAt(3)
+			.Select(r => DecodedAs(r, new OrderShipped()))
+			.ToArray();
+
+		var processor = new MessageProcessor()
+			.Process<OrderPlaced>((_, _) => handled++);
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — every record was reported skipped, none reached a handler, and none was dispatched
+		await Assert.That(observer.Skipped.Count).IsEqualTo(records.Length);
+		await Assert.That(observer.Skipped.Select(r => r.Position.LogPosition.Value))
+			.IsEquivalentTo(records.Select(r => r.Position.LogPosition.Value));
+		await Assert.That(handled).IsEqualTo(0);
+		await Assert.That(observer.Completed.Count).IsEqualTo(0);
+		await Assert.That(observer.Ready.Count).IsEqualTo(0);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask skipped_records_still_advance_the_checkpoint(CancellationToken ct) {
+		// Arrange — nothing handles these records. If skipping did not advance the frontier the
+		// subscription would replay the same span on every restart, so the shutdown barrier must still
+		// commit the last position.
+		var records         = RecordsAt(3).Select(r => DecodedAs(r, new OrderShipped())).ToArray();
+		var expectedPosition = LogPosition.From(records.Length).Value;
+		var committed        = new List<RecordPosition>();
+
+		var processor = new MessageProcessor()
+			.Process<OrderPlaced>((_, _) => { })
+			.OnCheckpoint(checkpointContext => committed.AddRange(checkpointContext.Positions));
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert
+		await Assert.That(committed.Count).IsGreaterThanOrEqualTo(1);
+		await Assert.That(committed.Max(p => p.LogPosition.Value)).IsEqualTo(expectedPosition);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask a_fallback_handler_stops_records_being_skipped(CancellationToken ct) {
+		// Arrange — a fallback takes everything no typed handler claims, so nothing is ever skipped
+		var observer  = new RecordingObserver();
+		var fellBack  = 0;
+
+		var records = RecordsAt(3).Select(r => DecodedAs(r, new OrderShipped())).ToArray();
+
+		var processor = new MessageProcessor()
+			.Process<OrderPlaced>((_, _) => { })
+			.Fallback(_ => fellBack++);
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert
+		await Assert.That(observer.Skipped.Count).IsEqualTo(0);
+		await Assert.That(fellBack).IsEqualTo(records.Length);
+		await Assert.That(observer.Completed.Count).IsEqualTo(records.Length);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask a_processor_that_does_not_override_can_process_receives_every_record(CancellationToken ct) {
+		// Arrange — the default CanProcess returns true, so an ordinary processor sees everything and
+		// nothing is reported skipped, decoded or not
+		var observer  = new RecordingObserver();
+		var processor = new TestableRecordProcessor();
+		var records   = RecordsAt(3);
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert
+		await Assert.That(observer.Skipped.Count).IsEqualTo(0);
+		await Assert.That(processor.Records.Length).IsEqualTo(records.Length);
+	}
+
+	#endregion // skipped records
+
+}
+
+/// <summary>Message types used only to give test records a CLR type to dispatch on.</summary>
+file sealed record OrderPlaced;
+
+file sealed record OrderShipped;
+
+/// <summary>Collects the record-level events the drone raises, in order.</summary>
+file sealed class RecordingObserver : IProcessorObserver {
+	public List<Record> Skipped   { get; } = [];
+	public List<Record> Ready     { get; } = [];
+	public List<Record> Completed { get; } = [];
+
+	public void OnRecordSkipped(in RecordSkipped evt)     => Skipped.Add(evt.Record);
+	public void OnRecordReady(in RecordReady evt)         => Ready.Add(evt.Record);
+	public void OnRecordCompleted(in RecordCompleted evt) => Completed.Add(evt.Record);
 }
