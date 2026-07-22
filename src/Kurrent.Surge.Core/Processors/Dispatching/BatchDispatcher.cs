@@ -16,13 +16,13 @@ sealed class BatchDispatcher(
     ObserverDispatcher observers,
     ProcessorOptions options,
     TimeProvider timeProvider
-) : ProcessorDispatcher(processor, checkpointer, progress, observers, options, timeProvider) {
+) : ProcessorDispatcher(processor, checkpointer, progress, observers, options) {
     readonly int _maxParallelism = options.MaxParallelism;
 
     public override async ValueTask<RecordProcessingResult> Dispatch(DroneContext context, RecordBatch batch) {
         // Ready carries the live records: observers enrich metadata and open the tracing span here, and
         // the handler sees the mutation.
-        Observers.BatchReady(new(Info, batch, Now));
+        Observers.BatchReady(new(Info, batch, timeProvider.GetUtcNow()));
 
         // Track is transparent (checkpointer + progress together), so a user ctx.Track updates the gauges.
         var ctx = context.ForBatch(Progress.Progress, batch, requestTrack: Track);
@@ -74,7 +74,7 @@ sealed class BatchDispatcher(
             }
 
             Observers.BatchCompleted(
-                new(Info, batch, outcome, processed, elapsed, Progress.Progress, Now, error));
+                new(Info, batch, outcome, processed, elapsed, Progress.Progress, timeProvider.GetUtcNow(), error));
         }
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown

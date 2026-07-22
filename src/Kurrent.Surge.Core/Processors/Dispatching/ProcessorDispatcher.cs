@@ -21,8 +21,7 @@ abstract class ProcessorDispatcher(
     Checkpointer checkpointer,
     ProgressTracker progress,
     ObserverDispatcher observers,
-    ProcessorOptions options,
-    TimeProvider timeProvider
+    ProcessorOptions options
 ) {
     protected Checkpointer       Checkpointer { get; } = checkpointer;
     protected ProgressTracker    Progress     { get; } = progress;
@@ -30,8 +29,6 @@ abstract class ProcessorDispatcher(
     protected bool               AutoTrack    { get; } = options.Checkpoint.AutoTrack;
 
     protected ProcessorInfo Info { get; } = new(options.ProcessorId, options.DroneId);
-
-    protected DateTimeOffset Now => timeProvider.GetUtcNow();
 
     /// <summary>
     /// Dispatches a batch to the processor shape this dispatcher owns.

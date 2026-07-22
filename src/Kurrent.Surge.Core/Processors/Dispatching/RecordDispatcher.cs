@@ -16,7 +16,7 @@ sealed class RecordDispatcher(
     ObserverDispatcher observers,
     ProcessorOptions options,
     TimeProvider timeProvider
-) : ProcessorDispatcher(processor, checkpointer, progress, observers, options, timeProvider) {
+) : ProcessorDispatcher(processor, checkpointer, progress, observers, options) {
     public override async ValueTask<RecordProcessingResult> Dispatch(DroneContext context, RecordBatch batch) {
         foreach (var record in batch) {
             var result = await DispatchRecord(context, record).ConfigureAwait(false);
@@ -33,7 +33,7 @@ sealed class RecordDispatcher(
     async ValueTask<RecordProcessingResult> DispatchRecord(DroneContext context, Record record) {
         // Ready carries the live record: observers enrich metadata and open the tracing span here, and
         // the handler sees the mutation.
-        Observers.RecordReady(new(Info, record, Now));
+        Observers.RecordReady(new(Info, record, timeProvider.GetUtcNow()));
 
         // Track is transparent — it advances the checkpointer AND progress together — so a user ctx.Track
         // updates the gauges, not just the commit position (see ProcessorDispatcher.Track).
@@ -74,7 +74,7 @@ sealed class RecordDispatcher(
                     Track(record.Position);
             }
 
-            Observers.RecordCompleted(new(Info, record, outcome, elapsed, Progress.Progress, Now, error));
+            Observers.RecordCompleted(new(Info, record, outcome, elapsed, Progress.Progress, timeProvider.GetUtcNow(), error));
         }
 
         // Stop supersedes a pending manual checkpoint: once a stop is requested the graceful Shutdown
