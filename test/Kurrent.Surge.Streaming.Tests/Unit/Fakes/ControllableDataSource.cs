@@ -30,8 +30,10 @@ sealed class ControllableDataSource : IDataSource {
 		}
 	}
 
-	public void EmitConnected() =>
-		_inbox.Writer.TryWrite(new Connected(SessionId.From(Guid.NewGuid())));
+	// Session is caller-supplied when a test needs to assert it flows through to the Processing transition;
+	// otherwise a fresh one stands in.
+	public void EmitConnected(SessionId? session = null) =>
+		_inbox.Writer.TryWrite(new Connected(session ?? SessionId.From(Guid.NewGuid())));
 
 	public void EmitRecord(Record record) =>
 		_inbox.Writer.TryWrite(record);

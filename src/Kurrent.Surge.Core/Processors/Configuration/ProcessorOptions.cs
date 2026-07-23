@@ -68,6 +68,13 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     public bool TrackSourceLag { get; set; }
 
     /// <summary>
+    /// How often the source-lag probe reads the log head when <see cref="TrackSourceLag"/> is on.
+    /// Default: 10 seconds. Internal — a tuning knob for tests and future exposure, not yet a public
+    /// surface.
+    /// </summary>
+    internal TimeSpan SourceLagRefreshInterval { get; set; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>
     /// Factory used to create the <see cref="Meter"/> the processor records its instruments on.
     /// Default: null, in which case the processor constructs and owns its own meter.
     /// </summary>

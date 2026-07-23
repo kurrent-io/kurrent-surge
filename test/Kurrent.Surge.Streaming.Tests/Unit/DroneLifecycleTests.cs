@@ -1420,7 +1420,7 @@ public class DroneLifecycleTests {
 
 		// Assert — every record was reported skipped, none reached a handler, and none was dispatched
 		await Assert.That(observer.Skipped.Count).IsEqualTo(records.Length);
-		await Assert.That(observer.Skipped.Select(r => r.Position.LogPosition.Value))
+		await Assert.That(observer.Skipped.Select(e => e.Record.Position.LogPosition.Value))
 			.IsEquivalentTo(records.Select(r => r.Position.LogPosition.Value));
 		await Assert.That(handled).IsEqualTo(0);
 		await Assert.That(observer.Completed.Count).IsEqualTo(0);
@@ -1517,6 +1517,247 @@ public class DroneLifecycleTests {
 
 	#endregion // skipped records
 
+	#region ->> observer emissions <<-
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask record_failure_completes_with_failed_outcome_and_error(CancellationToken ct) {
+		// Arrange — the record handler throws. The completed event must still fire exactly once, marked
+		// Failed, carrying the raw handler exception rather than the DroneException the drone wraps to fault.
+		var observer  = new RecordingObserver();
+		var boom       = new InvalidOperationException("record boom");
+		var record     = RecordsAt(1)[0];
+		var processor  = new TestableRecordProcessor { OnProcessRecord = _ => throw boom };
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act — the failure faults the run.
+		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+
+		// Assert
+		var completed = observer.Completed.Single();
+		await Assert.That(completed.Outcome).IsEqualTo(RecordOutcome.Failed);
+		await Assert.That(completed.Error).IsEqualTo(boom);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask record_cancellation_completes_with_cancelled_outcome(CancellationToken ct) {
+		// Arrange — the record handler throws OperationCanceledException; the completed event is Cancelled.
+		var observer  = new RecordingObserver();
+		var record    = RecordsAt(1)[0];
+		var processor = new TestableRecordProcessor { OnProcessRecord = _ => throw new OperationCanceledException() };
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+
+		// Assert
+		await Assert.That(observer.Completed.Single().Outcome).IsEqualTo(RecordOutcome.Cancelled);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask batch_failure_completes_with_failed_outcome_and_error(CancellationToken ct) {
+		// Arrange — the batch handler throws. The batch completed event fires once, Failed, with the raw exception.
+		var observer  = new RecordingObserver();
+		var boom      = new InvalidOperationException("batch boom");
+		var records   = RecordsAt(3);
+		var processor = new TestRecordBatchProcessor { OnProcessBatch = _ => throw boom };
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+
+		// Assert
+		var completed = observer.BatchesCompleted.Single();
+		await Assert.That(completed.Outcome).IsEqualTo(RecordOutcome.Failed);
+		await Assert.That(completed.Error).IsEqualTo(boom);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask batch_cancellation_completes_with_cancelled_outcome(CancellationToken ct) {
+		// Arrange — the batch handler throws OperationCanceledException; the batch completed event is Cancelled.
+		var observer  = new RecordingObserver();
+		var records   = RecordsAt(3);
+		var processor = new TestRecordBatchProcessor { OnProcessBatch = _ => throw new OperationCanceledException() };
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+
+		// Assert
+		await Assert.That(observer.BatchesCompleted.Single().Outcome).IsEqualTo(RecordOutcome.Cancelled);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask state_transitions_follow_the_lifecycle_in_order(CancellationToken ct) {
+		// Arrange — a clean run walks Starting → Processing → Stopping → Stopped, each raised once.
+		var observer  = new RecordingObserver();
+		var records   = RecordsAt(2);
+		var processor = new TestableRecordProcessor();
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — the exact ordered sequence of transitions
+		var expected = new[] { DroneStatus.Starting, DroneStatus.Processing, DroneStatus.Stopping, DroneStatus.Stopped };
+
+		await Assert.That(observer.StateChanges.Select(e => e.ToStatus)).IsEquivalentTo(expected);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask processing_transition_carries_the_session(CancellationToken ct) {
+		// Arrange — the session the source connects with must reach the Processing transition unchanged.
+		var observer   = new RecordingObserver();
+		var expectedId = SessionId.From(Guid.NewGuid());
+		var processor  = new TestableRecordProcessor();
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected(expectedId);
+		subscription.EmitRecord(RecordsAt(1)[0]);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert
+		var processing = observer.StateChanges.Single(e => e.ToStatus == DroneStatus.Processing);
+
+		await Assert.That(processing.SessionId).IsEqualTo(expectedId);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask fatal_error_stops_with_the_exception_on_the_transition(CancellationToken ct) {
+		// Arrange — a failing run ends Stopped (not a status of its own), carrying the error on the transition.
+		var observer  = new RecordingObserver();
+		var processor = new TestableRecordProcessor { OnProcessRecord = _ => throw new InvalidOperationException("boom") };
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		subscription.EmitRecord(RecordsAt(1)[0]);
+		subscription.Complete();
+
+		// Act
+		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+
+		// Assert
+		var stopped = observer.StateChanges.Single(e => e.ToStatus == DroneStatus.Stopped);
+
+		await Assert.That(stopped.Error).IsNotNull();
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask committed_checkpoint_reaches_observers(CancellationToken ct) {
+		// Arrange — auto-track on: the shutdown barrier commits the frontier, which surfaces as a
+		// CheckpointCommitted carrying the shutdown trigger and the last committed position.
+		var observer         = new RecordingObserver();
+		var records          = RecordsAt(3);
+		var lastLogPosition  = LogPosition.From(records.Length).Value;
+		var processor        = new TestableRecordProcessor();
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert
+		var committed = observer.CheckpointsCommitted;
+
+		await Assert.That(committed.Count).IsGreaterThanOrEqualTo(1);
+		await Assert.That(committed[^1].Trigger).IsEqualTo(CheckpointTrigger.Shutdown);
+		await Assert.That(committed[^1].Positions.Max(p => p.LogPosition.Value)).IsEqualTo(lastLogPosition);
+	}
+
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask failed_checkpoint_reaches_observers(CancellationToken ct) {
+		// Arrange — OnCheckpoint throws while the failure policy is Continue (the default), so the barrier
+		// fails without faulting the run and the failure surfaces on the seam.
+		var observer  = new RecordingObserver();
+		var records   = RecordsAt(3);
+		var processor = new TestRecordBatchProcessor {
+			OnCheckpointHook = _ => throw new InvalidOperationException("checkpoint boom")
+		};
+
+		var (drone, subscription) = CreateDrone(processor, observers: [observer], configure: opts => {
+			opts.Batching.MaxBatchSize        = records.Length;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act — Continue policy: the failing barrier does not fault the run.
+		await drone.RunAsync(ct);
+
+		// Assert
+		await Assert.That(observer.CheckpointsFailed.Count).IsGreaterThanOrEqualTo(1);
+		await Assert.That(observer.CheckpointsFailed[^1].Error).IsNotNull();
+	}
+
+	#endregion // observer emissions
+
 }
 
 /// <summary>Message types used only to give test records a CLR type to dispatch on.</summary>
@@ -1524,13 +1765,25 @@ file sealed record OrderPlaced;
 
 file sealed record OrderShipped;
 
-/// <summary>Collects the record-level events the drone raises, in order.</summary>
+/// <summary>Collects every event the drone raises, in order, for assertion.</summary>
 file sealed class RecordingObserver : IProcessorObserver {
-	public List<Record> Skipped   { get; } = [];
-	public List<Record> Ready     { get; } = [];
-	public List<Record> Completed { get; } = [];
+	public List<RecordSkipped>         Skipped              { get; } = [];
+	public List<RecordReady>           Ready                { get; } = [];
+	public List<RecordCompleted>       Completed            { get; } = [];
+	public List<BatchReady>            BatchesReady         { get; } = [];
+	public List<BatchCompleted>        BatchesCompleted     { get; } = [];
+	public List<ProcessorStateChanged> StateChanges         { get; } = [];
+	public List<CheckpointCommitted>   CheckpointsCommitted { get; } = [];
+	public List<CheckpointFailed>      CheckpointsFailed    { get; } = [];
+	public List<SourceLagSampled>      LagSamples           { get; } = [];
 
-	public void OnRecordSkipped(in RecordSkipped evt)     => Skipped.Add(evt.Record);
-	public void OnRecordReady(in RecordReady evt)         => Ready.Add(evt.Record);
-	public void OnRecordCompleted(in RecordCompleted evt) => Completed.Add(evt.Record);
+	public void OnRecordSkipped(in RecordSkipped evt)             => Skipped.Add(evt);
+	public void OnRecordReady(in RecordReady evt)                 => Ready.Add(evt);
+	public void OnRecordCompleted(in RecordCompleted evt)         => Completed.Add(evt);
+	public void OnBatchReady(in BatchReady evt)                   => BatchesReady.Add(evt);
+	public void OnBatchCompleted(in BatchCompleted evt)           => BatchesCompleted.Add(evt);
+	public void OnStateChanged(in ProcessorStateChanged evt)      => StateChanges.Add(evt);
+	public void OnCheckpointCommitted(in CheckpointCommitted evt) => CheckpointsCommitted.Add(evt);
+	public void OnCheckpointFailed(in CheckpointFailed evt)       => CheckpointsFailed.Add(evt);
+	public void OnSourceLagSampled(in SourceLagSampled evt)       => LagSamples.Add(evt);
 }

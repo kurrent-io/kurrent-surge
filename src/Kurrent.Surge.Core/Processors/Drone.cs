@@ -140,7 +140,8 @@ sealed class Drone : IDrone {
                 onSample: (lagBytes, lagSeconds) =>
                     _observers.SourceLagSampled(
                         new(_info, lagBytes, lagSeconds, _timeProvider.GetUtcNow())),
-                timeProvider: _timeProvider);
+                timeProvider: _timeProvider,
+                refreshInterval: Options.SourceLagRefreshInterval);
 
             _sourceLagProbe.Start(stoppingToken);
         }
