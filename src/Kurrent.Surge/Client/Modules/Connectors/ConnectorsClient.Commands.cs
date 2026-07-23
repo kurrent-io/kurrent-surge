@@ -42,7 +42,7 @@ public partial class ConnectorsClient {
         catch (Exception ex) {
             throw ex.ToException(
                 // StatusCode fallback
-                StatusCode.AlreadyExists.MapTo(new ConnectorAlreadyExistsException(id)));
+                ConnectorAlreadyExistsException.Match(id));
         }
     }
 
@@ -80,8 +80,8 @@ public partial class ConnectorsClient {
         catch (Exception ex) {
             throw ex.ToException(
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
+                ConnectorNotFoundException.Match(id),
+                ConnectorDeletedException.Match(id));
         }
     }
 
@@ -113,8 +113,8 @@ public partial class ConnectorsClient {
         catch (Exception ex) {
             throw ex.ToException(
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
+                ConnectorNotFoundException.Match(id),
+                ConnectorDeletedException.Match(id));
         }
     }
 
@@ -166,8 +166,8 @@ public partial class ConnectorsClient {
         catch (Exception ex) {
             throw ex.ToException(
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
+                ConnectorNotFoundException.Match(id),
+                ConnectorDeletedException.Match(id));
         }
     }
 
@@ -219,8 +219,8 @@ public partial class ConnectorsClient {
         catch (Exception ex) {
             throw ex.ToException(
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
+                ConnectorNotFoundException.Match(id),
+                ConnectorDeletedException.Match(id));
         }
     }
 
@@ -252,8 +252,8 @@ public partial class ConnectorsClient {
         catch (Exception ex) {
             throw ex.ToException(
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
+                ConnectorNotFoundException.Match(id),
+                ConnectorDeletedException.Match(id));
         }
     }
 
@@ -288,8 +288,8 @@ public partial class ConnectorsClient {
         catch (Exception ex) {
             throw ex.ToException(
                 // StatusCode fallbacks
-                StatusCode.NotFound.MapTo(new ConnectorNotFoundException(id)),
-                StatusCode.FailedPrecondition.MapTo(new ConnectorDeletedException(id)));
+                ConnectorNotFoundException.Match(id),
+                ConnectorDeletedException.Match(id));
         }
     }
 

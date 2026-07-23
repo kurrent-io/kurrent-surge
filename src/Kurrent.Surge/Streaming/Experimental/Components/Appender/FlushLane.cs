@@ -161,7 +161,10 @@ sealed class FlushLane : IAsyncDisposable {
                 record.Callback(result);
         }
         catch (Exception ex) {
-            var mapped = ex.AsWellKnownException();
+            var mapped = ex.AsWellKnownException(
+                AppendConsistencyViolationException.Match,
+                MaxAppendRecordSizeExceededException.Match,
+                MaxAppendTransactionSizeExceededException.Match);
 
             _options.OnError?.Invoke(new AppendError(mapped));
 

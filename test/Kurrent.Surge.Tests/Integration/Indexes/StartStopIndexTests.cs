@@ -1,4 +1,5 @@
 using Grpc.Core;
+using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Indexes;
 
 namespace Kurrent.Surge.Tests.Indexes;
@@ -49,9 +50,9 @@ public class StartStopIndexTests {
 
         var ex = await Assert.That(async () => await Fixture.Client.Indexes
             .Start(indexName, ct))
-            .Throws<RpcException>();
+            .Throws<IndexNotFoundException>();
 
-        await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        await Assert.That(ex!.Index).IsEqualTo(indexName);
     }
 
     [Test, Timeout(TestTimeoutMs)]
@@ -60,9 +61,9 @@ public class StartStopIndexTests {
 
         var ex = await Assert.That(async () => await Fixture.Client.Indexes
             .Stop(indexName, ct))
-            .Throws<RpcException>();
+            .Throws<IndexNotFoundException>();
 
-        await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        await Assert.That(ex!.Index).IsEqualTo(indexName);
     }
 
     [Test, Timeout(TestTimeoutMs)]

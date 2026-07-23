@@ -55,17 +55,6 @@ sealed class SnapshotProjectionsStore(IStreamsClient streams) : ISnapshotProject
     /// </remarks>
     public const string SnapshotTimestampKey = "snapshot.timestamp";
 
-    /// <summary>
-    /// The error code the streams client raises when a stream has never been written.
-    /// </summary>
-    /// <remarks>
-    /// Matched as a code rather than by catching <c>StreamNotFoundException</c>: that type is declared
-    /// in the client assembly, which this contract-layer assembly does not reference. The coupling is
-    /// unchecked by the compiler — <c>loads_empty_snapshot_when_stream_was_never_written</c> is the test
-    /// that fails if the code is ever renamed.
-    /// </remarks>
-    const string StreamNotFoundErrorCode = "STREAM_NOT_FOUND";
-
     public async ValueTask<(TSnapshot Snapshot, RecordPosition Position, DateTimeOffset Timestamp)> LoadSnapshot<TSnapshot>(
         StreamName snapshotStream,
         CancellationToken cancellationToken = default
@@ -77,7 +66,7 @@ sealed class SnapshotProjectionsStore(IStreamsClient streams) : ISnapshotProject
                 .LastRecord(snapshotStream, skipDecoding: false, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (KurrentException ex) when (ex.ErrorDetails.ErrorCode.Value == StreamNotFoundErrorCode) {
+        catch (StreamNotFoundException) {
             // Never projected: there is no snapshot to load, and the caller guards its first save on
             // the stream's absence.
             return (new TSnapshot(), RecordPosition.Unset, DateTimeOffset.MinValue);

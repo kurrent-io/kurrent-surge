@@ -1,4 +1,5 @@
 using Grpc.Core;
+using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Indexes;
 
 namespace Kurrent.Surge.Tests.Indexes;
@@ -57,8 +58,8 @@ public class CreateIndexTests {
 
         var ex = await Assert.That(async () => await Fixture.Client.Indexes
             .Create(indexName, "rec => rec.schema.name == 'SomethingElse'", fields, cancellationToken: ct))
-            .Throws<RpcException>();
+            .Throws<IndexAlreadyExistsException>();
 
-        await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.AlreadyExists);
+        await Assert.That(ex!.Index).IsEqualTo(indexName);
     }
 }

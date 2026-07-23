@@ -8,7 +8,7 @@ namespace Kurrent.Surge.Client.Exceptions;
 /// </summary>
 [PublicAPI]
 public class LeaderForwardingTimeoutException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Server.LeaderForwardingTimeout;
+    public static ErrorCode Code { get; } = ErrorCode.From("LEADER_FORWARDING_TIMEOUT");
 
     public LeaderForwardingTimeoutException(string message) : base(Code, message) { }
 
@@ -18,7 +18,7 @@ public class LeaderForwardingTimeoutException : KurrentException {
 
 [PublicAPI]
 public class ServerNotReadyException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Server.ServerNotReady;
+    public static ErrorCode Code { get; } = ErrorCode.From("SERVER_NOT_READY");
 
     public ServerNotReadyException(string message) : base(Code, message) { }
 
@@ -28,7 +28,7 @@ public class ServerNotReadyException : KurrentException {
 
 [PublicAPI]
 public class ServerOverloadedException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Server.ServerOverloaded;
+    public static ErrorCode Code { get; } = ErrorCode.From("SERVER_OVERLOADED");
 
     public ServerOverloadedException(string message) : base(Code, message) { }
 
@@ -38,7 +38,7 @@ public class ServerOverloadedException : KurrentException {
 
 [PublicAPI]
 public class NotLeaderNodeException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Server.NotLeaderNode;
+    public static ErrorCode Code { get; } = ErrorCode.From("NOT_LEADER_NODE");
 
     public NotLeaderNodeException(string message) : base(Code, message) { }
 

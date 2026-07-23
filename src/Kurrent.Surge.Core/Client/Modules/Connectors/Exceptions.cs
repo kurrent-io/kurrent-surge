@@ -8,7 +8,7 @@ namespace Kurrent.Surge.Client.Exceptions;
 
 [PublicAPI]
 public class ConnectorNotFoundException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Connectors.ConnectorNotFound;
+    public static ErrorCode Code { get; } = ErrorCode.From("CONNECTOR_NOT_FOUND");
 
     public ConnectorNotFoundException(ConnectorId connectorId)
         : this(Format("Connector '{0}' was not found.", connectorId)) { }
@@ -21,7 +21,7 @@ public class ConnectorNotFoundException : KurrentException {
 
 [PublicAPI]
 public class ConnectorAlreadyExistsException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Connectors.ConnectorAlreadyExists;
+    public static ErrorCode Code { get; } = ErrorCode.From("CONNECTOR_ALREADY_EXISTS");
 
     public ConnectorAlreadyExistsException(ConnectorId connectorId)
         : this(Format("Connector '{0}' already exists.", connectorId)) { }
@@ -34,7 +34,7 @@ public class ConnectorAlreadyExistsException : KurrentException {
 
 [PublicAPI]
 public class ConnectorDeletedException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Connectors.ConnectorDeleted;
+    public static ErrorCode Code { get; } = ErrorCode.From("CONNECTOR_DELETED");
 
     public ConnectorDeletedException(ConnectorId connectorId)
         : this(Format("Connector '{0}' has been deleted.", connectorId)) { }

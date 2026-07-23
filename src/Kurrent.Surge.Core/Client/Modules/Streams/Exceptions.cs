@@ -14,7 +14,7 @@ namespace Kurrent.Surge.Client.Exceptions;
 /// </remarks>
 [PublicAPI]
 public class StreamNotFoundException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamNotFound;
+    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_NOT_FOUND");
 
     public StreamNotFoundException(StreamName stream)
         : this(Format("Stream '{0}' was not found.", stream)) => Stream = stream;
@@ -29,7 +29,7 @@ public class StreamNotFoundException : KurrentException {
 
 [PublicAPI]
 public class StreamAlreadyExistsException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamAlreadyExists;
+    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_ALREADY_EXISTS");
 
     // The leading "" and the resulting argument shift are carried over verbatim from before this type
     // was moved. The rendered message is wrong — the stream lands in the "Expected revision" slot and
@@ -51,7 +51,7 @@ public class StreamAlreadyExistsException : KurrentException {
 
 [PublicAPI]
 public class StreamDeletedException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamDeleted;
+    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_DELETED");
 
     public StreamDeletedException(StreamName stream)
         : this(Format("Stream '{0}' has been soft deleted. It will not be visible in the stream list, until it is restored by appending to it again.", stream)) =>
@@ -67,7 +67,7 @@ public class StreamDeletedException : KurrentException {
 
 [PublicAPI]
 public class StreamTombstonedException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamTombstoned;
+    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_TOMBSTONED");
 
     public StreamTombstonedException(StreamName stream)
         : this(Format("Stream '{0}' has been tombstoned. It has been permanently removed from the system and cannot be restored.", stream)) =>
@@ -83,7 +83,7 @@ public class StreamTombstonedException : KurrentException {
 
 [PublicAPI]
 public class StreamRevisionConflictException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamRevisionConflict;
+    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_REVISION_CONFLICT");
 
     public StreamRevisionConflictException(StreamName stream, Revision expectedRevision, Revision actualRevision)
         : this(Format("Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", stream, expectedRevision, actualRevision)) {
@@ -104,7 +104,7 @@ public class StreamRevisionConflictException : KurrentException {
 
 [PublicAPI]
 public class AppendConsistencyViolationException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.AppendConsistencyViolation;
+    public static ErrorCode Code { get; } = ErrorCode.From("APPEND_CONSISTENCY_VIOLATION");
 
     // Carried over verbatim. This throws FormatException: violations binds to Format(string, object?),
     // not the params overload, so {1} and {2} have no argument. Reported, not fixed — the mapper never
@@ -127,7 +127,7 @@ public class AppendConsistencyViolationException : KurrentException {
 
 [PublicAPI]
 public class MaxAppendRecordSizeExceededException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.MaxAppendRecordSizeExceeded;
+    public static ErrorCode Code { get; } = ErrorCode.From("MAX_APPEND_RECORD_SIZE_EXCEEDED");
 
     public MaxAppendRecordSizeExceededException(string message) : base(Code, message) { }
 
@@ -141,7 +141,7 @@ public class MaxAppendRecordSizeExceededException : KurrentException {
 
 [PublicAPI]
 public class MaxAppendTransactionSizeExceededException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.MaxAppendTransactionSizeExceeded;
+    public static ErrorCode Code { get; } = ErrorCode.From("MAX_APPEND_TRANSACTION_SIZE_EXCEEDED");
 
     public MaxAppendTransactionSizeExceededException(string message) : base(Code, message) { }
 
@@ -154,7 +154,7 @@ public class MaxAppendTransactionSizeExceededException : KurrentException {
 
 [PublicAPI]
 public class StreamAlreadyInAppendSessionException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.StreamAlreadyInAppendSession;
+    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_ALREADY_IN_APPEND_SESSION");
 
     public StreamAlreadyInAppendSessionException(string message) : base(Code, message) { }
 
@@ -164,7 +164,7 @@ public class StreamAlreadyInAppendSessionException : KurrentException {
 
 [PublicAPI]
 public class AppendSessionNoRequestsException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.AppendSessionNoRequests;
+    public static ErrorCode Code { get; } = ErrorCode.From("APPEND_SESSION_NO_REQUESTS");
 
     public AppendSessionNoRequestsException(string message) : base(Code, message) { }
 
@@ -174,7 +174,7 @@ public class AppendSessionNoRequestsException : KurrentException {
 
 [PublicAPI]
 public class LogPositionNotFoundException : KurrentException {
-    public static ErrorCode Code => KurrentErrorCodes.Streams.LogPositionNotFound;
+    public static ErrorCode Code { get; } = ErrorCode.From("LOG_POSITION_NOT_FOUND");
 
     public LogPositionNotFoundException(ulong position)
         : this($"Failed to find log position: {position}") { }

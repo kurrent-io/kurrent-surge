@@ -12,6 +12,13 @@ public class IndexesClient : ClientModuleBase, IIndexesClient {
 
     IndexesServiceClient ServiceClient { get; }
 
+    static readonly OperationExceptionParser[] IndexErrors = [
+        IndexNotFoundException.Match,
+        IndexAlreadyExistsException.Match,
+        IndexesNotReadyException.Match,
+        SecondaryIndexingDisabledException.Match
+    ];
+
     /// <summary>
     /// Creates a new secondary index with the specified configuration.
     /// </summary>
@@ -35,7 +42,7 @@ public class IndexesClient : ClientModuleBase, IIndexesClient {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.AsWellKnownException();
+            throw ex.AsWellKnownException(IndexErrors);
         }
     }
 
@@ -73,7 +80,7 @@ public class IndexesClient : ClientModuleBase, IIndexesClient {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.AsWellKnownException();
+            throw ex.AsWellKnownException(IndexErrors);
         }
     }
 
@@ -94,7 +101,7 @@ public class IndexesClient : ClientModuleBase, IIndexesClient {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.AsWellKnownException();
+            throw ex.AsWellKnownException(IndexErrors);
         }
     }
 
@@ -115,7 +122,7 @@ public class IndexesClient : ClientModuleBase, IIndexesClient {
                 .ConfigureAwait(false);
         }
         catch (Exception ex) {
-            throw ex.AsWellKnownException();
+            throw ex.AsWellKnownException(IndexErrors);
         }
     }
 
@@ -141,7 +148,7 @@ public class IndexesClient : ClientModuleBase, IIndexesClient {
             return response.Indexes.Select(i => Index.FromProto(i)).ToList();
         }
         catch (Exception ex) {
-            throw ex.AsWellKnownException();
+            throw ex.AsWellKnownException(IndexErrors);
         }
     }
 
@@ -165,7 +172,7 @@ public class IndexesClient : ClientModuleBase, IIndexesClient {
             return Index.FromProto(response.Index);
         }
         catch (Exception ex) {
-            throw ex.AsWellKnownException();
+            throw ex.AsWellKnownException(IndexErrors);
         }
     }
 }

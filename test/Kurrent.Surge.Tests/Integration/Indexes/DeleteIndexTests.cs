@@ -1,4 +1,5 @@
 using Grpc.Core;
+using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Indexes;
 
 namespace Kurrent.Surge.Tests.Indexes;
@@ -31,8 +32,8 @@ public class DeleteIndexTests {
 
         var ex = await Assert.That(async () => await Fixture.Client.Indexes
             .Delete(indexName, ct))
-            .Throws<RpcException>();
+            .Throws<IndexNotFoundException>();
 
-        await Assert.That(ex!.StatusCode).IsEqualTo(StatusCode.NotFound);
+        await Assert.That(ex!.Index).IsEqualTo(indexName);
     }
 }
