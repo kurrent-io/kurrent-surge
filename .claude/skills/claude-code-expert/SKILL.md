@@ -75,12 +75,22 @@ triggering.
 agents, hooks, commands, MCP integration, and plugin settings — each with its own skill. Match the topic to the
 right one.
 
+**When `plugin-dev` is not available**: say so, and route to what is: skill authoring →
+`skill-creator:skill-creator`; hook wiring in settings.json → `update-config`; plugin/agent structure concepts →
+the `claude-code-guide` agent. Do not enable or install the plugin on your own — if it appears deliberately
+disabled in a settings scope, that is a decision to surface, not override (see Fallbacks).
+
 ### Category 3: Claude Code Setup & Automation Recommendations
 
 Questions about: "what should I set up?", "how do I configure Claude Code for my project?", "what MCP servers
 should I use?", "recommend automations", optimizing Claude Code workflows.
 
 **Action**: Invoke the `claude-automation-recommender` skill (from the `claude-code-setup` plugin).
+
+**When it is not available**: use the closest equivalents present in the session: `session-retrospective` —
+mines past sessions for recurring friction and proposes vetted interventions (rules, skills, hooks, subagents,
+CLAUDE.md edits); `find-skills` — discovers installable skills for a capability gap. If neither fits, dispatch
+the `claude-code-guide` agent for setup guidance from live docs.
 
 ### Category 4: Building MCP Servers
 
@@ -93,6 +103,9 @@ Evaluate), not a code generator. Preferred stack is TypeScript, but Python/FastM
 the user wants to *build* an MCP server — for *configuring existing* MCP servers in a plugin, use
 `plugin-dev:mcp-integration` instead.
 
+**When `mcp-builder` is not available**: say so and offer to install it, or fall back to the
+`claude-code-guide` agent (it can WebFetch the MCP spec and SDK docs at modelcontextprotocol.io).
+
 ### Category 5: Creating & Improving Skills
 
 Questions about: writing a new skill from scratch, improving an existing skill's instructions, measuring skill
@@ -100,14 +113,19 @@ effectiveness, running evals/benchmarks against a skill, optimizing a skill's tr
 accuracy, the skill lifecycle.
 
 **Action**: Invoke the `skill-creator:skill-creator` skill. Use this when the user wants to *create or improve* a
-skill. For questions about skill *structure and frontmatter*, use `plugin-dev:skill-development` instead.
+skill. For questions about skill *structure and frontmatter*, prefer `plugin-dev:skill-development`; when it is
+not available, `skill-creator:skill-creator` covers it adequately. For skills targeting Microsoft technologies
+specifically, `microsoft-docs:microsoft-skill-creator` scaffolds them grounded in official docs.
 
 ### Category 6: Settings & Configuration Changes
 
 Questions about: adding permissions, configuring hooks in settings.json, env vars, theme/model changes, moving
 permissions between scopes, allowing bash commands.
 
-**Action**: Invoke the `update-config` skill — it knows the settings.json schema.
+**Action**: Invoke the `update-config` skill — it knows the settings.json schema. Two specialized neighbors:
+`keybindings-help` for keyboard shortcut customization (`~/.claude/keybindings.json`, rebinding, chords), and
+`fewer-permission-prompts` for building a permission allowlist from transcript analysis instead of adding
+permissions one by one.
 
 ### Category 7: Build apps with the Claude API or Anthropic SDKs
 
@@ -127,6 +145,10 @@ If a routed skill or plugin isn't available, don't silently skip — tell the us
 to install it. To install, run `claude plugin install <name>@<marketplace>` via Bash, or enable an already-cached
 plugin by adding it to `.claude/settings.local.json` (gitignored, safe for local changes). After installing, run
 `/reload-plugins` to activate changes in the current session.
+
+Availability is session state, not a fact this file can assert — check the live skill and agent inventory in the
+current session before routing. A plugin explicitly set to `false` in a settings scope may be a deliberate team
+control: report it and ask, never flip it unilaterally. Installing or enabling anything is always the user's call.
 
 Authoritative live sources when skills don't have the answer:
 

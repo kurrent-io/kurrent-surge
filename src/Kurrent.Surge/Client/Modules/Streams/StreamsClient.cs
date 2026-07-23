@@ -17,11 +17,11 @@ public partial class StreamsClient : ClientModuleBase, IStreamsClient {
         RegistryPolicy = SchemaRegistryPolicy.NoRequirements;
     }
 
-    internal StreamsServiceClient       ServiceClient       { get; }
+    internal StreamsServiceClient ServiceClient { get; }
 
     internal LegacyStreamsServiceClient LegacyServiceClient { get; }
 
-    SchemaRegistryPolicy                RegistryPolicy      { get; }
+    internal SchemaRegistryPolicy RegistryPolicy { get; }
 
     internal MappingContext CreateMappingContext(CancellationToken ct) =>
         new(SerializerProvider, MetadataDecoder, RegistryPolicy, ct);

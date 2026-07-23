@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/.Benchmarks/">
+    <Project Path="perf/Kurrent.Surge.Benchmarks/Kurrent.Surge.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/.Examples/">
     <Project Path="examples/processors/Connector.Management/Connector.Management.csproj" />
     <Project Path="examples/PackageTest.Streaming/PackageTest.Streaming.csproj" />
@@ -53,15 +56,6 @@
     <File Path="nuget.config" />
     <File Path="wrangler.toml" />
   </Folder>
-  <Folder Name="/AI/">
-    <Project Path="src/Kurrent.Surge.AI.HuggingFace/Kurrent.Surge.AI.HuggingFace.csproj" />
-    <Project Path="test/Kurrent.Surge.AI.HuggingFace.Tests/Kurrent.Surge.AI.HuggingFace.Tests.csproj" />
-    <Project Path="src/Kurrent.Surge.Cli/Kurrent.Surge.Cli.csproj" />
-    <Project Path="test/Kurrent.Surge.Cli.Tests/Kurrent.Surge.Cli.Tests.csproj" />
-  </Folder>
-  <Folder Name="/Benchmarks/">
-    <Project Path="perf/Kurrent.Surge.Benchmarks/Kurrent.Surge.Benchmarks.csproj" />
-  </Folder>
   <Folder Name="/Extensions/">
     <Project Path="src/Kurrent.Surge.Schema.Catalogs.Generators/Kurrent.Surge.Schema.Catalogs.Generators.csproj" />
     <Project Path="src/Kurrent.Surge.Schema.Catalogs/Kurrent.Surge.Schema.Catalogs.csproj" />
@@ -74,14 +68,15 @@
     <Project Path="src/Kurrent.Projectors.DuckDB/Kurrent.Projectors.DuckDB.csproj" />
     <Project Path="test/Kurrent.Projectors.DuckDB.Tests/Kurrent.Projectors.DuckDB.Tests.csproj" />
   </Folder>
+  <Project Path="src/Kurrent.Surge.AI.HuggingFace/Kurrent.Surge.AI.HuggingFace.csproj" />
+  <Project Path="src/Kurrent.Surge.Cli/Kurrent.Surge.Cli.csproj" />
+  <Project Path="src/Kurrent.Surge.Mcp/Kurrent.Surge.Mcp.csproj" />
   <Project Path="src/Kurrent.Surge.SourceGenerators/Kurrent.Surge.SourceGenerators.csproj" />
   <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />
   <Project Path="src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+  <Project Path="test/Kurrent.Surge.AI.HuggingFace.Tests/Kurrent.Surge.AI.HuggingFace.Tests.csproj" />
+  <Project Path="test/Kurrent.Surge.Cli.Tests/Kurrent.Surge.Cli.Tests.csproj" />
+  <Project Path="test/Kurrent.Surge.Mcp.Tests/Kurrent.Surge.Mcp.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Streaming.Tests/Kurrent.Surge.Streaming.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Tests/Kurrent.Surge.Tests.csproj" />
-
-  <Folder Name="/Mcp/">
-    <Project Path="src/Kurrent.Surge.Mcp/Kurrent.Surge.Mcp.csproj" />
-    <Project Path="test/Kurrent.Surge.Mcp.Tests/Kurrent.Surge.Mcp.Tests.csproj" />
-  </Folder>
 </Solution>

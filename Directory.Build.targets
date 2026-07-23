@@ -124,7 +124,7 @@
     <ItemGroup>
       <_VendorPkg Include="@(PackageReference->WithMetadataValue('Vendor', 'true'))" />
       <_FromVendoredPackages
-        Include="@(ReferenceCopyLocalPaths->WithMetadataValue('NuGetPackageId', '%(_VendorPkg.Identity)'))" />
+          Include="@(ReferenceCopyLocalPaths->WithMetadataValue('NuGetPackageId', '%(_VendorPkg.Identity)'))" />
       <_FromVendoredPackages Remove="@(_FromVendoredPackages)"
                              Condition="'%(Extension)' == '.pdb'" />
     </ItemGroup>
@@ -132,17 +132,17 @@
     <ItemGroup>
       <!-- Managed DLLs → lib/<tfm>/ (BuildOutputInPackage default) -->
       <BuildOutputInPackage Include="@(_FromVendoredPackages)"
-            Condition="'%(_FromVendoredPackages.DestinationSubDirectory)' == ''" />
+                            Condition="'%(_FromVendoredPackages.DestinationSubDirectory)' == ''" />
 
       <!-- Satellite assemblies → lib/<tfm>/<subdir>/ -->
       <BuildOutputInPackage Include="@(_FromVendoredPackages)"
-            Condition="'%(_FromVendoredPackages.DestinationSubDirectory)' != '' and !$([System.String]::new('%(_FromVendoredPackages.DestinationSubDirectory)').StartsWith('runtimes'))"
-            TargetPath="%(_FromVendoredPackages.DestinationSubDirectory)%(Filename)%(Extension)" />
+                            Condition="'%(_FromVendoredPackages.DestinationSubDirectory)' != '' and !$([System.String]::new('%(_FromVendoredPackages.DestinationSubDirectory)').StartsWith('runtimes'))"
+                            TargetPath="%(_FromVendoredPackages.DestinationSubDirectory)%(Filename)%(Extension)" />
 
       <!-- runtimes/<rid>/... lives at the package root, not under lib/ -->
       <TfmSpecificPackageFile Include="@(_FromVendoredPackages)"
-            Condition="$([System.String]::new('%(_FromVendoredPackages.DestinationSubDirectory)').StartsWith('runtimes'))"
-            PackagePath="%(_FromVendoredPackages.DestinationSubDirectory)" />
+                              Condition="$([System.String]::new('%(_FromVendoredPackages.DestinationSubDirectory)').StartsWith('runtimes'))"
+                              PackagePath="%(_FromVendoredPackages.DestinationSubDirectory)" />
     </ItemGroup>
 
   </Target>

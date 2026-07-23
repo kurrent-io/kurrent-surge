@@ -103,13 +103,13 @@ Read these before working on related areas. Do not read all upfront.
 Issues live in **Linear** — DevEx team, `Kurrent SDK .NET` project, referenced as `DEV-XXXX` and operated
 through the Linear MCP. PRs are not a request surface.
 
-The full workflow lives in `.claude/context/project/issue-tracker-linear.md` and the `ksdk-linear-workflow` 
+The full workflow lives in `.claude/context/project/issue-tracker-linear.md` and the `devx-linear-workflow` 
 skill (MUST be consulted before any Linear operation). See `.agents/matt-pocock/issue-tracker.md`.
 
 ### Triage labels
 
 The five canonical triage roles map onto Linear's native workflow states plus the classification labels in
-`ksdk-linear-workflow`; the role strings are not configured labels and issue status is never set manually.
+`devx-linear-workflow`; the role strings are not configured labels and issue status is never set manually.
 See `.agents/matt-pocock/triage-labels.md`.
 
 ### Domain docs

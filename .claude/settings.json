@@ -5,9 +5,24 @@
       "Read(./**/*.p12)",
       "Read(./**/*.pem)",
       "Read(./**/*.pfx)",
-      "Read(./**/*credential*)",
-      "Read(./**/*password*)",
-      "Read(./**/*secret*)",
+      "Read(./**/*credential*.json)",
+      "Read(./**/*credential*.yaml)",
+      "Read(./**/*credential*.yml)",
+      "Read(./**/*credential*.txt)",
+      "Read(./**/.credentials)",
+      "Read(./**/credentials/**)",
+      "Read(./**/*password*.json)",
+      "Read(./**/*password*.yaml)",
+      "Read(./**/*password*.yml)",
+      "Read(./**/*password*.txt)",
+      "Read(./**/.password)",
+      "Read(./**/password/**)",
+      "Read(./**/*secret*.json)",
+      "Read(./**/*secret*.yaml)",
+      "Read(./**/*secret*.yml)",
+      "Read(./**/*secret*.txt)",
+      "Read(./**/.secret)",
+      "Read(./**/secret/**)",
       "Read(./**/*token*.json)",
       "Read(./**/launchSettings.json)",
       "Read(./**/secrets.json)",
@@ -31,6 +46,20 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/git/check-move-rewrite.sh",
+            "if": "Bash(git commit*)",
+            "timeout": 20,
+            "statusMessage": "Checking the commit preserves file history..."
+          }
+        ]
+      }
     ]
   },
   "worktree": {
@@ -38,5 +67,9 @@
       "docs/node_modules"
     ],
     "baseRef": "head"
+  },
+  "enabledPlugins": {
+    "duckdb-skills@claude-plugins-official": true,
+    "motherduck-skills@motherduck-skills": true
   }
 }
