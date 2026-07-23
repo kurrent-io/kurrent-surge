@@ -3,7 +3,6 @@
 using Kurrent.Surge.Client.Errors;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Schema;
-using static System.String;
 
 namespace Kurrent.Surge.Client.Exceptions;
 
@@ -12,7 +11,7 @@ public class SchemaNotFoundException : KurrentException {
     public static ErrorCode Code { get; } = ErrorCode.From("SCHEMA_NOT_FOUND");
 
     public SchemaNotFoundException(SchemaName schema)
-        : this(Format("Schema '{0}' was not found.", schema)) => Schema = schema;
+        : this($"Schema '{schema}' was not found.") => Schema = schema;
 
     public SchemaNotFoundException(string message) : base(Code, message) { }
 
@@ -27,7 +26,7 @@ public class SchemaAlreadyExistsException : KurrentException {
     public static ErrorCode Code { get; } = ErrorCode.From("SCHEMA_ALREADY_EXISTS");
 
     public SchemaAlreadyExistsException(SchemaName schema)
-        : this(Format("Schema '{0}' already exists.", schema)) => Schema = schema;
+        : this($"Schema '{schema}' already exists.") => Schema = schema;
 
     public SchemaAlreadyExistsException(string message) : base(Code, message) { }
 
@@ -42,7 +41,7 @@ public class SchemaDeletedException : KurrentException {
     public static ErrorCode Code { get; } = ErrorCode.From("SCHEMA_DELETED");
 
     public SchemaDeletedException(SchemaName schema)
-        : this(Format("Schema '{0}' has been deleted.", schema)) => Schema = schema;
+        : this($"Schema '{schema}' has been deleted.") => Schema = schema;
 
     public SchemaDeletedException(string message) : base(Code, message) { }
 

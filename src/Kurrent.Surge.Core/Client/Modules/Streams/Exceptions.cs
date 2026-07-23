@@ -2,7 +2,6 @@
 
 using Kurrent.Surge.Client.Errors;
 using Kurrent.Surge.Client.Streams;
-using static System.String;
 
 namespace Kurrent.Surge.Client.Exceptions;
 
@@ -17,7 +16,7 @@ public class StreamNotFoundException : KurrentException {
     public static ErrorCode Code { get; } = ErrorCode.From("STREAM_NOT_FOUND");
 
     public StreamNotFoundException(StreamName stream)
-        : this(Format("Stream '{0}' was not found.", stream)) => Stream = stream;
+        : this($"Stream '{stream}' was not found.") => Stream = stream;
 
     public StreamNotFoundException(string message) : base(Code, message) { }
 
@@ -31,11 +30,8 @@ public class StreamNotFoundException : KurrentException {
 public class StreamAlreadyExistsException : KurrentException {
     public static ErrorCode Code { get; } = ErrorCode.From("STREAM_ALREADY_EXISTS");
 
-    // The leading "" and the resulting argument shift are carried over verbatim from before this type
-    // was moved. The rendered message is wrong — the stream lands in the "Expected revision" slot and
-    // actualRevision is dropped — but fixing it changes user-visible text, so it is reported, not fixed.
     public StreamAlreadyExistsException(StreamName stream, Revision actualRevision)
-        : this(Format("Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", "", stream, ExpectedStreamState.NoStream, actualRevision)) {
+        : this($"Operation failed due to a revision conflict on stream '{stream}'. Expected revision: {ExpectedStreamState.NoStream}. Actual revision: {actualRevision}.") {
         Stream         = stream;
         ActualRevision = actualRevision;
     }
@@ -54,7 +50,7 @@ public class StreamDeletedException : KurrentException {
     public static ErrorCode Code { get; } = ErrorCode.From("STREAM_DELETED");
 
     public StreamDeletedException(StreamName stream)
-        : this(Format("Stream '{0}' has been soft deleted. It will not be visible in the stream list, until it is restored by appending to it again.", stream)) =>
+        : this($"Stream '{stream}' has been soft deleted. It will not be visible in the stream list, until it is restored by appending to it again.") =>
         Stream = stream;
 
     public StreamDeletedException(string message) : base(Code, message) { }
@@ -70,7 +66,7 @@ public class StreamTombstonedException : KurrentException {
     public static ErrorCode Code { get; } = ErrorCode.From("STREAM_TOMBSTONED");
 
     public StreamTombstonedException(StreamName stream)
-        : this(Format("Stream '{0}' has been tombstoned. It has been permanently removed from the system and cannot be restored.", stream)) =>
+        : this($"Stream '{stream}' has been tombstoned. It has been permanently removed from the system and cannot be restored.") =>
         Stream = stream;
 
     public StreamTombstonedException(string message) : base(Code, message) { }
@@ -86,7 +82,7 @@ public class StreamRevisionConflictException : KurrentException {
     public static ErrorCode Code { get; } = ErrorCode.From("STREAM_REVISION_CONFLICT");
 
     public StreamRevisionConflictException(StreamName stream, Revision expectedRevision, Revision actualRevision)
-        : this(Format("Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", stream, expectedRevision, actualRevision)) {
+        : this($"Operation failed due to a revision conflict on stream '{stream}'. Expected revision: {expectedRevision}. Actual revision: {actualRevision}.") {
         Stream           = stream;
         ExpectedRevision = expectedRevision;
         ActualRevision   = actualRevision;
@@ -106,11 +102,8 @@ public class StreamRevisionConflictException : KurrentException {
 public class AppendConsistencyViolationException : KurrentException {
     public static ErrorCode Code { get; } = ErrorCode.From("APPEND_CONSISTENCY_VIOLATION");
 
-    // Carried over verbatim. This throws FormatException: violations binds to Format(string, object?),
-    // not the params overload, so {1} and {2} have no argument. Reported, not fixed — the mapper never
-    // reaches it, so the break is latent.
     public AppendConsistencyViolationException(IReadOnlyList<ConsistencyViolation> violations)
-        : this(Format("Operation failed due to a revision conflict on stream '{0}'. Expected revision: {1}. Actual revision: {2}.", violations)) =>
+        : this($"Append failed: {violations.Count} consistency check(s) violated.") =>
         Violations = violations;
 
     public AppendConsistencyViolationException(StreamStateViolation violation) : this([violation]) { }
