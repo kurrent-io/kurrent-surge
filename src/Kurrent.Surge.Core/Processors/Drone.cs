@@ -17,7 +17,6 @@ sealed class Drone : IDrone {
     readonly ProcessorInfo       _info;
     readonly Checkpointer        _checkpointer;
     readonly IStreamsClient      _streams;
-    readonly DroneTelemetry      _telemetry;
     readonly ProgressTracker     _progress;
     readonly HybridLogicalClock  _clock;
     readonly TimeProvider        _timeProvider;
@@ -53,8 +52,6 @@ sealed class Drone : IDrone {
         _progress = new(timeProvider, options.MaxParallelism);
 
         var logger = loggerFactory.CreateLogger<Drone>();
-
-        _telemetry = new(logger, options.ProcessorId, options.DroneId);
 
         _observers = new(observers, logger);
         _info      = new(options.ProcessorId, options.DroneId);
@@ -345,12 +342,6 @@ sealed class Drone : IDrone {
 
         // The final barrier has run, so this transition carries the run's settled throughput.
         TransitionTo(DroneStatus.Stopping);
-
-        // AutoTrack off + records dispatched + nothing ever committed ⇒ the subscription replays in full on
-        // restart. Warn once, here, at the one moment it is provably true — the final barrier (if any) has
-        // already run, so a zero checkpoint count means no progress was persisted. No hot-path cost.
-        if (!Options.Checkpoint.AutoTrack && _progress is { TotalRecords: > 0, TotalCheckpoints: 0 })
-            _telemetry.TrackingDisabledNoProgress();
 
         List<Exception> errors = [];
 

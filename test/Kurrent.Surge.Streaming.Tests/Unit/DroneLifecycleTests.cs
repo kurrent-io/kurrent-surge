@@ -1352,36 +1352,6 @@ public class DroneLifecycleTests {
 
 	[Test]
 	[Timeout(15_000)]
-	public async ValueTask auto_track_off_with_no_tracking_warns_on_shutdown(CancellationToken ct) {
-		// Arrange — auto-track off and the processor never tracks. Records are dispatched but nothing is ever
-		// committed, so on shutdown the drone must warn exactly once that no progress was persisted.
-		var loggerFactory = new CapturingLoggerFactory();
-		var records       = RecordsAt(3);
-		var processor     = new TestRecordBatchProcessor();
-
-		var (drone, subscription) = CreateDrone(processor, loggerFactory: loggerFactory, configure: opts => {
-			opts.Checkpoint.AutoTrack         = false;
-			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-		});
-
-		subscription.EmitConnected();
-		foreach (var record in records)
-			subscription.EmitRecord(record);
-		subscription.Complete();
-
-		// Act
-		await drone.RunAsync(ct);
-
-		// Assert — exactly one shutdown warning naming the lost-progress consequence
-		var warnings = loggerFactory.Entries
-			.Where(e => e.Level == LogLevel.Warning && e.Message.Contains("replays", StringComparison.OrdinalIgnoreCase))
-			.ToList();
-
-		await Assert.That(warnings.Count).IsEqualTo(1);
-	}
-
-	[Test]
-	[Timeout(15_000)]
 	public async ValueTask latest_start_with_no_checkpoint_dispatches_and_commits(CancellationToken ct) {
 		// Arrange — SubscriptionInitialPosition.Latest with no prior checkpoint seeds a Latest (long.MaxValue)
 		// floor. That sentinel must NOT prune (every real record is <= Latest, which would silently drop the
