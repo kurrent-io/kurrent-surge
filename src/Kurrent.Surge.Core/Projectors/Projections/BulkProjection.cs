@@ -10,7 +10,7 @@ namespace Kurrent.Projectors;
 /// whatever it likes — including reaching records that were never decoded, which no typed shape can.
 /// </summary>
 [PublicAPI]
-public abstract class BulkProjection<TClient> : ProjectionProcessor<TClient> {
+public abstract class BulkProjection<TClient> : ProjectionProcessor<TClient> where TClient : IAsyncDisposable {
     IBulkProjectionHandler? _handler;
 
     #region ->> Project <<-
@@ -24,11 +24,11 @@ public abstract class BulkProjection<TClient> : ProjectionProcessor<TClient> {
     #endregion
 
     /// <inheritdoc/>
-    public sealed override ValueTask OnProcessBatch(TClient client, BatchContext context) =>
+    public sealed override ValueTask OnBatch(BatchContext context) =>
         _handler is null
             ? throw new InvalidOperationException(
                 $"{GetType().Name} registered no batch handler. Call Project(...) in its constructor.")
-            : _handler.Handle(BulkProjectionContext<TClient>.From(client, context));
+            : _handler.Handle(BulkProjectionContext<TClient>.From(Clients, context));
 
     #region ->> Handler Types <<-
 
@@ -62,15 +62,15 @@ public abstract class BulkProjection<TClient> : ProjectionProcessor<TClient> {
 /// </summary>
 /// <inheritdoc cref="ProjectionContext{TClient}" path="/remarks"/>
 [PublicAPI]
-public readonly record struct BulkProjectionContext<TClient> {
+public readonly record struct BulkProjectionContext<TClient> where TClient : IAsyncDisposable {
     readonly BatchContext _source;
 
-    BulkProjectionContext(TClient client, BatchContext source) {
-        Client  = client;
+    BulkProjectionContext(IProjectionClientProvider<TClient> clients, BatchContext source) {
+        Clients = clients;
         _source = source;
     }
 
-    public TClient Client { get; }
+    public IProjectionClientProvider<TClient> Clients { get; }
 
     public RecordBatch       Records           => _source.Records;
     public string            ProjectionId      => _source.ProcessorId;
@@ -107,6 +107,9 @@ public readonly record struct BulkProjectionContext<TClient> {
     /// </summary>
     public void StopProcessing(string? reason = null) => _source.StopProcessing(reason);
 
-    internal static BulkProjectionContext<TClient> From(TClient client, BatchContext source) =>
-        new(client, source);
+    internal static BulkProjectionContext<TClient> From(
+        IProjectionClientProvider<TClient> clients,
+        BatchContext source
+    ) =>
+        new(clients, source);
 }

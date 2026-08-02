@@ -31,7 +31,7 @@ namespace Kurrent.Projectors;
 /// <typeparam name="TClient">The backend's client type.</typeparam>
 [PublicAPI]
 public record ProjectorOptions<TClient> : SelfValidating<ProjectorOptions<TClient>, ProjectorOptions<TClient>.Validator>
-    where TClient : class {
+    where TClient : IAsyncDisposable {
     /// <summary>
     /// Identifies this projection's rows in its checkpoint storage, and the group its resume position
     /// belongs to. Defaults to the projection's type name.

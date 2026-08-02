@@ -46,7 +46,7 @@ public class DuckDBDocumentProjectionTests {
         };
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(
+        await projection.OnBatch(connection, BatchOf(
             Decoded(new Incremented(first, 3), NextPosition()),
             Decoded(new Incremented(second, 7), NextPosition())));
 
@@ -70,7 +70,7 @@ public class DuckDBDocumentProjectionTests {
         var expected = new[] { new Counter(counterId, 6, "") };
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(
+        await projection.OnBatch(connection, BatchOf(
             Decoded(new Incremented(counterId, 1), NextPosition()),
             Decoded(new Incremented(counterId, 2), NextPosition()),
             Decoded(new Incremented(counterId, 3), NextPosition())));
@@ -92,8 +92,8 @@ public class DuckDBDocumentProjectionTests {
         var expected = new[] { new Counter(counterId, 5, "") };
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(Decoded(new Incremented(counterId, 2), NextPosition())));
-        await projection.OnProcessBatch(connection, BatchOf(Decoded(new Incremented(counterId, 3), NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Decoded(new Incremented(counterId, 2), NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Decoded(new Incremented(counterId, 3), NextPosition())));
 
         // Assert — one load per batch; the second returns the first batch's row.
         await Assert.That(projection.Loads).IsEqualTo(2);
@@ -115,7 +115,7 @@ public class DuckDBDocumentProjectionTests {
         var expected = new[] { stored with { Label = label } };
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(
+        await projection.OnBatch(connection, BatchOf(
             Decoded(new Labelled(stored.Id, label), NextPosition())));
 
         // Assert
@@ -135,7 +135,7 @@ public class DuckDBDocumentProjectionTests {
         var expected = new[] { new Counter(counterId, 0, label) };
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(
+        await projection.OnBatch(connection, BatchOf(
             Decoded(new CreatedAsync(counterId, label), NextPosition())));
 
         // Assert
@@ -157,7 +157,7 @@ public class DuckDBDocumentProjectionTests {
         Seed(connection, projection.Table, stored);
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(Decoded(new Removed(stored.Id), NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Decoded(new Removed(stored.Id), NextPosition())));
 
         // Assert
         await Assert.That(CountRows(connection, projection.Table)).IsEqualTo(0);
@@ -175,7 +175,7 @@ public class DuckDBDocumentProjectionTests {
         Seed(connection, projection.Table, stored);
 
         // Act — Labelled maps a null document back to null, so the key must stay deleted.
-        await projection.OnProcessBatch(connection, BatchOf(
+        await projection.OnBatch(connection, BatchOf(
             Decoded(new Removed(stored.Id), NextPosition()),
             Decoded(new Labelled(stored.Id, Faker.Commerce.ProductName()), NextPosition())));
 
@@ -196,7 +196,7 @@ public class DuckDBDocumentProjectionTests {
         var projection = NewProjection(connection);
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(
+        await projection.OnBatch(connection, BatchOf(
             Decoded(new Unregistered(NewCounterId()), NextPosition())));
 
         // Assert
@@ -212,7 +212,7 @@ public class DuckDBDocumentProjectionTests {
         var projection = NewProjection(connection);
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(Undecoded(NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Undecoded(NextPosition())));
 
         // Assert
         await Assert.That(projection.Loads).IsEqualTo(0);

@@ -60,7 +60,7 @@ public class DuckDBDocumentStoreTests {
         var expected = new[] { (Key: counterId, Document: new Counter(counterId, 3, "")) };
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(Decoded(new Incremented(counterId, 3), NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Decoded(new Incremented(counterId, 3), NextPosition())));
 
         // Assert
         await Assert.That(ReadRows(connection, table)).IsEquivalentTo(expected);
@@ -80,8 +80,8 @@ public class DuckDBDocumentStoreTests {
         var expected = new[] { (Key: counterId, Document: new Counter(counterId, 5, "")) };
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(Decoded(new Incremented(counterId, 2), NextPosition())));
-        await projection.OnProcessBatch(connection, BatchOf(Decoded(new Incremented(counterId, 3), NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Decoded(new Incremented(counterId, 2), NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Decoded(new Incremented(counterId, 3), NextPosition())));
 
         // Assert — one row, not two: the upsert replaced rather than inserted.
         await Assert.That(ReadRows(connection, table)).IsEquivalentTo(expected);
@@ -97,10 +97,10 @@ public class DuckDBDocumentStoreTests {
 
         var connection = await Start(projection, ct);
 
-        await projection.OnProcessBatch(connection, BatchOf(Decoded(new Incremented(counterId, 7), NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Decoded(new Incremented(counterId, 7), NextPosition())));
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(Decoded(new Removed(counterId), NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Decoded(new Removed(counterId), NextPosition())));
 
         // Assert
         await Assert.That(ReadRows(connection, table)).IsEmpty();
@@ -123,7 +123,7 @@ public class DuckDBDocumentStoreTests {
         };
 
         // Act
-        await projection.OnProcessBatch(connection, BatchOf(Decoded(new Registered(counterId, 4), NextPosition())));
+        await projection.OnBatch(connection, BatchOf(Decoded(new Registered(counterId, 4), NextPosition())));
 
         // Assert
         await Assert.That(ReadRows(connection, table)).IsEquivalentTo(expected);

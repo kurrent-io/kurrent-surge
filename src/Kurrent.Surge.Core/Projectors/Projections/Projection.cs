@@ -9,7 +9,7 @@ namespace Kurrent.Projectors;
 /// decide, write across as many tables as they like.
 /// </summary>
 [PublicAPI]
-public abstract class Projection<TClient> : ProjectionProcessor<TClient> {
+public abstract class Projection<TClient> : ProjectionProcessor<TClient> where TClient : IAsyncDisposable {
     readonly HandlerRegistry<IProjectionHandler> _handlers = new();
     
     /// <summary>
@@ -27,13 +27,13 @@ public abstract class Projection<TClient> : ProjectionProcessor<TClient> {
     }
     
     /// <inheritdoc/>
-    public sealed override async ValueTask OnProcessBatch(TClient client, BatchContext context) {
+    public sealed override async ValueTask OnBatch(BatchContext context) {
         foreach (var record in context.Records) {
             var (handler, isFallback, found) = _handlers.Resolve(record);
 
             if (handler is { } && found)
                 await handler
-                    .Handle(ProjectionContext<TClient>.From(client, record, context))
+                    .Handle(ProjectionContext<TClient>.From(Clients, record, context))
                     .ConfigureAwait(false);
 
             // Tracked after each record, so the frontier always equals the applied work — on a

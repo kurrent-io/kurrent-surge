@@ -31,7 +31,7 @@ public class ProjectorOptionsSurfaceTests {
     [Test]
     public async ValueTask every_processor_knob_is_either_offered_to_projections_or_deliberately_absent() {
         // Arrange
-        var offeredToProjections = PublicPropertyNames(typeof(ProjectorOptions<object>));
+        var offeredToProjections = PublicPropertyNames(typeof(ProjectorOptions<FakeProjectionClient>));
 
         // Act — processor knobs that a projection can neither set nor is documented as not getting.
         var unaccountedFor = PublicPropertyNames(typeof(ProcessorOptions))
@@ -141,7 +141,7 @@ public class ProjectorOptionsSurfaceTests {
 
     #region ->> Arranging <<-
 
-    ProjectorOptions<object> NewOptions() =>
+    ProjectorOptions<FakeProjectionClient> NewOptions() =>
         new() { ProjectionId = Faker.Internet.DomainWord() };
 
     static string[] PublicPropertyNames(Type type) =>

@@ -38,7 +38,7 @@ public sealed class KurrentProjector {
     public static KurrentProjector Create<TClient>(
         ProjectionProcessor<TClient> projection,
         ProjectorOptions<TClient> options
-    ) where TClient : class {
+    ) where TClient : class, IAsyncDisposable {
         ArgumentNullException.ThrowIfNull(projection);
         ArgumentNullException.ThrowIfNull(options);
 

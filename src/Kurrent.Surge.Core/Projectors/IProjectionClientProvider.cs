@@ -11,7 +11,7 @@ namespace Kurrent.Projectors.Transactional;
 /// in a provider.
 /// </remarks>
 [PublicAPI]
-public interface IProjectionClientProvider<TClient> {
+public interface IProjectionClientProvider<TClient> where TClient : IAsyncDisposable {
     /// <summary>Returns a client. Called once per projection run, by its transaction.</summary>
     ValueTask<TClient> GetClient(CancellationToken cancellationToken);
 }

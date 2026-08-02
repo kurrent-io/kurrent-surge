@@ -17,7 +17,7 @@ namespace Kurrent.Projectors;
 /// </remarks>
 [PublicAPI]
 public static class ProjectorOptionsConnectionExtensions {
-    extension<TClient>(ProjectorOptions<TClient> options) where TClient : class {
+    extension<TClient>(ProjectorOptions<TClient> options) where TClient : class, IAsyncDisposable {
         /// <summary>
         /// Sets the KurrentDB connection string the projection reads from.
         /// </summary>

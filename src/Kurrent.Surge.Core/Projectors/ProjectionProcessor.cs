@@ -29,11 +29,13 @@ namespace Kurrent.Projectors.Transactional;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public abstract class ProjectionProcessor<TClient> : IRecordBatchProcessor, IAsyncDisposable {
+public abstract class ProjectionProcessor<TClient> : IRecordBatchProcessor where TClient : IAsyncDisposable {
     readonly List<ProjectionSetup<TClient>> _setupActions = [];
 
-    IProjectionTransaction<TClient>?     _transaction;
     IProjectionCheckpointStore<TClient>? _checkpoints;
+
+    /// <summary>The provider a shape resolves its clients through.</summary>
+    protected IProjectionClientProvider<TClient> Clients { get; private set; } = null!;
 
     /// <summary>Identifies this projection's rows in the checkpoint storage.</summary>
     protected string ProjectionId { get; private set; } = "";
@@ -56,26 +58,30 @@ public abstract class ProjectionProcessor<TClient> : IRecordBatchProcessor, IAsy
     /// </remarks>
     public virtual void Wire(
         string projectionId,
-        IProjectionTransaction<TClient> transaction,
+        IProjectionClientProvider<TClient> clients,
         IProjectionCheckpointStore<TClient> checkpoints
     ) {
         ProjectionId = projectionId;
 
-        _transaction = transaction;
+        Clients      = clients;
         _checkpoints = checkpoints;
     }
 
     #region ->> Lifecycle <<-
 
     async ValueTask IProcessor.OnInitialize(InitializeContext context) {
-        if (_transaction is null || _checkpoints is null)
+        if (Clients is null || _checkpoints is null)
             throw new InvalidOperationException(
                 $"{GetType().Name} was not wired. Create it through its backend projector rather than "
               + "registering it directly, or its checkpoints go to the wrong store.");
 
-        var client = await _transaction.Open(context.CancellationToken).ConfigureAwait(false);
+        await using var client = await Clients
+            .GetClient(context.CancellationToken)
+            .ConfigureAwait(false);
 
-        await _checkpoints.EnsureStoreExists(client, context.CancellationToken).ConfigureAwait(false);
+        await _checkpoints
+            .EnsureStoreExists(client, context.CancellationToken)
+            .ConfigureAwait(false);
 
         // The projection's own schema, and whatever it wants to assert about its handlers. This is the
         // only hook that runs before a single record is read, so it is where a projection that needs a
@@ -99,48 +105,14 @@ public abstract class ProjectionProcessor<TClient> : IRecordBatchProcessor, IAsy
             .Load(client, context.Partitions, context.InitialPosition, context.CancellationToken)
             .ConfigureAwait(false);
 
-        // Committed here rather than left open for the first batch: schema and any rewind are startup
-        // facts, and the resume read has nothing to do with the transaction that will carry projected
-        // rows.
-        await _transaction.Commit(context.CancellationToken).ConfigureAwait(false);
-
         context.OwnCheckpoints(resumeFrom);
     }
 
-    async ValueTask IRecordBatchProcessor.ProcessBatch(BatchContext context) {
-        var client = await _transaction!.Open(context.CancellationToken).ConfigureAwait(false);
+    ValueTask IRecordBatchProcessor.ProcessBatch(BatchContext context) =>
+        OnBatch(context);
 
-        await OnProcessBatch(client, context).ConfigureAwait(false);
-    }
-
-    async ValueTask IProcessor.OnCheckpoint(CheckpointContext context) {
-        var client = await _transaction!.Open(context.CancellationToken).ConfigureAwait(false);
-
-        await OnCheckpoint(client, context).ConfigureAwait(false);
-
-        // The positions are whatever the drone's tracker holds — on a clean checkpoint the full
-        // frontier, on the final checkpoint after a failed batch the applied prefix. Either way they
-        // describe exactly the rows sitting in this transaction, so storing and committing them
-        // together is always right.
-        await _checkpoints!
-            .Store(client, context.Positions, context.CancellationToken)
-            .ConfigureAwait(false);
-
-        await _transaction.Commit(context.CancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Releases the connection. Anything still open was never committed, and the backend's disposal
-    /// rolls it back.
-    /// </summary>
-    public ValueTask DisposeAsync() {
-        if (_transaction is IAsyncDisposable asyncDisposable)
-            return asyncDisposable.DisposeAsync();
-
-        (_transaction as IDisposable)?.Dispose();
-
-        return ValueTask.CompletedTask;
-    }
+    ValueTask IProcessor.OnCheckpoint(CheckpointContext context) =>
+        OnCheckpoint(context);
 
     #endregion
 
@@ -181,7 +153,7 @@ public abstract class ProjectionProcessor<TClient> : IRecordBatchProcessor, IAsy
     /// equality is what makes the final checkpoint after a mid-batch failure commit a consistent prefix.
     /// The built-in shapes already do this.
     /// </remarks>
-    public abstract ValueTask OnProcessBatch(TClient client, BatchContext context);
+    public abstract ValueTask OnBatch(BatchContext context);
 
     /// <summary>
     /// Runs on every checkpoint, inside the open transaction and before the positions are stored. Write
@@ -191,7 +163,7 @@ public abstract class ProjectionProcessor<TClient> : IRecordBatchProcessor, IAsy
     /// This does not commit. The checkpoint commits immediately after, which is what makes the rows and
     /// the positions one durable fact.
     /// </remarks>
-    protected virtual ValueTask OnCheckpoint(TClient client, CheckpointContext context) => default;
+    protected virtual ValueTask OnCheckpoint(CheckpointContext context) => default;
 }
 
 /// <summary>

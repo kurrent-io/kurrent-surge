@@ -31,7 +31,7 @@ namespace Kurrent.Projectors.Transactional;
 /// is nothing for a load to add, <see cref="UpsertProjection{TClient,TDocument}"/> is cheaper.
 /// </para>
 /// <para>
-/// <see cref="OnProcessBatch"/> ignores its client: every read and write goes through the store, which resolves its
+/// <see cref="OnBatch"/> ignores its client: every read and write goes through the store, which resolves its
 /// own. <paramref name="collection"/> travels on every store call, so one store instance serves as many
 /// projections and document types as a backend has.
 /// </para>
@@ -41,7 +41,7 @@ namespace Kurrent.Projectors.Transactional;
 public abstract class DocumentProjection<TClient, TDocument, TKey>(IDocumentStore store)
     : ProjectionProcessor<TClient>
     where TDocument : class
-    where TKey : notnull {
+    where TKey : notnull where TClient : IAsyncDisposable {
     readonly HandlerRegistry<Fold> _handlers = new();
 
     readonly DocumentsDataContext _documents = new(store);
@@ -73,7 +73,7 @@ public abstract class DocumentProjection<TClient, TDocument, TKey>(IDocumentStor
     #endregion
 
     /// <inheritdoc/>
-    public sealed override async ValueTask OnProcessBatch(TClient client, BatchContext context) {
+    public sealed override async ValueTask OnBatch(BatchContext context) {
         // The key of every record is known before any fold runs, because selectKey is a function of the
         // message alone. That is what turns a batch into one read instead of one read per key.
         var folds = new List<(TKey Key, Fold Fold, Record Record)>();
@@ -114,7 +114,7 @@ public abstract class DocumentProjection<TClient, TDocument, TKey>(IDocumentStor
     }
 
     /// <inheritdoc/>
-    protected override ValueTask OnCheckpoint(TClient client, CheckpointContext context) =>
+    protected override ValueTask OnCheckpoint(CheckpointContext context) =>
         _documents.SaveChanges(context.CancellationToken);
 
     /// <summary>

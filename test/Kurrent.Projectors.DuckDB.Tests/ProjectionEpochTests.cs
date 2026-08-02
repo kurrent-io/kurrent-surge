@@ -127,7 +127,7 @@ public class ProjectionEpochTests {
 
         // Act — replay the key onto a fresh transaction. A fold that still saw the discarded 9 — from
         // memory or from a write that survived the rollback — would produce 10 instead of 1.
-        await projection.OnProcessBatch(epoch.Connection, BatchOf(Decoded(new Incremented(counterId, 1), NextPosition())));
+        await projection.OnBatch(epoch.Connection, BatchOf(Decoded(new Incremented(counterId, 1), NextPosition())));
 
         // Assert — read on the open transaction's connection; the replayed row is not committed yet.
         await Assert.That(ReadTotal(epoch.Connection, table, counterId)).IsEqualTo(1);

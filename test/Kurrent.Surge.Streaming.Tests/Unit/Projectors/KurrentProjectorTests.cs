@@ -12,7 +12,7 @@ public class KurrentProjectorTests {
         // Arrange — everything else is set, so the client provider is the only rule left to break.
         var projection = new TestProjection();
 
-        var options = new ProjectorOptions<object>();
+        var options = new ProjectorOptions<FakeProjectionClient>();
         options.ProjectionId = "projector-validation";
         options.Connection(TestConnectionString);
 
@@ -20,5 +20,5 @@ public class KurrentProjectorTests {
         await Assert.That(() => KurrentProjector.Create(projection, options)).Throws<ValidationException>();
     }
 
-    sealed class TestProjection : Projection<object>;
+    sealed class TestProjection : Projection<FakeProjectionClient>;
 }
