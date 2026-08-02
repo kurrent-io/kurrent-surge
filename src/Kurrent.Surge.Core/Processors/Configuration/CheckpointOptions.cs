@@ -85,12 +85,12 @@ public record CheckpointOptions {
     /// <summary>
     /// Number of completed checkpoints to retain. Default: 3.
     /// </summary>
-    internal int RetentionCount { get; set; } = 3;
+    public int RetentionCount { get; set; } = 3;
 
     /// <summary>
     /// What to do when a checkpoint fails. Default: <see cref="CheckpointFailurePolicy.Continue"/>.
     /// </summary>
-    internal CheckpointFailurePolicy FailurePolicy { get; set; } = CheckpointFailurePolicy.Continue;
+    public CheckpointFailurePolicy FailurePolicy { get; set; } = CheckpointFailurePolicy.Continue;
 
     /// <summary>
     /// Sets <see cref="Interval"/> and returns this instance for fluent chaining.

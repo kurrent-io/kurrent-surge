@@ -51,10 +51,10 @@ static class KurrentRpcStatusMapping {
         var details = new KurrentErrorDetails { ErrorCode = code };
 
         if (status.GetDetail<Google.Rpc.ResourceInfo>() is { ResourceType.Length: > 0, ResourceName.Length: > 0 } resourceInfo)
-            details.ResourceInfo = Kurrent.Surge.Client.Errors.ResourceInfo.From(resourceInfo.ResourceType, resourceInfo.ResourceName);
+            details.ResourceInfo = Errors.ResourceInfo.From(resourceInfo.ResourceType, resourceInfo.ResourceName);
 
         if (status.GetDetail<Google.Rpc.RetryInfo>() is { } retryInfo)
-            details.RetryInfo = Kurrent.Surge.Client.Errors.RetryInfo.From(retryInfo.RetryDelay.ToTimeSpan());
+            details.RetryInfo = Errors.RetryInfo.From(retryInfo.RetryDelay.ToTimeSpan());
 
         return details;
     }

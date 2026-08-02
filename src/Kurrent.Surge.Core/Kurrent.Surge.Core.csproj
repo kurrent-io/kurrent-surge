@@ -58,16 +58,6 @@
   </ItemGroup>
 
   <ItemGroup>
-
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Streaming contracts merged from Kurrent.Streaming.Core: proto-compilation tooling,
-         resilience primitives on ProcessorOptions, and OpenTelemetry metrics. -->
-
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- Streaming wire contracts merged from Kurrent.Streaming.Core. Message types only
          (no GrpcServices); Access=Public so consumers see them. -->
     <Protobuf ProtoRoot="../../proto/kurrent"
@@ -90,6 +80,7 @@
     <InternalsVisibleTo Include="Kurrent.Surge" />
     <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
+    <InternalsVisibleTo Include="Kurrent.Projectors.DuckDB.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Benchmarks" />
     <InternalsVisibleTo Include="Kurrent.Surge.Testkit" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />

@@ -10,6 +10,9 @@ public class DroneException(ErrorCode code, string reason, Exception innerExcept
     public static DroneException ProcessBatchFailed(Exception innerException) =>
         new("PROCESS_BATCH_FAILED", "An error occurred while processing the record batch.", innerException);
 
+    public static DroneException OnInitializeFailed(Exception innerException) =>
+        new("ON_INITIALIZE_FAILED", "An error occurred in the initialization handler.", innerException);
+
     public static DroneException OnConnectedFailed(Exception innerException) =>
         new("ON_CONNECTED_FAILED", "An error occurred in the connection handler.", innerException);
 

@@ -52,7 +52,7 @@ public record BatchContext : DroneContext {
     public BatchContext(Action<RecordPosition> requestTrack) =>
         RequestTrack = requestTrack;
 
-    public required RecordBatch   Records  { get; init; }
+    public required RecordBatch Records  { get; init; }
 
     internal Action<RecordPosition> RequestTrack { get; init; } = static _ => { };
 
@@ -74,6 +74,20 @@ public record BatchContext : DroneContext {
     public void Track(RecordPosition upTo) {
         _trackedByUser = true;
         TrackFrontier(upTo);
+    }
+
+    /// <summary>
+    /// Marks one record as durably handled, directly and cheaply — no frontier scan. Call it after
+    /// applying each record, and the tracked frontier equals the applied work at every instant: on a
+    /// mid-batch throw, the final checkpoint commits exactly the records whose effects exist.
+    /// </summary>
+    /// <remarks>
+    /// Prefer this inside a per-record loop; <see cref="Track(RecordPosition)"/> folds the whole
+    /// batch per call and is meant for one sparse claim, not for every record.
+    /// </remarks>
+    public void Track(Record record) {
+        _trackedByUser = true;
+        RequestTrack(record.Position);
     }
 
     // The commit frontier is the max position per partition: the strictly-monotonic tracker only ever
@@ -169,6 +183,7 @@ public record BatchContext : DroneContext {
 public abstract class RecordBatchProcessor : IRecordBatchProcessor {
     public abstract ValueTask ProcessBatch(BatchContext context);
 
+    public virtual ValueTask OnInitialize(InitializeContext context) => ValueTask.CompletedTask;
     public virtual ValueTask OnConnected(ConnectedContext context)   => ValueTask.CompletedTask;
     public virtual ValueTask OnCheckpoint(CheckpointContext context) => ValueTask.CompletedTask;
 }

@@ -23,7 +23,7 @@ abstract class ProcessorDispatcher(
     ObserverDispatcher observers,
     ProcessorOptions options,
     TimeProvider timeProvider
-) {
+) : IAsyncDisposable {
     protected Checkpointer       Checkpointer { get; } = checkpointer;
     protected ProgressTracker    Progress     { get; } = progress;
     protected ObserverDispatcher Observers    { get; } = observers;
@@ -41,6 +41,15 @@ abstract class ProcessorDispatcher(
     /// </remarks>
     public abstract ValueTask<RecordProcessingResult> Dispatch(DroneContext context, RecordBatch batch);
 
+    public async ValueTask OnInitialize(InitializeContext context) {
+        try {
+            await processor.OnInitialize(context).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException) {
+            throw DroneException.OnInitializeFailed(ex);
+        }
+    }
+
     public async ValueTask OnConnected(ConnectedContext context) {
         try {
             await processor.OnConnected(context).ConfigureAwait(false);
@@ -56,6 +65,23 @@ abstract class ProcessorDispatcher(
         }
         catch (Exception ex) when (ex is not OperationCanceledException) {
             throw DroneException.OnCheckpointFailed(ex);
+        }
+    }
+
+    /// <summary>
+    /// Releases whatever the processor opened. A processor that acquires resources in
+    /// <see cref="IProcessor.OnInitialize"/> — a connection a projection holds for its whole run — has
+    /// nowhere else to give them back, so the drone releases them on the way out.
+    /// </summary>
+    public async ValueTask DisposeAsync() {
+        switch (processor) {
+            case IAsyncDisposable asyncDisposable:
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                break;
+
+            case IDisposable disposable:
+                disposable.Dispose();
+                break;
         }
     }
 

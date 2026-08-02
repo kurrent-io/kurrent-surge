@@ -1,10 +1,10 @@
+using Kurrent.Quack;
+
 namespace Kurrent.Projectors.DuckDB;
 
 /// <summary>
-/// Options for a DuckDB-backed projection. Inherits <see cref="ProjectorOptions{TClient}"/>
-/// with <c>TClient = IDuckDBConnectionProvider</c>. Configure the projection by setting
-/// <see cref="ProjectorOptions{TClient}.ResolveClient"/> to a delegate that returns your
-/// <see cref="IDuckDBConnectionProvider"/>.
+/// Options for a DuckDB-backed projection. Everything a caller can configure is declared on
+/// <see cref="ProjectorOptions{TClient}"/> or here — there is no processor surface to hide.
 /// </summary>
 [PublicAPI]
-public record DuckDBProjectorOptions : ProjectorOptions<IDuckDBConnectionProvider>;
+public record DuckDBProjectorOptions : ProjectorOptions<DuckDBAdvancedConnection>;

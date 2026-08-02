@@ -68,4 +68,5 @@ public static class ProcessorOptionsConnectionExtensions {
                 options.Connection(connectionString);
         }
     }
+
 }

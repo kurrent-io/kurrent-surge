@@ -1,3 +1,4 @@
+using Kurrent.Projectors.Transactional;
 using Kurrent.Surge.Streaming;
 
 namespace Kurrent.Projectors;
@@ -25,24 +26,24 @@ public sealed class KurrentProjector {
         _inner.RunWithGracefulShutdownAsync(shutdownTimeout);
 
     /// <summary>
-    /// Creates a projector from any <see cref="Projection{TClient}"/>. The caller must configure
-    /// <see cref="ProjectorOptions{TClient}.ResolveClient"/>.
+    /// Wraps an already-wired projection. A backend's own projector builds the transaction and the
+    /// checkpoint storage and calls <c>Wire</c> before handing the projection here — this type only
+    /// keeps the processor vocabulary out of user-facing code.
     /// </summary>
+    /// <remarks>
+    /// A projection that arrives unwired is not rejected here; it throws from <c>OnInitialize</c>, which
+    /// is the one place that can tell the difference and the last moment before it would silently run
+    /// against the framework's own checkpoint store.
+    /// </remarks>
     public static KurrentProjector Create<TClient>(
-        Projection<TClient> projection,
-        Action<ProjectorOptions<TClient>>? configure = null
-    ) {
+        ProjectionProcessor<TClient> projection,
+        ProjectorOptions<TClient> options
+    ) where TClient : class {
         ArgumentNullException.ThrowIfNull(projection);
+        ArgumentNullException.ThrowIfNull(options);
 
-        var opts = new ProjectorOptions<TClient>();
-        configure?.Invoke(opts);
+        options.EnsureValid();
 
-        return BuildFrom(projection, opts);
-    }
-
-    static KurrentProjector BuildFrom<TClient>(Projection<TClient> projection, ProjectorOptions<TClient> opts) {
-        opts.EnsureValid();
-        projection.UseClientResolver(opts.ResolveClient!);
-        return new KurrentProjector(KurrentProcessor.Create(projection, opts));
+        return new KurrentProjector(KurrentProcessor.Create(projection, options.ToProcessorOptions()));
     }
 }

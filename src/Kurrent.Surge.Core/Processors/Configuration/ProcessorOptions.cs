@@ -72,7 +72,7 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// Default: 10 seconds. Internal — a tuning knob for tests and future exposure, not yet a public
     /// surface.
     /// </summary>
-    internal TimeSpan SourceLagRefreshInterval { get; set; } = TimeSpan.FromSeconds(10);
+    public TimeSpan SourceLagRefreshInterval { get; set; } = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// Factory used to create the <see cref="Meter"/> the processor records its instruments on.
@@ -90,27 +90,13 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// <summary>
     /// Observers registered on the processor's lifecycle seam, in registration order.
     /// </summary>
-    internal List<IProcessorObserver> Observers { get; } = [];
-
-    /// <summary>
-    /// Registers an observer for the processor's lifecycle events.
-    /// </summary>
-    /// <remarks>
-    /// Observers are invoked synchronously on the processing thread in registration order, after the
-    /// built-in telemetry observer. An observer that throws is logged and skipped — it never disturbs
-    /// the pipeline or the remaining observers. Observers that transform or replace records do not
-    /// belong here; wrap the processor in a decorator instead.
-    /// </remarks>
-    public ProcessorOptions Observe(IProcessorObserver observer) {
-        Observers.Add(observer);
-        return this;
-    }
-
+    public List<IProcessorObserver> Observers { get; init; } = [];
+    
     /// <summary>
     /// Maximum number of partitions (key groups). Range: 1-32768.
     /// Reserved for partitioned processing — not yet exposed as a public knob.
     /// </summary>
-    internal int MaxParallelism { get; set; } = 1;
+    public int MaxParallelism { get; set; } = 1;
     
     /// <summary>
     /// Subscription configuration (filter, initial position).
@@ -145,6 +131,20 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
 
     #region ->> Convenience Builders <<-
 
+    /// <summary>
+    /// Registers an observer for the processor's lifecycle events.
+    /// </summary>
+    /// <remarks>
+    /// Observers are invoked synchronously on the processing thread in registration order, after the
+    /// built-in telemetry observer. An observer that throws is logged and skipped — it never disturbs
+    /// the pipeline or the remaining observers. Observers that transform or replace records do not
+    /// belong here; wrap the processor in a decorator instead.
+    /// </remarks>
+    public ProcessorOptions AddObserver(IProcessorObserver observer) {
+        Observers.Add(observer);
+        return this;
+    }
+    
     /// <summary>
     /// Configures the processor's <see cref="CheckpointOptions"/> in place. Set properties directly
     /// or use the fluent <see cref="CheckpointOptions.IntervalFrom(TimeSpan)"/> helpers.
@@ -194,6 +194,8 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     }
 
     #endregion
+    
+    public TimeProvider Time { get; set; } = TimeProvider.System;
 
     #region ->> Validation <<-
 

@@ -14,8 +14,8 @@ public class ObserverEmissionsIntegrationTests {
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
-    public async ValueTask user_observer_registered_via_observe_receives_events(CancellationToken ct) {
-        // Arrange — an observer registered through opts.Observe sits on the seam beside the built-in
+    public async ValueTask user_observer_registered_via_add_observer_receives_events(CancellationToken ct) {
+        // Arrange — an observer registered through opts.AddObserver sits on the seam beside the built-in
         // telemetry and must receive a ready/completed pair for every record the handler processes.
         var data     = await Fixture.SeedTestStream(50, ct);
         var observer = new CountingObserver();
@@ -38,7 +38,7 @@ public class ObserverEmissionsIntegrationTests {
             opts.Subscription.Filter          = RecordFilter.ByStream(data.Stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
-            opts.Observe(observer);
+            opts.AddObserver(observer);
         });
 
         // Act
@@ -122,7 +122,7 @@ public class ObserverEmissionsIntegrationTests {
             opts.Checkpoint.Interval          = TimeSpan.FromHours(1);
             opts.TrackSourceLag               = true;
             opts.SourceLagRefreshInterval     = TimeSpan.FromMilliseconds(100);
-            opts.Observe(observer);
+            opts.AddObserver(observer);
         });
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);

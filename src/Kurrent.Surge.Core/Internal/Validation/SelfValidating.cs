@@ -11,7 +11,7 @@ public interface ISelfValidating {
     /// A <see cref="ValidationResult"/> containing information about
     /// whether the object is valid and any validation errors if present.
     /// </returns>
-    ValidationResult Validate();
+    public ValidationResult Validate();
 
     /// <summary>
     /// Ensures the current object is valid by invoking its validation logic
@@ -21,7 +21,7 @@ public interface ISelfValidating {
     /// Thrown if the validation process indicates that the object is invalid.
     /// The exception type and message are determined by the specific validation errors.
     /// </exception>
-    void EnsureValid() => Validate().EnsureValid();
+    public void EnsureValid() => Validate().EnsureValid();
     
     // TODO SS: Source generator — replace these base types with [SelfValidating] attribute
     // ─────────────────────────────────────────────────────────────────────────────

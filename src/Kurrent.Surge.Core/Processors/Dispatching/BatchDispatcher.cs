@@ -9,7 +9,7 @@ namespace Kurrent.Surge.Streaming;
 /// Dispatches a whole batch to an <see cref="IRecordBatchProcessor"/>, with one telemetry scope
 /// around the handler and a whole-batch frontier auto-track.
 /// </summary>
-sealed class BatchDispatcher(
+class BatchDispatcher(
     IRecordBatchProcessor processor,
     Checkpointer checkpointer,
     ProgressTracker progress,

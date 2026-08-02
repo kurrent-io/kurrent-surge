@@ -1,3 +1,4 @@
+using Kurrent.Projectors.Transactional;
 using Kurrent.Quack;
 using Kurrent.Quack.ConnectionPool;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,13 +12,13 @@ namespace Kurrent.Projectors.DuckDB;
 /// pool-backed providers return it to the pool; single-connection providers no-op.
 /// </summary>
 [PublicAPI]
-public interface IDuckDBConnectionProvider {
+public interface IDuckDBConnectionProvider : IProjectionClientProvider<DuckDBAdvancedConnection> {
     /// <summary>
-    /// Returns a connection the caller owns for the duration of the call.
-    /// Pool-backed providers open a fresh unmanaged connection here; single-connection
-    /// providers return the shared connection (caller must not dispose it).
+    /// Borrows a connection for the lifetime of the returned handle. Dispose it exactly once, and never
+    /// dispose the connection directly — a pool-backed provider returns the rental, and a
+    /// single-connection provider no-ops because the connection outlives every borrower.
     /// </summary>
-    DuckDBAdvancedConnection GetConnection();
+    IDisposable GetScopedConnection(out DuckDBAdvancedConnection connection);
 }
 
 /// <summary>
@@ -56,9 +57,6 @@ public sealed class DuckDBPooledConnectionProvider : IDuckDBConnectionProvider, 
         _ownsPool = true;
     }
 
-    public DuckDBAdvancedConnection GetConnection() =>
-        _pool.Open();
-
     public IDisposable GetScopedConnection(out DuckDBAdvancedConnection connection) =>
         _pool.Rent(out connection);
 
@@ -69,6 +67,14 @@ public sealed class DuckDBPooledConnectionProvider : IDuckDBConnectionProvider, 
 
     internal static bool IsInMemory(DuckDBConnectionString cs) =>
         cs.InMemory || cs.DataSource.StartsWith(":memory:", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Mints a connection outside the pool. The caller owns it and must dispose it exactly once — the
+    /// pool's own disposal only reclaims connections it holds, and one from <see cref="DuckDBConnectionPool.Open"/>
+    /// never enters it. Prefer <see cref="GetScopedConnection"/>, whose rental returns to the pool instead.
+    /// </summary>
+    public ValueTask<DuckDBAdvancedConnection> GetClient(CancellationToken cancellationToken) =>
+        ValueTask.FromResult(_pool.Open());
 }
 
 /// <summary>
@@ -85,7 +91,7 @@ public sealed class DuckDBMemoryConnectionProvider : IDuckDBConnectionProvider, 
 
     /// <summary>Opens a fresh isolated in-memory database.</summary>
     public DuckDBMemoryConnectionProvider() {
-        _connection = new DuckDBAdvancedConnection { ConnectionString = "DataSource=:memory:" };
+        _connection = new() { ConnectionString = "DataSource=:memory:" };
         _connection.Open();
     }
 
@@ -101,6 +107,9 @@ public sealed class DuckDBMemoryConnectionProvider : IDuckDBConnectionProvider, 
     sealed class NoOpDisposable : IDisposable {
         public void Dispose() { }
     }
+
+    public ValueTask<DuckDBAdvancedConnection> GetClient(CancellationToken cancellationToken) =>
+        ValueTask.FromResult(_connection);
 }
 
 /// <summary>

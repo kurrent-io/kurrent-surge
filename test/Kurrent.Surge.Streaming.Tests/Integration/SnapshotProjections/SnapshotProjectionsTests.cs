@@ -21,7 +21,7 @@ public class SnapshotProjectionsTests {
     // parameterless constructor — a snapshot type must be appendable and reconstructable from nothing.
     static readonly RecordFaker Records = new();
 
-    SnapshotProjectionsStore CreateStore() => new(Fixture.Client.Streams);
+    KurrentDBSnapshotProjectionsStore CreateStore() => new(Fixture.Client.Streams);
 
     static StreamName NewSnapshotStream() => $"snapshot-projection-{TestId.New()}";
 

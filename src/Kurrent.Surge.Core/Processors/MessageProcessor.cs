@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Streaming;
@@ -25,17 +24,13 @@ namespace Kurrent.Surge.Streaming;
 /// </summary>
 [PublicAPI]
 public class MessageProcessor : IRecordProcessor {
-    readonly Dictionary<Type, IMessageHandler> _handlers = [];
-
-    IMessageHandler? _fallback;
-
-    FrozenDictionary<Type, IMessageHandler> Handlers => field ??= _handlers.ToFrozenDictionary();
+    readonly HandlerRegistry<IMessageHandler> _handlers = new();
 
     /// <summary>
     /// Registers an async handler for messages of type <typeparamref name="T"/>.
     /// </summary>
     public MessageProcessor Process<T>(Func<T, ProcessRecordContext, ValueTask> handler) {
-        _handlers[typeof(T)] = new AsyncHandler<T>(handler);
+        _handlers.Add<T>(new AsyncHandler<T>(handler));
         return this;
     }
 
@@ -43,7 +38,7 @@ public class MessageProcessor : IRecordProcessor {
     /// Registers a synchronous handler for messages of type <typeparamref name="T"/>.
     /// </summary>
     public MessageProcessor Process<T>(Action<T, ProcessRecordContext> handler) {
-        _handlers[typeof(T)] = new SyncHandler<T>(handler);
+        _handlers.Add<T>(new SyncHandler<T>(handler));
         return this;
     }
 
@@ -52,7 +47,7 @@ public class MessageProcessor : IRecordProcessor {
     /// or the record is not decoded.
     /// </summary>
     public MessageProcessor Fallback(Func<ProcessRecordContext, ValueTask> handler) {
-        _fallback = new AsyncFallbackHandler(handler);
+        _handlers.Fallback(new AsyncFallbackHandler(handler));
         return this;
     }
 
@@ -61,7 +56,7 @@ public class MessageProcessor : IRecordProcessor {
     /// or the record is not decoded.
     /// </summary>
     public MessageProcessor Fallback(Action<ProcessRecordContext> handler) {
-        _fallback = new SyncFallbackHandler(handler);
+        _handlers.Fallback(new SyncFallbackHandler(handler));
         return this;
     }
 
@@ -92,12 +87,18 @@ public class MessageProcessor : IRecordProcessor {
     /// skipped once one is set.
     /// </summary>
     public bool CanProcess(Record record) =>
-        _fallback is not null || (record.IsDecoded && Handlers.ContainsKey(record.ValueType));
+        _handlers.CanHandle(record) || _handlers.HasFallback;
 
     ValueTask IRecordProcessor.ProcessRecord(ProcessRecordContext context) {
-        return context.Record.IsDecoded && Handlers.TryGetValue(context.Record.ValueType, out var handler)
-            ? handler.Handle(context)
-            : _fallback?.Handle(context) ?? ValueTask.CompletedTask;
+        var match = _handlers.Resolve(context.Record);
+
+        if (!match.Found)
+            return ValueTask.CompletedTask;
+
+        if (match.IsFallback)
+            context.Logger.LogTrace("Record {Position} fell back to the generic handler", context.Record.Position);
+
+        return match.Handler.Handle(context);
     }
 
     ValueTask IProcessor.OnCheckpoint(CheckpointContext context) =>

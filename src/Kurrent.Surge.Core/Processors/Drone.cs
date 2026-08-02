@@ -113,13 +113,31 @@ sealed class Drone : IDrone {
             .Select(Partition.From)
             .ToArray();
 
+        // The one phase that runs before the start position exists. A processor that keeps its own
+        // checkpoints — a projection storing them beside its projected state — resolves them here and
+        // claims them, because by the time the subscription opens the position is already settled.
+        var initialize = DroneContext.ForInitialize(
+            partitions, Options.Subscription.InitialPosition, Options.Subscription.StartPosition);
+
+        await _dispatcher.OnInitialize(initialize).ConfigureAwait(false);
+
         // The checkpointer resolves the start: load committed, fold the initial-position fallback across owned
         // partitions, reset the store when an explicit start overrides, and seed the tracker. The explicit start
         // is a log position only — the runtime orders by log position and the client fills stream/revision
         // currency lazily at subscribe for stream-targeted filters, so nothing to complete here.
-        var startPositions = await _checkpointer
-            .Initialize(partitions, Options.Subscription.InitialPosition, Options.Subscription.StartPosition, stoppingToken)
-            .ConfigureAwait(false);
+        // A checkpoint owner has already done all of that against its own storage, including honouring the
+        // explicit start; the checkpointer takes its positions and never touches the store.
+        RecordPosition[] startPositions;
+
+        if (initialize.OwnedCheckpoints is { } owned) {
+            _checkpointer.InitializeOwned(owned, stoppingToken);
+            startPositions = owned;
+        }
+        else {
+            startPositions = await _checkpointer
+                .Initialize(partitions, Options.Subscription.InitialPosition, Options.Subscription.StartPosition, stoppingToken)
+                .ConfigureAwait(false);
+        }
 
         // Hand the resume point to progress as well: it is the baseline every at-risk measurement is
         // taken from, and without it nothing at risk is measurable until the first checkpoint.
@@ -360,6 +378,15 @@ sealed class Drone : IDrone {
 
         try {
             await _checkpointer.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex) {
+            errors.Add(ex);
+        }
+
+        // After the checkpointer, so a processor that owns its checkpoints still has whatever it opened
+        // when the final barrier committed through it.
+        try {
+            await _dispatcher.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception ex) {
             errors.Add(ex);

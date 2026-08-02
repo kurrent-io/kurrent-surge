@@ -537,8 +537,14 @@ wip/
 .wip/
 
 # DuckDB
+# The negations are load-bearing. A bare *.duckdb also matches DIRECTORIES, and with core.ignorecase
+# (the macOS default) that swallowed all of src/Kurrent.Projectors.DuckDB — every source file under it
+# was untracked and invisible to git status. Git cannot re-include a file whose parent directory is
+# excluded, so the directory form has to be un-ignored explicitly rather than the files re-added.
 *.duckdb
 *.db
+!*.duckdb/
+!*.db/
 
 ### Project-specific ###
 # every commit of these must be intentional (git add -f)

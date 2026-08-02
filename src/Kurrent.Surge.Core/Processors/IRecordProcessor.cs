@@ -96,6 +96,23 @@ public record DroneContext {
             Records           = records
         };
 
+    public InitializeContext ForInitialize(
+        Partition[] partitions,
+        SubscriptionInitialPosition initialPosition,
+        LogPosition startPosition
+    ) =>
+        new() {
+            ProcessorId       = ProcessorId,
+            DroneId           = DroneId,
+            SessionId         = SessionId,
+            Logger            = Logger,
+            CancellationToken = CancellationToken,
+            ProgressSource    = ProgressSource,
+            Partitions        = partitions,
+            InitialPosition   = initialPosition,
+            StartPosition     = startPosition
+        };
+
     public ConnectedContext ForConnected() =>
         new() {
             ProcessorId       = ProcessorId,
@@ -230,6 +247,43 @@ public record ProcessRecordContext : DroneContext {
     internal bool    StopRequested  => _stopRequested;
     internal string? StopReason     => _stopReason;
     internal bool    TrackedByUser  => _trackedByUser;
+}
+
+/// <summary>
+/// Context provided at startup, before the checkpoint is resolved and before the subscription opens.
+/// Carries the partitions this drone owns and the configured start semantics, so a processor that
+/// keeps its own checkpoints can resolve its resume positions and claim them via
+/// <see cref="OwnCheckpoints"/>.
+/// </summary>
+[PublicAPI]
+public record InitializeContext : DroneContext {
+    /// <summary>The partitions this drone owns.</summary>
+    public required Partition[] Partitions { get; init; }
+
+    /// <summary>Fallback for partitions with no committed position.</summary>
+    public required SubscriptionInitialPosition InitialPosition { get; init; }
+
+    /// <summary>
+    /// An explicit start override. When set, it supersedes every stored position — a checkpoint
+    /// owner must reset its own state to this position rather than load what it stored.
+    /// <see cref="LogPosition.Unset"/> means normal resume.
+    /// </summary>
+    public required LogPosition StartPosition { get; init; }
+
+    /// <summary>
+    /// Declares this processor the checkpoint owner: it loads, commits and resets its own positions,
+    /// and the drone stops writing its checkpoint store for this processor.
+    /// </summary>
+    /// <remarks>
+    /// All three operations move together — a processor that supplies its resume positions must also
+    /// persist them, or the two records of progress diverge and the processor replays the same span
+    /// forever. A checkpoint owner commits its positions from <c>OnCheckpoint</c>, and must not call
+    /// <c>ctx.Track</c> there: it would commit one set and flush a larger one.
+    /// </remarks>
+    /// <param name="resumeFrom">The positions this processor resumes from, one per owned partition.</param>
+    public void OwnCheckpoints(RecordPosition[] resumeFrom) => OwnedCheckpoints = resumeFrom;
+
+    internal RecordPosition[]? OwnedCheckpoints { get; private set; }
 }
 
 /// <summary>

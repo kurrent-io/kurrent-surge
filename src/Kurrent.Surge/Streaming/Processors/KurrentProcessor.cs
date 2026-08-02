@@ -132,7 +132,7 @@ public sealed class KurrentProcessor {
 			streams,
 			_options.ClientOptions.LoggerFactory);
 
-		// The built-in telemetry observer runs first, then any the caller registered via Observe(...).
+		// The built-in telemetry observer runs first, then any the caller registered via AddObserver(...).
 		// Without a container there is no IMeterFactory to resolve, so fall back to the shared meter —
 		// this is what closes the gap where Build()-path processors emitted no metrics at all.
 		var meter = _options.MeterFactory?.Create(ProcessorTelemetryObserver.MeterName)

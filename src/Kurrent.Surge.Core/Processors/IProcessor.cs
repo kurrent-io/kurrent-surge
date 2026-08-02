@@ -13,10 +13,21 @@ namespace Kurrent.Surge.Streaming;
 [PublicAPI]
 public interface IProcessor {
     /// <summary>
+    /// Called once at startup, before the checkpoint is resolved and before the subscription opens.
+    /// <remarks>
+    /// Use this for one-time initialization that must complete before any position is decided —
+    /// opening a connection, creating state tables, priming caches. A processor that keeps its own
+    /// checkpoints resolves them here and calls <see cref="InitializeContext.OwnCheckpoints"/>.
+    /// Failures propagate as fatal startup errors.
+    /// </remarks>
+    /// </summary>
+    ValueTask OnInitialize(InitializeContext context) => ValueTask.CompletedTask;
+
+    /// <summary>
     /// Called once when connected to the server, before any records are dispatched.
     /// <remarks>
-    /// Use this for one-time initialization such as creating state tables, opening external
-    /// resources, or priming caches. Failures propagate as fatal startup errors.
+    /// The subscription is live by this point and its start position is already settled — anything
+    /// that must run earlier belongs in <see cref="OnInitialize"/>.
     /// </remarks>
     /// </summary>
     ValueTask OnConnected(ConnectedContext context) => ValueTask.CompletedTask;

@@ -52,6 +52,31 @@ sealed class Checkpointer : IAsyncDisposable {
 
 	bool _initialized;
 
+	// Set when the processor claimed its checkpoints in OnInitialize. The store is then never
+	// written: the processor persists positions itself, atomically with whatever else it writes.
+	// Reads and resets are equally its own — see InitializeOwned.
+	bool _ownedByProcessor;
+
+	/// <summary>
+	/// Initializes the checkpointer from positions the processor resolved itself, and starts the timer.
+	/// The store is bypassed entirely — the processor owns load, commit and reset.
+	/// </summary>
+	public void InitializeOwned(RecordPosition[] startPositions, CancellationToken ct = default) {
+		ArgumentOutOfRangeException.ThrowIfZero(startPositions.Length, nameof(startPositions));
+
+		if (_initialized)
+			throw new InvalidOperationException("Checkpointer has already been initialized.");
+
+		_ownedByProcessor = true;
+
+		_tracker.Reset(SeedTracker(startPositions));
+
+		if (_autoCheckpoint)
+			_timer.Start(ct);
+
+		_initialized = true;
+	}
+
 	/// <summary>
 	/// Initializes the checkpointer: loads the latest checkpoint and starts the timer.
 	/// When <paramref name="startFrom"/> is not <see cref="LogPosition.Unset"/>, every owned partition
@@ -78,18 +103,7 @@ sealed class Checkpointer : IAsyncDisposable {
 			.LoadLatestAsync(_droneId, partitions, initialPosition, ct)
 			.ConfigureAwait(false);
 
-		// The Latest sentinel (live-end start) and Unset are NOT real committed floors. Seed the tracker's
-		// flushed baseline with Earliest for those: the tracker is strictly monotonic and would otherwise
-		// reject every real position (`position <= Latest`), and an Earliest baseline keeps a no-progress
-		// snapshot filterable. The RETURNED positions keep the sentinel so the subscription still starts at
-		// the live end and the catch-up floor stays correct.
-		var trackerSeed = checkpoint.Positions
-			.Select(p => p.LogPosition == LogPosition.Latest || p.LogPosition == LogPosition.Unset
-				? RecordPosition.From(LogPosition.Earliest, p.Partition)
-				: p)
-			.ToArray();
-
-		_tracker.Reset(trackerSeed);
+		_tracker.Reset(SeedTracker(checkpoint.Positions));
 
 		// AutoCheckpoint gates the interval commit timer: when off, pending positions are committed
 		// only by a manual ctx.Checkpoint barrier or on shutdown, so the timer simply never starts.
@@ -100,6 +114,18 @@ sealed class Checkpointer : IAsyncDisposable {
 
 		return checkpoint.Positions;
 	}
+
+	// The Latest sentinel (live-end start) and Unset are NOT real committed floors. Seed the tracker's
+	// flushed baseline with Earliest for those: the tracker is strictly monotonic and would otherwise
+	// reject every real position (`position <= Latest`), and an Earliest baseline keeps a no-progress
+	// snapshot filterable. The positions handed to the subscription keep the sentinel so it still starts
+	// at the live end and the catch-up floor stays correct.
+	static RecordPosition[] SeedTracker(RecordPosition[] positions) =>
+		positions
+			.Select(p => p.LogPosition == LogPosition.Latest || p.LogPosition == LogPosition.Unset
+				? RecordPosition.From(LogPosition.Earliest, p.Partition)
+				: p)
+			.ToArray();
 
     /// <summary>Loads the latest checkpoint without resetting.</summary>
     public async ValueTask<RecordPosition[]> Initialize(
@@ -209,9 +235,13 @@ sealed class Checkpointer : IAsyncDisposable {
 
 		EnsureIsInitialized();
 
-		await _store
-			.StoreAsync(_droneId, checkpointId, positions, ct)
-			.ConfigureAwait(false);
+		// A checkpoint owner already made these durable itself, in the same transaction as whatever
+		// else it wrote. Writing them here too would give the processor two records of its own
+		// progress that can disagree.
+		if (!_ownedByProcessor)
+			await _store
+				.StoreAsync(_droneId, checkpointId, positions, ct)
+				.ConfigureAwait(false);
 
 		_tracker.FlushUpTo(positions);
 	}
