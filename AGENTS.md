@@ -55,12 +55,19 @@ The V2 read path is commented out; those RPCs do not exist in the proto yet. Pro
 
 ## Structure
 
-Publishable packages:
+Publishable packages, target naming (approved 2026-06-10, not yet executed on disk — see
+`[[streaming-reorganization]]`/`[[kurrent-surge-restructure]]` in project memory):
 
 ```
 Kurrent.Client              ← gRPC client (streams, registry, connectors, admin)
   └── Kurrent.Streaming     ← stream processing, depends on Kurrent.Client
 ```
+
+**Current disk state differs**: the actual packable projects today are named `Kurrent.Surge`/`Kurrent.Surge.Core`
+plus opt-in add-ons (`Kurrent.Surge.Cli`, `Kurrent.Surge.Mcp`, `Kurrent.Surge.MessagePack`,
+`Kurrent.Surge.MessagePack.Nerdbank`, `Kurrent.Surge.Avro`, `Kurrent.Surge.Schema.Catalogs`) — verify the live
+list with `grep -l "IsPackable>true" src/*/*.csproj` before assuming either naming. `src/Kurrent.Client/` and
+`src/Kurrent.Streaming/` exist on disk with no `.csproj` — untracked leftovers, not real projects.
 
 Solution-level shared libraries — `Variant`, `Kurrent.Client.SourceGenerators`,
 `Kurrent.CodeAnalysis` — are not published as NuGet packages.
