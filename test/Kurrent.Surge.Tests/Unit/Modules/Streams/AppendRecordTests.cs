@@ -15,7 +15,7 @@ public class AppendRecordTests {
     [Test]
     public async ValueTask ensure_valid_throws_when_record_id_is_empty() {
         var record = new AppendRecord {
-            RecordId   = Guid.Empty,
+            RecordId   = RecordId.None,
             Value      = "test-payload",
             DataFormat = SchemaDataFormat.Json,
             Stream     = "test-stream"
@@ -80,7 +80,7 @@ public class AppendRecordTests {
     [Test]
     public async ValueTask ensure_valid_collects_all_problems_at_once() {
         var record = new AppendRecord {
-            RecordId   = Guid.Empty,
+            RecordId   = RecordId.None,
             Value      = null!,
             DataFormat = SchemaDataFormat.Unspecified,
             Stream     = StreamName.Unset

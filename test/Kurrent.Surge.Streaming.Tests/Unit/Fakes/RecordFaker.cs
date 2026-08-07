@@ -18,7 +18,7 @@ sealed class RecordFaker : Faker<Record> {
             var urn = GenerateMessageSchemaUrn(f);
 
             return new() {
-                Id        = Guid.CreateVersion7(),
+                Id        = RecordId.From(Guid.CreateVersion7()),
                 Position  = new() { LogPosition = LogPosition.From(f.IndexGlobal + 1), StreamPosition = new(StreamName.From(f.Lorem.Slug()), Revision.From(f.Random.Long(1, 20))) },
                 Timestamp = TimeProvider.System.GetLocalNow().LocalDateTime,
                 Schema    = new() { Schema = urn.ToString(), DataFormat = SchemaDataFormat.Json }

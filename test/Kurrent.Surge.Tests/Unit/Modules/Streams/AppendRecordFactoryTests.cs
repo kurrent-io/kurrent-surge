@@ -12,14 +12,14 @@ public class AppendRecordFactoryTests {
         // Assert
         await Assert.That(record.Value).IsEqualTo("payload");
         await Assert.That(record.DataFormat).IsEqualTo(SchemaDataFormat.Json);
-        await Assert.That(record.RecordId).IsNotEqualTo(Guid.Empty);
+        await Assert.That(record.RecordId).IsNotEqualTo(RecordId.None);
         await Assert.That(record.Stream).IsEqualTo(StreamName.Unset);
     }
 
     [Test]
     public async ValueTask create_with_configure_sets_all_fields() {
         // Arrange
-        var recordId = Guid.NewGuid();
+        var recordId = RecordId.New();
         var metadata = new Metadata().With("key", "value");
 
         // Act

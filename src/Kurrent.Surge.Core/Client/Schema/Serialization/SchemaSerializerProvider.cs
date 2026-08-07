@@ -26,8 +26,14 @@ public interface ISchemaSerializerProvider {
 }
 
 public sealed class SchemaSerializerProvider : ISchemaSerializerProvider {
-	public SchemaSerializerProvider(IEnumerable<ISchemaSerializer> serializers) =>
-		Serializers = serializers.ToDictionary(x => x.DataFormat);
+	public SchemaSerializerProvider(IEnumerable<ISchemaSerializer> serializers) {
+		Serializers = new Dictionary<SchemaDataFormat, ISchemaSerializer>();
+
+		foreach (var serializer in serializers) {
+			if (!Serializers.TryAdd(serializer.DataFormat, serializer))
+				throw new DuplicateSchemaSerializerException(serializer.DataFormat, Serializers[serializer.DataFormat].GetType(), serializer.GetType());
+		}
+	}
 
 	Dictionary<SchemaDataFormat, ISchemaSerializer> Serializers { get; }
 
@@ -45,3 +51,11 @@ public sealed class SchemaSerializerProvider : ISchemaSerializerProvider {
 /// </summary>
 public class SchemaSerializerNotFoundException(SchemaDataFormat dataFormat, params SchemaDataFormat[] supportedSchemaDataFormats)
 	: KurrentException(ErrorCode.FromType<SchemaSerializerNotFoundException>(), $"Unsupported schema data format. Expected one of {string.Join(", ", supportedSchemaDataFormats)} but got {dataFormat}.");
+
+/// <summary>
+/// Exception thrown when more than one serializer is registered for the same schema data format —
+/// e.g. two opt-in packages that both implement <see cref="SchemaDataFormat.MessagePack"/>. Only one
+/// serializer per data format is supported; pick one.
+/// </summary>
+public class DuplicateSchemaSerializerException(SchemaDataFormat dataFormat, Type existing, Type duplicate)
+	: KurrentException(ErrorCode.FromType<DuplicateSchemaSerializerException>(), $"Multiple serializers registered for schema data format '{dataFormat}': '{existing.FullName}' and '{duplicate.FullName}'. Only one serializer per data format is supported.");

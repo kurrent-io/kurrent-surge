@@ -1,9 +1,10 @@
+using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
-namespace Kurrent.Appender;
+namespace Kurrent.Surge.Experimental;
 
 /// <summary>
 /// A single flush lane — bounded channel + background flush loop. Records enqueued
@@ -11,16 +12,26 @@ namespace Kurrent.Appender;
 /// Records arrive pre-serialized; the flush loop only frames and sends.
 /// </summary>
 sealed class FlushLane : IAsyncDisposable {
-    readonly Channel<IPendingRecord> _channel;
-    readonly AppenderOptions         _options;
-    readonly StreamsClient           _streams;
-    readonly Task?                   _flushLoop;
+    // Producers hit _pending with an Interlocked per record while the flush loop writes
+    // _flushed per batch — separate cache lines so the counters never ping-pong across cores.
+    [StructLayout(LayoutKind.Explicit, Size = 128)]
+    struct PaddedCounter {
+        [FieldOffset(64)] public long Value;
+    }
+
+    readonly Channel<PendingRecord> _channel;
+    readonly AppenderOptions        _options;
+    readonly StreamsClient          _streams;
+    readonly Task?                  _flushLoop;
+
+    PaddedCounter _flushed;
+    PaddedCounter _pending;
 
     public FlushLane(AppenderOptions options, StreamsClient streams, CancellationToken ct) {
         _options = options;
         _streams = streams;
 
-        _channel = Channel.CreateBounded<IPendingRecord>(
+        _channel = Channel.CreateBounded<PendingRecord>(
             new BoundedChannelOptions(options.BufferCapacity) {
                 SingleReader                  = true,
                 SingleWriter                  = false,
@@ -28,22 +39,46 @@ sealed class FlushLane : IAsyncDisposable {
                 FullMode                      = options.FullMode
             });
 
-        _flushLoop = Task.Run(() => RunFlushLoopAsync(ct), ct);
+        _flushLoop = RunFlushLoopAsync(ct);
     }
 
-    public bool TryEnqueue(SerializedRecord record) =>
-        _channel.Writer.TryWrite(record);
+    public bool TryEnqueue(in PendingRecord record) {
+        if (!_channel.Writer.TryWrite(record))
+            return false;
 
-    public async ValueTask FlushAsync(CancellationToken ct) {
+        Interlocked.Increment(ref _pending.Value);
+        return true;
+    }
+
+    /// <summary>
+    /// Backpressure path for <see cref="BoundedChannelFullMode.Wait"/> — waits for channel
+    /// capacity instead of dropping when <see cref="TryEnqueue"/> finds the buffer full.
+    /// </summary>
+    public async ValueTask EnqueueAsync(PendingRecord record, CancellationToken ct) {
+        await _channel.Writer.WriteAsync(record, ct).ConfigureAwait(false);
+        Interlocked.Increment(ref _pending.Value);
+    }
+
+    public async ValueTask<(int Flushed, int Inflight)> FlushAsync(CancellationToken ct) {
+        var flushedBefore = Interlocked.Read(ref _flushed.Value);
+
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        if (ct.CanBeCanceled)
-            ct.Register(() => tcs.TrySetCanceled(ct));
+        var registration = ct.CanBeCanceled
+            ? ct.Register(() => tcs.TrySetCanceled(ct))
+            : default;
 
-        await _channel.Writer.WriteAsync(
-            new FlushSignal { Completion = tcs }, ct).ConfigureAwait(false);
+        try {
+            await _channel.Writer.WriteAsync(PendingRecord.ForFlush(tcs), ct).ConfigureAwait(false);
+            await tcs.Task.ConfigureAwait(false);
+        }
+        finally {
+            registration.Dispose();
+        }
 
-        await tcs.Task.ConfigureAwait(false);
+        var flushed = (int)(Interlocked.Read(ref _flushed.Value) - flushedBefore);
+
+        return (Flushed: flushed, Inflight: (int)Volatile.Read(ref _pending.Value));
     }
 
     public async ValueTask DisposeAsync() {
@@ -62,94 +97,101 @@ sealed class FlushLane : IAsyncDisposable {
     #region ->> Flush Loop <<-
 
     async Task RunFlushLoopAsync(CancellationToken ct) {
-        var batch      = new List<SerializedRecord>(_options.MaxBatchCount);
+        var batch      = new List<PendingRecord>(_options.MaxBatchCount);
         var batchBytes = 0;
 
-        await foreach (var message in _channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
-            switch (message) {
-                case FlushSignal signal:
+        // Reused while the linger timer never fires; a fired timer poisons the source and
+        // TryReset fails, so only the expired-linger cycle pays for a fresh one.
+        CancellationTokenSource? linger = null;
+
+        try {
+            await foreach (var message in _channel.Reader.ReadAllAsync(ct).ConfigureAwait(false)) {
+                if (message.FlushCompletion is { } signal) {
                     if (batch.Count > 0)
                         await FlushBatchAsync(batch, ct).ConfigureAwait(false);
 
                     batchBytes = 0;
-                    signal.Completion.TrySetResult();
+                    signal.TrySetResult();
                     continue;
+                }
 
-                case SerializedRecord first:
-                    batch.Add(first);
-                    batchBytes += first.Serialized.CalculateSize();
-                    break;
-            }
+                batch.Add(message);
+                batchBytes += message.SizeBytes;
 
-            // Eagerly drain everything already queued without blocking
-            while (!BatchFull(batch, batchBytes) && _channel.Reader.TryRead(out var next))
-                switch (next) {
-                    case FlushSignal signal:
+                // Eagerly drain everything already queued without blocking
+                while (!BatchFull(batch, batchBytes) && _channel.Reader.TryRead(out var next)) {
+                    if (next.FlushCompletion is { } drainedSignal) {
                         if (batch.Count > 0)
                             await FlushBatchAsync(batch, ct).ConfigureAwait(false);
 
                         batchBytes = 0;
-                        signal.Completion.TrySetResult();
+                        drainedSignal.TrySetResult();
                         continue;
+                    }
 
-                    case SerializedRecord record:
-                        batch.Add(record);
-                        batchBytes += record.Serialized.CalculateSize();
-                        break;
+                    batch.Add(next);
+                    batchBytes += next.SizeBytes;
                 }
 
-            // If the batch isn't full yet and the channel is empty, wait up to LingerTimeout
-            // for more records to arrive before flushing a partial batch.
-            if (!BatchFull(batch, batchBytes)) {
-                using var linger = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                linger.CancelAfter(_options.LingerTimeout);
+                // If the batch isn't full yet and the channel is empty, wait up to LingerTimeout
+                // for more records to arrive before flushing a partial batch.
+                if (!BatchFull(batch, batchBytes)) {
+                    linger ??= CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    linger.CancelAfter(_options.LingerTimeout);
 
-                try {
-                    while (!BatchFull(batch, batchBytes)) {
-                        var next = await _channel.Reader.ReadAsync(linger.Token).ConfigureAwait(false);
+                    try {
+                        while (!BatchFull(batch, batchBytes)) {
+                            var next = await _channel.Reader.ReadAsync(linger.Token).ConfigureAwait(false);
 
-                        switch (next) {
-                            case FlushSignal signal:
+                            if (next.FlushCompletion is { } lingerSignal) {
                                 if (batch.Count > 0)
                                     await FlushBatchAsync(batch, ct).ConfigureAwait(false);
 
                                 batchBytes = 0;
-                                signal.Completion.TrySetResult();
+                                lingerSignal.TrySetResult();
                                 continue;
+                            }
 
-                            case SerializedRecord record:
-                                batch.Add(record);
-                                batchBytes += record.Serialized.CalculateSize();
-                                break;
+                            batch.Add(next);
+                            batchBytes += next.SizeBytes;
+                        }
+                    }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
+                        // Linger timeout expired — flush the partial batch.
+                    }
+                    catch (ChannelClosedException) {
+                        // Writer completed (DisposeAsync) while waiting for more records.
+                    }
+                    finally {
+                        if (!linger.TryReset()) {
+                            linger.Dispose();
+                            linger = null;
                         }
                     }
                 }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
-                    // Linger timeout expired — flush the partial batch.
-                }
-                catch (ChannelClosedException) {
-                    // Writer completed (DisposeAsync) while waiting for more records.
-                }
+
+                if (batch.Count > 0)
+                    await FlushBatchAsync(batch, ct).ConfigureAwait(false);
+
+                batchBytes = 0;
             }
-
-            if (batch.Count > 0)
-                await FlushBatchAsync(batch, ct).ConfigureAwait(false);
-
-            batchBytes = 0;
+        }
+        finally {
+            linger?.Dispose();
         }
     }
 
-    bool BatchFull(List<SerializedRecord> batch, int batchBytes) =>
+    bool BatchFull(List<PendingRecord> batch, int batchBytes) =>
         batch.Count >= _options.MaxBatchCount || batchBytes >= _options.MaxBatchBytes;
 
-    async ValueTask FlushBatchAsync(List<SerializedRecord> batch, CancellationToken ct) {
+    async ValueTask FlushBatchAsync(List<PendingRecord> batch, CancellationToken ct) {
         try {
             var request = new Contracts.AppendRecordsRequest {
                 Records = { Capacity = batch.Count }
             };
 
             foreach (var record in batch)
-                request.Records.Add(record.Serialized);
+                request.Records.Add(record.Serialized!);
 
             var rsp = await _streams.ServiceClient
                 .AppendRecordsAsync(request, cancellationToken: ct)
@@ -158,10 +200,10 @@ sealed class FlushLane : IAsyncDisposable {
             var result = new AppendResult(rsp.ToResponse());
 
             foreach (var record in batch)
-                record.Callback(result);
+                await InvokeCallback(record, result).ConfigureAwait(false);
         }
         catch (Exception ex) {
-            var mapped = ex.AsWellKnownException(
+            var mapped = ex.MapToWellKnownException(
                 AppendConsistencyViolationException.Match,
                 MaxAppendRecordSizeExceededException.Match,
                 MaxAppendTransactionSizeExceededException.Match);
@@ -169,12 +211,23 @@ sealed class FlushLane : IAsyncDisposable {
             _options.OnError?.Invoke(new AppendError(mapped));
 
             foreach (var record in batch)
-                record.Callback(AppendResult.Failed(mapped));
+                await InvokeCallback(record, AppendResult.Failed(mapped)).ConfigureAwait(false);
         }
         finally {
+            Interlocked.Add(ref _flushed.Value, batch.Count);
+            Interlocked.Add(ref _pending.Value, -batch.Count);
             batch.Clear();
         }
     }
 
-    #endregion
+    static ValueTask InvokeCallback(in PendingRecord record, AppendResult result) {
+        if (record.Callback is not null) {
+            record.Callback(result);
+            return ValueTask.CompletedTask;
+        }
+
+        return record.AsyncCallback!(result);
+    }
+
+    #endregion // Flush Loop
 }

@@ -1,6 +1,10 @@
-using Kurrent.Appender;
+using System.Threading.Channels;
+using Bogus;
+using Kurrent.Surge.Experimental;
+using ValidationException = Kurrent.Validation.ValidationException;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Schema;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
@@ -12,6 +16,9 @@ namespace Kurrent.Surge.Streaming.Tests;
 public class AppenderTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
+
+    [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
+    public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
     // RaceCar is mapped via the testkit's message catalog (auto-discovered at client build) —
     // per-test mapper registration is gone: resolvers snapshot at client construction.
@@ -38,7 +45,7 @@ public class AppenderTests {
         var stream  = $"appender-cb-{TestId.New()}";
         var records = NewRecords(stream, count);
 
-        await using var appender = new Appender.Appender(CreateOptions());
+        await using var appender = new Appender(CreateOptions());
 
         var results = new List<AppendResult>();
         var done    = new TaskCompletionSource();
@@ -68,12 +75,49 @@ public class AppenderTests {
 
     [Test]
     [RecordCounts]
+    public async ValueTask appends_records_with_async_callback(int count, CancellationToken ct) {
+        // Arrange
+        var stream  = $"appender-async-cb-{TestId.New()}";
+        var records = NewRecords(stream, count);
+
+        await using var appender = new Appender(CreateOptions());
+
+        var results = new List<AppendResult>();
+        var done    = new TaskCompletionSource();
+
+        // Act
+        foreach (var record in records) {
+            await appender.Append(record, result => {
+                lock (results) {
+                    results.Add(result);
+                    if (results.Count == records.Length)
+                        done.TrySetResult();
+                }
+
+                return ValueTask.CompletedTask;
+            }, ct);
+        }
+
+        await done.Task.WaitAsync(ct);
+
+        // Assert
+        await Assert.That(results).Count().IsEqualTo(records.Length);
+
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        var readRecords = await ReadStream(stream, ct);
+        await Assert.That(readRecords).Count().IsEqualTo(records.Length);
+    }
+
+    [Test]
+    [RecordCounts]
     public async ValueTask appends_records_with_async_await(int count, CancellationToken ct) {
         // Arrange
         var stream  = $"appender-async-{TestId.New()}";
         var records = NewRecords(stream, count);
 
-        await using var appender = new Appender.Appender(CreateOptions());
+        await using var appender = new Appender(CreateOptions());
 
         // Act
         var results = await AppendAll(appender, records, ct);
@@ -111,7 +155,7 @@ public class AppenderTests {
             .SelectMany(stream => NewRecords(stream, recordsPerStream))
             .ToArray();
 
-        await using var appender = new Appender.Appender(CreateOptions());
+        await using var appender = new Appender(CreateOptions());
 
         // Act
         var results = await AppendAll(appender, allRecords, ct);
@@ -143,7 +187,7 @@ public class AppenderTests {
         var stream  = $"appender-batches-{TestId.New()}";
         var records = NewRecords(stream, recordCount);
 
-        await using var appender = new Appender.Appender(CreateOptions(opts => {
+        await using var appender = new Appender(CreateOptions(opts => {
             opts.MaxBatchCount = maxBatchCount;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
         }));
@@ -176,7 +220,7 @@ public class AppenderTests {
         var stream  = $"appender-bytes-{TestId.New()}";
         var records = NewRecords(stream, recordCount);
 
-        await using var appender = new Appender.Appender(CreateOptions(opts => {
+        await using var appender = new Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 1000;
             opts.MaxBatchBytes = maxBatchBytes;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
@@ -199,7 +243,7 @@ public class AppenderTests {
         var stream  = $"appender-linger-{TestId.New()}";
         var records = NewRecords(stream, count);
 
-        await using var appender = new Appender.Appender(CreateOptions(opts => {
+        await using var appender = new Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 1000;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(50);
         }));
@@ -221,7 +265,7 @@ public class AppenderTests {
         var stream  = $"appender-flush-{TestId.New()}";
         var records = NewRecords(stream, count);
 
-        await using var appender = new Appender.Appender(CreateOptions(opts => {
+        await using var appender = new Appender(CreateOptions(opts => {
             opts.LingerTimeout = TimeSpan.FromSeconds(30);
         }));
 
@@ -232,6 +276,82 @@ public class AppenderTests {
         await appender.FlushAsync(ct);
 
         // Assert
+        await Assert.That(await ReadStream(stream, ct)).Count().IsEqualTo(count);
+    }
+
+    [Test]
+    public async ValueTask append_async_cancels_while_the_record_is_buffered(CancellationToken ct) {
+        // Arrange — linger far above the test window so only cancellation can complete the await
+        var stream = $"appender-cancel-{TestId.New()}";
+        var record = NewRecord(stream);
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.MaxBatchCount = 1000;
+            opts.LingerTimeout = TimeSpan.FromSeconds(30);
+        }));
+
+        using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        // Act
+        var pending = appender.AppendAsync(record, cancellator.Token);
+
+        await cancellator.CancelAsync();
+
+        // Assert
+        await Assert.That(async () => await pending).Throws<TaskCanceledException>();
+    }
+
+    [Test]
+    [RecordCounts]
+    public async ValueTask dispose_flushes_buffered_records(int count, CancellationToken ct) {
+        // Arrange — linger far above the test window so only disposal can flush
+        var stream  = $"appender-dispose-{TestId.New()}";
+        var records = NewRecords(stream, count);
+
+        var results = new List<AppendResult>();
+
+        var appender = new Appender(CreateOptions(opts => {
+            opts.MaxBatchCount = 1000;
+            opts.LingerTimeout = TimeSpan.FromSeconds(30);
+        }));
+
+        foreach (var record in records)
+            await appender.Append(record, result => { lock (results) results.Add(result); }, ct);
+
+        // Act
+        await appender.DisposeAsync();
+
+        // Assert — disposal drained the lanes: every callback fired and every record is durable
+        await Assert.That(results).Count().IsEqualTo(records.Length);
+
+        foreach (var result in results)
+            await Assert.That(result.IsSuccess).IsTrue();
+
+        await Assert.That(await ReadStream(stream, ct)).Count().IsEqualTo(records.Length);
+    }
+
+    [Test]
+    [RecordCounts]
+    public async ValueTask flush_reports_flushed_and_inflight_counts(int count, CancellationToken ct) {
+        // Arrange — linger far above the test window so nothing flushes before the explicit call
+        var stream  = $"appender-flush-counts-{TestId.New()}";
+        var records = NewRecords(stream, count);
+
+        var expected = (Flushed: count, Inflight: 0);
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.MaxBatchCount = 1000;
+            opts.LingerTimeout = TimeSpan.FromSeconds(30);
+        }));
+
+        foreach (var record in records)
+            await appender.Append(record, _ => { }, ct);
+
+        // Act
+        var result = await appender.FlushAsync(ct);
+
+        // Assert
+        await Assert.That(result).IsEqualTo(expected);
         await Assert.That(await ReadStream(stream, ct)).Count().IsEqualTo(count);
     }
 
@@ -250,7 +370,7 @@ public class AppenderTests {
         var stream  = $"appender-okey-order-{TestId.New()}";
         var records = NewRecords(stream, count, orderingKey: "same-key");
 
-        await using var appender = new Appender.Appender(CreateOptions(opts => {
+        await using var appender = new Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 3;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
         }));
@@ -292,7 +412,7 @@ public class AppenderTests {
             .Select(x => x with { Records = NewRecords(x.Stream, recordsPerKey, orderingKey: x.Key) })
             .ToArray();
 
-        await using var appender = new Appender.Appender(CreateOptions(opts => {
+        await using var appender = new Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 3;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
         }));
@@ -337,7 +457,7 @@ public class AppenderTests {
             .Select(x => x with { Records = NewRecords(x.Stream, recordsPerGroup, orderingKey: x.Key) })
             .ToArray();
 
-        await using var appender = new Appender.Appender(CreateOptions(opts => {
+        await using var appender = new Appender(CreateOptions(opts => {
             opts.MaxBatchCount = 3;
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
         }));
@@ -377,9 +497,74 @@ public class AppenderTests {
 
     #endregion
 
+    #region ->> Failure <<-
+
+    [Test]
+    public async ValueTask rejected_batch_fails_callbacks_and_the_lane_survives(CancellationToken ct) {
+        // Arrange — a raw-bytes record carries an empty wire schema name, which the server rejects;
+        // the follow-up record is valid and must flow through the same lane afterwards.
+        var stream = $"appender-rejected-{TestId.New()}";
+
+        var invalid = AppendRecord.Create(Faker.Random.Bytes(8), r => {
+            r.Stream     = stream;
+            r.DataFormat = SchemaDataFormat.Bytes;
+        });
+
+        var valid = NewRecord(stream);
+
+        await using var appender = new Appender(CreateOptions(opts => {
+            opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
+        }));
+
+        AppendResult? rejected = null;
+
+        var rejectedSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Act — the rejected batch must fail its callback, and FlushAsync must return instead of hanging
+        await appender.Append(invalid, result => {
+            rejected = result;
+            rejectedSignal.TrySetResult();
+        }, ct);
+
+        await appender.FlushAsync(ct);
+        await rejectedSignal.Task.WaitAsync(ct);
+
+        // Assert — the failure surfaced instead of being swallowed
+        await Assert.That(rejected!.IsSuccess).IsFalse();
+        await Assert.That(rejected.Error).IsNotNull();
+
+        // Act — the lane is still alive: a valid record appends and acknowledges through it
+        var ack = await appender.AppendAsync(valid, ct);
+
+        // Assert
+        await Assert.That(ack.IsSuccess).IsTrue();
+        await Assert.That(await ReadStream(stream, ct)).Count().IsEqualTo(1);
+    }
+
+    #endregion
+
+    #region ->> Options Validation <<-
+
+    public class DropFullModes : TestCaseGenerator<BoundedChannelFullMode> {
+        protected override IEnumerable<BoundedChannelFullMode> Data() =>
+            Enum.GetValues<BoundedChannelFullMode>().Where(mode => mode is not BoundedChannelFullMode.Wait);
+    }
+
+    [Test]
+    [DropFullModes]
+    public async ValueTask rejects_full_modes_that_can_drop_records(BoundedChannelFullMode mode) {
+        // Arrange — drop modes evict buffered records without completing their callbacks
+        var options = CreateOptions(opts => opts.FullMode = mode);
+
+        // Act & Assert
+        await Assert.That(() => new Appender(options)).Throws<ValidationException>();
+    }
+
+    #endregion
+
     #region ->> Helpers <<-
 
-    static async Task<AppendResult[]> AppendAll(Appender.Appender appender, AppendRecord[] records, CancellationToken ct) {
+    static async Task<AppendResult[]> AppendAll(Appender appender, AppendRecord[] records, CancellationToken ct) {
         var tasks = records
             .Select(record => appender.AppendAsync(record, ct))
             .ToList();

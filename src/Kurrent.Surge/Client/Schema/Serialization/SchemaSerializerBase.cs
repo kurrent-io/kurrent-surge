@@ -7,9 +7,9 @@ using Kurrent.Surge.Schema.Catalogs;
 
 namespace Kurrent.Surge.Client.Schema.Serialization;
 
-public abstract class SchemaSerializerBase(SchemaSerializerOptions options, SchemaManager schemaManager) : ISchemaSerializer {
+public abstract class SchemaSerializerBase(SchemaSerializerOptions options, ISchemaManager schemaManager) : ISchemaSerializer {
 	SchemaSerializerOptions Options       { get; } = options;
-	SchemaManager           SchemaManager { get; } = schemaManager;
+	ISchemaManager          SchemaManager { get; } = schemaManager;
 
 	public abstract SchemaDataFormat DataFormat { get; }
 

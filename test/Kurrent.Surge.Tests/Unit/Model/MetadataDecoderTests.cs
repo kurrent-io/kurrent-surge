@@ -118,9 +118,9 @@ public class MetadataDecoderTests {
             .With("null-guid", (Guid?)null)
             .With("null-int", (int?)null);
 
-        // Decode always enriches the result with $schema.name and $schema.format from the
-        // decoder context, so the round-tripped count is the original plus those two keys.
-        var expectedCount = metadata.Count + 2;
+        // Decode returns only what the payload contains — schema keys are no longer
+        // injected from the decoder context, so the round-tripped count is unchanged.
+        var expectedCount = metadata.Count;
 
         // Act
         var decoded = await RoundTrip(metadata);
@@ -229,6 +229,43 @@ public class MetadataDecoderTests {
 
         // Act & Assert
         await Assert.That(() => new JsonSerializer().Serialize(metadata)).Throws<JsonException>();
+    }
+
+    [Test]
+    public async ValueTask round_trips_unique_identifier_ids() {
+        // Arrange
+        // [UniqueIdentifier]-generated ids (e.g. RecordId) round-trip via the IUniqueIdentifier
+        // case in MetadataJsonConverter, retrievable via TryGetParsable<T> — TryGetValue<T>
+        // does not cover them, since they sit outside the closed BCL+enum ValueParser table.
+        var id = RecordId.New();
+
+        var metadata = new Metadata().With("id", id);
+
+        // Act
+        var decoded = await RoundTrip(metadata);
+
+        // Assert
+        await Assert.That(decoded.GetRequiredValue<string>("id")).IsEqualTo(id.ToString());
+        await Assert.That(decoded.TryGetParsable<RecordId>("id", out var parsed)).IsTrue();
+        await Assert.That(parsed).IsEqualTo(id);
+    }
+
+    [Test]
+    public async ValueTask try_get_value_does_not_recognize_unique_identifier_ids() {
+        // Arrange
+        // TryGetValue<T> only converts through the closed BCL+enum ValueParser table.
+        // [UniqueIdentifier] ids are retrievable only via TryGetParsable<T> — this pins that
+        // boundary so it fails loudly (a compile-time-safe false, not a silent wrong value) if
+        // ValueParser ever grows to swallow them.
+        var id = RecordId.New();
+
+        var metadata = new Metadata().With("id", id);
+
+        // Act
+        var decoded = await RoundTrip(metadata);
+
+        // Assert
+        await Assert.That(decoded.TryGetValue<RecordId>("id", out _)).IsFalse();
     }
 
     [Test]

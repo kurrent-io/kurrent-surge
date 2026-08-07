@@ -82,6 +82,9 @@ file sealed class PropertyPathExtractor(string expression, PropertyAccess proper
             null        => null,
             string s    => s,
             Guid g      => g.ToString("N"),
+            // Same key format as Guid — partition assignment must not depend on the id's
+            // in-memory type, and RecordId.ToString() is the ULID face, not a hash key.
+            RecordId id => id.ToGuid().ToString("N"),
             DateTime dt => dt.ToString("O"),
             _           => value.ToString()
         };

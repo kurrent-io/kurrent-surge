@@ -70,7 +70,6 @@ public record ReadRecordsOptions : SelfValidating<ReadRecordsOptions, ReadRecord
     /// </summary>
     public bool ResolveLinks { get; init; } = true;
     
-
     public class Validator : Validator<Validator, ReadRecordsOptions> {
         public Validator() {
             RuleFor(options => options.Limit)

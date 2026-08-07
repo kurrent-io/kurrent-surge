@@ -1,6 +1,7 @@
 // ReSharper disable CheckNamespace
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using Google.Rpc;
 using Grpc.Core;
@@ -64,6 +65,18 @@ static class ExceptionExtensions {
         }
 
         /// <summary>
+        /// Translates a transport failure into the typed exception that describes it, or returns it
+        /// unchanged when nothing matches. Never throws — <see cref="ExceptionExtensions.AsWellKnownException"/> is
+        /// the throwing form.
+        /// </summary>
+        /// <param name="parsers">
+        /// The matchers this call expects. Server matchers are always tried after these.
+        /// </param>
+        [StackTraceHidden]
+        public Exception MapToWellKnownException(params OperationExceptionParser[] parsers) =>
+            ex.ToException(parsers);
+
+        /// <summary>
         /// Throws the typed exception that describes this transport failure, or rethrows it unchanged
         /// when nothing matches.
         /// </summary>
@@ -76,6 +89,7 @@ static class ExceptionExtensions {
         /// It simply captures the exception and re-throws it.
         /// </remarks>
         [StackTraceHidden]
+        [DoesNotReturn]
         public Exception AsWellKnownException(params OperationExceptionParser[] parsers) {
             var edi = ExceptionDispatchInfo.Capture(ex.ToException(parsers));
             edi.Throw();

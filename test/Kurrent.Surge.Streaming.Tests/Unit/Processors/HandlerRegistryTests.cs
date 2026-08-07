@@ -207,7 +207,7 @@ public class HandlerRegistryTests {
 
     Record Decoded<T>(T message) where T : class =>
         new() {
-            Id        = Guid.NewGuid(),
+            Id        = RecordId.New(),
             Position  = At(++_position),
             Value     = message,
             ValueType = typeof(T)
@@ -215,7 +215,7 @@ public class HandlerRegistryTests {
 
     Record Undecoded() =>
         new() {
-            Id       = Guid.NewGuid(),
+            Id       = RecordId.New(),
             Position = At(++_position)
         };
 

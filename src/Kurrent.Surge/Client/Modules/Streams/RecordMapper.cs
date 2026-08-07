@@ -15,9 +15,11 @@ sealed class RecordMapper(
     IMetadataDecoder metadataDecoder,
     bool skipDecoding
 ) {
+    readonly IRecordDecoder _decoder = new RecordDecoder(serializerProvider, SchemaRegistryPolicy.NoRequirements);
+
     public ValueTask<Record> MapAsync(Contracts.ReadResp.Types.ReadEvent readEvent, SequenceId sequenceId, CancellationToken ct) =>
         readEvent.MapToRecordAsync(
             sequenceId,
-            new MappingContext(serializerProvider, metadataDecoder, SchemaRegistryPolicy.NoRequirements, ct),
+            new MappingContext(serializerProvider, metadataDecoder, SchemaRegistryPolicy.NoRequirements, _decoder, ct),
             skipDecoding);
 }

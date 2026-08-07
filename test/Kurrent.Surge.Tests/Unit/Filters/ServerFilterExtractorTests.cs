@@ -445,7 +445,7 @@ public class ServerFilterExtractorTests {
         var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND timestamp >= 1704067200000");
 
         var matching = new Record {
-            Id       = Guid.NewGuid(),
+            Id       = RecordId.New(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 StreamPosition = new StreamPosition(StreamName.From("Orders-ABC123"), Revision.From(0))
@@ -461,7 +461,7 @@ public class ServerFilterExtractorTests {
         };
 
         var nonMatching = new Record {
-            Id       = Guid.NewGuid(),
+            Id       = RecordId.New(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 StreamPosition = new StreamPosition(StreamName.From("Orders-ABC123"), Revision.From(0))
@@ -485,7 +485,7 @@ public class ServerFilterExtractorTests {
         var filter = RecordFilter.ByStreamPattern("^Orders-");
 
         var matching = new Record {
-            Id       = Guid.NewGuid(),
+            Id       = RecordId.New(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 StreamPosition = new StreamPosition(StreamName.From("Orders-D0332EB7480643E4"), Revision.From(0))
@@ -497,7 +497,7 @@ public class ServerFilterExtractorTests {
         };
 
         var nonMatching = new Record {
-            Id       = Guid.NewGuid(),
+            Id       = RecordId.New(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 StreamPosition = new StreamPosition(StreamName.From("Payments-F9E8D7C6B5A43210"), Revision.From(0))
@@ -517,7 +517,7 @@ public class ServerFilterExtractorTests {
         var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
 
         var matching = new Record {
-            Id       = Guid.NewGuid(),
+            Id       = RecordId.New(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 StreamPosition = new StreamPosition(StreamName.From("Orders-ABC123"), Revision.From(0))
@@ -530,7 +530,7 @@ public class ServerFilterExtractorTests {
         };
 
         var nonMatching = new Record {
-            Id       = Guid.NewGuid(),
+            Id       = RecordId.New(),
             Position = new RecordPosition {
                 LogPosition    = LogPosition.From(0),
                 StreamPosition = new StreamPosition(StreamName.From("Orders-ABC123"), Revision.From(0))

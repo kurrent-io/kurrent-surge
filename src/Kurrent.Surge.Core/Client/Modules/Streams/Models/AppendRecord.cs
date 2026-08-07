@@ -9,7 +9,7 @@ namespace Kurrent.Surge.Client.Streams;
 [PublicAPI]
 public record AppendRecord : SelfValidating {
     public static readonly AppendRecord None = new() {
-        RecordId   = Guid.Empty,
+        RecordId   = RecordId.None,
         Value      = null!,
         DataFormat = SchemaDataFormat.Unspecified,
         Metadata   = new Metadata().Lock(),
@@ -36,13 +36,13 @@ public record AppendRecord : SelfValidating {
     /// <summary>
     /// The assigned record id.
     /// </summary>
-    public Guid RecordId {
+    public RecordId RecordId {
         get;
         set {
             field = value;
             ResetValidation();
         }
-    } = Guid.NewGuid();
+    } = RecordId.New();
 
     /// <summary>
     /// The message payload.
@@ -68,6 +68,19 @@ public record AppendRecord : SelfValidating {
     } = SchemaDataFormat.Json;
 
     /// <summary>
+    /// Optional schema name for the record. When set, it overrides the name resolved from the
+    /// value's type through the message catalog. Raw payloads have no type mapping to resolve a
+    /// name from, and the server rejects an empty one — they need this set explicitly.
+    /// </summary>
+    public string? SchemaName {
+        get;
+        set {
+            field = value;
+            ResetValidation();
+        }
+    }
+
+    /// <summary>
     /// Optional metadata associated with the record.
     /// </summary>
     public Metadata Metadata { get; set; } = new();
@@ -89,24 +102,25 @@ public record AppendRecord : SelfValidating {
     public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
 
     protected override ValidationResult RunValidation() {
-        var problems = new List<ValidationProblem>();
+        // Lazy list: the valid case is the hot path and must not allocate.
+        List<ValidationProblem>? problems = null;
 
-        if (RecordId == Guid.Empty)
-            problems.Add(ValidationProblem.CreateForField(nameof(RecordId), "Record ID cannot be empty.", RecordId));
+        if (RecordId == RecordId.None)
+            (problems ??= []).Add(ValidationProblem.CreateForField(nameof(RecordId), "Record ID cannot be empty.", RecordId));
 
         if (Value is null)
-            problems.Add(ValidationProblem.CreateForField(nameof(Value), "Record value cannot be null."));
+            (problems ??= []).Add(ValidationProblem.CreateForField(nameof(Value), "Record value cannot be null."));
 
         if (DataFormat == SchemaDataFormat.Unspecified)
-            problems.Add(ValidationProblem.CreateForField(nameof(DataFormat), "Schema format cannot be Unspecified.", DataFormat));
+            (problems ??= []).Add(ValidationProblem.CreateForField(nameof(DataFormat), "Schema format cannot be Unspecified.", DataFormat));
 
         if (Value is { } && Value.IsBytes() && DataFormat != SchemaDataFormat.Bytes)
-            problems.Add(
+            (problems ??= []).Add(
                 ValidationProblem.CreateForField(
                     nameof(DataFormat),
                     "Schema format must be 'Bytes' when the value is a byte array.", DataFormat));
 
-        return problems.Count > 0
+        return problems is not null
             ? ValidationResult.Failure(ErrorCode.FromType<AppendRecord>(), [.. problems])
             : Results.Success;
     }

@@ -9,7 +9,7 @@ using SchemaDataFormat = Kurrent.Surge.Schema.SchemaDataFormat;
 namespace Kurrent.Surge.Client.Schema.Serialization;
 
 [PublicAPI]
-public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter schemaExporter, MessageResolver resolver) {
+public class SchemaManager(RegistryClient schemaRegistryClient, ISchemaExporter schemaExporter, MessageResolver resolver) : ISchemaManager {
     RegistryClient  SchemaRegistryClient { get; } = schemaRegistryClient;
     ISchemaExporter SchemaExporter       { get; } = schemaExporter;
     MessageResolver Resolver             { get; } = resolver;

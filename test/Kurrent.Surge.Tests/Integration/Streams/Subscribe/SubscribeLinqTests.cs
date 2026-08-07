@@ -215,7 +215,7 @@ public class SubscribeLinqTests {
             .Take(data.Records.Length)
             .AggregateAsync(
                 new HashSet<Guid>(),
-                (set, record) => { set.Add(record.Id); return set; },
+                (set, record) => { set.Add(record.Id.ToGuid()); return set; },
                 ct
             );
 
@@ -324,7 +324,7 @@ public class SubscribeLinqTests {
             .Take(data.Records.Length)
             .AggregateAsync(
                 new HashSet<Guid>(),
-                (set, record) => { set.Add(record.Id); return set; },
+                (set, record) => { set.Add(record.Id.ToGuid()); return set; },
                 ct
             );
 

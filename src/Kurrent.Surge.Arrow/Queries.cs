@@ -105,7 +105,7 @@ public sealed class Queries : IAsyncDisposable {
             : default;
 
         return new Record(decoder) {
-            Id        = Value(reader, columns, "record_id") is byte[] bytes ? new Guid(bytes) : Guid.Empty,
+            Id        = RecordId.From(Value(reader, columns, "record_id") is byte[] bytes ? new Guid(bytes) : Guid.Empty),
             Position  = position,
             Timestamp = timestamp,
             Schema    = new RecordSchemaInfo {

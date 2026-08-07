@@ -24,7 +24,7 @@ public record Record {
 	/// <summary>
     /// The unique identifier of the record.
     /// </summary>
-	public Guid Id { get; init; } = Guid.Empty;
+	public RecordId Id { get; init; } = RecordId.None;
 
     /// <summary>
     /// The precise position of the record in the global transaction log and optionaly within its stream.

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Kurrent.Surge;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Schema;
 using KurrentDB.Diagnostics.Tracing;
@@ -148,11 +149,15 @@ class MetadataJsonConverter : JsonConverter<Metadata> {
                 // themselves — symmetric with Read's JsonNode parsing, AOT-safe.
                 case JsonNode node: node.WriteTo(writer); break;
 
+                // [UniqueIdentifier]-generated ids (RecordId and its siblings) round-trip via
+                // their own ToString()/TryGetParsable<T> — no per-type registration needed here.
+                case IUniqueIdentifier id: writer.WriteStringValue(id.ToString()); break;
+
                 default:
                     throw new JsonException(
                         $"Unsupported metadata value type '{value.GetType()}' for property '{key}'. " +
                         "Metadata values are limited to booleans, strings, numbers, Guids, DateTimes, " +
-                        "TimeSpans, and byte arrays. Convert the value before storing it.");
+                        "TimeSpans, byte arrays, and [UniqueIdentifier] ids. Convert the value before storing it.");
             }
         }
     }

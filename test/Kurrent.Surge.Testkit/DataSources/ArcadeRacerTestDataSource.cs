@@ -41,7 +41,7 @@ public class ArcadeRacerTestDataSource(Faker faker) : ITestDataSource {
             var records = events
                 .Select(evt => AppendRecord.Create(evt, r => {
                     r.Stream    = stream;
-                    r.RecordId  = evt.EventId;
+                    r.RecordId  = RecordId.From(evt.EventId);
                     r.Timestamp = DateTimeOffset.FromUnixTimeMilliseconds(evt.Timestamp);
                     r.Metadata.With("stream", stream);
                 }))

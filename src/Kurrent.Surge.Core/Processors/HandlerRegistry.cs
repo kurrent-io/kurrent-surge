@@ -16,7 +16,7 @@ namespace Kurrent.Surge.Streaming;
 /// handler it gets back, so the handler's shape stays the caller's business and nothing allocates per
 /// dispatch.
 /// </remarks>
-sealed class HandlerRegistry<THandler> where THandler : class {
+public sealed class HandlerRegistry<THandler> where THandler : class {
     readonly Lock _lock = new();
 
     Dictionary<Type, THandler>? _open = [];

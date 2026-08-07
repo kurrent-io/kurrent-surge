@@ -2,13 +2,13 @@ using System.Threading.Channels;
 using Kurrent.Surge.Client;
 using Kurrent.Validation;
 
-namespace Kurrent.Appender;
+namespace Kurrent.Surge.Experimental;
 
 /// <summary>
 /// Configuration for the <see cref="Appender"/>. Controls batching thresholds,
 /// backpressure behavior, and the connection to KurrentDB.
 /// </summary>
-record AppenderOptions : SelfValidating<AppenderOptions, AppenderOptions.Validator> {
+sealed record AppenderOptions : SelfValidating<AppenderOptions, AppenderOptions.Validator> {
     /// <summary>
     /// Maximum number of records per batch. The flush loop sends a batch when this
     /// count is reached, even if the byte threshold hasn't been hit.
@@ -47,11 +47,15 @@ record AppenderOptions : SelfValidating<AppenderOptions, AppenderOptions.Validat
     public int Concurrency { get; set; } = 2;
 
     /// <summary>
-    /// Behavior when the internal buffer is full. <see cref="BoundedChannelFullMode.Wait"/>
-    /// blocks the caller; <see cref="BoundedChannelFullMode.DropWrite"/> silently drops the
-    /// record and invokes the callback with <see cref="AppendResult.Dropped"/>.
-    /// Default: <see cref="BoundedChannelFullMode.Wait"/>.
+    /// Behavior when the internal buffer is full. Only <see cref="BoundedChannelFullMode.Wait"/>
+    /// is supported: a full buffer applies backpressure to the caller. The drop modes are
+    /// rejected by validation.
     /// </summary>
+    /// <remarks>
+    /// The channel's drop modes evict records without completing their callbacks — a caller
+    /// would wait forever for an acknowledgment that can no longer arrive. They stay rejected
+    /// until drop semantics have a designed acknowledgment story.
+    /// </remarks>
     public BoundedChannelFullMode FullMode { get; set; } = BoundedChannelFullMode.Wait;
 
     /// <summary>
@@ -92,7 +96,7 @@ record AppenderOptions : SelfValidating<AppenderOptions, AppenderOptions.Validat
 
     #region ->> Validation <<-
 
-    public class Validator : Validator<Validator, AppenderOptions> {
+    public sealed class Validator : Validator<Validator, AppenderOptions> {
         public Validator() {
             RuleFor(o => o.MaxBatchCount)
                 .InclusiveBetween(1, 10_000)
@@ -113,6 +117,10 @@ record AppenderOptions : SelfValidating<AppenderOptions, AppenderOptions.Validat
             RuleFor(o => o.BufferCapacity)
                 .InclusiveBetween(1, 100_000)
                 .WithMessage("BufferCapacity must be between 1 and 100,000.");
+
+            RuleFor(o => o.FullMode)
+                .Must(mode => mode is BoundedChannelFullMode.Wait,
+                    "FullMode must be Wait. The drop modes evict buffered records without completing their callbacks.");
 
             RuleFor(o => o.ClientOptions)
                 .Must(clientOptions => clientOptions is not null,

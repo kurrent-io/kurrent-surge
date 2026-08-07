@@ -24,6 +24,7 @@ readonly record struct MappingContext(
     ISchemaSerializerProvider SerializerProvider,
     IMetadataDecoder MetadataDecoder,
     SchemaRegistryPolicy Policy,
+    IRecordDecoder Decoder,
     CancellationToken CancellationToken
 );
 
@@ -211,12 +212,14 @@ static partial class StreamsClientMapping {
             .Decode(recorded.CustomMetadata.Memory, new(stream, schemaName, schemaFormat))
             .ConfigureAwait(false);
 
-        var schema = metadata.ExtractSchemaInfo();
+        // Decoded metadata that embeds its own schema keys (link records, custom decoders)
+        // wins over the wire values; the common case never touches the dictionary.
+        var schema = metadata.ContainsKey(SystemMetadataKeys.SchemaName)
+            ? metadata.ExtractSchemaInfo()
+            : new RecordSchemaInfo { Schema = schemaName, DataFormat = schemaFormat };
 
-        IRecordDecoder decoder = new RecordDecoder(ctx.SerializerProvider, ctx.Policy);
-
-        var record = new Record(decoder) {
-            Id        = recordId,
+        var record = new Record(ctx.Decoder) {
+            Id        = RecordId.From(recordId),
             Position  = RecordPosition.From(position, stream, revision),
             Timestamp = timestamp,
             Data      = data,
@@ -259,41 +262,56 @@ static partial class StreamsClientMapping {
     }
 
     public static MapField<string, Value> ToProperties(this Metadata source) {
-        return source.Aggregate(
-            new MapField<string, Value>(), (seed, entry) => {
-                seed.Add(entry.Key, ToValue(entry.Value));
-                return seed;
-            });
-        
-        // Maps a CLR value to a protobuf <see cref="Value"/>.
-        // Byte arrays are treated as base64 strings by default. Protobuf only supports double
-        // as a number type, so all numeric types are widened via <see cref="Convert.ToDouble(object)"/>.
-        static Value ToValue(object? source, bool treatByteArrayAsString = false) {
-            if (IsNumber(source))
-                return new() { NumberValue = Convert.ToDouble(source) };
+        var properties = new MapField<string, Value>();
+        source.CopyToProperties(properties);
+        return properties;
+    }
 
-            if (source is IEnumerable and not string and not byte[] and not Metadata) {
-                var values = ((IEnumerable)source).Cast<object?>().Select(val => ToValue(val, treatByteArrayAsString));
-                return new() { ListValue = new() { Values = { values } } };
-            }
+    /// <summary>
+    /// Writes the metadata entries straight into an existing properties map — the message's
+    /// own map on the append path — without materializing an intermediate one.
+    /// </summary>
+    internal static void CopyToProperties(this Metadata source, MapField<string, Value> target) {
+        // Enumerates the backing dictionary directly: Metadata only exposes the interface
+        // enumerator, which boxes on every call, and this path runs once per record.
+        foreach (var entry in source.Dictionary)
+            target.Add(entry.Key, ToValue(entry.Value));
+    }
 
-            return source switch {
-                null       => new() { NullValue   = NullValue.NullValue },
-                string x   => new() { StringValue = x },
-                bool x     => new() { BoolValue   = x },
-                Metadata x => new() { StructValue = new() { Fields = { x.ToProperties() } } },
+    // Maps a CLR value to a protobuf <see cref="Value"/>.
+    // Byte arrays are treated as base64 strings by default. Protobuf only supports double
+    // as a number type, so all numeric types are widened via <see cref="Convert.ToDouble(object)"/>.
+    static Value ToValue(object? source, bool treatByteArrayAsString = false) {
+        if (IsNumber(source))
+            return new() { NumberValue = Convert.ToDouble(source) };
 
-                ReadOnlyMemory<byte> x => new() { StringValue = Convert.ToBase64String(x.Span) },
-                Memory<byte> x         => new() { StringValue = Convert.ToBase64String(x.Span) },
-                ArraySegment<byte> x   => new() { StringValue = Convert.ToBase64String(x.Array ?? x.ToArray()) },
-                byte[] x               => new() { StringValue = Convert.ToBase64String(x) },
-
-                _ => new() { StringValue = source.ToString() }
-            };
-
-            static bool IsNumber(object? source) =>
-                source is int or double or float or decimal or long or short or byte or sbyte or ushort or uint or ulong;
+        if (source is IEnumerable and not string and not byte[] and not Metadata) {
+            var values = ((IEnumerable)source).Cast<object?>().Select(val => ToValue(val, treatByteArrayAsString));
+            return new() { ListValue = new() { Values = { values } } };
         }
+
+        return source switch {
+            null       => new() { NullValue   = NullValue.NullValue },
+            string x   => new() { StringValue = x },
+            bool x     => new() { BoolValue   = x },
+            Metadata x => ToStructValue(x),
+
+            ReadOnlyMemory<byte> x => new() { StringValue = Convert.ToBase64String(x.Span) },
+            Memory<byte> x         => new() { StringValue = Convert.ToBase64String(x.Span) },
+            ArraySegment<byte> x   => new() { StringValue = Convert.ToBase64String(x.Array ?? x.ToArray()) },
+            byte[] x               => new() { StringValue = Convert.ToBase64String(x) },
+
+            _ => new() { StringValue = source.ToString() }
+        };
+
+        static Value ToStructValue(Metadata source) {
+            var value = new Value { StructValue = new() };
+            source.CopyToProperties(value.StructValue.Fields);
+            return value;
+        }
+
+        static bool IsNumber(object? source) =>
+            source is int or double or float or decimal or long or short or byte or sbyte or ushort or uint or ulong;
     }
 
     #endregion // Metadata/Properties Mapping

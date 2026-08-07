@@ -1,3 +1,4 @@
+using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Schema.Serialization.Json;
 using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Surge.Schema.Catalogs;
@@ -36,6 +37,19 @@ public class KurrentClientMessageOptions {
     /// </summary>
     public KurrentClientMessageOptions UseCatalog(params IEnumerable<MessageCatalog> catalogs) {
         UsedCatalogs.AddRange(catalogs);
+        return this;
+    }
+
+    internal List<Func<ISchemaManager, ISchemaSerializer>> SerializerFactories { get; } = [];
+
+    /// <summary>
+    /// Registers a schema serializer, deferred until the client builds its own <see cref="ISchemaManager"/>.
+    /// The built-in JSON, Protobuf, and bytes-passthrough serializers register through this exact same
+    /// path (see <c>KurrentClientMessageOptionsExtensions.UseJson</c>/<c>UseProtobuf</c>/<c>UseBytes</c> in
+    /// Kurrent.Surge) — there is no separate mechanism for built-ins versus custom serializers.
+    /// </summary>
+    public KurrentClientMessageOptions UseSerializer(params IEnumerable<Func<ISchemaManager, ISchemaSerializer>> factories) {
+        SerializerFactories.AddRange(factories);
         return this;
     }
 

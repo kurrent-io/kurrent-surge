@@ -1,0 +1,252 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
+using Kurrent.CodeAnalysis.Emission;
+using Kurrent.CodeAnalysis.Pipeline;
+using TypeKind = Kurrent.CodeAnalysis.TypeKind;
+
+namespace Kurrent.Surge.SourceGenerators;
+
+[Generator]
+[SuppressMessage("MicrosoftCodeAnalysisReleaseTracking", "RS2008:Enable analyzer release tracking")]
+public sealed class UniqueIdentifierGenerator : IIncrementalGenerator {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
+        context
+            .Types(t => t
+                .OfKind(TypeKind.RecordStruct)
+                .WithAttribute("Kurrent.Surge.UniqueIdentifier"))
+            .Select(static t => new IdentifierInfo(t.Namespace, t.Name, t.FullName))
+            .RegisterSources(static (spc, info) => {
+                var source = GenerateIdentifier(info);
+
+                var hintName = SourceGeneratorFileNaming.GetHintName(
+                    typeName: info.Name,
+                    typeNamespace: info.Namespace ?? "",
+                    typeFullName: info.FullName,
+                    typeArgumentFullNames: null,
+                    options: new FileNamingOptions {
+                        Prefix                 = "UniqueIdentifiers",
+                        UseFoldersForPrefix    = true,
+                        UseFoldersForNamespace = true,
+                        LowercasePath          = false
+                    },
+                    explicitHashTypeFullNames: null);
+
+                spc.AddSource(hintName, SourceText.From(source, Encoding.UTF8));
+                spc.ReportDiagnostic(Diagnostic.Create(IdentifierGenerated, Location.None, info.FullName));
+            });
+
+        // Validation runs independently of the OfKind(RecordStruct) filter above, so it also
+        // catches the attribute applied to a shape the generation pipeline silently skips (e.g.
+        // a plain struct) — that case would otherwise compile clean and emit nothing, with no
+        // explanation anywhere.
+        var validations = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                "Kurrent.Surge.UniqueIdentifierAttribute",
+                predicate: static (node, _) => node is TypeDeclarationSyntax,
+                transform: static (ctx, _) => Validate((INamedTypeSymbol)ctx.TargetSymbol, (TypeDeclarationSyntax)ctx.TargetNode));
+
+        context.RegisterSourceOutput(validations, static (spc, validation) => {
+            if (validation.Reason is { } reason)
+                spc.ReportDiagnostic(Diagnostic.Create(InvalidDeclaration, validation.Location, validation.FullName, reason));
+        });
+    }
+
+    static readonly DiagnosticDescriptor IdentifierGenerated = new(
+        id: "UNIQUEID001",
+        title: nameof(UniqueIdentifierGenerator),
+        messageFormat: $"[{nameof(UniqueIdentifierGenerator)}] identifier surface generated for: {{0}}",
+        category: "CodeGeneration",
+        defaultSeverity: DiagnosticSeverity.Hidden,
+        isEnabledByDefault: false);
+
+    static readonly DiagnosticDescriptor InvalidDeclaration = new(
+        id: "UNIQUEID002",
+        title: "Invalid [UniqueIdentifier] declaration",
+        messageFormat: "'{0}' {1} to use [UniqueIdentifier]",
+        category: "Usage",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    record IdentifierInfo(string? Namespace, string Name, string FullName);
+
+    readonly record struct ValidationInfo(string FullName, string? Reason, Location Location);
+
+    static ValidationInfo Validate(INamedTypeSymbol symbol, TypeDeclarationSyntax declaration) {
+        var fullName = symbol.ToDisplayString();
+        var location = declaration.Identifier.GetLocation();
+
+        var isRecordStruct = symbol.TypeKind == Microsoft.CodeAnalysis.TypeKind.Struct && symbol.IsRecord;
+
+        if (!isRecordStruct)
+            return new(fullName, "must be a readonly partial record struct", location);
+
+        if (!declaration.Modifiers.Any(SyntaxKind.PartialKeyword))
+            return new(fullName, "must be declared partial", location);
+
+        if (!symbol.IsReadOnly)
+            return new(fullName, "must be declared readonly", location);
+
+        return new(fullName, null, location);
+    }
+
+    // The emitted surface is the RecordId reference implementation with the type name
+    // substituted — flat 16-byte struct, zero-allocation operations, ULID value inside,
+    // GUID face only at the edges. Cysharp declares Ulid in the System namespace.
+    static string GenerateIdentifier(IdentifierInfo info) {
+        var ns = info.Namespace is { Length: > 0 }
+            ? $"namespace {info.Namespace};\n\n"
+            : "";
+
+        var name = info.Name;
+
+        return $$"""
+            // <auto-generated by {{nameof(UniqueIdentifierGenerator)}} />
+            #nullable enable
+
+            {{ns}}[global::System.Text.Json.Serialization.JsonConverter(typeof(global::Kurrent.Surge.UniqueIdentifierJsonConverter<{{name}}>))]
+            readonly partial record struct {{name}} :
+                global::Kurrent.Surge.IUniqueIdentifier,
+                global::System.IComparable<{{name}}>,
+                global::System.ISpanParsable<{{name}}>,
+                global::System.ISpanFormattable,
+                global::System.IUtf8SpanFormattable {
+
+                public static readonly {{name}} None;
+
+                {{name}}(global::System.Ulid value) => Value = value;
+
+                internal global::System.Ulid Value { get; }
+
+                /// <summary>
+                /// When the id was minted, from its timestamp prefix.
+                /// </summary>
+                public global::System.DateTimeOffset Timestamp => Value.Time;
+
+                public static {{name}} New() => new(global::System.Ulid.NewUlid());
+
+                /// <summary>
+                /// Mints an id with the given timestamp prefix — deterministic time for tests,
+                /// replays, and backfills; the randomness part is still fresh.
+                /// </summary>
+                public static {{name}} New(global::System.DateTimeOffset timestamp) =>
+                    new(global::System.Ulid.NewUlid(timestamp));
+
+                /// <summary>
+                /// Mints a fully deterministic id from a timestamp and 10 bytes of randomness —
+                /// reproducible ids for seeded tests and replay fixtures.
+                /// </summary>
+                public static {{name}} New(global::System.DateTimeOffset timestamp, global::System.ReadOnlySpan<byte> randomness) =>
+                    new(global::System.Ulid.NewUlid(timestamp, randomness));
+
+                public static {{name}} From(global::System.Guid value) => new(new global::System.Ulid(value));
+
+                /// <summary>
+                /// Parses the V2 wire string form — <see cref="ToGuidString"/>'s counterpart.
+                /// </summary>
+                public static {{name}} FromWireString(string wireValue) => Parse(wireValue);
+
+                /// <summary>
+                /// Reads an id from its 16-byte representation.
+                /// </summary>
+                public static {{name}} From(global::System.ReadOnlySpan<byte> bytes) => new(new global::System.Ulid(bytes));
+
+                /// <summary>
+                /// Parses either face of the id: the 26-character sortable form or any GUID format.
+                /// </summary>
+                public static bool TryParse(global::System.ReadOnlySpan<char> input, out {{name}} result) {
+                    // 26 chars is unambiguously the sortable face — no GUID format renders at that length.
+                    if (input.Length == 26 && global::System.Ulid.TryParse(input, out var ulid)) {
+                        result = new(ulid);
+                        return true;
+                    }
+
+                    if (global::System.Guid.TryParse(input, out var guid)) {
+                        result = From(guid);
+                        return true;
+                    }
+
+                    result = None;
+                    return false;
+                }
+
+                public static bool TryParse(string? input, out {{name}} result) =>
+                    TryParse(global::System.MemoryExtensions.AsSpan(input), out result);
+
+                public static {{name}} Parse(global::System.ReadOnlySpan<char> input) =>
+                    TryParse(input, out var result)
+                        ? result
+                        : throw new global::System.FormatException($"'{input}' is not a valid {{name}}.");
+
+                public static {{name}} Parse(string input) => Parse(global::System.MemoryExtensions.AsSpan(input));
+
+                static {{name}} global::System.IParsable<{{name}}>.Parse(string s, global::System.IFormatProvider? provider) => Parse(s);
+
+                static bool global::System.IParsable<{{name}}>.TryParse(string? s, global::System.IFormatProvider? provider, out {{name}} result) =>
+                    TryParse(s, out result);
+
+                static {{name}} global::System.ISpanParsable<{{name}}>.Parse(global::System.ReadOnlySpan<char> s, global::System.IFormatProvider? provider) => Parse(s);
+
+                static bool global::System.ISpanParsable<{{name}}>.TryParse(global::System.ReadOnlySpan<char> s, global::System.IFormatProvider? provider, out {{name}} result) =>
+                    TryParse(s, out result);
+
+                public global::System.Guid ToGuid() => Value.ToGuid();
+
+                /// <summary>
+                /// The wire-format string — the GUID face, rendered via <see cref="global::System.Guid.ToString()"/>.
+                /// </summary>
+                public string ToGuidString() => Value.ToGuid().ToString();
+
+                /// <summary>
+                /// The 16-byte representation.
+                /// </summary>
+                public byte[] ToByteArray() => Value.ToByteArray();
+
+                public bool TryWriteBytes(global::System.Span<byte> destination) => Value.TryWriteBytes(destination);
+
+                public override string ToString() => Value.ToString();
+
+                /// <summary>
+                /// Renders the 26-character sortable form into <paramref name="destination"/>
+                /// without allocating — the zero-allocation counterpart of <see cref="ToString"/>.
+                /// </summary>
+                public bool TryFormat(global::System.Span<char> destination, out int charsWritten) {
+                    if (Value.TryWriteStringify(destination)) {
+                        charsWritten = 26;
+                        return true;
+                    }
+
+                    charsWritten = 0;
+                    return false;
+                }
+
+                /// <summary>
+                /// Renders the 26-character sortable form as UTF-8 bytes into
+                /// <paramref name="destination"/> without allocating or transcoding.
+                /// </summary>
+                public bool TryFormat(global::System.Span<byte> destination, out int bytesWritten) {
+                    if (Value.TryWriteStringify(destination)) {
+                        bytesWritten = 26;
+                        return true;
+                    }
+
+                    bytesWritten = 0;
+                    return false;
+                }
+
+                bool global::System.ISpanFormattable.TryFormat(global::System.Span<char> destination, out int charsWritten, global::System.ReadOnlySpan<char> format, global::System.IFormatProvider? provider) =>
+                    TryFormat(destination, out charsWritten);
+
+                bool global::System.IUtf8SpanFormattable.TryFormat(global::System.Span<byte> utf8Destination, out int bytesWritten, global::System.ReadOnlySpan<char> format, global::System.IFormatProvider? provider) =>
+                    TryFormat(utf8Destination, out bytesWritten);
+
+                string global::System.IFormattable.ToString(string? format, global::System.IFormatProvider? formatProvider) => ToString();
+
+                public int CompareTo({{name}} other) => Value.CompareTo(other.Value);
+            }
+            """;
+    }
+}

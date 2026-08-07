@@ -20,12 +20,13 @@ public class MapToRecordAsyncTests {
             NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
             SchemaRegistryPolicy.NoRequirements,
+            new RecordDecoder(NullSchemaSerializerProvider.Instance),
             CancellationToken.None
         );
         var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
 
         // Assert
-        await Assert.That(record.Id).IsEqualTo(Uuid.FromDto(evt.Id).ToGuid());
+        await Assert.That(record.Id.ToGuid()).IsEqualTo(Uuid.FromDto(evt.Id).ToGuid());
         await Assert.That(record.Stream).IsEqualTo(StreamName.From((string)evt.StreamIdentifier!));
         await Assert.That(record.Revision).IsEqualTo(Revision.From((long)evt.StreamRevision));
         await Assert.That(record.Position.LogPosition).IsEqualTo(LogPosition.From((long)evt.CommitPosition));
@@ -46,12 +47,13 @@ public class MapToRecordAsyncTests {
             NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
             SchemaRegistryPolicy.NoRequirements,
+            new RecordDecoder(NullSchemaSerializerProvider.Instance),
             CancellationToken.None
         );
         var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
 
         // Assert
-        await Assert.That(record.Id).IsEqualTo(Uuid.FromDto(evt.Id).ToGuid());
+        await Assert.That(record.Id.ToGuid()).IsEqualTo(Uuid.FromDto(evt.Id).ToGuid());
         await Assert.That(record.Stream).IsEqualTo(StreamName.From((string)evt.StreamIdentifier!));
         await Assert.That(record.Revision).IsEqualTo(Revision.From((long)evt.StreamRevision));
         await Assert.That(record.IsLink).IsFalse();
@@ -71,12 +73,13 @@ public class MapToRecordAsyncTests {
             NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
             SchemaRegistryPolicy.NoRequirements,
+            new RecordDecoder(NullSchemaSerializerProvider.Instance),
             CancellationToken.None
         );
         var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
 
         // Assert
-        await Assert.That(record.Id).IsEqualTo(Uuid.FromDto(link.Id).ToGuid());
+        await Assert.That(record.Id.ToGuid()).IsEqualTo(Uuid.FromDto(link.Id).ToGuid());
         await Assert.That(record.Stream).IsEqualTo(StreamName.From((string)link.StreamIdentifier!));
         await Assert.That(record.Revision).IsEqualTo(Revision.From((long)link.StreamRevision));
         await Assert.That(record.Position.LogPosition).IsEqualTo(LogPosition.From((long)link.CommitPosition));
@@ -94,6 +97,7 @@ public class MapToRecordAsyncTests {
             NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
             SchemaRegistryPolicy.NoRequirements,
+            new RecordDecoder(NullSchemaSerializerProvider.Instance),
             CancellationToken.None
         );
         Assert.ThrowsAsync<InvalidOperationException>(async () =>

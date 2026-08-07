@@ -27,20 +27,27 @@ static class AppendRecordsMapping {
 
                 var schema = new Contracts.SchemaInfo {
                     Id     = schemaVersionId,
-                    Name   = context.RecordSchema.Schema,
+                    Name   = source.SchemaName ?? context.RecordSchema.Schema,
                     Format = (Contracts.SchemaFormat)context.RecordSchema.DataFormat
                 };
 
                 // UnsafeWrap constructs a new ByteString from the given bytes.
                 // The bytes are not copied, and must not be modified while the
                 // ByteString is in use.
-                return new() {
-                    RecordId   = source.RecordId.ToString(),
-                    Data       = UnsafeByteOperations.UnsafeWrap(data),
-                    Schema     = schema,
-                    Properties = { source.Metadata.ToProperties() },
-                    Stream     = source.Stream
+                var contract = new Contracts.AppendRecord {
+                    // The wire expects the GUID string form — RecordId.ToString() is the ULID face.
+                    RecordId = source.RecordId.ToGuidString(),
+                    Data     = UnsafeByteOperations.UnsafeWrap(data),
+                    Schema   = schema,
+                    Stream   = source.Stream
                 };
+
+                // Empty metadata skips the properties path entirely; otherwise write straight
+                // into the message's own map instead of building a throwaway one.
+                if (source.Metadata.Count > 0)
+                    source.Metadata.CopyToProperties(contract.Properties);
+
+                return contract;
             }
             catch (Exception ex) {
                 throw new ArgumentException($"Failed to map AppendRecord for stream '{source.Stream}'", ex);

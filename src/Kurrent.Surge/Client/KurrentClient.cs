@@ -5,9 +5,6 @@ using Kurrent.Surge.Client.Legacy;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Schema.Serialization.Bytes;
-using Kurrent.Surge.Client.Schema.Serialization.Json;
-using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Surge.Client.Streams;
 using ProtobufMessages = Kurrent.Surge.Client.Schema.Serialization.Protobuf.ProtobufMessages;
 
@@ -19,28 +16,30 @@ public class KurrentClient : IKurrentClient {
 	    options.EnsureValid();
 
 	    Options = options;
-
+        
         LegacyCallInvoker     = new(options);
         BackdoorClientFactory = new(LegacyCallInvoker, options);
-
+        
         // The freeze: snapshot the message catalogs (system + default + explicit + auto-
         // discovered) into a read-only resolver. Catalog changes after this point never
         // affect this client.
-        var messageResolver = options.Messages.BuildResolver();
+        var messageResolver = options.Messages
+            .UseBytes()
+            .UseJson()
+            .UseProtobuf()
+            .BuildResolver();
+        
+        if (options.Messages.Protobuf.Context is not null)
+            ProtobufMessages.System.Configure(options.Messages.Protobuf.Context);
 
         var schemaManager = new SchemaManager(
-	        new(this),
-	        NJsonSchemaExporter.Instance,
+	        new(this), NJsonSchemaExporter.Instance,
 	        messageResolver);
-
-        if (options.Messages.Protobuf.Context is not null)
-	        ProtobufMessages.System.Configure(options.Messages.Protobuf.Context);
-
-        SerializerProvider = new SchemaSerializerProvider([
-            new BytesPassthroughSerializer(),
-	        new JsonSchemaSerializer(options.Messages.Json, schemaManager),
-	        new ProtobufSchemaSerializer(options.Messages.Protobuf, schemaManager)
-        ]);
+        
+        // Deferred: every registered factory (built-in or custom) runs now, once schemaManager exists.
+        SerializerProvider = new SchemaSerializerProvider(
+            options.Messages.SerializerFactories.Select(factory => factory(schemaManager))
+        );
 
         Registry   = new RegistryClient(this);
         Streams    = new StreamsClient(this);

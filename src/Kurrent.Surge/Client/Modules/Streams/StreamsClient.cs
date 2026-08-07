@@ -15,6 +15,10 @@ public partial class StreamsClient : ClientModuleBase, IStreamsClient {
         // and then on a per-stream basis during stream operations.
         // For now, we can use a default policy that allows for all operations without enforcement.
         RegistryPolicy = SchemaRegistryPolicy.NoRequirements;
+
+        // One decoder per client: it is stateless and the policy is fixed at construction,
+        // so every mapped record shares it instead of allocating its own.
+        RecordDecoder = new RecordDecoder(SerializerProvider, RegistryPolicy);
     }
 
     internal StreamsServiceClient ServiceClient { get; }
@@ -23,6 +27,8 @@ public partial class StreamsClient : ClientModuleBase, IStreamsClient {
 
     internal SchemaRegistryPolicy RegistryPolicy { get; }
 
+    internal IRecordDecoder RecordDecoder { get; }
+
     internal MappingContext CreateMappingContext(CancellationToken ct) =>
-        new(SerializerProvider, MetadataDecoder, RegistryPolicy, ct);
+        new(SerializerProvider, MetadataDecoder, RegistryPolicy, RecordDecoder, ct);
 }

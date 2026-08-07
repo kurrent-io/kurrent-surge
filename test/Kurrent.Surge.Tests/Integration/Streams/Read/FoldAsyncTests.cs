@@ -11,7 +11,7 @@ public class FoldAsyncTests {
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
     
     sealed class EvolvedState {
-        public List<Guid> RecordIds { get; set; } = [];
+        public List<RecordId> RecordIds { get; set; } = [];
     }
 
     [Test]
@@ -40,7 +40,7 @@ public class FoldAsyncTests {
     public async ValueTask seeds_the_fold_with_the_provided_initial_state(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(ct);
-        var seedId      = Guid.NewGuid();
+        var seedId      = RecordId.New();
         var seed        = new EvolvedState { RecordIds = [seedId] };
         var expectedIds = new[] { seedId }.Concat(data.Records.Select(rec => rec.RecordId)).ToList();
 

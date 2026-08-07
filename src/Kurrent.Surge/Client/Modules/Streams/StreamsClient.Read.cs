@@ -311,7 +311,7 @@ public partial class StreamsClient {
                 return new LogPositionNotFoundException(position, rex);
             }
 
-            return rex.AsWellKnownException();
+            return rex.MapToWellKnownException();
         }
     }
 }

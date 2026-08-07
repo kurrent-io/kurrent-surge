@@ -1,4 +1,5 @@
 using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema.Catalogs;
 using Microsoft.Extensions.Configuration;
@@ -128,6 +129,7 @@ public static class KurrentClientServiceCollectionExtensions {
         // Container-registered catalogs join the client's selection; they compose with
         // (rather than replace) attribute-declared and auto-discovered catalogs.
         options.Messages.UseCatalog(sp.GetServices<MessageCatalog>());
+        options.Messages.UseSerializer(sp.GetServices<Func<ISchemaManager, ISchemaSerializer>>());
 
         if (sp.GetService<ILoggerFactory>() is { } loggerFactory)
             options.LoggerFactory = loggerFactory;

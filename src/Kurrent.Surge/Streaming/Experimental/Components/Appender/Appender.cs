@@ -2,7 +2,7 @@ using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Processors.Partitioning;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Appender;
+namespace Kurrent.Surge.Experimental;
 
 /// <summary>
 /// High-throughput buffered producer that serializes records on the caller's thread
@@ -64,10 +64,32 @@ sealed class Appender : IAppender {
             .ToContract(ctx)
             .ConfigureAwait(false);
 
-        var lane = SelectLane(record);
+        var lane    = SelectLane(record);
+        var pending = PendingRecord.ForRecord(serialized, serialized.CalculateSize(), callback, asyncCallback: null);
 
-        if (!lane.TryEnqueue(new SerializedRecord { Serialized = serialized, Callback = callback }))
-            callback(AppendResult.Dropped());
+        if (!lane.TryEnqueue(in pending))
+            await lane.EnqueueAsync(pending, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Serializes the record on the caller's thread and enqueues it for batched append.
+    /// The asynchronous callback is awaited by the flush loop when the batch containing
+    /// this record is acknowledged (or fails).
+    /// </summary>
+    public async ValueTask Append(AppendRecord record, Func<AppendResult, ValueTask> callback, CancellationToken ct = default) {
+        record.EnsureValid();
+
+        var ctx = _streams.CreateMappingContext(ct);
+
+        var serialized = await record
+            .ToContract(ctx)
+            .ConfigureAwait(false);
+
+        var lane    = SelectLane(record);
+        var pending = PendingRecord.ForRecord(serialized, serialized.CalculateSize(), callback: null, callback);
+
+        if (!lane.TryEnqueue(in pending))
+            await lane.EnqueueAsync(pending, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -84,50 +106,39 @@ sealed class Appender : IAppender {
             .ToContract(ctx)
             .ConfigureAwait(false);
 
-        var tcs  = new TaskCompletionSource<AppendResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var lane = SelectLane(record);
+        var lane    = SelectLane(record);
+        var source  = AppendCompletionSource.Rent(ct);
+        var pending = PendingRecord.ForRecord(serialized, serialized.CalculateSize(), source.OnResult, asyncCallback: null);
 
-        Action<AppendResult> callback;
+        if (!lane.TryEnqueue(in pending))
+            await lane.EnqueueAsync(pending, ct).ConfigureAwait(false);
 
-        if (ct.CanBeCanceled) {
-            var registration = ct.Register(() => tcs.TrySetCanceled(ct));
-
-            callback = result => {
-                registration.Dispose();
-
-                if (result.IsSuccess)
-                    tcs.TrySetResult(result);
-                else
-                    tcs.TrySetException(result.Error!);
-            };
-        }
-        else {
-            callback = result => {
-                if (result.IsSuccess)
-                    tcs.TrySetResult(result);
-                else
-                    tcs.TrySetException(result.Error!);
-            };
-        }
-
-        if (!lane.TryEnqueue(new SerializedRecord { Serialized = serialized, Callback = callback }))
-            return AppendResult.Dropped();
-
-        return await tcs.Task.ConfigureAwait(false);
+        return await new ValueTask<AppendResult>(source, source.Token).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Flushes all buffered records across all lanes, blocking until all pending batches are sent.
+    /// Returns the number of records flushed by this call and the number still buffered or in flight afterwards.
     /// </summary>
-    public async ValueTask FlushAsync(CancellationToken ct = default) {
-        var tasks = new ValueTask[_keyedLanes.Length + 1];
-        tasks[0] = _defaultLane.FlushAsync(ct);
+    public async ValueTask<(int Flushed, int Inflight)> FlushAsync(CancellationToken ct = default) {
+        var flushes = new ValueTask<(int Flushed, int Inflight)>[_keyedLanes.Length + 1];
+
+        flushes[0] = _defaultLane.FlushAsync(ct);
 
         for (var i = 0; i < _keyedLanes.Length; i++)
-            tasks[i + 1] = _keyedLanes[i].FlushAsync(ct);
+            flushes[i + 1] = _keyedLanes[i].FlushAsync(ct);
 
-        foreach (var task in tasks)
-            await task.ConfigureAwait(false);
+        var flushed  = 0;
+        var inflight = 0;
+
+        foreach (var flush in flushes) {
+            var laneResult = await flush.ConfigureAwait(false);
+
+            flushed  += laneResult.Flushed;
+            inflight += laneResult.Inflight;
+        }
+
+        return (Flushed: flushed, Inflight: inflight);
     }
 
     /// <summary>
@@ -145,9 +156,7 @@ sealed class Appender : IAppender {
 
         await _client.DisposeAsync().ConfigureAwait(false);
     }
-
-    #region ->> Lane Selection <<-
-
+    
     FlushLane SelectLane(AppendRecord record) {
         var orderingKey = record.GetOrderingKey();
 
@@ -158,6 +167,4 @@ sealed class Appender : IAppender {
 
         return _keyedLanes[index];
     }
-
-    #endregion
 }

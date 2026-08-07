@@ -10,31 +10,28 @@ using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Streams;
 
-// TODO SS: Don't think that we need to handle anything related with adding schema name/format to metadata anymore.
-
 /// <summary>
 /// Provides a base implementation for decoding metadata from serialized byte representations.
 /// Serves as an abstraction for specific metadata decoding implementations.
 /// </summary>
+/// <remarks>
+/// Decoded metadata carries only what the payload contains — schema name and format are not
+/// injected. The record mapper builds the schema info from the wire values; metadata that
+/// embeds its own schema keys (link records, custom decoders) takes precedence there.
+/// </remarks>
 public abstract class MetadataDecoder : IMetadataDecoder {
     static readonly SchemaName LinkSchemaName = "$>";
 
     /// <inheritdoc />
     public ValueTask<Metadata> Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) {
         if (bytes.IsEmpty)
-            return new Metadata()
-                .AddSchemaNameIfMissing(context.Schema)
-                .AddSchemaFormatIfMissing(context.DataFormat)
-                .AsValueTask();
+            return new Metadata().AsValueTask();
 
         try {
             if (context.Schema == LinkSchemaName)
                 return DeserializeLinkMetadata(bytes).AsValueTask();
 
-            return DecodeCore(bytes, context)
-                .AddSchemaNameIfMissing(context.Schema)
-                .AddSchemaFormatIfMissing(context.DataFormat)
-                .AsValueTask();
+            return DecodeCore(bytes, context).AsValueTask();
         }
         catch (Exception ex) when (ex is not MetadataDecodingException) {
             throw new MetadataDecodingException(GetType(), context, ex);

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace Kurrent.Surge.Schema.Catalogs;
@@ -18,13 +19,14 @@ static class MessageCatalogDiscovery {
 
     public static IReadOnlyList<MessageCatalog> GetCatalogs() => Cached.Value;
 
+    [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "<Pending>")]
     static IReadOnlyList<MessageCatalog> Discover() {
         // On JIT, assemblies load lazily — a contracts assembly untouched before the first
         // client is constructed would be missed. Walking the reference closure forces them
         // in. Under NativeAOT everything is compiled into the binary, so this is a no-op
         // sweep over already-loaded assemblies.
-        var visited = new HashSet<string>(StringComparer.Ordinal);
-        var pending = new Queue<Assembly>(AppDomain.CurrentDomain.GetAssemblies());
+        var visited  = new HashSet<string>(StringComparer.Ordinal);
+        var pending  = new Queue<Assembly>(AppDomain.CurrentDomain.GetAssemblies());
         var catalogs = new List<MessageCatalog>();
 
         while (pending.Count > 0) {

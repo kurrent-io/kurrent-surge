@@ -43,7 +43,7 @@ public partial class StreamsClient {
             if (recordSize > maxRecordSize)
                 throw new MaxAppendRecordSizeExceededException(
                     $"Record '{record.RecordId}' size {recordSize} bytes exceeds the maximum append record size of {maxRecordSize} bytes.") {
-                    RecordId         = record.RecordId,
+                    RecordId         = record.RecordId.ToGuid(),
                     RecordActualSize = recordSize,
                     RecordMaxSize    = maxRecordSize
                 };

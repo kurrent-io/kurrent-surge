@@ -3,7 +3,7 @@ using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 
-public class ProtobufSchemaSerializer(ProtobufSchemaSerializerOptions options, SchemaManager schemaManager)
+public class ProtobufSchemaSerializer(ProtobufSchemaSerializerOptions options, ISchemaManager schemaManager)
 	: SchemaSerializerBase(options, schemaManager) {
 	public override SchemaDataFormat DataFormat => SchemaDataFormat.Protobuf;
 
