@@ -107,22 +107,22 @@ jobs:
       - name: Run Benchmarks
         run: >-
           dotnet run -c Release --no-build --framework net10.0 --project perf/Kurrent.Surge.Benchmarks/ --
-          --artifacts ./artifacts/benchmarks
+          --artifacts .artifacts/benchmarks
           --exporters json github
           --filter ${{ matrix.filter }}
 
       - name: Generate report
         run: >-
           benchmark-report
-          --input ./artifacts/benchmarks
-          --output ./artifacts/benchmarks/report.html
+          --input .artifacts/benchmarks
+          --output .artifacts/benchmarks/report.html
 
       - name: Write summary
         run: |
           echo "## Benchmark Results (${{ matrix.category }})" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
 
-          for report in ./artifacts/benchmarks/results/*-report-github.md; do
+          for report in .artifacts/benchmarks/results/*-report-github.md; do
             if [ -f "$report" ]; then
               echo "### $(basename "$report" | sed 's/-report-github.md//')" >> "$GITHUB_STEP_SUMMARY"
               echo "" >> "$GITHUB_STEP_SUMMARY"
@@ -141,5 +141,5 @@ jobs:
         continue-on-error: true
         with:
           name: Benchmark Results (${{ matrix.category }})
-          path: ./artifacts/benchmarks
+          path: .artifacts/benchmarks
           overwrite: true

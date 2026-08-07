@@ -13,7 +13,7 @@ dotnet scripts/testing/test-runner.cs -- run unit                               
 dotnet scripts/testing/test-runner.cs -- run integration                              # all integration tests
 dotnet scripts/testing/test-runner.cs -- run all                                      # everything
 dotnet scripts/testing/test-runner.cs -- run unit --treenode-filter "/*/*/MyTests/*"  # specific class
-dotnet scripts/testing/test-runner.cs -- run unit --run-id "$(uuidgen)"                # fixed (unique) results folder
+dotnet scripts/testing/test-runner.cs -- run unit --run-id "$(uuidgen)"               # fixed (unique) results folder
 dotnet scripts/testing/test-runner.cs -- list unit                                    # list without running
 ```
 

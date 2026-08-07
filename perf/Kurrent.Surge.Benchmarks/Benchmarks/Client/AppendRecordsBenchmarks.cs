@@ -66,6 +66,7 @@ public class AppendRecordsBenchmarks {
                 records[idx++] = AppendRecord.Create(payload, r => {
                     r.Stream     = streams[s];
                     r.DataFormat = SchemaDataFormat.Bytes;
+                    r.SchemaName = "raw-bytes";
                 });
             }
         }

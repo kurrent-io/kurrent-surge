@@ -1,9 +1,9 @@
 name: Install Local Tools
 description: >
-  Packs file-based app tools from tools/ (those with a ToolCommandName) and installs them
-  into a workspace-local tool path on PATH, so they can be invoked by their command name.
-  The install lives under the workspace (.artifacts/tools), not shared home, so a poisoned
-  build cannot persist across jobs on a self-hosted runner.
+  Packs file-based app tools from tools/ and scripts/ (those with a ToolCommandName) and
+  installs them into a workspace-local tool path on PATH, so they can be invoked by their
+  command name. The install lives under the workspace (.artifacts/tools), not shared home,
+  so a poisoned build cannot persist across jobs on a self-hosted runner.
 
 runs:
   using: composite
@@ -11,16 +11,17 @@ runs:
     - name: Install
       shell: bash
       run: |
-        compgen -G "tools/*.cs" > /dev/null || exit 0
+        shopt -s globstar nullglob
+
+        { compgen -G "tools/*.cs" || compgen -G "scripts/**/*.cs"; } > /dev/null || exit 0
 
         pack_dir="$(mktemp -d)"
-        for cs in tools/*.cs; do
+        for cs in tools/*.cs scripts/**/*.cs; do
           grep -q 'ToolCommandName' "$cs" || continue
           echo "Packing $cs"
           dotnet pack "$cs" -o "$pack_dir" -v q --nologo
         done
 
-        shopt -s nullglob
         packages=("$pack_dir"/*.nupkg)
         if [[ ${#packages[@]} -eq 0 ]]; then
           echo "::error::No tool packages were produced from tools/*.cs"
