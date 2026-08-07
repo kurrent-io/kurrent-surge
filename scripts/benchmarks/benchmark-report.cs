@@ -151,7 +151,7 @@ partial class ReportJsonContext : JsonSerializerContext;
 sealed class ReportSettings : CommandSettings {
     [CommandOption("--input")]
     [Description("Directory containing BenchmarkDotNet JSON results")]
-    public string Input { get; init; } = "./artifacts/benchmarks/results";
+    public string Input { get; init; } = ".artifacts/benchmarks/results";
 
     [CommandOption("--baseline")]
     [Description("Baseline directory for comparison mode")]
