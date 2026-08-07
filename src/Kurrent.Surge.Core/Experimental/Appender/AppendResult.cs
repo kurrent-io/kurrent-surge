@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Appender;
+namespace Kurrent.Surge.Experimental;
 
 /// <summary>
 /// Outcome of an appended record. Wraps the server response on success, or
@@ -34,7 +34,9 @@ sealed record AppendResult {
     public bool IsSuccess => Status is AppendResultStatus.Acknowledged;
 
     /// <summary>
-    /// Creates a result indicating the record was dropped due to buffer backpressure.
+    /// Creates a result indicating the record was dropped before reaching the server.
+    /// Reserved for drop-mode support; no current path produces it — a full buffer
+    /// applies backpressure instead of dropping.
     /// </summary>
     internal static AppendResult Dropped() => new(AppendResultStatus.Dropped);
 
@@ -60,8 +62,8 @@ enum AppendResultStatus {
     Failed,
 
     /// <summary>
-    /// The record was dropped because the buffer was full and
-    /// <see cref="AppenderOptions.FullMode"/> is <see cref="System.Threading.Channels.BoundedChannelFullMode.DropWrite"/>.
+    /// The record was dropped before reaching the server. Reserved for drop-mode support;
+    /// <see cref="AppenderOptions.FullMode"/> only permits backpressure today.
     /// </summary>
     Dropped
 }

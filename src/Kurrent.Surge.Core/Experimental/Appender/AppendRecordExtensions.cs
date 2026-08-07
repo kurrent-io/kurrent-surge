@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Appender;
+namespace Kurrent.Surge.Experimental;
 
 static class AppendRecordExtensions {
     const string OrderingKeyProperty = "$ordering-key";
