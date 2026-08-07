@@ -31,6 +31,6 @@ class AvroCodecs {
         var probe  = (ISpecificRecord)Activator.CreateInstance(recordType.EnsureTypeIsAvroRecord())!;
         var schema = probe.Schema;
 
-        return (schema, new SpecificDatumWriter<ISpecificRecord>(schema), new SpecificDatumReader<ISpecificRecord>(schema, schema));
+        return (schema, new(schema), new(schema, schema));
     }
 }

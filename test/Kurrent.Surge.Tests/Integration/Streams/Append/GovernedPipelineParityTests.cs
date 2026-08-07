@@ -140,6 +140,75 @@ public class GovernedPipelineParityTests {
     }
 
     [Test]
+    public async ValueTask server_accepts_a_governed_record_with_absent_schema_id(CancellationToken ct) {
+        // Arrange — a governed wire record: SchemaInfo.Id deliberately absent (the per-record
+        // Guid fallback was a bug). The server has never received one before this test.
+        var streams  = new StreamsClient(Fixture.Client);
+        var mapping  = streams.CreateMappingContext(ct);
+        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
+
+        var record   = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"governed-wire-{TestId.New()}");
+        var contract = await pipeline.Execute(record, ct);
+
+        var request = new KurrentDB.Protocol.V2.Streams.AppendRecordsRequest();
+        request.Records.Add(contract);
+
+        // Act — raw service call, bypassing the ToContract mapping entirely.
+        await streams.ServiceClient.AppendRecordsAsync(request, cancellationToken: ct);
+
+        // Assert — the id really was absent, the server accepted, and the record reads back.
+        await Assert.That(contract.Schema.Id).IsEmpty();
+
+        var read = await Fixture.Client.Streams
+            .ReadStream(contract.Stream, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        await Assert.That(read).Count().IsEqualTo(1);
+        await Assert.That(read[0].Schema.Schema.Value).IsEqualTo(contract.Schema.Name);
+    }
+
+    [Test]
+    public async ValueTask governed_write_and_read_round_trip_one_hundred_records(CancellationToken ct) {
+        // Arrange — 100 catalog records through the FULL governed path: write chain frames
+        // them (absent SchemaInfo.Id), raw V2 append sends them, governed read chain decodes
+        // what the server returns.
+        var streams  = new StreamsClient(Fixture.Client);
+        var mapping  = streams.CreateMappingContext(ct);
+        var governance = SchemaGovernance.Create(Fixture.Client);
+
+        var write = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, governance);
+        var read  = GovernedReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, governance);
+
+        var stream   = $"governed-roundtrip-{TestId.New()}";
+        var expected = Enumerable.Range(0, 100).Select(_ => RaceCar.Generate()).ToList();
+
+        var request = new KurrentDB.Protocol.V2.Streams.AppendRecordsRequest();
+        foreach (var car in expected)
+            request.Records.Add(await write.Execute(AppendRecord.Create(car, r => r.Stream = stream), ct));
+
+        // Act — one raw append, then read back undecoded and decode through the governed chain.
+        await streams.ServiceClient.AppendRecordsAsync(request, cancellationToken: ct);
+
+        var records = await Fixture.Client.Streams
+            .ReadStream(stream, new ReadStreamOptions { SkipDecoding = true }, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        // Assert — every record decodes and every value survives the round trip in order.
+        await Assert.That(records).Count().IsEqualTo(expected.Count);
+
+        for (var i = 0; i < records.Count; i++) {
+            var outcome = await read.Execute(records[i], ct);
+
+            await Assert.That(outcome).IsEqualTo(DecodeOutcome.Decoded);
+            await Assert.That(records[i].Value).IsEquivalentTo(expected[i]);
+        }
+    }
+
+    [Test]
     public async ValueTask adapter_governed_write_produces_the_same_wire_message_for_catalog_records(CancellationToken ct) {
         // Arrange — no governance passed: the pipeline falls back to the SchemaManager adapter.
         var streams  = new StreamsClient(Fixture.Client);

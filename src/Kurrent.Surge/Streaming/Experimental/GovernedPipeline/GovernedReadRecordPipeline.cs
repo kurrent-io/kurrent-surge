@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
@@ -11,7 +12,7 @@ namespace Kurrent.Surge.Experimental;
 /// orchestration in <see cref="Execute"/>; the two linear segments between them are pure step
 /// chains joined by the <see cref="TypeResolution"/> union.
 /// </summary>
-sealed class GovernedReadRecordPipeline : IStep<Record, DecodeOutcome> {
+sealed class GovernedReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
     GovernedReadRecordPipeline(IStep<Record, TypeResolution> resolution, IStep<DecodableRead, DecodeOutcome> decoding) {
         Resolution = resolution;
         Decoding   = decoding;
@@ -55,4 +56,10 @@ sealed class GovernedReadRecordPipeline : IStep<Record, DecodeOutcome> {
             terminal => new ValueTask<DecodeOutcome>(terminal.Outcome)
         ).ConfigureAwait(false);
     }
+
+    public ValueTask<DecodeOutcome> TryDecode(Record record, CancellationToken ct) =>
+        Execute(record, ct);
+
+    public JsonNode? ProjectToJson(Record record) =>
+        throw new NotImplementedException();
 }

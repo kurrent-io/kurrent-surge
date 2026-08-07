@@ -17,7 +17,7 @@ public class AvroSchemaSerializer(AvroSchemaSerializerOptions options, ISchemaMa
     public override SchemaDataFormat DataFormat => SchemaDataFormat.Avro;
 
     protected override ReadOnlyMemory<byte> Serialize(object? value) {
-        var record        = value.EnsureValueIsAvroRecord();
+        var record         = value.EnsureValueIsAvroRecord();
         var (_, writer, _) = AvroCodecs.System.GetCodec(record.GetType());
 
         using var stream = new MemoryStream();
