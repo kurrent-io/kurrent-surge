@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "TestOrder",
+  "namespace": "Kurrent.Surge.Avro.Tests",
+  "fields": [
+    { "name": "OrderId", "type": "string" },
+    { "name": "Sku", "type": "string" },
+    { "name": "Quantity", "type": "int" }
+  ]
+}

@@ -69,14 +69,21 @@
     <Project Path="test/Kurrent.Projectors.DuckDB.Tests/Kurrent.Projectors.DuckDB.Tests.csproj" />
   </Folder>
   <Project Path="src/Kurrent.Surge.AI.HuggingFace/Kurrent.Surge.AI.HuggingFace.csproj" />
+  <Project Path="src/Kurrent.Surge.Avro/Kurrent.Surge.Avro.csproj" />
   <Project Path="src/Kurrent.Surge.Cli/Kurrent.Surge.Cli.csproj" />
   <Project Path="src/Kurrent.Surge.Mcp/Kurrent.Surge.Mcp.csproj" />
+  <Project Path="src/Kurrent.Surge.MessagePack/Kurrent.Surge.MessagePack.csproj" />
+  <Project Path="src/Kurrent.Surge.MessagePack.Nerdbank/Kurrent.Surge.MessagePack.Nerdbank.csproj" />
   <Project Path="src/Kurrent.Surge.SourceGenerators/Kurrent.Surge.SourceGenerators.csproj" />
   <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />
   <Project Path="src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
   <Project Path="test/Kurrent.Surge.AI.HuggingFace.Tests/Kurrent.Surge.AI.HuggingFace.Tests.csproj" />
+  <Project Path="test/Kurrent.Surge.Avro.Tests/Kurrent.Surge.Avro.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Cli.Tests/Kurrent.Surge.Cli.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Mcp.Tests/Kurrent.Surge.Mcp.Tests.csproj" />
+  <Project Path="test/Kurrent.Surge.MessagePack.Nerdbank.Tests/Kurrent.Surge.MessagePack.Nerdbank.Tests.csproj" />
+  <Project Path="test/Kurrent.Surge.MessagePack.Tests/Kurrent.Surge.MessagePack.Tests.csproj" />
+  <Project Path="test/Kurrent.Surge.SourceGenerators.Tests/Kurrent.Surge.SourceGenerators.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Streaming.Tests/Kurrent.Surge.Streaming.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Tests/Kurrent.Surge.Tests.csproj" />
 </Solution>

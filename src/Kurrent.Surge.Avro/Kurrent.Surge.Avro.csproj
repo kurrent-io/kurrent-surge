@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Kurrent.Surge.Avro</PackageId>
+    <IsPackable>true</IsPackable>
+    <Title>Kurrent Surge Avro Serializer</Title>
+    <Product>Kurrent Surge Avro Serializer</Product>
+    <Description>A schema serializer for the Kurrent .NET SDK backed by the official Apache.Avro library, running in Specific mode: message types are ISpecificRecord classes generated from an .avsc schema via avrogen. Not Native AOT or trim compatible — Apache.Avro's Specific-mode pipeline is reflection-bound and no AOT-safe Avro library exists for .NET.</Description>
+    <PackageTags>kurrent kurrentdb surge avro serialization schema</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Public dependency: Kurrent.Surge.Avro.nupkg depends on Kurrent.Surge.nupkg. SchemaSerializerBase
+         and SchemaManager (the schema-registration base this serializer plugs into) live in Kurrent.Surge, not
+         Kurrent.Surge.Core — matches the Kurrent.Surge.MessagePack precedent. -->
+    <ProjectReference Include="..\Kurrent.Surge\Kurrent.Surge.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Apache.Avro" />
+    <!-- Generates ISpecificRecord classes from .avsc/.avpr/.avdl AdditionalFiles at compile time; flows to
+         consumers via PrivateAssets="none" so installing only Kurrent.Surge.Avro is enough — see
+         .claude/context/project/packaging.md, Analyzer flow. -->
+    <PackageReference Include="AvroSourceGenerator" PrivateAssets="none" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+</Project>

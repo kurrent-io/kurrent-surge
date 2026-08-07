@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Avro\Kurrent.Surge.Avro.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Tests\Kurrent.Surge.Tests.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit" />
+    <Using Include="Bogus" />
+    <Using Include="Avro" />
+    <Using Include="Avro.Specific" />
+    <Using Include="Kurrent.Surge.Client.Schema" />
+    <Using Include="Kurrent.Surge.Client.Schema.Serialization" />
+    <Using Include="Kurrent.Surge.Client.Schema.Serialization.Avro" />
+    <Using Include="Kurrent.Surge.Client.Streams" />
+    <Using Include="Kurrent.Surge.Schema" />
+    <Using Include="Kurrent.Surge.Schema.Catalogs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- .avpr/.avdl deliberately not wired here — tested and confirmed non-functional with the
+         currently pinned generator (see Kurrent.Surge.Avro/README.md). Only .avsc is verified. -->
+    <AdditionalFiles Include="Schemas/*.avsc" />
+  </ItemGroup>
+</Project>

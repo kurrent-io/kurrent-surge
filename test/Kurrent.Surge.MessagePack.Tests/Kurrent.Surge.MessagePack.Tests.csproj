@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge.MessagePack\Kurrent.Surge.MessagePack.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Tests\Kurrent.Surge.Tests.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit" />
+    <Using Include="Bogus" />
+    <Using Include="MessagePack" />
+    <Using Include="Kurrent.Surge.Client.Schema" />
+    <Using Include="Kurrent.Surge.Client.Schema.Serialization" />
+    <Using Include="Kurrent.Surge.Client.Schema.Serialization.MessagePack" />
+    <Using Include="Kurrent.Surge.Client.Streams" />
+    <Using Include="Kurrent.Surge.Schema" />
+    <Using Include="Kurrent.Surge.Schema.Catalogs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+</Project>

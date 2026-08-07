@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Kurrent.Surge.MessagePack.Nerdbank</PackageId>
+    <IsPackable>true</IsPackable>
+    <Title>Kurrent Surge MessagePack Serializer (Nerdbank)</Title>
+    <Product>Kurrent Surge MessagePack Serializer (Nerdbank)</Product>
+    <Description>An ISchemaSerializer for the Kurrent .NET SDK backed by Nerdbank.MessagePack, the AOT- and trim-safe successor to classic MessagePack-CSharp built on PolyType type shapes with no reflection fallback. Consumers register their message types on a PolyType witness class and supply its generated ITypeShapeProvider through MessagePackSchemaSerializerOptions.</Description>
+    <PackageTags>kurrent kurrentdb surge messagepack msgpack serialization aot polytype</PackageTags>
+  </PropertyGroup>
+
+  <!-- AOT/Trimming Support -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Public dependency: Kurrent.Surge is itself a published package. SchemaSerializerBase,
+         SchemaManager, and ISchemaSerializer all live there (Kurrent.Surge.Core is contracts-only
+         and does not declare SchemaSerializerBase). -->
+    <ProjectReference Include="..\Kurrent.Surge\Kurrent.Surge.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Nerdbank.MessagePack" />
+  </ItemGroup>
+
+</Project>

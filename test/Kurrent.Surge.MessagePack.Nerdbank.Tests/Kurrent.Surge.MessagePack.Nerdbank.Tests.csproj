@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge.MessagePack.Nerdbank\Kurrent.Surge.MessagePack.Nerdbank.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Tests\Kurrent.Surge.Tests.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit" />
+    <Using Include="Kurrent.Testkit" />
+    <Using Include="Kurrent.Testkit.TUnit" />
+    <Using Include="Kurrent.Testkit.TUnit.Assertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+</Project>
