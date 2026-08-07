@@ -1,5 +1,6 @@
 using System.Text;
 using Kurrent.Quack;
+using Kurrent.Quack.Threading;
 using Kurrent.Projectors.Transactional;
 
 namespace Kurrent.Projectors.DuckDB.Examples;
@@ -15,11 +16,6 @@ public static class StringExtensions {
     }
 }
 
-/// <summary>
-/// <see cref="DuckDBAppendProjection{TRow,TBinder}"/>: insert-only, one table, bound by position through
-/// the appender. Pick this shape for a log-like table where nothing is ever updated or read back —
-/// handlers never even see the connection.
-/// </summary>
 public class SchemaEventLogProjection
     : DuckDBAppendProjection<SchemaEventLogProjection.LogRow, SchemaEventLogProjection.LogRowBinder> {
     public SchemaEventLogProjection() {
@@ -49,8 +45,8 @@ public class SchemaEventLogProjection
     public readonly record struct LogRow(string SchemaName, string EventType, int VersionNumber);
 
     public readonly struct LogRowBinder
-        : IRowBinder<LogRow, Kurrent.Quack.Appender, Kurrent.Quack.Appender.Row> {
-        public static Kurrent.Quack.Appender.Row Bind(in LogRow row, Kurrent.Quack.Appender source) =>
+        : Kurrent.Quack.IBinder<LogRow, BufferedAppender, BufferedAppender.Row> {
+        public static BufferedAppender.Row Bind(in LogRow row, BufferedAppender source) =>
             new(source) {
                 row.SchemaName,
                 row.EventType,

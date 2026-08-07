@@ -200,13 +200,15 @@ public class TransactionalProjectionTests {
         }
 
         void Count<TMessage>() =>
-            Project<TMessage>((_, context) => {
+            Project<TMessage>(async (_, context) => {
                 if (FailAfter is { } limit && _applied >= limit)
                     throw new InvalidOperationException($"Deliberate failure after {limit} records.");
 
-                using (var command = context.Client.CreateCommand()) {
+                var connection = await context.Clients.GetClient(context.CancellationToken);
+
+                using (var command = connection.CreateCommand()) {
                     command.CommandText = "INSERT INTO projected_records VALUES ($id) ON CONFLICT DO NOTHING";
-                    command.Parameters.Add(new DuckDBParameter("id", context.Record.Id));
+                    command.Parameters.Add(new DuckDBParameter("id", context.Record.Id.ToGuid()));
                     command.ExecuteNonQuery();
                 }
 

@@ -1,7 +1,5 @@
 namespace Kurrent.Projectors.DuckDB.Examples;
 
-// Shared domain for every example in this folder — modelled on the SchemaRegistry projections that run
-// in production today, so the shape of the surface can be judged against real usage rather than a toy.
 
 #region ->> Messages <<-
 
@@ -17,7 +15,6 @@ public record SchemaDeleted(string SchemaName);
 
 #endregion
 
-/// <summary>Document shared by the document-projection examples in this folder.</summary>
 public record SchemaVersion {
     public required string VersionId        { get; init; }
     public required string SchemaName       { get; init; }

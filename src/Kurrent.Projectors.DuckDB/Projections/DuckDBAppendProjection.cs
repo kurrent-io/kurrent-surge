@@ -1,35 +1,99 @@
 using System.Text;
-using Kurrent.Quack;
+
 using Kurrent.Projectors.Transactional;
+using Kurrent.Quack;
+using Kurrent.Quack.Threading;
+using Kurrent.Surge.Streaming;
 
 namespace Kurrent.Projectors.DuckDB;
 
-/// <summary>
-/// Closed <see cref="AppendProjection{TClient,TRow,TWriter,TBinder}"/> for Quack's appender, so a
-/// projection names only its row and its binder.
-/// </summary>
-/// <remarks>
-/// The base and the appender are spelled out fully qualified: <c>Kurrent.Projectors</c> and
-/// <c>Kurrent.Appender</c> are literal ancestors of this file's namespace and ship unrelated types of the
-/// same name. Ancestor-namespace lookup wins over a <c>using</c> import before the import is considered,
-/// and the symptom of getting it wrong is a confusing arity or namespace error rather than a missing type.
-/// </remarks>
 [PublicAPI]
 public abstract class DuckDBAppendProjection<TRow, TBinder>
-    : AppendProjection<DuckDBAdvancedConnection, TRow, Kurrent.Quack.Appender, Kurrent.Quack.Appender.Row, TBinder>
+    : ProjectionProcessor<DuckDBAdvancedConnection>, IAsyncDisposable
     where TRow : struct
-    where TBinder : IRowBinder<TRow, Kurrent.Quack.Appender, Kurrent.Quack.Appender.Row> {
-    /// <inheritdoc/>
-    protected sealed override IProjectionAppender<Kurrent.Quack.Appender, Kurrent.Quack.Appender.Row> OpenAppender(
-        DuckDBAdvancedConnection client, string table
-    ) =>
-        new DuckDBRowAppender(client, NullTerminatedUtf8(table));
+    where TBinder : IBinder<TRow, BufferedAppender, BufferedAppender.Row>, allows ref struct {
+    readonly HandlerRegistry<IRowMapper> _handlers = new();
 
-    // duckdb_appender_create reads the table name as a C string. The terminator is the buffer's
-    // zero-initialised last byte, since Encoding.UTF8 never writes one.
+    IProjectionCheckpointStore<DuckDBAdvancedConnection> _checkpoints = null!;
+
+    DuckDBAdvancedConnection? _connection;
+    BufferedAppender?         _appender;
+
+    protected abstract string Table { get; }
+
+    protected void Project<T>(Func<T, ProjectionContext<DuckDBAdvancedConnection>, TRow?> map) =>
+        _handlers.Add<T>(new RowMapper<T>(map));
+
+    public override void Wire(
+        string projectionId,
+        IProjectionClientProvider<DuckDBAdvancedConnection> clients,
+        IProjectionCheckpointStore<DuckDBAdvancedConnection> checkpoints
+    ) {
+        base.Wire(projectionId, clients, checkpoints);
+
+        _checkpoints = checkpoints;
+    }
+
+    public sealed override async ValueTask OnBatch(BatchContext context) {
+        var appender = await Appender(context.CancellationToken).ConfigureAwait(false);
+
+        foreach (var record in context.Records) {
+            var (handler, isFallback, found) = _handlers.Resolve(record);
+
+            if (handler is not null
+             && handler.Map(ProjectionContext<DuckDBAdvancedConnection>.From(Clients, record, context)) is { } row)
+                appender.Append<TRow, TBinder>(in row);
+
+            context.Track(record);
+        }
+    }
+
+    protected override async ValueTask OnCheckpoint(CheckpointContext context) {
+        if (_appender is null || _connection is null)
+            return;
+
+        _appender.Flush();
+
+        await _checkpoints
+            .Store(_connection, context.Positions, context.CancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async ValueTask DisposeAsync() {
+        _appender?.Dispose();
+
+        if (_connection is not null)
+            await _connection.DisposeAsync().ConfigureAwait(false);
+
+        _appender   = null;
+        _connection = null;
+    }
+
+    async ValueTask<BufferedAppender> Appender(CancellationToken cancellationToken) {
+        if (_appender is not null)
+            return _appender;
+
+        _connection = await Clients.GetClient(cancellationToken).ConfigureAwait(false);
+
+        return _appender = new BufferedAppender(_connection, NullTerminatedUtf8(Table));
+    }
+
     static byte[] NullTerminatedUtf8(string value) {
         var buffer = new byte[Encoding.UTF8.GetByteCount(value) + 1];
         Encoding.UTF8.GetBytes(value, buffer);
         return buffer;
     }
+
+    #region ->> Handler Types <<-
+
+    interface IRowMapper {
+        TRow? Map(ProjectionContext<DuckDBAdvancedConnection> context);
+    }
+
+    sealed class RowMapper<T>(Func<T, ProjectionContext<DuckDBAdvancedConnection>, TRow?> map) : IRowMapper {
+        public TRow? Map(ProjectionContext<DuckDBAdvancedConnection> context) =>
+            map(context.Record.As<T>(), context);
+    }
+
+    #endregion
 }

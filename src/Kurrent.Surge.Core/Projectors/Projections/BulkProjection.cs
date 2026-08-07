@@ -107,7 +107,7 @@ public readonly record struct BulkProjectionContext<TClient> where TClient : IAs
     /// </summary>
     public void StopProcessing(string? reason = null) => _source.StopProcessing(reason);
 
-    internal static BulkProjectionContext<TClient> From(
+    public static BulkProjectionContext<TClient> From(
         IProjectionClientProvider<TClient> clients,
         BatchContext source
     ) =>

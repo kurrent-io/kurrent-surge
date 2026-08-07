@@ -16,7 +16,7 @@ static class ProjectionTestRecords {
     /// </summary>
     public static Record Decoded<T>(T message, long logPosition) where T : class =>
         new() {
-            Id        = Guid.NewGuid(),
+            Id        = RecordId.New(),
             Position  = At(logPosition),
             Value     = message,
             ValueType = typeof(T)
@@ -25,7 +25,7 @@ static class ProjectionTestRecords {
     /// <summary>A record that carries no decoded value, and so matches no handler.</summary>
     public static Record Undecoded(long logPosition) =>
         new() {
-            Id       = Guid.NewGuid(),
+            Id       = RecordId.New(),
             Position = At(logPosition)
         };
 

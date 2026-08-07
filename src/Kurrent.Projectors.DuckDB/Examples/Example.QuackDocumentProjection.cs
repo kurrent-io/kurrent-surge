@@ -8,13 +8,6 @@ using Kurrent.Quack;
 
 namespace Kurrent.Projectors.DuckDB.Examples;
 
-/// <summary>
-/// The same document and the same keyed load-and-coalesce semantics as
-/// <see cref="SchemaVersionProjection"/>, but over a store of its own: real columns instead of a JSON row,
-/// through Quack's prepared statements. This is what deriving from
-/// <see cref="DocumentProjection{TClient,TDocument,TKey}"/> directly buys — pick it when the shape of the
-/// row matters, and pay for it with the struct-and-statement ceremony below.
-/// </summary>
 public class SchemaVersionQuackProjection : DocumentProjection<DuckDBAdvancedConnection, SchemaVersion, string> {
     public SchemaVersionQuackProjection(SchemaVersionQuackStore store) : base(store) {
         Setup((_, cancellationToken) => store.EnsureCollection(cancellationToken));
@@ -40,29 +33,8 @@ public class SchemaVersionQuackProjection : DocumentProjection<DuckDBAdvancedCon
     }
 }
 
-/// <summary>
-/// A hand-written store for one document type, on prepared statements.
-/// </summary>
-/// <remarks>
-/// <para>
-/// <see cref="IDocumentStore"/> takes the document type on the call rather than on the interface, so a
-/// store written for a single type casts to it and fails loudly if a projection over another type is
-/// pointed at the same instance. The table name is likewise baked into the SQL: a prepared statement's
-/// text is fixed at type-initialization.
-/// </para>
-/// <para>
-/// Quack's API is fully synchronous, so every method completes synchronously. The store still takes the
-/// projection's transaction, because its statements have to run on the connection that transaction is open on.
-/// </para>
-/// <para>
-/// Every write is guarded on the version it expects, in one <c>MERGE</c> for the whole changeset — the
-/// same statement shape as <see cref="DuckDBDocumentStore"/>, spelled out here over real columns. Numbers
-/// travel as <c>VARCHAR</c> lists and are cast back, because Quack binds list parameters for strings and
-/// blobs only.
-/// </para>
-/// </remarks>
 public sealed class SchemaVersionQuackStore(
-    IProjectionTransaction<DuckDBAdvancedConnection> transaction,
+    DuckDBProjectionTransaction transaction,
     TimeProvider? time = null
 ) : IDocumentStore {
     readonly TimeProvider _time = time ?? TimeProvider.System;
@@ -73,7 +45,6 @@ public sealed class SchemaVersionQuackStore(
         connection.ExecuteNonQuery<EnsureTableStatement>();
     }
 
-    /// <inheritdoc/>
     public async IAsyncEnumerable<StoredDocument<TDocument, TKey>> Load<TDocument, TKey>(
         LoadRequest<TKey> request, [EnumeratorCancellation] CancellationToken cancellationToken
     ) where TDocument : class where TKey : notnull {
@@ -82,14 +53,11 @@ public sealed class SchemaVersionQuackStore(
 
         var connection = await transaction.Open(cancellationToken).ConfigureAwait(false);
 
-        // Keys reach SQL as text and cannot be parsed back generically, so the row's key text is mapped
-        // back to the caller's own key rather than reconstructed from the column.
         var requested = new Dictionary<string, TKey>(request.Keys.Length, StringComparer.Ordinal);
 
         foreach (var key in request.Keys)
             requested[KeyText(key)] = key;
 
-        // Quack's enumerator is a ref struct and cannot cross a yield boundary — drain it first.
         var rows = new List<StoredRow>(request.Keys.Length);
 
         foreach (ref readonly var row in connection.ExecuteQuery<LoadArgs, StoredRow, LoadByKeys>(new([.. requested.Keys])))
@@ -103,7 +71,6 @@ public sealed class SchemaVersionQuackStore(
                 row.Timestamp);
     }
 
-    /// <inheritdoc/>
     public async ValueTask Save<TDocument, TKey>(
         SaveRequest<TDocument, TKey> request, CancellationToken cancellationToken
     ) where TDocument : class where TKey : notnull {
@@ -120,7 +87,6 @@ public sealed class SchemaVersionQuackStore(
         var expected = new string[count];
         var versions = new string[count];
 
-        // Blobs bind as one contiguous buffer plus a range per entry — a null range travels as NULL.
         var bufferLength = 0;
 
         foreach (var (_, _, _, document) in request.Tracked)
@@ -130,8 +96,6 @@ public sealed class SchemaVersionQuackStore(
         var ranges      = new Range?[count];
         var offset      = 0;
 
-        // A null document marks a removal; its columns travel as NULLs and never reach a branch that
-        // reads them.
         for (var index = 0; index < count; index++) {
             var (key, expectedVersion, version, document) = request.Tracked[index];
             var schemaVersion = (SchemaVersion?)(object?)document;
@@ -167,7 +131,6 @@ public sealed class SchemaVersionQuackStore(
             ? formattable.ToString(null, CultureInfo.InvariantCulture)
             : key.ToString()!;
 
-    /// <summary>A row as the statements read it back, before the generic cast.</summary>
     readonly record struct StoredRow(string VersionId, SchemaVersion Document, long Version, DateTimeOffset Timestamp);
 
     struct EnsureTableStatement : IParameterlessStatement {
@@ -184,7 +147,6 @@ public sealed class SchemaVersionQuackStore(
             """u8;
     }
 
-    /// <summary>Quack binds parameters through a struct — this is <see cref="LoadByKeys"/>' bound shape.</summary>
     readonly record struct LoadArgs(string[] VersionIds);
 
     struct LoadByKeys : IQuery<LoadArgs, StoredRow> {
@@ -209,17 +171,12 @@ public sealed class SchemaVersionQuackStore(
 
             var version = row.ReadInt64();
 
-            // Written as UtcDateTime, so the value read back is UTC regardless of the DateTime's kind.
             var timestamp = new DateTimeOffset(DateTime.SpecifyKind(row.ReadDateTime(), DateTimeKind.Utc));
 
             return new(versionId, document, version, timestamp);
         }
     }
 
-    /// <summary>
-    /// One changeset, transposed into parallel columns so the whole set travels as a single statement.
-    /// The definitions ride as one contiguous buffer plus a range per entry — Quack's blob-list binding.
-    /// </summary>
     readonly record struct SaveArgs(
         string[]  VersionIds,
         string?[] SchemaNames,
@@ -233,8 +190,6 @@ public sealed class SchemaVersionQuackStore(
 
     struct SaveStatement : IPreparedStatement<SaveArgs> {
         public static StatementBindingResult Bind(in SaveArgs args, PreparedStatement statement) {
-            // The initializer binds $1..$6; the blob list has no initializer overload, so it binds
-            // directly at position 6 ($7).
             var result = new StatementBindingResult(statement) {
                 args.VersionIds,
                 args.SchemaNames,
@@ -249,9 +204,6 @@ public sealed class SchemaVersionQuackStore(
             return result;
         }
 
-        // Inserts, updates and removals in one statement, each guarded on its own expected version. A null
-        // schema_name marks a removal. The guarded branches must precede their catch-all ERROR or the
-        // error swallows every write.
         public static ReadOnlySpan<byte> CommandText => """
             MERGE INTO schema_versions_quack AS t
             USING (

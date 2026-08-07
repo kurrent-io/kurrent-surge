@@ -4,10 +4,6 @@ namespace Kurrent.Projectors.DuckDB;
 
 [PublicAPI]
 public static class DuckDBConnectionExtensions {
-    /// <summary>
-    /// Returns <c>true</c> if a table with the given name exists in the current database.
-    /// Quoted identifiers are matched against their unquoted stored form in <c>information_schema</c>.
-    /// </summary>
     public static bool TableExists(this DuckDBAdvancedConnection connection, string tableName) {
         var result = connection.QueryFirstOrDefault<TableExistsArgs, bool, TableExistsQuery>(new(tableName));
         return result is { IsUndefined: false, Value: true };

@@ -23,7 +23,7 @@ public readonly record struct ProjectionContext<TClient> where TClient : IAsyncD
     public required ILogger           Logger            { get; init; }
     public required CancellationToken CancellationToken { get; init; }
 
-    internal static ProjectionContext<TClient> From(
+    public static ProjectionContext<TClient> From(
         IProjectionClientProvider<TClient> clients,
         Record record,
         BatchContext source
