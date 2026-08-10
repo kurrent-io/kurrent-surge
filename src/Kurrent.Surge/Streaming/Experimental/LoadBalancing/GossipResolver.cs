@@ -57,7 +57,7 @@ sealed partial class GossipResolver : PollingResolver {
 
     protected override async Task ResolveAsync(CancellationToken cancellationToken) {
         if (Interlocked.Exchange(ref _pendingLeader, null) is ClusterEndpoint announced) {
-            PublishLeaderFirst(announced);
+            PublishAnnouncedLeader(announced);
             return;
         }
 
@@ -68,7 +68,7 @@ sealed partial class GossipResolver : PollingResolver {
 
         await DiscoverAsync().ConfigureAwait(false);
 
-        void PublishLeaderFirst(ClusterEndpoint endpoint) {
+        void PublishAnnouncedLeader(ClusterEndpoint endpoint) {
             var fallbacks = (_lastPublished.Length > 0 ? _lastPublished : _options.Seeds)
                 .Where(fallback => fallback != endpoint);
 
@@ -81,7 +81,7 @@ sealed partial class GossipResolver : PollingResolver {
             while (true) {
                 attempt++;
 
-                foreach (var candidate in Shuffled(_knownEndpoints)) {
+                foreach (var candidate in _knownEndpoints.Shuffle()) {
                     try {
                         var topology = await _gossip.GetTopology(candidate, cancellationToken).ConfigureAwait(false);
                         var ranked   = NodeSelectionPolicy.RankNodes(topology, _options.NodeReadPreference);
@@ -119,12 +119,6 @@ sealed partial class GossipResolver : PollingResolver {
             Listener(ResolverResult.ForFailure(new(
                 StatusCode.Unavailable,
                 $"Failed to discover a candidate node in {_options.MaxDiscoverAttempts} attempts.")));
-
-            ClusterEndpoint[] Shuffled(ClusterEndpoint[] endpoints) {
-                var copy = endpoints.ToArray();
-                Random.Shared.Shuffle(copy);
-                return copy;
-            }
 
             LogLevel GetLogLevelForAttempt() =>
                 attempt switch {
