@@ -52,7 +52,7 @@ sealed partial class NodePreferenceBalancer(IChannelControlHelper controller, IL
         _subchannel    = created;
         _currentTarget = target;
 
-        UpdateState(ConnectivityState.Connecting, new QueuePicker());
+        UpdateState(ConnectivityState.Connecting, Pickers.Queue());
         created.RequestConnection();
 
         void UpdateSubchannelState(Subchannel subchannel, SubchannelState subchannelState) {
@@ -61,24 +61,24 @@ sealed partial class NodePreferenceBalancer(IChannelControlHelper controller, IL
 
             switch (subchannelState.State) {
                 case ConnectivityState.Ready:
-                    UpdateState(ConnectivityState.Ready, new ConnectedPicker(subchannel));
+                    UpdateState(ConnectivityState.Ready, Pickers.Connected(subchannel));
                     break;
 
                 case ConnectivityState.Idle:
                     controller.RefreshResolver();
-                    UpdateState(ConnectivityState.Idle, new RequestConnectionPicker(subchannel));
+                    UpdateState(ConnectivityState.Idle, Pickers.RequestConnection(subchannel));
                     break;
 
                 case ConnectivityState.Connecting:
-                    UpdateState(ConnectivityState.Connecting, new QueuePicker());
+                    UpdateState(ConnectivityState.Connecting, Pickers.Queue());
                     break;
 
                 case ConnectivityState.TransientFailure:
-                    UpdateState(ConnectivityState.TransientFailure, new FailurePicker(subchannelState.Status));
+                    UpdateState(ConnectivityState.TransientFailure, Pickers.Failure(subchannelState.Status));
                     break;
 
                 case ConnectivityState.Shutdown:
-                    UpdateState(ConnectivityState.Shutdown, new QueuePicker());
+                    UpdateState(ConnectivityState.Shutdown, Pickers.Queue());
                     _subchannel    = null;
                     _currentTarget = null;
                     break;
@@ -93,7 +93,7 @@ sealed partial class NodePreferenceBalancer(IChannelControlHelper controller, IL
                 case ConnectivityState.TransientFailure:
                     RemoveSubchannel();
                     _currentTarget = null;
-                    UpdateState(ConnectivityState.TransientFailure, new FailurePicker(status));
+                    UpdateState(ConnectivityState.TransientFailure, Pickers.Failure(status));
                     break;
 
                 default:
@@ -121,6 +121,15 @@ sealed partial class NodePreferenceBalancer(IChannelControlHelper controller, IL
     }
 
     #region ->> Pickers <<-
+
+    static class Pickers {
+        static readonly SubchannelPicker QueueInstance = new QueuePicker();
+
+        public static SubchannelPicker Queue()                                  => QueueInstance;
+        public static SubchannelPicker Connected(Subchannel subchannel)         => new ConnectedPicker(subchannel);
+        public static SubchannelPicker RequestConnection(Subchannel subchannel) => new RequestConnectionPicker(subchannel);
+        public static SubchannelPicker Failure(Status status)                   => new FailurePicker(status);
+    }
 
     sealed class ConnectedPicker(Subchannel subchannel) : SubchannelPicker {
         public override PickResult Pick(PickContext context) => PickResult.ForSubchannel(subchannel);
