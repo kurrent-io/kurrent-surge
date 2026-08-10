@@ -1,4 +1,3 @@
-using System.Net;
 using System.Threading.Channels;
 using Grpc.Core;
 using Grpc.Net.Client.Balancer;
@@ -10,10 +9,10 @@ using IGossipClient = Kurrent.Surge.Experimental.LoadBalancing.IGossipClient;
 namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
 
 public class GossipResolverTests {
-    static readonly DnsEndPoint Seed     = new("seed", 1113);
-    static readonly DnsEndPoint Leader   = new("leader", 2113);
-    static readonly DnsEndPoint Follower = new("follower", 3113);
-    static readonly DnsEndPoint Replica  = new("replica", 4113);
+    static readonly ClusterEndpoint Seed     = new("seed", 1113);
+    static readonly ClusterEndpoint Leader   = new("leader", 2113);
+    static readonly ClusterEndpoint Follower = new("follower", 3113);
+    static readonly ClusterEndpoint Replica  = new("replica", 4113);
 
     static readonly ClusterTopology Topology = new([
         new(VNodeState.Follower, IsAlive: true, Follower),
@@ -25,7 +24,7 @@ public class GossipResolverTests {
     public async ValueTask publishes_addresses_ranked_by_preference(CancellationToken cancellationToken) {
         // Arrange
         var gossip = A.Fake<IGossipClient>();
-        A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>._, A<CancellationToken>._)).Returns(Topology);
+        A.CallTo(() => gossip.GetTopology(A<ClusterEndpoint>._, A<CancellationToken>._)).Returns(Topology);
 
         using var resolver = CreateResolver(new() { Seeds = [Seed], NodeReadPreference = NodeReadPreference.Leader }, gossip);
         var results = StartCapturing(resolver);
@@ -44,7 +43,7 @@ public class GossipResolverTests {
     [Test]
     public async ValueTask tries_next_candidate_when_gossip_fails(CancellationToken cancellationToken) {
         // Arrange: two seeds, one of them unreachable.
-        var deadSeed = new DnsEndPoint("dead-seed", 1114);
+        var deadSeed = new ClusterEndpoint("dead-seed", 1114);
         var gossip   = A.Fake<IGossipClient>();
 
         A.CallTo(() => gossip.GetTopology(deadSeed, A<CancellationToken>._)).Throws(new RpcException(new(StatusCode.Unavailable, "unreachable")));
@@ -66,7 +65,7 @@ public class GossipResolverTests {
     public async ValueTask publishes_failure_after_discovery_exhausts_attempts(CancellationToken cancellationToken) {
         // Arrange
         var gossip = A.Fake<IGossipClient>();
-        A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>._, A<CancellationToken>._)).Throws(new RpcException(new(StatusCode.Unavailable, "unreachable")));
+        A.CallTo(() => gossip.GetTopology(A<ClusterEndpoint>._, A<CancellationToken>._)).Throws(new RpcException(new(StatusCode.Unavailable, "unreachable")));
 
         using var resolver = CreateResolver(
             new() {
@@ -86,14 +85,14 @@ public class GossipResolverTests {
 
         // Assert: one gossip probe per attempt for the single seed.
         await Assert.That(result.Status.StatusCode).IsEqualTo(StatusCode.Unavailable);
-        A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>._, A<CancellationToken>._)).MustHaveHappenedTwiceOrMore();
+        A.CallTo(() => gossip.GetTopology(A<ClusterEndpoint>._, A<CancellationToken>._)).MustHaveHappenedTwiceOrMore();
     }
 
     [Test]
     public async ValueTask announce_leader_publishes_hinted_endpoint_first_without_gossip(CancellationToken cancellationToken) {
         // Arrange
         var gossip = A.Fake<IGossipClient>();
-        A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>._, A<CancellationToken>._)).Returns(Topology);
+        A.CallTo(() => gossip.GetTopology(A<ClusterEndpoint>._, A<CancellationToken>._)).Returns(Topology);
 
         using var resolver = CreateResolver(new() { Seeds = [Seed], NodeReadPreference = NodeReadPreference.Leader }, gossip);
         var results = StartCapturing(resolver);
@@ -109,14 +108,14 @@ public class GossipResolverTests {
         await Assert.That(result.Addresses).IsNotNull();
         await Assert.That(result.Addresses![0].EndPoint.Host).IsEqualTo(Replica.Host);
         await Assert.That(RankOf(result.Addresses[0])).IsEqualTo(0);
-        A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => gossip.GetTopology(A<ClusterEndpoint>._, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async ValueTask queries_discovered_members_instead_of_seeds_after_first_success(CancellationToken cancellationToken) {
         // Arrange: the seed is not a cluster member; discovery must move on to members.
         var gossip = A.Fake<IGossipClient>();
-        A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>._, A<CancellationToken>._)).Returns(Topology);
+        A.CallTo(() => gossip.GetTopology(A<ClusterEndpoint>._, A<CancellationToken>._)).Returns(Topology);
 
         using var resolver = CreateResolver(new() { Seeds = [Seed], NodeReadPreference = NodeReadPreference.Leader }, gossip);
         var results = StartCapturing(resolver);
@@ -130,7 +129,7 @@ public class GossipResolverTests {
 
         // Assert: the seed was only queried during the first discovery round.
         A.CallTo(() => gossip.GetTopology(Seed, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
-        A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>.That.Matches(endpoint => endpoint != Seed), A<CancellationToken>._))
+        A.CallTo(() => gossip.GetTopology(A<ClusterEndpoint>.That.Matches(endpoint => endpoint != Seed), A<CancellationToken>._))
             .MustHaveHappenedOnceOrMore();
     }
 

@@ -27,7 +27,7 @@ sealed class ClusterChannel : IAsyncDisposable {
     readonly SocketsHttpHandler            _channelHandler;
     readonly SocketsHttpHandler            _gossipHandler;
     readonly ServiceProvider               _services;
-    readonly string                        _fallbackTarget;
+    readonly ClusterEndpoint               _fallbackTarget;
 
     bool _disposed;
 
@@ -35,7 +35,7 @@ sealed class ClusterChannel : IAsyncDisposable {
         GrpcChannel channel, CallInvoker callInvoker, GossipResolverFactory resolverFactory,
         NodePreferenceBalancerFactory balancerFactory, IGossipClient gossipClient,
         SocketsHttpHandler channelHandler, SocketsHttpHandler gossipHandler,
-        ServiceProvider services, string fallbackTarget
+        ServiceProvider services, ClusterEndpoint fallbackTarget
     ) {
         Channel          = channel;
         CallInvoker      = callInvoker;
@@ -51,12 +51,7 @@ sealed class ClusterChannel : IAsyncDisposable {
     public GrpcChannel Channel     { get; }
     public CallInvoker CallInvoker { get; }
 
-    public string Target {
-        get {
-            var endpoint = _balancerFactory.Balancer?.ConnectedEndpoint;
-            return endpoint is not null ? $"{endpoint.Host}:{endpoint.Port}" : _fallbackTarget;
-        }
-    }
+    public string Target => (_balancerFactory.Balancer?.ConnectedEndpoint ?? _fallbackTarget).ToString();
 
     public static ClusterChannel Create(KurrentClientOptions options, NodeReadPreference? nodePreference = null) {
         var insecure = options.Security.Transport.IsInsecure;
@@ -82,9 +77,11 @@ sealed class ClusterChannel : IAsyncDisposable {
             options.Gossip.Timeout
         );
 
+        var seeds = options.Endpoints.Select(ClusterEndpoint.From).ToArray();
+
         var resolverFactory = new GossipResolverFactory(
             new() {
-                Seeds               = useGossip ? options.Endpoints : [options.Endpoints[0]],
+                Seeds               = useGossip ? seeds : [seeds[0]],
                 NodeReadPreference  = nodePreference ?? options.Gossip.ReadPreference,
                 MaxDiscoverAttempts = options.Gossip.MaxDiscoverAttempts,
                 DiscoveryInterval   = options.Gossip.DiscoveryInterval,
@@ -154,12 +151,9 @@ sealed class ClusterChannel : IAsyncDisposable {
             .CreateCallInvoker()
             .Intercept([..options.Interceptors, headersInterceptor, leaderChangeInterceptor]);
 
-        var fallbackEndpoint = options.Endpoints[0];
-        var fallbackTarget   = $"{fallbackEndpoint.Host}:{fallbackEndpoint.Port}";
-
         return new(
             channel, callInvoker, resolverFactory, balancerFactory, gossipClient,
-            channelHandler, gossipHandler, services, fallbackTarget
+            channelHandler, gossipHandler, services, seeds[0]
         );
 
         static SocketsHttpHandler CreateHandler(KurrentClientOptions options) {
@@ -221,15 +215,15 @@ sealed class ClusterChannel : IAsyncDisposable {
     /// Forces a topology refresh. With a leader endpoint, routes straight to that node;
     /// without one, re-runs gossip discovery.
     /// </summary>
-    public void TriggerReconnect(DnsEndPoint? leaderEndpoint = null) {
+    public void TriggerReconnect(ClusterEndpoint? leaderEndpoint = null) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var resolver = _resolverFactory.Resolver;
         if (resolver is null)
             return;
 
-        if (leaderEndpoint is not null)
-            resolver.AnnounceLeader(leaderEndpoint);
+        if (leaderEndpoint is { } leader)
+            resolver.AnnounceLeader(leader);
         else
             resolver.Refresh();
     }

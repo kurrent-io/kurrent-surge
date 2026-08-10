@@ -1,4 +1,3 @@
-using System.Net;
 using Google.Rpc;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
@@ -26,7 +25,7 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 sealed partial class LeaderChangeInterceptor : Interceptor {
     const TaskContinuationOptions ContinuationOptions = ExecuteSynchronously | OnlyOnFaulted;
 
-    public LeaderChangeInterceptor(Action<DnsEndPoint> announceLeader, ILogger logger) {
+    public LeaderChangeInterceptor(Action<ClusterEndpoint> announceLeader, ILogger logger) {
         InspectFailure = task => {
             if (task.Exception?.InnerException is not RpcException rex)
                 return;

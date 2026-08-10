@@ -1,4 +1,3 @@
-using System.Net;
 using Google.Protobuf.WellKnownTypes;
 using Google.Rpc;
 using Grpc.Core;
@@ -20,10 +19,10 @@ public class LeaderChangeInterceptorTests {
     [Test]
     public async ValueTask announces_leader_from_not_leader_error_details(CancellationToken cancellationToken) {
         // Arrange
-        var expectedLeader = new DnsEndPoint("node2.example.com", 2113);
+        var expectedLeader = new ClusterEndpoint("node2.example.com", 2113);
         var failure        = NotLeaderFailure(expectedLeader.Host, expectedLeader.Port);
 
-        var announced = new TaskCompletionSource<DnsEndPoint>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var announced = new TaskCompletionSource<ClusterEndpoint>(TaskCreationOptions.RunContinuationsAsynchronously);
         var invoker   = CreateInvoker(failure, announced.SetResult);
 
         // Act
@@ -132,7 +131,7 @@ public class LeaderChangeInterceptorTests {
             }
         }.ToRpcException();
 
-    static CallInvoker CreateInvoker(RpcException failure, Action<DnsEndPoint> announceLeader) =>
+    static CallInvoker CreateInvoker(RpcException failure, Action<ClusterEndpoint> announceLeader) =>
         new FaultyCallInvoker(failure).Intercept(new LeaderChangeInterceptor(announceLeader, NullLogger.Instance));
 
     sealed class FaultyCallInvoker(RpcException failure) : CallInvoker {

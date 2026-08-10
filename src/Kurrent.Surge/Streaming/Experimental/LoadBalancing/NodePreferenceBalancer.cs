@@ -1,4 +1,3 @@
-using System.Net;
 using Grpc.Core;
 using Grpc.Net.Client.Balancer;
 
@@ -15,14 +14,15 @@ sealed partial class NodePreferenceBalancer(IChannelControlHelper controller, IL
     readonly ILogger<NodePreferenceBalancer> _log = loggerFactory.CreateLogger<NodePreferenceBalancer>();
 
     Subchannel?       _subchannel;
-    DnsEndPoint?      _currentTarget;
+    ClusterEndpoint?  _currentTarget;
     ConnectivityState _state;
 
     /// <summary>
     /// The endpoint of the subchannel's live transport, or <see langword="null"/> when
     /// no connection has been established yet.
     /// </summary>
-    public DnsEndPoint? ConnectedEndpoint => _subchannel?.CurrentAddress?.EndPoint;
+    public ClusterEndpoint? ConnectedEndpoint =>
+        _subchannel?.CurrentAddress is { } address ? ClusterEndpoint.From(address.EndPoint) : null;
 
     public override void UpdateChannelState(ChannelState state) {
         if (state.Status.StatusCode != StatusCode.OK) {
@@ -35,9 +35,9 @@ sealed partial class NodePreferenceBalancer(IChannelControlHelper controller, IL
             return;
         }
 
-        var target = state.Addresses[0].EndPoint;
+        var target = ClusterEndpoint.From(state.Addresses[0].EndPoint);
 
-        if (_subchannel is not null && DnsEndPointComparer.Instance.Equals(target, _currentTarget)) {
+        if (_subchannel is not null && _currentTarget == target) {
             _subchannel.UpdateAddresses(state.Addresses);
             return;
         }

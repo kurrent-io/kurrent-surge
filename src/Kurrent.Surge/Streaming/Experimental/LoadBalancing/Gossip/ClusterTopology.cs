@@ -1,5 +1,3 @@
-using System.Net;
-
 namespace Kurrent.Surge.Experimental.LoadBalancing;
 
 /// <summary>
@@ -31,7 +29,7 @@ enum VNodeState {
 /// <summary>
 /// A cluster member as reported by gossip.
 /// </summary>
-sealed record ClusterNode(VNodeState State, bool IsAlive, DnsEndPoint Endpoint);
+sealed record ClusterNode(VNodeState State, bool IsAlive, ClusterEndpoint Endpoint);
 
 /// <summary>
 /// A point-in-time view of the cluster membership.

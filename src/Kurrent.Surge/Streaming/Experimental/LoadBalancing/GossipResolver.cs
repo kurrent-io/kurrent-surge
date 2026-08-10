@@ -1,4 +1,3 @@
-using System.Net;
 using Grpc.Core;
 using Grpc.Net.Client.Balancer;
 using KurrentDB.Client;
@@ -6,7 +5,7 @@ using KurrentDB.Client;
 namespace Kurrent.Surge.Experimental.LoadBalancing;
 
 sealed record GossipResolverOptions {
-    public required DnsEndPoint[] Seeds { get; init; }
+    public required ClusterEndpoint[] Seeds { get; init; }
 
     public NodeReadPreference NodeReadPreference  { get; init; } = NodeReadPreference.Leader;
     public int                MaxDiscoverAttempts { get; init; } = 10;
@@ -34,9 +33,9 @@ sealed partial class GossipResolver : PollingResolver {
     readonly Random                  _random;
     readonly Lock                    _lock = new();
 
-    DnsEndPoint[]  _knownEndpoints;
-    DnsEndPoint[]  _lastPublished = [];
-    DnsEndPoint?   _pendingLeader;
+    ClusterEndpoint[] _knownEndpoints;
+    ClusterEndpoint[] _lastPublished = [];
+    ClusterEndpoint?  _pendingLeader;
 
     public GossipResolver(GossipResolverOptions options, IGossipClient gossip, ILoggerFactory loggerFactory)
         : base(loggerFactory) {
@@ -52,20 +51,20 @@ sealed partial class GossipResolver : PollingResolver {
     /// NewLeader reconnection: the next publish ranks that endpoint first and keeps the previously
     /// published endpoints as fallbacks. Discovery resumes on later refreshes.
     /// </summary>
-    public void AnnounceLeader(DnsEndPoint leader) {
+    public void AnnounceLeader(ClusterEndpoint leader) {
         lock (_lock) _pendingLeader = leader;
         Refresh();
     }
 
     protected override async Task ResolveAsync(CancellationToken cancellationToken) {
-        DnsEndPoint? leader;
+        ClusterEndpoint? leader;
         lock (_lock) {
             leader         = _pendingLeader;
             _pendingLeader = null;
         }
 
-        if (leader is not null) {
-            PublishLeaderFirst(leader);
+        if (leader is { } announced) {
+            PublishLeaderFirst(announced);
             return;
         }
 
@@ -76,12 +75,12 @@ sealed partial class GossipResolver : PollingResolver {
 
         await DiscoverAsync().ConfigureAwait(false);
 
-        void PublishLeaderFirst(DnsEndPoint endpoint) {
-            DnsEndPoint[] lastPublished;
+        void PublishLeaderFirst(ClusterEndpoint endpoint) {
+            ClusterEndpoint[] lastPublished;
             lock (_lock) lastPublished = _lastPublished;
 
             var fallbacks = (lastPublished.Length > 0 ? lastPublished : _options.Seeds)
-                .Where(fallback => !DnsEndPointComparer.Instance.Equals(fallback, endpoint));
+                .Where(fallback => fallback != endpoint);
 
             Publish([endpoint, ..fallbacks]);
         }
@@ -132,11 +131,11 @@ sealed partial class GossipResolver : PollingResolver {
                 StatusCode.Unavailable,
                 $"Failed to discover a candidate node in {_options.MaxDiscoverAttempts} attempts.")));
 
-            DnsEndPoint[] SnapshotKnownEndpoints() {
+            ClusterEndpoint[] SnapshotKnownEndpoints() {
                 lock (_lock) return _knownEndpoints;
             }
 
-            DnsEndPoint[] Shuffled(DnsEndPoint[] endpoints) {
+            ClusterEndpoint[] Shuffled(ClusterEndpoint[] endpoints) {
                 var copy = endpoints.ToArray();
                 lock (_random) _random.Shuffle(copy);
                 return copy;
@@ -151,7 +150,7 @@ sealed partial class GossipResolver : PollingResolver {
         }
     }
 
-    void Publish(DnsEndPoint[] endpoints) {
+    void Publish(ClusterEndpoint[] endpoints) {
         lock (_lock) _lastPublished = endpoints;
 
         var addresses = endpoints
