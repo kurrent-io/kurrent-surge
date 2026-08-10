@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using Grpc.Core;
 using Kurrent.Surge.Experimental.LoadBalancing;
 using Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster;
@@ -241,6 +243,129 @@ public class ClusterChannelTests {
 
         // Assert
         await Assert.That(channel.Channel.State).IsEqualTo(ConnectivityState.Ready);
+    }
+
+    [Test]
+    public async ValueTask target_reports_connected_node_endpoint(CancellationToken cancellationToken) {
+        // Arrange
+        await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower, NodeState.Follower);
+        var leader = cluster.NodeInState(NodeState.Leader);
+        var expectedTarget = $"{leader.Endpoint.Host}:{leader.Endpoint.Port}";
+
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.Leader));
+        var client = new ProbeClient(channel.CallInvoker);
+
+        await channel.ConnectAsync(cancellationToken);
+        await ReadServingPort(client, cancellationToken);
+
+        // Act
+        var target = channel.Target;
+
+        // Assert
+        await Assert.That(target).IsEqualTo(expectedTarget);
+    }
+
+    [Test]
+    public async ValueTask sends_authorization_header_from_basic_credentials(CancellationToken cancellationToken) {
+        // Arrange
+        await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower);
+        var leader = cluster.NodeInState(NodeState.Leader);
+
+        const string username = "admin";
+        const string password = "changeit";
+        var expectedAuthorizationHeader = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"))}";
+
+        var options = CreateOptions(cluster, NodePreference.Leader);
+        options.Security.Authentication = new BasicCredentials(username, password);
+
+        await using var channel = ClusterChannel.Create(options);
+        var client = new ProbeClient(channel.CallInvoker);
+
+        // Act
+        await ReadServingPort(client, cancellationToken);
+        var headers = leader.LastRequestHeaders;
+
+        // Assert
+        await Assert.That(headers).IsNotNull();
+        await Assert.That(headers!.GetValue("authorization")).IsEqualTo(expectedAuthorizationHeader);
+    }
+
+    [Test]
+    public async ValueTask redirect_loop_fails_calls_without_spinning(CancellationToken cancellationToken) {
+        // Arrange
+        await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower);
+        var nodeA = cluster[0];
+        var nodeB = cluster[1];
+
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.Leader));
+        var client = new ProbeClient(channel.CallInvoker);
+
+        await ReadServingPort(client, cancellationToken);
+
+        nodeA.NotLeaderRedirect = nodeB.Endpoint;
+        nodeB.NotLeaderRedirect = nodeA.Endpoint;
+
+        var servedCallsBefore = nodeA.ServedCalls + nodeB.ServedCalls;
+        var expectedStatusCodes = Enumerable.Repeat(StatusCode.FailedPrecondition, 5).ToArray();
+
+        // Act
+        var stopwatch = Stopwatch.StartNew();
+        var statusCodes = new List<StatusCode>();
+
+        for (var i = 0; i < 5; i++) {
+            var failure = await Assert.ThrowsAsync<RpcException>(async () => {
+                using var call = client.ReadAsync(new(), cancellationToken: cancellationToken);
+                await call.ResponseAsync;
+            });
+
+            statusCodes.Add(failure!.StatusCode);
+        }
+
+        stopwatch.Stop();
+        var servedCallsAfter = nodeA.ServedCalls + nodeB.ServedCalls;
+
+        // Assert
+        await Assert.That(statusCodes).IsEquivalentTo(expectedStatusCodes);
+        await Assert.That(stopwatch.ElapsedMilliseconds).IsLessThan(5000);
+        await Assert.That(servedCallsAfter - servedCallsBefore).IsEqualTo(0L);
+    }
+
+    [Test]
+    public async ValueTask presents_file_based_client_certificate(CancellationToken cancellationToken) {
+        // Arrange
+        using var tls           = FakeClusterTls.Create();
+        var       certDirectory = Directory.CreateTempSubdirectory("cluster-channel-tls-");
+
+        try {
+            var caPath   = Path.Combine(certDirectory.FullName, "ca.pem");
+            var certPath = Path.Combine(certDirectory.FullName, "client.pem");
+            var keyPath  = Path.Combine(certDirectory.FullName, "client.key.pem");
+
+            tls.ExportCaPem(caPath);
+            tls.ExportClientPem(certPath, keyPath);
+
+            var expectedThumbprint = tls.ClientCertificate.Thumbprint;
+
+            await using var cluster = await FakeClusterHarness.StartSecure(tls, NodeState.Leader, NodeState.Follower);
+            var leader = cluster.NodeInState(NodeState.Leader);
+
+            var options = CreateOptions(cluster, NodePreference.Leader);
+            options.Security.Transport      = TransportSecurity.Certificate(caPath);
+            options.Security.Authentication = ClientCredentials.Certificate(certPath, keyPath);
+
+            await using var channel = ClusterChannel.Create(options);
+            var client = new ProbeClient(channel.CallInvoker);
+
+            // Act
+            await ReadServingPort(client, cancellationToken);
+            var presentedThumbprint = leader.LastClientCertificate?.Thumbprint;
+
+            // Assert
+            await Assert.That(presentedThumbprint).IsEqualTo(expectedThumbprint);
+        }
+        finally {
+            certDirectory.Delete(recursive: true);
+        }
     }
 
     #region ->> Helpers <<-

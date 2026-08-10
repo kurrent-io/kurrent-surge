@@ -29,6 +29,22 @@ public sealed class FakeClusterHarness : IAsyncDisposable {
         return cluster;
     }
 
+    /// <summary>
+    /// Starts a cluster with Kestrel HTTPS and mutual TLS: every node requires a client
+    /// certificate, and every node serves <paramref name="tls"/>'s server certificate.
+    /// </summary>
+    public static async ValueTask<FakeClusterHarness> StartSecure(FakeClusterTls tls, params MemberInfo.Types.VNodeState[] states) {
+        var cluster = new FakeClusterHarness();
+
+        foreach (var state in states)
+            cluster._nodes.Add(new(cluster, state, tls));
+
+        foreach (var node in cluster._nodes)
+            await node.StartAsync();
+
+        return cluster;
+    }
+
     public FakeClusterNode NodeInState(MemberInfo.Types.VNodeState state) =>
         _nodes.First(node => node.State == state);
 

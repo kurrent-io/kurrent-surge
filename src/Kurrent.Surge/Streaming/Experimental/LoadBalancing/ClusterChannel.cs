@@ -1,11 +1,11 @@
 using System.Net;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Balancer;
 using Grpc.Net.Client.Configuration;
+using Kurrent.Http;
 using Kurrent.Surge.Client;
 using KurrentDB.Client;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,42 +21,52 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 sealed class ClusterChannel : IAsyncDisposable {
     const int MaxReceiveMessageLength = 17 * 1024 * 1024; // 17MB
 
-    readonly GossipResolverFactory _resolverFactory;
-    readonly IGossipClient         _gossipClient;
-    readonly SocketsHttpHandler    _channelHandler;
-    readonly SocketsHttpHandler    _gossipHandler;
-    readonly ServiceProvider       _services;
+    readonly GossipResolverFactory         _resolverFactory;
+    readonly NodePreferenceBalancerFactory _balancerFactory;
+    readonly IGossipClient                 _gossipClient;
+    readonly SocketsHttpHandler            _channelHandler;
+    readonly SocketsHttpHandler            _gossipHandler;
+    readonly ServiceProvider               _services;
+    readonly string                        _fallbackTarget;
 
     bool _disposed;
 
     ClusterChannel(
         GrpcChannel channel, CallInvoker callInvoker, GossipResolverFactory resolverFactory,
-        IGossipClient gossipClient, SocketsHttpHandler channelHandler, SocketsHttpHandler gossipHandler,
-        ServiceProvider services
+        NodePreferenceBalancerFactory balancerFactory, IGossipClient gossipClient,
+        SocketsHttpHandler channelHandler, SocketsHttpHandler gossipHandler,
+        ServiceProvider services, string fallbackTarget
     ) {
         Channel          = channel;
         CallInvoker      = callInvoker;
         _resolverFactory = resolverFactory;
+        _balancerFactory = balancerFactory;
         _gossipClient    = gossipClient;
         _channelHandler  = channelHandler;
         _gossipHandler   = gossipHandler;
         _services        = services;
+        _fallbackTarget  = fallbackTarget;
     }
 
     public GrpcChannel Channel     { get; }
     public CallInvoker CallInvoker { get; }
 
-    public string Target => Channel.Target;
+    public string Target {
+        get {
+            var endpoint = _balancerFactory.Balancer?.ConnectedEndpoint;
+            return endpoint is not null ? $"{endpoint.Host}:{endpoint.Port}" : _fallbackTarget;
+        }
+    }
 
     public static ClusterChannel Create(KurrentClientOptions options) {
-        var transport = ResolveTransportSecurity(options);
-        var scheme    = transport.Insecure ? Uri.UriSchemeHttp : Uri.UriSchemeHttps;
+        var insecure = options.Security.Transport.IsInsecure;
+        var scheme   = insecure ? Uri.UriSchemeHttp : Uri.UriSchemeHttps;
 
         // The balanced channel's handler cannot be shared with the gossip channels:
         // the balancer installs its own ConnectCallback on the handler it owns, which
         // would hijack plain direct-channel requests going through the same instance.
-        var channelHandler = CreateHandler(options, transport);
-        var gossipHandler  = CreateHandler(options, transport);
+        var channelHandler = CreateHandler(options);
+        var gossipHandler  = CreateHandler(options);
 
         var useGossip = options.ConnectionScheme == KurrentConnectionScheme.Discover;
 
@@ -83,9 +93,11 @@ sealed class ClusterChannel : IAsyncDisposable {
             gossipClient
         );
 
+        var balancerFactory = new NodePreferenceBalancerFactory();
+
         var services = new ServiceCollection()
             .AddSingleton<ResolverFactory>(resolverFactory)
-            .AddSingleton<LoadBalancerFactory>(new NodePreferenceBalancerFactory())
+            .AddSingleton<LoadBalancerFactory>(balancerFactory)
             .BuildServiceProvider();
 
         var serviceConfig = new ServiceConfig {
@@ -95,17 +107,32 @@ sealed class ClusterChannel : IAsyncDisposable {
         if (options.Resilience.Retry.Enabled)
             serviceConfig.MethodConfigs.Add(CreateRetryMethodConfig(options));
 
+        CallCredentials? callCredentials = null;
+
+        if (options.Security.Authentication.Value is BasicCredentials basic) {
+            var authorizationHeader = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{basic.Username}:{basic.Password}"))}";
+
+            callCredentials = CallCredentials.FromInterceptor((_, metadata) => {
+                metadata.Add("authorization", authorizationHeader);
+                return Task.CompletedTask;
+            });
+        }
+
+        var transportCredentials = insecure ? ChannelCredentials.Insecure : ChannelCredentials.SecureSsl;
+        var channelCredentials   = callCredentials is null ? transportCredentials : ChannelCredentials.Create(transportCredentials, callCredentials);
+
         var channel = GrpcChannel.ForAddress(
             $"{GossipResolverFactory.Scheme}:///{options.ConnectionName}",
             new() {
-                Credentials                          = transport.Insecure ? ChannelCredentials.Insecure : ChannelCredentials.SecureSsl,
-                HttpHandler                          = channelHandler,
-                DisposeHttpClient                    = false,
-                LoggerFactory                        = options.LoggerFactory,
-                ServiceProvider                      = services,
-                ServiceConfig                        = serviceConfig,
-                MaxReceiveMessageSize                = MaxReceiveMessageLength,
-                ThrowOperationCanceledOnCancellation = true
+                Credentials                             = channelCredentials,
+                HttpHandler                             = channelHandler,
+                DisposeHttpClient                       = false,
+                LoggerFactory                           = options.LoggerFactory,
+                ServiceProvider                         = services,
+                ServiceConfig                           = serviceConfig,
+                MaxReceiveMessageSize                   = MaxReceiveMessageLength,
+                ThrowOperationCanceledOnCancellation    = true,
+                UnsafeUseInsecureChannelCallCredentials = insecure && callCredentials is not null
             }
         );
 
@@ -127,7 +154,13 @@ sealed class ClusterChannel : IAsyncDisposable {
             .CreateCallInvoker()
             .Intercept([..options.Interceptors, headersInterceptor, leaderChangeInterceptor]);
 
-        return new(channel, callInvoker, resolverFactory, gossipClient, channelHandler, gossipHandler, services);
+        var fallbackEndpoint = options.Endpoints[0];
+        var fallbackTarget   = $"{fallbackEndpoint.Host}:{fallbackEndpoint.Port}";
+
+        return new(
+            channel, callInvoker, resolverFactory, balancerFactory, gossipClient,
+            channelHandler, gossipHandler, services, fallbackTarget
+        );
     }
 
     /// <summary>
@@ -170,62 +203,23 @@ sealed class ClusterChannel : IAsyncDisposable {
 
     #region ->> Options Mapping <<-
 
-    sealed record TransportSecurity(bool Insecure, bool VerifyServerCertificate, X509Certificate2? TrustedRoot);
-
-    static TransportSecurity ResolveTransportSecurity(KurrentClientOptions options) {
-        var insecure    = false;
-        var verifyCert  = true;
-        var trustedRoot = (X509Certificate2?)null;
-
-        options.Security.Transport.Switch(
-            noTransportSecurity => insecure = true,
-            standardTls         => verifyCert = standardTls.VerifyServerCertificate,
-            fileCertificate     => {
-                verifyCert = fileCertificate.VerifyServerCertificate;
-
-                var caPath = Path.GetFullPath(options.Security.Transport.AsFileCertificateTls.CaPath);
-                if (!string.IsNullOrEmpty(caPath) && !File.Exists(caPath))
-                    throw new CryptographicException("Failed to load certificate. File was not found.");
-
-                try {
-                    trustedRoot = X509CertificateLoader.LoadCertificateFromFile(caPath);
-                }
-                catch (CryptographicException) {
-                    throw new CryptographicException("Failed to load certificate. Invalid file format.");
-                }
-            },
-            x509Certificate => {
-                verifyCert  = x509Certificate.VerifyServerCertificate;
-                trustedRoot = x509Certificate.Certificate;
-            }
-        );
-
-        return new(insecure, verifyCert, trustedRoot);
-    }
-
-    static SocketsHttpHandler CreateHandler(KurrentClientOptions options, TransportSecurity transport) {
+    static SocketsHttpHandler CreateHandler(KurrentClientOptions options) {
         var handler = new SocketsHttpHandler {
             KeepAlivePingDelay             = options.Resilience.KeepAliveInterval,
             KeepAlivePingTimeout           = options.Resilience.KeepAliveTimeout,
             EnableMultipleHttp2Connections = true
         };
 
-        if (transport.Insecure)
+        if (options.Security.Transport.IsInsecure)
             return handler;
 
-        if (options.Security.Authentication.Value is X509CertificateCredentials clientCertificate)
-            handler.SslOptions.ClientCertificates = new() { clientCertificate.Certificate };
+        if (options.Security.Authentication.TryGetCertificate(out var clientCertificate))
+            handler.SslOptions.ClientCertificates = new() { clientCertificate };
 
-        handler.SslOptions.RemoteCertificateValidationCallback = transport.VerifyServerCertificate switch {
+        handler.SslOptions.RemoteCertificateValidationCallback = options.Security.Transport.VerifyServerCertificate switch {
             false => delegate { return true; },
-            true when transport.TrustedRoot is not null => (_, certificate, chain, _) => {
-                if (certificate is not X509Certificate2 peerCertificate || chain is null)
-                    return false;
-
-                chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                chain.ChainPolicy.CustomTrustStore.Add(transport.TrustedRoot);
-                return chain.Build(peerCertificate);
-            },
+            true when options.Security.Transport.TryGetCertificate(out var trustedRoot) =>
+                new RemoteCertificateValidator(trustedRoot, options.LoggerFactory.CreateLogger<RemoteCertificateValidator>()),
             _ => null
         };
 

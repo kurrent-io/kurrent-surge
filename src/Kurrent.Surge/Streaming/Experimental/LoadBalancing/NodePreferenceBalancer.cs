@@ -18,6 +18,12 @@ sealed partial class NodePreferenceBalancer(IChannelControlHelper controller, IL
     DnsEndPoint?      _currentTarget;
     ConnectivityState _state;
 
+    /// <summary>
+    /// The endpoint of the subchannel's live transport, or <see langword="null"/> when
+    /// no connection has been established yet.
+    /// </summary>
+    public DnsEndPoint? ConnectedEndpoint => _subchannel?.CurrentAddress?.EndPoint;
+
     public override void UpdateChannelState(ChannelState state) {
         if (state.Status.StatusCode != StatusCode.OK) {
             ResolverError(state.Status);
