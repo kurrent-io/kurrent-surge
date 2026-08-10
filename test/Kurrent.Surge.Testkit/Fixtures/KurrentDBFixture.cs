@@ -177,6 +177,11 @@ public sealed class KurrentDBScavengeFixture : KurrentDBFixture {
 /// Three-node cluster + one replica with TLS enabled.
 /// </summary>
 public sealed class KurrentDBClusterFixture : KurrentDBFixture {
+    // Distinct resource name: the certs directory is keyed by it, and the cluster needs
+    // its own certificate set (SANs covering every node name) without touching the
+    // material the persistent single-node containers already loaded.
+    protected override string ResourceName => "kdb-cluster";
+
     protected override void ConfigureSettings(KurrentDBSettings settings) {
         settings.Lifetime   = ContainerLifetime.Persistent;
         settings.Topology   = new() { Nodes = 3, Replicas = 1 };

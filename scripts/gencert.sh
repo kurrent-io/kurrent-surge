@@ -207,7 +207,7 @@ else
     echo ">> Generating CA certificate..."
     "$GENCERT_BIN" create-ca \
         -out "${CERTS_DIR}/ca" \
-        "${force_flag[@]}"
+        ${force_flag[@]+"${force_flag[@]}"}
 fi
 
 if [[ "$FORCE" != true && -f "${CERTS_DIR}/node/node.crt" && -f "${CERTS_DIR}/node/node.key" ]]; then
@@ -220,7 +220,7 @@ else
         -out "${CERTS_DIR}/node" \
         -ip-addresses 127.0.0.1 \
         -dns-names "$DNS_NAMES" \
-        "${force_flag[@]}"
+        ${force_flag[@]+"${force_flag[@]}"}
 fi
 
 for username in "${USER_CERTS[@]}"; do
@@ -234,7 +234,7 @@ for username in "${USER_CERTS[@]}"; do
             -ca-certificate "${CERTS_DIR}/ca/ca.crt" \
             -ca-key "${CERTS_DIR}/ca/ca.key" \
             -out "${CERTS_DIR}/user-${username}" \
-            "${force_flag[@]}"
+            ${force_flag[@]+"${force_flag[@]}"}
     fi
 done
 
