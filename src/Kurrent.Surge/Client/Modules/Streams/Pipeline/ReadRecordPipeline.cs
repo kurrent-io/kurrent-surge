@@ -52,9 +52,23 @@ sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
         if (record.Data.IsEmpty)
             return DecodeOutcome.NoData;
 
-        // Data already exposes the raw payload; decoding is not applicable — Unavailable.
-        if (record.Schema.DataFormat == SchemaDataFormat.Bytes)
-            return DecodeOutcome.Unavailable;
+        if (record.Schema.DataFormat == SchemaDataFormat.Bytes) {
+            // Wire hazard carried over from the bytes serializer this pipeline replaced: a $>
+            // link record's Bytes payload is "{revision}@{stream}" text, not opaque bytes, and
+            // decodes into a LinkTo value. Every other Bytes record has nothing to decode.
+            if (record.Schema.Schema != LinkTo.SchemaName)
+                return DecodeOutcome.Unavailable;
+
+            try {
+                var linkTo = LinkTo.Parse(record.Data.Span);
+                record.Value     = linkTo;
+                record.ValueType = linkTo.GetType();
+                return DecodeOutcome.Decoded;
+            }
+            catch (Exception ex) when (ex is not SchemaSerializationException) {
+                throw new SchemaDeserializationFailedException(record.Schema.DataFormat, record.Schema.Schema, ex);
+            }
+        }
 
         return await Pipeline.Execute(record, ct).ConfigureAwait(false);
     }
