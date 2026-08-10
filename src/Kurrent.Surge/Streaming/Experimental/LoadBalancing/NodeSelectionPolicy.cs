@@ -23,13 +23,13 @@ static class NodeSelectionPolicy {
     }.ToFrozenSet();
 
     /// <summary>
-    /// Returns the connectable nodes ordered by preference. Ties are shuffled with <paramref name="random"/>.
+    /// Returns the connectable nodes ordered by preference. Ties are shuffled.
     /// </summary>
-    public static IReadOnlyList<ClusterNode> RankNodes(ClusterTopology topology, NodeReadPreference preference, Random random) {
+    public static IReadOnlyList<ClusterNode> RankNodes(ClusterTopology topology, NodeReadPreference preference) {
         return topology.Nodes
             .Where(IsConnectable)
             .OrderBy(node => GetPriority(node.State))
-            .ThenBy(_ => random.Next())
+            .ThenBy(_ => Random.Shared.Next())
             .ToArray();
 
         static bool IsConnectable(ClusterNode node) =>

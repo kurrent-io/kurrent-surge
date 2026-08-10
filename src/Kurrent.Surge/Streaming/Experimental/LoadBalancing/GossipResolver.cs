@@ -16,8 +16,6 @@ sealed record GossipResolverOptions {
     /// Used for direct single-node connections, which still follow leader redirects.
     /// </summary>
     public bool UseGossip { get; init; } = true;
-
-    public Random? Random { get; init; }
 }
 
 /// <summary>
@@ -30,7 +28,6 @@ sealed partial class GossipResolver : PollingResolver {
     readonly GossipResolverOptions   _options;
     readonly IGossipClient           _gossip;
     readonly ILogger<GossipResolver> _log;
-    readonly Random                  _random;
     readonly Lock                    _lock = new();
 
     ClusterEndpoint[] _knownEndpoints;
@@ -41,7 +38,6 @@ sealed partial class GossipResolver : PollingResolver {
         : base(loggerFactory) {
         _options        = options;
         _gossip         = gossip;
-        _random         = options.Random ?? Random.Shared;
         _knownEndpoints = options.Seeds;
         _log            = loggerFactory.CreateLogger<GossipResolver>();
     }
@@ -94,7 +90,7 @@ sealed partial class GossipResolver : PollingResolver {
                 foreach (var candidate in Shuffled(SnapshotKnownEndpoints())) {
                     try {
                         var topology = await _gossip.GetTopology(candidate, cancellationToken).ConfigureAwait(false);
-                        var ranked   = NodeSelectionPolicy.RankNodes(topology, _options.NodeReadPreference, _random);
+                        var ranked   = NodeSelectionPolicy.RankNodes(topology, _options.NodeReadPreference);
 
                         if (ranked.Count == 0)
                             throw new InvalidOperationException("No nodes are in a connectable state.");
@@ -137,7 +133,7 @@ sealed partial class GossipResolver : PollingResolver {
 
             ClusterEndpoint[] Shuffled(ClusterEndpoint[] endpoints) {
                 var copy = endpoints.ToArray();
-                lock (_random) _random.Shuffle(copy);
+                Random.Shared.Shuffle(copy);
                 return copy;
             }
 

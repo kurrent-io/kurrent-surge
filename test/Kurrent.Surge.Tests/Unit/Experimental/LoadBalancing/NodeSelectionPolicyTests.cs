@@ -21,7 +21,7 @@ public class NodeSelectionPolicyTests {
         var topology = TopologyOf(ConnectableStates);
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, preference, new(42));
+        var ranked = NodeSelectionPolicy.RankNodes(topology, preference);
 
         // Assert
         await Assert.That(string.Join(",", ranked.Select(node => node.State))).IsEqualTo(expectedOrder);
@@ -34,7 +34,7 @@ public class NodeSelectionPolicyTests {
         var expected = string.Join(",", ConnectableStates.Order());
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Random, new(42));
+        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Random);
 
         // Assert
         await Assert.That(string.Join(",", ranked.Select(node => node.State).Order())).IsEqualTo(expected);
@@ -48,7 +48,7 @@ public class NodeSelectionPolicyTests {
         var topology   = new ClusterTopology([deadLeader, follower]);
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Leader, new(42));
+        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Leader);
 
         // Assert
         await Assert.That(ranked).HasCount().EqualTo(1);
@@ -62,7 +62,7 @@ public class NodeSelectionPolicyTests {
         var expected = string.Join(",", ConnectableStates.Order());
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Random, new(42));
+        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Random);
 
         // Assert
         await Assert.That(string.Join(",", ranked.Select(node => node.State).Order())).IsEqualTo(expected);

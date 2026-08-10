@@ -152,7 +152,7 @@ public class GossipResolverTests {
     }
 
     static GossipResolver CreateResolver(GossipResolverOptions options, IGossipClient gossip) =>
-        new(options with { Random = new(42) }, gossip, NullLoggerFactory.Instance);
+        new(options, gossip, NullLoggerFactory.Instance);
 
     static ChannelReader<ResolverResult> StartCapturing(GossipResolver resolver) {
         var results = Channel.CreateUnbounded<ResolverResult>();
