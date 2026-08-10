@@ -1,11 +1,13 @@
+using Grpc.Core;
 using Kurrent.Surge.Client.Admin;
 using Kurrent.Surge.Client.Indexes;
 using Kurrent.Surge.Client.Connectors;
-using Kurrent.Surge.Client.Legacy;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Experimental.LoadBalancing;
+using KurrentDB.Client;
 using ProtobufMessages = Kurrent.Surge.Client.Schema.Serialization.Protobuf.ProtobufMessages;
 
 namespace Kurrent.Surge.Client;
@@ -16,10 +18,19 @@ public class KurrentClient : IKurrentClient {
 	    options.EnsureValid();
 
 	    Options = options;
-        
-        LegacyCallInvoker     = new(options);
-        BackdoorClientFactory = new(LegacyCallInvoker, options);
-        
+
+        ClusterChannel = ClusterChannel.Create(options, NodePreference.Leader);
+        CallInvoker    = ClusterChannel.CallInvoker;
+
+        if (options.Gossip.ReadPreference != NodePreference.Leader) {
+            options.LoggerFactory.CreateLogger<KurrentClient>().LogWarning(
+                "ReadPreference {ReadPreference} is not supported yet by this client version; all traffic routes to the leader.",
+                options.Gossip.ReadPreference
+            );
+        }
+
+        BackdoorClientFactory = new(ClusterChannel, options);
+
         // The freeze: snapshot the message catalogs (system + default + explicit + auto-
         // discovered) into a read-only resolver. Catalog changes after this point never
         // affect this client.
@@ -51,7 +62,8 @@ public class KurrentClient : IKurrentClient {
     internal bool Shared { get; init; }
 
     internal KurrentClientOptions         Options               { get; }
-    internal KurrentDBLegacyCallInvoker   LegacyCallInvoker     { get; }
+    internal ClusterChannel               ClusterChannel        { get; }
+    internal CallInvoker                  CallInvoker           { get; }
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
     internal ISchemaSerializerProvider    SerializerProvider    { get; }
 
@@ -66,7 +78,7 @@ public class KurrentClient : IKurrentClient {
 
         BackdoorClientFactory.Dispose();
 
-        await LegacyCallInvoker
+        await ClusterChannel
             .DisposeAsync()
             .ConfigureAwait(false);
     }

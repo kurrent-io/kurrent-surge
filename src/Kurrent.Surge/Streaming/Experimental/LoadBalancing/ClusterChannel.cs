@@ -58,7 +58,7 @@ sealed class ClusterChannel : IAsyncDisposable {
         }
     }
 
-    public static ClusterChannel Create(KurrentClientOptions options) {
+    public static ClusterChannel Create(KurrentClientOptions options, NodePreference? nodePreference = null) {
         var insecure = options.Security.Transport.IsInsecure;
         var scheme   = insecure ? Uri.UriSchemeHttp : Uri.UriSchemeHttps;
 
@@ -85,7 +85,7 @@ sealed class ClusterChannel : IAsyncDisposable {
         var resolverFactory = new GossipResolverFactory(
             new() {
                 Seeds               = useGossip ? options.Endpoints : [options.Endpoints[0]],
-                NodePreference      = options.Gossip.ReadPreference,
+                NodePreference      = nodePreference ?? options.Gossip.ReadPreference,
                 MaxDiscoverAttempts = options.Gossip.MaxDiscoverAttempts,
                 DiscoveryInterval   = options.Gossip.DiscoveryInterval,
                 UseGossip           = useGossip

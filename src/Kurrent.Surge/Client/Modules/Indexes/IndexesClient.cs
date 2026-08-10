@@ -8,7 +8,7 @@ namespace Kurrent.Surge.Client.Indexes;
 [PublicAPI]
 public class IndexesClient : ClientModuleBase, IIndexesClient {
     internal IndexesClient(KurrentClient client) : base(client) =>
-        ServiceClient = new(client.LegacyCallInvoker);
+        ServiceClient = new(client.CallInvoker);
 
     IndexesServiceClient ServiceClient { get; }
 

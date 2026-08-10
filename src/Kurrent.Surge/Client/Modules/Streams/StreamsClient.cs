@@ -8,8 +8,8 @@ public partial class StreamsClient : ClientModuleBase, IStreamsClient {
     internal StreamsClient(KurrentClient client) : base(client) {
         // System mappings ($metadata, $>, scavenge events) live in SystemMessageCatalog:
         // the resolver snapshot is taken at client construction, before modules exist.
-        ServiceClient       = new(client.LegacyCallInvoker);
-        LegacyServiceClient = new(client.LegacyCallInvoker);
+        ServiceClient       = new(client.CallInvoker);
+        LegacyServiceClient = new(client.CallInvoker);
 
         // Soon enough, the schema registry policy will be retrieved from the server during client initialization (defaults),
         // and then on a per-stream basis during stream operations.

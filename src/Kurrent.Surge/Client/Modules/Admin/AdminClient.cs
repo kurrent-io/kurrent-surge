@@ -7,7 +7,7 @@ namespace Kurrent.Surge.Client.Admin;
 public partial class AdminClient : IAdminClient {
     internal AdminClient(KurrentClient client) {
         Client             = client;
-        AdminServiceClient = new(client.LegacyCallInvoker);
+        AdminServiceClient = new(client.CallInvoker);
     }
 
     KurrentClient Client { get; }

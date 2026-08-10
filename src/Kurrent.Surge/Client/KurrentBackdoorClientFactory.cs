@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
-using Kurrent.Surge.Client.Legacy;
 using Kurrent.Http;
+using Kurrent.Surge.Experimental.LoadBalancing;
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
 
@@ -11,11 +11,11 @@ namespace Kurrent.Surge.Client;
 /// <summary>
 /// Factory for creating HTTP clients that communicate with the Kurrent backdoor service.
 /// By default, it will create a client that connects to the current target node of the
-/// <see cref="KurrentDBLegacyCallInvoker"/>.
+/// <see cref="ClusterChannel"/>.
 /// </summary>
 class KurrentBackdoorClientFactory : IDisposable {
-    public KurrentBackdoorClientFactory(KurrentDBLegacyCallInvoker invoker, KurrentClientOptions options) {
-        Invoker = invoker;
+    public KurrentBackdoorClientFactory(ClusterChannel channel, KurrentClientOptions options) {
+        Channel = channel;
         Logger  = options.LoggerFactory.CreateLogger("KurrentBackdoorClient");
 
         if (options.Security.Transport.IsInsecure)
@@ -30,10 +30,10 @@ class KurrentBackdoorClientFactory : IDisposable {
         };
     }
 
-    KurrentDBLegacyCallInvoker Invoker            { get; }
-    ILogger                    Logger             { get; }
-    HttpMessageHandler         BackdoorHandler    { get; }
-    Func<string, Uri>          ParseTargetNodeUri { get; }
+    ClusterChannel     Channel            { get; }
+    ILogger            Logger             { get; }
+    HttpMessageHandler BackdoorHandler    { get; }
+    Func<string, Uri>  ParseTargetNodeUri { get; }
 
     public HttpClient GetClient(Uri address) {
         return new(BackdoorHandler, disposeHandler: false) {
@@ -47,13 +47,13 @@ class KurrentBackdoorClientFactory : IDisposable {
     public HttpClient GetClient(string targetNode) => GetClient(ParseTargetNodeUri(targetNode));
 
     /// <summary>
-    /// Gets a new HTTP client that connects to the current target node of the <see cref="KurrentDBLegacyCallInvoker"/>.
+    /// Gets a new HTTP client that connects to the current target node of the <see cref="ClusterChannel"/>.
     /// </summary>
     /// <remarks>
     /// Always dispose the returned <see cref="HttpClient"/> after use to avoid resource leaks.
     /// </remarks>
     /// <returns></returns>
-    public HttpClient GetClient() => GetClient(Invoker.ChannelTarget);
+    public HttpClient GetClient() => GetClient(Channel.Target);
 
     public void Dispose() => BackdoorHandler.Dispose();
 
