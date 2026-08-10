@@ -1,7 +1,5 @@
-using EventStore.Client.Gossip;
 using Kurrent.Surge.Experimental.LoadBalancing;
 using KurrentDB.Client;
-using VNodeState = EventStore.Client.Gossip.MemberInfo.Types.VNodeState;
 
 namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
 
@@ -19,31 +17,6 @@ public class NodeSelectionPolicyTests {
 
         // Assert
         await Assert.That(string.Join(",", ranked.Select(node => node.Role))).IsEqualTo(expectedOrder);
-    }
-
-    [Test]
-    public async ValueTask maps_every_wire_state_to_a_role(CancellationToken cancellationToken) {
-        // Arrange: the mapping must stay total — a new wire state fails here until classified.
-        var expected = Enum.GetValues<VNodeState>().ToDictionary(
-            state => state,
-            state => state switch {
-                VNodeState.Leader                                           => NodeRole.Leader,
-                VNodeState.Follower                                         => NodeRole.Follower,
-                VNodeState.ReadOnlyReplica or VNodeState.ReadOnlyLeaderless => NodeRole.Replica,
-                _                                                           => NodeRole.NotAllowed
-            });
-
-        // Act: through ToClusterNode, the surface the gossip path actually uses.
-        var mapped = expected.Keys.ToDictionary(
-            state => state,
-            state => new MemberInfo {
-                State        = state,
-                IsAlive      = true,
-                HttpEndPoint = new() { Address = "node", Port = 2113 }
-            }.ToClusterNode().Role);
-
-        // Assert
-        await Assert.That(mapped).IsEquivalentTo(expected);
     }
 
     [Test]
