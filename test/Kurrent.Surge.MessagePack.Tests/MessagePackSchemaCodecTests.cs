@@ -34,7 +34,7 @@ public class MessagePackSchemaCodecTests {
         var sut     = NewCodec();
         var message = new TestUnformattedMessage(Faker.Lorem.Word());
 
-        // Act & Assert
-        await Assert.That(() => sut.Encode(message)).Throws<FormatterNotRegisteredException>();
+        // Act & Assert — MessagePackSerializer wraps the FormatterNotRegisteredException.
+        await Assert.That(() => sut.Encode(message)).Throws<MessagePackSerializationException>();
     }
 }
