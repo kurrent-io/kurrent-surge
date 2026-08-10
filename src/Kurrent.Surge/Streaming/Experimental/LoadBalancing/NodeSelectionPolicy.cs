@@ -22,48 +22,49 @@ static class NodeSelectionPolicy {
         VNodeState.DiscoverLeader
     }.ToFrozenSet();
 
-    public static bool IsConnectable(ClusterNode node) =>
-        node.IsAlive && !NotAllowedStates.Contains(node.State);
-
-    public static int GetPriority(NodePreference preference, VNodeState state) =>
-        preference switch {
-            NodePreference.Leader => state switch {
-                VNodeState.Leader             => 0,
-                VNodeState.Follower           => 1,
-                VNodeState.ReadOnlyReplica    => 2,
-                VNodeState.PreReadOnlyReplica => 3,
-                VNodeState.ReadOnlyLeaderless => 4,
-                _                             => int.MaxValue
-            },
-            NodePreference.Follower => state switch {
-                VNodeState.Follower           => 0,
-                VNodeState.Leader             => 1,
-                VNodeState.ReadOnlyReplica    => 2,
-                VNodeState.PreReadOnlyReplica => 3,
-                VNodeState.ReadOnlyLeaderless => 4,
-                _                             => int.MaxValue
-            },
-            // Deviates from the legacy comparer (replica -> leader -> follower): a replica
-            // preference expresses read offload, so fallback stays as far from the write
-            // path as possible.
-            NodePreference.ReadOnlyReplica => state switch {
-                VNodeState.ReadOnlyReplica    => 0,
-                VNodeState.PreReadOnlyReplica => 1,
-                VNodeState.ReadOnlyLeaderless => 2,
-                VNodeState.Follower           => 3,
-                VNodeState.Leader             => 4,
-                _                             => int.MaxValue
-            },
-            _ => 0
-        };
-
     /// <summary>
     /// Returns the connectable nodes ordered by preference. Ties are shuffled with <paramref name="random"/>.
     /// </summary>
-    public static IReadOnlyList<ClusterNode> RankNodes(ClusterTopology topology, NodePreference preference, Random random) =>
-        topology.Nodes
+    public static IReadOnlyList<ClusterNode> RankNodes(ClusterTopology topology, NodePreference preference, Random random) {
+        return topology.Nodes
             .Where(IsConnectable)
-            .OrderBy(node => GetPriority(preference, node.State))
+            .OrderBy(node => GetPriority(node.State))
             .ThenBy(_ => random.Next())
             .ToArray();
+
+        static bool IsConnectable(ClusterNode node) =>
+            node.IsAlive && !NotAllowedStates.Contains(node.State);
+
+        int GetPriority(VNodeState state) =>
+            preference switch {
+                NodePreference.Leader => state switch {
+                    VNodeState.Leader             => 0,
+                    VNodeState.Follower           => 1,
+                    VNodeState.ReadOnlyReplica    => 2,
+                    VNodeState.PreReadOnlyReplica => 3,
+                    VNodeState.ReadOnlyLeaderless => 4,
+                    _                             => int.MaxValue
+                },
+                NodePreference.Follower => state switch {
+                    VNodeState.Follower           => 0,
+                    VNodeState.Leader             => 1,
+                    VNodeState.ReadOnlyReplica    => 2,
+                    VNodeState.PreReadOnlyReplica => 3,
+                    VNodeState.ReadOnlyLeaderless => 4,
+                    _                             => int.MaxValue
+                },
+                // Deviates from the legacy comparer (replica -> leader -> follower): a replica
+                // preference expresses read offload, so fallback stays as far from the write
+                // path as possible.
+                NodePreference.ReadOnlyReplica => state switch {
+                    VNodeState.ReadOnlyReplica    => 0,
+                    VNodeState.PreReadOnlyReplica => 1,
+                    VNodeState.ReadOnlyLeaderless => 2,
+                    VNodeState.Follower           => 3,
+                    VNodeState.Leader             => 4,
+                    _                             => int.MaxValue
+                },
+                _ => 0
+            };
+    }
 }

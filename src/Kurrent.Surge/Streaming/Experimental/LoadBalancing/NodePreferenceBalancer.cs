@@ -54,56 +54,56 @@ sealed partial class NodePreferenceBalancer(IChannelControlHelper controller, IL
 
         UpdateState(ConnectivityState.Connecting, new QueuePicker());
         created.RequestConnection();
+
+        void UpdateSubchannelState(Subchannel subchannel, SubchannelState subchannelState) {
+            if (!ReferenceEquals(_subchannel, subchannel))
+                return;
+
+            switch (subchannelState.State) {
+                case ConnectivityState.Ready:
+                    UpdateState(ConnectivityState.Ready, new ConnectedPicker(subchannel));
+                    break;
+
+                case ConnectivityState.Idle:
+                    controller.RefreshResolver();
+                    UpdateState(ConnectivityState.Idle, new RequestConnectionPicker(subchannel));
+                    break;
+
+                case ConnectivityState.Connecting:
+                    UpdateState(ConnectivityState.Connecting, new QueuePicker());
+                    break;
+
+                case ConnectivityState.TransientFailure:
+                    UpdateState(ConnectivityState.TransientFailure, new FailurePicker(subchannelState.Status));
+                    break;
+
+                case ConnectivityState.Shutdown:
+                    UpdateState(ConnectivityState.Shutdown, new QueuePicker());
+                    _subchannel    = null;
+                    _currentTarget = null;
+                    break;
+            }
+        }
+
+        void ResolverError(Status status) {
+            // A live connection survives resolver failures; only unconnected states surface them.
+            switch (_state) {
+                case ConnectivityState.Idle:
+                case ConnectivityState.Connecting:
+                case ConnectivityState.TransientFailure:
+                    RemoveSubchannel();
+                    _currentTarget = null;
+                    UpdateState(ConnectivityState.TransientFailure, new FailurePicker(status));
+                    break;
+
+                default:
+                    LogResolverErrorIgnored(_log, status.StatusCode, status.Detail);
+                    break;
+            }
+        }
     }
 
     public override void RequestConnection() => _subchannel?.RequestConnection();
-
-    void UpdateSubchannelState(Subchannel subchannel, SubchannelState state) {
-        if (!ReferenceEquals(_subchannel, subchannel))
-            return;
-
-        switch (state.State) {
-            case ConnectivityState.Ready:
-                UpdateState(ConnectivityState.Ready, new ConnectedPicker(subchannel));
-                break;
-
-            case ConnectivityState.Idle:
-                controller.RefreshResolver();
-                UpdateState(ConnectivityState.Idle, new RequestConnectionPicker(subchannel));
-                break;
-
-            case ConnectivityState.Connecting:
-                UpdateState(ConnectivityState.Connecting, new QueuePicker());
-                break;
-
-            case ConnectivityState.TransientFailure:
-                UpdateState(ConnectivityState.TransientFailure, new FailurePicker(state.Status));
-                break;
-
-            case ConnectivityState.Shutdown:
-                UpdateState(ConnectivityState.Shutdown, new QueuePicker());
-                _subchannel    = null;
-                _currentTarget = null;
-                break;
-        }
-    }
-
-    void ResolverError(Status status) {
-        // A live connection survives resolver failures; only unconnected states surface them.
-        switch (_state) {
-            case ConnectivityState.Idle:
-            case ConnectivityState.Connecting:
-            case ConnectivityState.TransientFailure:
-                RemoveSubchannel();
-                _currentTarget = null;
-                UpdateState(ConnectivityState.TransientFailure, new FailurePicker(status));
-                break;
-
-            default:
-                LogResolverErrorIgnored(_log, status.StatusCode, status.Detail);
-                break;
-        }
-    }
 
     void UpdateState(ConnectivityState state, SubchannelPicker picker) {
         _state = state;

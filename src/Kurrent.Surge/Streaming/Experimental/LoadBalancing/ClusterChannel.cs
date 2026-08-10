@@ -161,6 +161,52 @@ sealed class ClusterChannel : IAsyncDisposable {
             channel, callInvoker, resolverFactory, balancerFactory, gossipClient,
             channelHandler, gossipHandler, services, fallbackTarget
         );
+
+        static SocketsHttpHandler CreateHandler(KurrentClientOptions options) {
+            var handler = new SocketsHttpHandler {
+                KeepAlivePingDelay             = options.Resilience.KeepAliveInterval,
+                KeepAlivePingTimeout           = options.Resilience.KeepAliveTimeout,
+                EnableMultipleHttp2Connections = true
+            };
+
+            if (options.Security.Transport.IsInsecure)
+                return handler;
+
+            if (options.Security.Authentication.TryGetCertificate(out var clientCertificate))
+                handler.SslOptions.ClientCertificates = new() { clientCertificate };
+
+            handler.SslOptions.RemoteCertificateValidationCallback = options.Security.Transport.VerifyServerCertificate switch {
+                false => delegate { return true; },
+                true when options.Security.Transport.TryGetCertificate(out var trustedRoot) =>
+                    new RemoteCertificateValidator(trustedRoot, options.LoggerFactory.CreateLogger<RemoteCertificateValidator>()),
+                _ => null
+            };
+
+            return handler;
+        }
+
+        static MethodConfig CreateRetryMethodConfig(KurrentClientOptions options) {
+            var retry = options.Resilience.Retry;
+
+            var retryPolicy = new RetryPolicy {
+                MaxAttempts       = retry.MaxAttempts,
+                InitialBackoff    = retry.InitialBackoff,
+                MaxBackoff        = retry.MaxBackoff,
+                BackoffMultiplier = retry.BackoffMultiplier
+            };
+
+            // The declarative channel retry policy cannot consult a predicate: these are the
+            // classic transient codes the legacy policy always retried.
+            retryPolicy.RetryableStatusCodes.Add(StatusCode.Unavailable);
+            retryPolicy.RetryableStatusCodes.Add(StatusCode.Unknown);
+            retryPolicy.RetryableStatusCodes.Add(StatusCode.DeadlineExceeded);
+            retryPolicy.RetryableStatusCodes.Add(StatusCode.ResourceExhausted);
+
+            return new() {
+                Names       = { MethodName.Default },
+                RetryPolicy = retryPolicy
+            };
+        }
     }
 
     /// <summary>
@@ -201,53 +247,4 @@ sealed class ClusterChannel : IAsyncDisposable {
         _gossipHandler.Dispose();
     }
 
-    #region ->> Options Mapping <<-
-
-    static SocketsHttpHandler CreateHandler(KurrentClientOptions options) {
-        var handler = new SocketsHttpHandler {
-            KeepAlivePingDelay             = options.Resilience.KeepAliveInterval,
-            KeepAlivePingTimeout           = options.Resilience.KeepAliveTimeout,
-            EnableMultipleHttp2Connections = true
-        };
-
-        if (options.Security.Transport.IsInsecure)
-            return handler;
-
-        if (options.Security.Authentication.TryGetCertificate(out var clientCertificate))
-            handler.SslOptions.ClientCertificates = new() { clientCertificate };
-
-        handler.SslOptions.RemoteCertificateValidationCallback = options.Security.Transport.VerifyServerCertificate switch {
-            false => delegate { return true; },
-            true when options.Security.Transport.TryGetCertificate(out var trustedRoot) =>
-                new RemoteCertificateValidator(trustedRoot, options.LoggerFactory.CreateLogger<RemoteCertificateValidator>()),
-            _ => null
-        };
-
-        return handler;
-    }
-
-    static MethodConfig CreateRetryMethodConfig(KurrentClientOptions options) {
-        var retry = options.Resilience.Retry;
-
-        var retryPolicy = new RetryPolicy {
-            MaxAttempts       = retry.MaxAttempts,
-            InitialBackoff    = retry.InitialBackoff,
-            MaxBackoff        = retry.MaxBackoff,
-            BackoffMultiplier = retry.BackoffMultiplier
-        };
-
-        // The declarative channel retry policy cannot consult a predicate: these are the
-        // classic transient codes the legacy policy always retried.
-        retryPolicy.RetryableStatusCodes.Add(StatusCode.Unavailable);
-        retryPolicy.RetryableStatusCodes.Add(StatusCode.Unknown);
-        retryPolicy.RetryableStatusCodes.Add(StatusCode.DeadlineExceeded);
-        retryPolicy.RetryableStatusCodes.Add(StatusCode.ResourceExhausted);
-
-        return new() {
-            Names       = { MethodName.Default },
-            RetryPolicy = retryPolicy
-        };
-    }
-
-    #endregion
 }

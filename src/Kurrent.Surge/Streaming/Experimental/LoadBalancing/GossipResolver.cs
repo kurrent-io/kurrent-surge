@@ -74,64 +74,81 @@ sealed partial class GossipResolver : PollingResolver {
             return;
         }
 
-        await DiscoverAsync(cancellationToken).ConfigureAwait(false);
-    }
+        await DiscoverAsync().ConfigureAwait(false);
 
-    async Task DiscoverAsync(CancellationToken cancellationToken) {
-        var attempt = 0;
+        void PublishLeaderFirst(DnsEndPoint endpoint) {
+            DnsEndPoint[] lastPublished;
+            lock (_lock) lastPublished = _lastPublished;
 
-        while (true) {
-            attempt++;
+            var fallbacks = (lastPublished.Length > 0 ? lastPublished : _options.Seeds)
+                .Where(fallback => !DnsEndPointComparer.Instance.Equals(fallback, endpoint));
 
-            foreach (var candidate in Shuffled(SnapshotKnownEndpoints())) {
-                try {
-                    var topology = await _gossip.GetTopology(candidate, cancellationToken).ConfigureAwait(false);
-                    var ranked   = NodeSelectionPolicy.RankNodes(topology, _options.NodePreference, _random);
-
-                    if (ranked.Count == 0)
-                        throw new InvalidOperationException("No nodes are in a connectable state.");
-
-                    // Gossip succeeded: from now on query exactly the current members, not the seeds.
-                    lock (_lock)
-                        _knownEndpoints = topology.Nodes.Select(node => node.Endpoint).ToArray();
-
-                    LogDiscovered(_log, ranked[0].Endpoint.Host, ranked[0].Endpoint.Port);
-
-                    Publish(ranked.Select(node => node.Endpoint).ToArray());
-                    return;
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
-                    throw;
-                }
-                catch (Exception ex) {
-                    LogDiscoveryCandidateFailed(_log, GetLogLevelForAttempt(attempt), ex, candidate.Host, candidate.Port);
-                }
-            }
-
-            if (_options.MaxDiscoverAttempts >= 0 && attempt >= _options.MaxDiscoverAttempts)
-                break;
-
-            // Nothing answered this round: fall back to the seeds and try again.
-            lock (_lock) _knownEndpoints = _options.Seeds;
-
-            await Task.Delay(_options.DiscoveryInterval, cancellationToken).ConfigureAwait(false);
+            Publish([endpoint, ..fallbacks]);
         }
 
-        LogDiscoveryFailed(_log, _options.MaxDiscoverAttempts);
+        async Task DiscoverAsync() {
+            var attempt = 0;
 
-        Listener(ResolverResult.ForFailure(new(
-            StatusCode.Unavailable,
-            $"Failed to discover a candidate node in {_options.MaxDiscoverAttempts} attempts.")));
-    }
+            while (true) {
+                attempt++;
 
-    void PublishLeaderFirst(DnsEndPoint leader) {
-        DnsEndPoint[] lastPublished;
-        lock (_lock) lastPublished = _lastPublished;
+                foreach (var candidate in Shuffled(SnapshotKnownEndpoints())) {
+                    try {
+                        var topology = await _gossip.GetTopology(candidate, cancellationToken).ConfigureAwait(false);
+                        var ranked   = NodeSelectionPolicy.RankNodes(topology, _options.NodePreference, _random);
 
-        var fallbacks = (lastPublished.Length > 0 ? lastPublished : _options.Seeds)
-            .Where(endpoint => !DnsEndPointComparer.Instance.Equals(endpoint, leader));
+                        if (ranked.Count == 0)
+                            throw new InvalidOperationException("No nodes are in a connectable state.");
 
-        Publish([leader, ..fallbacks]);
+                        // Gossip succeeded: from now on query exactly the current members, not the seeds.
+                        lock (_lock)
+                            _knownEndpoints = topology.Nodes.Select(node => node.Endpoint).ToArray();
+
+                        LogDiscovered(_log, ranked[0].Endpoint.Host, ranked[0].Endpoint.Port);
+
+                        Publish(ranked.Select(node => node.Endpoint).ToArray());
+                        return;
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
+                        throw;
+                    }
+                    catch (Exception ex) {
+                        LogDiscoveryCandidateFailed(_log, GetLogLevelForAttempt(), ex, candidate.Host, candidate.Port);
+                    }
+                }
+
+                if (_options.MaxDiscoverAttempts >= 0 && attempt >= _options.MaxDiscoverAttempts)
+                    break;
+
+                // Nothing answered this round: fall back to the seeds and try again.
+                lock (_lock) _knownEndpoints = _options.Seeds;
+
+                await Task.Delay(_options.DiscoveryInterval, cancellationToken).ConfigureAwait(false);
+            }
+
+            LogDiscoveryFailed(_log, _options.MaxDiscoverAttempts);
+
+            Listener(ResolverResult.ForFailure(new(
+                StatusCode.Unavailable,
+                $"Failed to discover a candidate node in {_options.MaxDiscoverAttempts} attempts.")));
+
+            DnsEndPoint[] SnapshotKnownEndpoints() {
+                lock (_lock) return _knownEndpoints;
+            }
+
+            DnsEndPoint[] Shuffled(DnsEndPoint[] endpoints) {
+                var copy = endpoints.ToArray();
+                lock (_random) _random.Shuffle(copy);
+                return copy;
+            }
+
+            LogLevel GetLogLevelForAttempt() =>
+                attempt switch {
+                    _ when attempt == _options.MaxDiscoverAttempts => LogLevel.Error,
+                    1                                              => LogLevel.Warning,
+                    _                                              => LogLevel.Debug
+                };
+        }
     }
 
     void Publish(DnsEndPoint[] endpoints) {
@@ -147,23 +164,6 @@ sealed partial class GossipResolver : PollingResolver {
 
         Listener(ResolverResult.ForResult(addresses));
     }
-
-    DnsEndPoint[] SnapshotKnownEndpoints() {
-        lock (_lock) return _knownEndpoints;
-    }
-
-    DnsEndPoint[] Shuffled(DnsEndPoint[] endpoints) {
-        var copy = endpoints.ToArray();
-        lock (_random) _random.Shuffle(copy);
-        return copy;
-    }
-
-    LogLevel GetLogLevelForAttempt(int attempt) =>
-        attempt switch {
-            _ when attempt == _options.MaxDiscoverAttempts => LogLevel.Error,
-            1                                              => LogLevel.Warning,
-            _                                              => LogLevel.Debug
-        };
 
     #region ->> Logging <<-
 
