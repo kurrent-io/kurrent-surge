@@ -61,23 +61,6 @@ sealed class ClusterChannel : IAsyncDisposable {
         await Channel.ConnectAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Forces a topology refresh. With a leader endpoint, routes straight to that node;
-    /// without one, re-runs gossip discovery.
-    /// </summary>
-    public void TriggerReconnect(ClusterEndpoint? leaderEndpoint = null) {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        var resolver = _resolverFactory.Resolver;
-        if (resolver is null)
-            return;
-
-        if (leaderEndpoint is { } leader)
-            resolver.AnnounceLeader(leader);
-        else
-            resolver.Refresh();
-    }
-
     public async ValueTask DisposeAsync() {
         if (_disposed)
             return;
