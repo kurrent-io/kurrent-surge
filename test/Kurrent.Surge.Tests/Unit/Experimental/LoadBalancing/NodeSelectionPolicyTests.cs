@@ -1,3 +1,4 @@
+using EventStore.Client.Gossip;
 using Kurrent.Surge.Experimental.LoadBalancing;
 using KurrentDB.Client;
 using VNodeState = EventStore.Client.Gossip.MemberInfo.Types.VNodeState;
@@ -32,8 +33,14 @@ public class NodeSelectionPolicyTests {
                 _                                                           => NodeRole.NotAllowed
             });
 
-        // Act
-        var mapped = expected.Keys.ToDictionary(state => state, state => state.ToNodeRole());
+        // Act: through ToClusterNode, the surface the gossip path actually uses.
+        var mapped = expected.Keys.ToDictionary(
+            state => state,
+            state => new MemberInfo {
+                State        = state,
+                IsAlive      = true,
+                HttpEndPoint = new() { Address = "node", Port = 2113 }
+            }.ToClusterNode().Role);
 
         // Assert
         await Assert.That(mapped).IsEquivalentTo(expected);

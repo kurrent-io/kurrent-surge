@@ -20,6 +20,4 @@ sealed record ClusterNode(NodeRole Role, bool IsAlive, ClusterEndpoint Endpoint)
 /// <summary>
 /// A point-in-time view of the cluster membership.
 /// </summary>
-sealed record ClusterTopology(IReadOnlyList<ClusterNode> Nodes) {
-    public static readonly ClusterTopology Empty = new([]);
-}
+sealed record ClusterTopology(IReadOnlyList<ClusterNode> Nodes);

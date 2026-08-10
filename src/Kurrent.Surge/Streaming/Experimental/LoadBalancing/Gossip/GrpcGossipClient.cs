@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using EventStore.Client.Gossip;
 using Grpc.Net.Client;
+using KurrentDB.Protocol.V1;
+using static EventStore.Client.Gossip.MemberInfo.Types;
 
 namespace Kurrent.Surge.Experimental.LoadBalancing;
 
@@ -8,6 +10,8 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// Reads cluster topology over the V1 gossip service, reusing one channel per endpoint.
 /// </summary>
 sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, TimeSpan timeout) : IGossipClient {
+    static readonly Empty EmptyRequest = new();
+
     readonly ConcurrentDictionary<ClusterEndpoint, (GrpcChannel Channel, Gossip.GossipClient Client)> _channels = new();
 
     public async ValueTask<ClusterTopology> GetTopology(ClusterEndpoint endpoint, CancellationToken cancellationToken) {
@@ -19,15 +23,12 @@ sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, 
             },
             createChannel);
 
-        using var call = client.ReadAsync(new(), deadline: DateTime.UtcNow.Add(timeout), cancellationToken: cancellationToken);
+        using var call = client.ReadAsync(EmptyRequest, deadline: DateTime.UtcNow.Add(timeout), cancellationToken: cancellationToken);
 
         var result = await call.ResponseAsync.ConfigureAwait(false);
 
         var nodes = result.Members
-            .Select(member => new ClusterNode(
-                member.State.ToNodeRole(),
-                member.IsAlive,
-                new(member.HttpEndPoint.Address, (int)member.HttpEndPoint.Port)))
+            .Select(member => member.ToClusterNode())
             .ToArray();
 
         return new(nodes);
@@ -40,5 +41,24 @@ sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, 
         }
 
         _channels.Clear();
+    }
+}
+
+static class MemberInfoExtensions {
+    extension(MemberInfo source) {
+        public ClusterNode ToClusterNode() =>
+            new(source.NodeRole, source.IsAlive, source.ClusterEndPoint);
+
+        ClusterEndpoint ClusterEndPoint =>
+            new(source.HttpEndPoint.Address, (int)source.HttpEndPoint.Port);
+        
+        NodeRole NodeRole =>
+            source.State switch {
+                VNodeState.ReadOnlyReplica or
+                    VNodeState.ReadOnlyLeaderless => NodeRole.Replica,
+                VNodeState.Leader   => NodeRole.Leader,
+                VNodeState.Follower => NodeRole.Follower,
+                _                   => NodeRole.NotAllowed
+            };
     }
 }
