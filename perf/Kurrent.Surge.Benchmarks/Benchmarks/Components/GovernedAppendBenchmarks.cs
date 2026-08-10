@@ -3,6 +3,8 @@ using Benchmarks.Infrastructure;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Experimental;
+using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 using TUnit.Core.Interfaces;
@@ -38,7 +40,20 @@ public class GovernedAppendBenchmarks {
         _streams = new StreamsClient(_fixture.Client);
 
         var mapping = _streams.CreateMappingContext(CancellationToken.None);
-        _governed = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy);
+
+        var (manager, _, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+
+        var catalogs = MessageCatalogDiscovery.GetCatalogs()
+            .Where(catalog => catalog.Types.Contains(typeof(RaceCar)))
+            .ToList();
+
+        var resolved = mapping.Policy
+            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
+
+        var validation = new CatalogValidationInterceptor(new SchemaManagerGovernanceAdapter(manager), catalogs, resolved);
+
+        _governed = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, validation);
 
         // Pre-built catalog records, one stream — both paths map the same instances per op.
         var stream = $"governed-append-bench-{RecordCount}";

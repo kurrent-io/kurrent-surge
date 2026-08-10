@@ -40,18 +40,29 @@ public class GovernedWriteMappingBenchmarks {
         await _fixture.As<IAsyncInitializer>().InitializeAsync();
 
         // Own client: catalogs freeze at construction, and the shared payload type needs a mapping.
+        var catalog = new MessageCatalog("governed-mapping-bench").Map<Contracts.AppendRecordsRequest>();
+
         _client = KurrentClient.Create(_fixture.ConnectionString, opts => {
             opts.LoggerFactory = _fixture.LoggerFactory;
             opts.Schema        = KurrentClientSchemaOptions.NoValidation;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
-            opts.Messages.UseCatalog(new MessageCatalog("governed-mapping-bench").Map<Contracts.AppendRecordsRequest>());
+            opts.Messages.UseCatalog(catalog);
         });
 
         _streams = new StreamsClient(_client);
 
         var mapping = _streams.CreateMappingContext(CancellationToken.None);
-        _split    = WriteRecordPipeline.Split(mapping.SerializerProvider, mapping.Policy);
-        _governed = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy);
+        _split = WriteRecordPipeline.Split(mapping.SerializerProvider, mapping.Policy);
+
+        var (manager, _, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+
+        var resolved = mapping.Policy
+            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
+
+        var validation = new CatalogValidationInterceptor(new SchemaManagerGovernanceAdapter(manager), [catalog], resolved);
+
+        _governed = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, validation);
 
         var request = NewAppendRequest();
 

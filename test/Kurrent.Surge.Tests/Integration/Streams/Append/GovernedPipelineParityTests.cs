@@ -4,6 +4,7 @@ using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 
@@ -18,6 +19,20 @@ public class GovernedPipelineParityTests {
 
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
+
+    CatalogValidationInterceptor CreateValidation(MappingContext mapping, ISchemaGovernance? governance = null) {
+        var (_, _, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+
+        var catalogs = MessageCatalogDiscovery.GetCatalogs()
+            .Where(catalog => catalog.Types.Contains(typeof(RaceCar)))
+            .ToList();
+
+        var resolved = mapping.Policy
+            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
+
+        return new CatalogValidationInterceptor(governance ?? SchemaGovernance.Create(Fixture.Client), catalogs, resolved);
+    }
 
     // Schema.Id is compared only when the registry supplied it: without one, both paths
     // fall back to a fresh Guid per mapping, so the ids differ by design.
@@ -38,7 +53,7 @@ public class GovernedPipelineParityTests {
         // Arrange
         var streams  = new StreamsClient(Fixture.Client);
         var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
+        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
 
         var record = AppendRecord.Create(RaceCar.Generate(), r => {
             r.Stream = $"governed-parity-{TestId.New()}";
@@ -59,7 +74,7 @@ public class GovernedPipelineParityTests {
         // Arrange
         var streams  = new StreamsClient(Fixture.Client);
         var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
+        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
 
         var record = AppendRecord.Create(Faker.Random.Bytes(64), r => {
             r.Stream     = $"governed-parity-bytes-{TestId.New()}";
@@ -145,7 +160,7 @@ public class GovernedPipelineParityTests {
         // Guid fallback was a bug). The server has never received one before this test.
         var streams  = new StreamsClient(Fixture.Client);
         var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
+        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
 
         var record   = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"governed-wire-{TestId.New()}");
         var contract = await pipeline.Execute(record, ct);
@@ -178,7 +193,7 @@ public class GovernedPipelineParityTests {
         var mapping  = streams.CreateMappingContext(ct);
         var governance = SchemaGovernance.Create(Fixture.Client);
 
-        var write = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, governance);
+        var write = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping, governance));
         var read  = GovernedReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, governance);
 
         var stream   = $"governed-roundtrip-{TestId.New()}";
@@ -210,10 +225,14 @@ public class GovernedPipelineParityTests {
 
     [Test]
     public async ValueTask adapter_governed_write_produces_the_same_wire_message_for_catalog_records(CancellationToken ct) {
-        // Arrange — no governance passed: the pipeline falls back to the SchemaManager adapter.
+        // Arrange — validation backed by the SchemaManager adapter instead of real governance.
         var streams  = new StreamsClient(Fixture.Client);
         var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy);
+
+        var (manager, _, _) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+
+        var pipeline = GovernedWriteRecordPipeline.From(
+            mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping, new SchemaManagerGovernanceAdapter(manager)));
 
         var record = AppendRecord.Create(RaceCar.Generate(), r => {
             r.Stream = $"governed-adapter-parity-{TestId.New()}";

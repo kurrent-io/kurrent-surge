@@ -1,9 +1,11 @@
+using System.Buffers;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
+using Kurrent.Variant;
 using Google.Protobuf;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
@@ -11,61 +13,82 @@ namespace Kurrent.Surge.Experimental;
 
 /// <summary>
 /// Typestate carrier after catalog resolution: the source record and its schema name.
-/// Bytes never enters this chain — the pipeline branches it before step one.
 /// </summary>
 readonly record struct NamedWrite(AppendRecord Source, SchemaName Schema);
 
 /// <summary>
-/// Typestate carrier after policy resolution — embeds the prior stage instead of re-carrying
-/// its fields.
+/// The routing verdict at the chain's head: a catalog record carrying its resolved schema
+/// name, or a raw-bytes record already encoded.
 /// </summary>
-readonly record struct PolicyResolvedWrite(NamedWrite Named, ResolvedSchemaRegistryPolicy Policy);
+readonly partial record struct WriteResolution : IVariant<NamedWrite, EncodedWrite>;
 
 /// <summary>
-/// Pure catalog lookup: type → schema name over the client's frozen snapshot. An unmapped
-/// type throws here, with the pipeline on the stack instead of the serializer.
+/// Routes the record. Raw Bytes unwraps straight to an encoded write — no name to resolve,
+/// no governance to consult, no codec to run. Catalog records resolve their schema name over
+/// the client's frozen snapshot and continue down the chain; an unmapped type throws here,
+/// with the pipeline on the stack instead of the serializer.
 /// </summary>
-sealed class ResolveNameWriteStep(MessageResolver messages) : IStep<AppendRecord, NamedWrite> {
-    public ValueTask<NamedWrite> Execute(AppendRecord input, CancellationToken ct) =>
-        new(new NamedWrite(input, messages.ResolveSchemaName(input.Value.GetType())));
+sealed class ClassifyWriteStep(MessageResolver messages) : IStep<AppendRecord, WriteResolution> {
+    public ValueTask<WriteResolution> Execute(AppendRecord input, CancellationToken ct) =>
+        new(input.DataFormat == SchemaDataFormat.Bytes
+            ? (WriteResolution)new EncodedWrite(input, new RecordSchemaInfo { DataFormat = SchemaDataFormat.Bytes }, UnwrapBytes(input.Value))
+            : (WriteResolution)new NamedWrite(input, messages.ResolveSchemaName(input.Value.GetType())));
+
+    // Kept in sync with BytesPassthroughSerializer.Serialize.
+    static ReadOnlyMemory<byte> UnwrapBytes(object? value) =>
+        value switch {
+            byte[] bytes               => bytes,
+            ReadOnlyMemory<byte> bytes => bytes,
+            Memory<byte> bytes         => bytes,
+            ReadOnlySequence<byte> seq => seq.IsSingleSegment ? seq.First : seq.ToArray(),
+            ArraySegment<byte> seg     => seg.AsMemory(),
+            null                       => ReadOnlyMemory<byte>.Empty,
+            _                          => throw new InvalidOperationException($"Bytes format requires a binary payload, got '{value.GetType().Name}'.")
+        };
 }
 
 /// <summary>
-/// Policy resolution stays a per-record step: it is designed to consult the server's registry
-/// settings (<c>SchemaRegistryPolicy.FromServerFeatures</c>, not implemented yet), so it cannot
-/// be hoisted to pipeline construction.
+/// Lifts the governed segment over the routing union so the whole write pipeline composes as
+/// one <c>Then</c> chain: named records continue into the lifted chain, already-encoded
+/// bytes pass straight through to the frame.
 /// </summary>
-sealed class ResolvePolicyWriteStep(
-    SchemaRegistryPolicy policy,
-    IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> registrations
-) : IStep<NamedWrite, PolicyResolvedWrite> {
-    public ValueTask<PolicyResolvedWrite> Execute(NamedWrite input, CancellationToken ct) {
-        var source = input.Source;
+static class WriteResolutionSteps {
+    public static IStep<WriteResolution, EncodedWrite> OnNamed(this IStep<NamedWrite, EncodedWrite> governed) =>
+        new OnNamedStep(governed);
 
-        var resolved = policy
-            .Resolve(registrations[source.DataFormat], source.Stream, source.DataFormat)
-            .EnsureDataFormatCompliance(source.DataFormat);
-
-        return new(new PolicyResolvedWrite(input, resolved));
+    sealed class OnNamedStep(IStep<NamedWrite, EncodedWrite> governed) : IStep<WriteResolution, EncodedWrite> {
+        public ValueTask<EncodedWrite> Execute(WriteResolution input, CancellationToken ct) =>
+            input.Match(
+                named => governed.Execute(named, ct),
+                encoded => new ValueTask<EncodedWrite>(encoded)
+            );
     }
 }
 
 /// <summary>
-/// The one effectful write stage: registry governance per policy. Produces the resolved
-/// schema for the encode/frame tail.
+/// THE governance step — the only one. Awaits the interceptor's single-flight validation
+/// (free once complete; a failed catalog validation rethrows here, at the first governed
+/// record), resolves the policy (folded in: it stays per-record because it will consult the
+/// server's settings when <c>SchemaRegistryPolicy.FromServerFeatures</c> goes live), and reads
+/// the version id from the validation results. No registry call exists on this path.
 /// </summary>
-sealed class GovernWriteStep(ISchemaGovernance governance) : IStep<PolicyResolvedWrite, ResolvedWrite> {
-    public async ValueTask<ResolvedWrite> Execute(PolicyResolvedWrite input, CancellationToken ct) {
-        var (named, policy) = input;
-        var source          = named.Source;
+sealed class GovernWriteStep(
+    CatalogValidationInterceptor validation,
+    SchemaRegistryPolicy policy,
+    IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> registrations
+) : IStep<NamedWrite, ResolvedWrite> {
+    public async ValueTask<ResolvedWrite> Execute(NamedWrite input, CancellationToken ct) {
+        var source = input.Source;
 
-        var versionId = await governance
-            .EnsureRegistered(named.Schema, source.Value.GetType(), policy, ct)
-            .ConfigureAwait(false);
+        var validated = await validation.Validation.ConfigureAwait(false);
 
-        var schema = versionId == SchemaVersionId.Unset
-            ? new RecordSchemaInfo { Schema = named.Schema, DataFormat = source.DataFormat }
-            : new RecordSchemaInfo { Schema = named.Schema, DataFormat = source.DataFormat, VersionId = versionId };
+        policy
+            .Resolve(registrations[source.DataFormat], source.Stream, source.DataFormat)
+            .EnsureDataFormatCompliance(source.DataFormat);
+
+        var schema = validated.TryGetValue((source.Value.GetType(), source.DataFormat), out var info)
+            ? info
+            : new RecordSchemaInfo { Schema = input.Schema, DataFormat = source.DataFormat };
 
         return new(source, schema);
     }

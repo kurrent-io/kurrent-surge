@@ -27,8 +27,10 @@ interface ISchemaGovernance {
 
     /// <summary>
     /// Validates with the server that the catalogs' messages can be produced — registering or
-    /// checking compatibility per policy. Idempotent through the caches; a policy that requires
-    /// nothing makes it a no-op.
+    /// checking compatibility per policy — and returns the complete wire schema info for every
+    /// validated entry. Idempotent through the caches; a policy that requires nothing yields
+    /// entries without a version id.
     /// </summary>
-    Task ValidateCatalog(IEnumerable<MessageCatalog> catalogs, ResolvedSchemaRegistryPolicy policy, CancellationToken ct);
+    Task<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>> ValidateCatalog(
+        IEnumerable<MessageCatalog> catalogs, ResolvedSchemaRegistryPolicy policy, CancellationToken ct);
 }

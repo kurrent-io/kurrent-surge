@@ -80,6 +80,24 @@ sealed class GovernReadStep(ISchemaGovernance governance) : IStep<DecodableRead,
 }
 
 /// <summary>
+/// Lifts a decodable-record chain over the resolution union so the whole read pipeline
+/// composes as one <c>Then</c> chain: decodable resolutions continue into the lifted chain,
+/// terminal resolutions exit with their outcome.
+/// </summary>
+static class TypeResolutionSteps {
+    public static IStep<TypeResolution, DecodeOutcome> OnDecodable(this IStep<DecodableRead, DecodeOutcome> decoding) =>
+        new OnDecodableStep(decoding);
+
+    sealed class OnDecodableStep(IStep<DecodableRead, DecodeOutcome> decoding) : IStep<TypeResolution, DecodeOutcome> {
+        public ValueTask<DecodeOutcome> Execute(TypeResolution input, CancellationToken ct) =>
+            input.Match(
+                decodable => decoding.Execute(decodable, ct),
+                terminal => new ValueTask<DecodeOutcome>(terminal.Outcome)
+            );
+    }
+}
+
+/// <summary>
 /// Pure decode over an already-resolved type through the format's codec. Materializes the
 /// value onto the record like <c>RecordDecoder</c> does.
 /// </summary>

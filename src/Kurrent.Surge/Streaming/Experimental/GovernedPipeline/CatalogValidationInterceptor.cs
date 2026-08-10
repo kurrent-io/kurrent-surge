@@ -1,6 +1,8 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
 namespace Kurrent.Surge.Experimental;
@@ -8,10 +10,11 @@ namespace Kurrent.Surge.Experimental;
 /// <summary>
 /// Starts catalog validation on the back of the FIRST gRPC call — the earliest moment the
 /// server is provably reachable — and never awaits it, so the triggering call proceeds
-/// untaxed. Single-flight: validation runs once; its task, faults included, is stored for
-/// whoever awaits <see cref="Validation"/> (a governed operation, a host-start hook, a test).
+/// untaxed. Single-flight: validation runs once, and its task carries the results — the
+/// wire schema info of every validated catalog entry, faults included — for whoever awaits
+/// <see cref="Validation"/>: the pipeline's govern step, a host-start hook, a test.
 /// </summary>
-sealed class CatalogValidationInterceptor(Func<Task> validateCatalog) : Interceptor {
+sealed class CatalogValidationInterceptor(Func<Task<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>>> validateCatalog) : Interceptor {
     /// <summary>
     /// The real wiring: validates the given message catalogs through governance under the
     /// resolved policy. The token ties the background validation to the client's lifetime —
@@ -24,11 +27,12 @@ sealed class CatalogValidationInterceptor(Func<Task> validateCatalog) : Intercep
         CancellationToken cancellationToken = default
     ) : this(() => governance.ValidateCatalog(catalogs, policy, cancellationToken)) { }
 
-    readonly Lazy<Task> _validation = new(validateCatalog, LazyThreadSafetyMode.ExecutionAndPublication);
+    readonly Lazy<Task<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>>> _validation =
+        new(validateCatalog, LazyThreadSafetyMode.ExecutionAndPublication);
 
-    /// <summary>The single-flight validation task. First access starts it; every access returns
-    /// the same task, faults included.</summary>
-    public Task Validation => _validation.Value;
+    /// <summary>The single-flight validation task carrying the validated schema info. First
+    /// access starts it; every access returns the same task, faults included.</summary>
+    public Task<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>> Validation => _validation.Value;
 
     void StartValidation() {
         if (_validation.IsValueCreated)

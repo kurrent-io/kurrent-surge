@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
@@ -52,10 +53,24 @@ sealed class SchemaManagerGovernanceAdapter(ISchemaManager manager) : ISchemaGov
         }
     }
 
-    public async Task ValidateCatalog(IEnumerable<MessageCatalog> catalogs, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
-        foreach (var catalog in catalogs)
-            foreach (var entry in catalog.Entries)
-                await EnsureRegistered(entry.Key, entry.Value, policy, ct).ConfigureAwait(false);
+    public async Task<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>> ValidateCatalog(
+        IEnumerable<MessageCatalog> catalogs, ResolvedSchemaRegistryPolicy policy, CancellationToken ct
+    ) {
+        var results = new Dictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>();
+
+        foreach (var catalog in catalogs) {
+            foreach (var entry in catalog.Entries) {
+                var versionId = await EnsureRegistered(entry.Key, entry.Value, policy, ct).ConfigureAwait(false);
+
+                results[(entry.Value, policy.DataFormat)] = new RecordSchemaInfo {
+                    Schema     = entry.Key,
+                    DataFormat = policy.DataFormat,
+                    VersionId  = versionId
+                };
+            }
+        }
+
+        return results.ToFrozenDictionary();
     }
 
     /// <summary>

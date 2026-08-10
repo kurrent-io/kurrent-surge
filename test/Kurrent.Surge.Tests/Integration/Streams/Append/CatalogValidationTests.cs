@@ -21,9 +21,13 @@ public class CatalogValidationTests {
         var data = await Fixture.SeedTestStream(1, ct);
 
         var validations = 0;
+
+        IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo> empty =
+            new Dictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>();
+
         var interceptor = new CatalogValidationInterceptor(() => {
             Interlocked.Increment(ref validations);
-            return Task.CompletedTask;
+            return Task.FromResult(empty);
         });
 
         var options = KurrentClientOptions.Parse(Fixture.ConnectionString);
@@ -46,7 +50,8 @@ public class CatalogValidationTests {
         var data = await Fixture.SeedTestStream(1, ct);
 
         var interceptor = new CatalogValidationInterceptor(
-            () => Task.FromException(new InvalidOperationException("induced validation failure")));
+            () => Task.FromException<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>>(
+                new InvalidOperationException("induced validation failure")));
 
         var options = KurrentClientOptions.Parse(Fixture.ConnectionString);
         options.Interceptors = [interceptor];
@@ -122,9 +127,13 @@ public class CatalogValidationTests {
         var governance = SchemaGovernance.Create(Fixture.Client);
 
         // Act
-        await governance.ValidateCatalog(catalogs, resolved, ct);
+        var validated = await governance.ValidateCatalog(catalogs, resolved, ct);
 
-        // Assert — steady-state governance after validation is pure lookup returning Unset.
+        // Assert — the entry carries the full schema info with no version id, and steady-state
+        // governance after validation is pure lookup returning Unset.
+        var expectedInfo = new RecordSchemaInfo { Schema = schemaName, DataFormat = SchemaDataFormat.Json };
+        await Assert.That(validated[(raceCarType, SchemaDataFormat.Json)]).IsEqualTo(expectedInfo);
+
         var versionId = await governance.EnsureRegistered(schemaName, raceCarType, resolved, ct);
         await Assert.That(versionId).IsEqualTo(SchemaVersionId.Unset);
     }

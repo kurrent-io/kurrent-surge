@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
@@ -26,10 +27,24 @@ sealed class SchemaGovernance(RegistryClient registry, ISchemaExporter exporter)
     public static SchemaGovernance Create(KurrentClient client) =>
         new(new RegistryClient(client), NJsonSchemaExporter.Instance);
 
-    public async Task ValidateCatalog(IEnumerable<MessageCatalog> catalogs, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
-        foreach (var catalog in catalogs)
-            foreach (var entry in catalog.Entries)
-                await EnsureRegistered(entry.Key, entry.Value, policy, ct).ConfigureAwait(false);
+    public async Task<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>> ValidateCatalog(
+        IEnumerable<MessageCatalog> catalogs, ResolvedSchemaRegistryPolicy policy, CancellationToken ct
+    ) {
+        var results = new Dictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>();
+
+        foreach (var catalog in catalogs) {
+            foreach (var entry in catalog.Entries) {
+                var versionId = await EnsureRegistered(entry.Key, entry.Value, policy, ct).ConfigureAwait(false);
+
+                results[(entry.Value, policy.DataFormat)] = new RecordSchemaInfo {
+                    Schema     = entry.Key,
+                    DataFormat = policy.DataFormat,
+                    VersionId  = versionId
+                };
+            }
+        }
+
+        return results.ToFrozenDictionary();
     }
 
     public async ValueTask<SchemaVersionId> EnsureRegistered(SchemaName schema, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
