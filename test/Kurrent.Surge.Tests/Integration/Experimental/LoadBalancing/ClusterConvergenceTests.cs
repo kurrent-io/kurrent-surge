@@ -17,9 +17,6 @@ public class ClusterConvergenceTests {
         // routing rides gossip rather than redirect announcements alone.
         await using var client = Fixture.GetNewClient();
 
-        var seeded = await Fixture.TestData.GenerateSet(cancellationToken);
-        await client.Streams.AppendStream(seeded.Stream, seeded.Records, cancellationToken);
-
         var electionRetries = new EventuallyOptions {
                 Timeout           = TimeSpan.FromSeconds(60),
                 PollingInterval   = TimeSpan.FromMilliseconds(500),
@@ -27,7 +24,18 @@ public class ClusterConvergenceTests {
             }
             .RetryOn<NotLeaderNodeException>()
             .RetryOn<ServerNotReadyException>()
-            .RetryOn<RpcException>();
+            .RetryOn<RpcException>()
+            // The balancer disposes the old subchannel on a leader swap, which cancels
+            // in-flight calls — expected turbulence while the cluster converges. The poll
+            // loop checks the test's own token separately, so a real timeout still lands.
+            .RetryOn<OperationCanceledException>();
+
+        // The seed append tolerates the same window: on a cold cluster the first election
+        // may still be settling and gossip can briefly rank a stale leader.
+        await Assert.That(async () => {
+            var seeded = await Fixture.TestData.GenerateSet(cancellationToken);
+            await client.Streams.AppendStream(seeded.Stream, seeded.Records, cancellationToken);
+        }).EventuallyPasses(electionRetries);
 
         // Act: resign the leader over the leader-pinned write channel; a real election follows.
         await client.Admin.ResignNode(cancellationToken);
