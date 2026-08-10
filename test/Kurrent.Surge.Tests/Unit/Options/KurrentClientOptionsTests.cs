@@ -130,7 +130,7 @@ public class KurrentClientOptionsTests {
                 MaxDiscoverAttempts = 15,
                 DiscoveryInterval   = TimeSpan.FromMilliseconds(200),
                 Timeout             = TimeSpan.FromSeconds(10),
-                ReadPreference      = NodePreference.Leader
+                ReadPreference      = NodeReadPreference.Leader
             }
         };
 
@@ -201,10 +201,10 @@ public class KurrentClientOptionsTests {
     [Test]
     public async Task discovery_connection_with_different_node_preferences() {
         var nodePreferences = new[] {
-            NodePreference.Leader,
-            NodePreference.Follower,
-            NodePreference.Random,
-            NodePreference.ReadOnlyReplica
+            NodeReadPreference.Leader,
+            NodeReadPreference.Follower,
+            NodeReadPreference.Random,
+            NodeReadPreference.ReadOnlyReplica
         };
 
         foreach (var preference in nodePreferences) {
@@ -218,7 +218,7 @@ public class KurrentClientOptionsTests {
 
             var connectionString = options.ToString();
 
-            if (preference != NodePreference.Random)
+            if (preference != NodeReadPreference.Random)
                 await Assert.That(connectionString).Contains($"nodePreference={preference.ToString().ToLowerInvariant()}");
         }
     }
@@ -553,7 +553,7 @@ public class KurrentClientOptionsTests {
                 MaxDiscoverAttempts = 20,
                 DiscoveryInterval   = TimeSpan.FromMilliseconds(300),
                 Timeout             = TimeSpan.FromSeconds(15),
-                ReadPreference      = NodePreference.Leader
+                ReadPreference      = NodeReadPreference.Leader
             },
             Resilience = new KurrentClientResilienceOptions {
                 KeepAliveInterval = TimeSpan.FromMinutes(2),

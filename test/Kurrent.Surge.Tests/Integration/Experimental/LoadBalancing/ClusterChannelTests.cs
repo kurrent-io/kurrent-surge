@@ -22,7 +22,7 @@ public class ClusterChannelTests {
         await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower, NodeState.Follower);
         var expectedPort = cluster.NodeInState(NodeState.Leader).Endpoint.Port.ToString();
 
-        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.Leader));
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodeReadPreference.Leader));
         var client = new ProbeClient(channel.CallInvoker);
 
         // Act
@@ -41,7 +41,7 @@ public class ClusterChannelTests {
             .Select(node => node.Endpoint.Port.ToString())
             .ToArray();
 
-        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.Follower));
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodeReadPreference.Follower));
         var client = new ProbeClient(channel.CallInvoker);
 
         // Act
@@ -57,7 +57,7 @@ public class ClusterChannelTests {
         await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower, NodeState.ReadOnlyReplica);
         var expectedPort = cluster.NodeInState(NodeState.ReadOnlyReplica).Endpoint.Port.ToString();
 
-        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.ReadOnlyReplica));
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodeReadPreference.ReadOnlyReplica));
         var client = new ProbeClient(channel.CallInvoker);
 
         // Act
@@ -74,7 +74,7 @@ public class ClusterChannelTests {
         var seed         = cluster.NodeInState(NodeState.Follower);
         var expectedPort = cluster.NodeInState(NodeState.Leader).Endpoint.Port.ToString();
 
-        var options = CreateOptions(cluster, NodePreference.Leader);
+        var options = CreateOptions(cluster, NodeReadPreference.Leader);
         options.Endpoints = [seed.Endpoint];
 
         await using var channel = ClusterChannel.Create(options);
@@ -95,7 +95,7 @@ public class ClusterChannelTests {
         var newLeader = cluster.Nodes.First(node => node != oldLeader);
         var expectedPort = newLeader.Endpoint.Port.ToString();
 
-        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.Leader));
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodeReadPreference.Leader));
         var client = new ProbeClient(channel.CallInvoker);
 
         var initialPort = await ReadServingPort(client, cancellationToken);
@@ -119,7 +119,7 @@ public class ClusterChannelTests {
             .Select(node => node.Endpoint.Port.ToString())
             .ToArray();
 
-        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.Leader));
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodeReadPreference.Leader));
         var client = new ProbeClient(channel.CallInvoker);
 
         var initialPort = await ReadServingPort(client, cancellationToken);
@@ -144,7 +144,7 @@ public class ClusterChannelTests {
             Endpoints        = [deadEndpoint],
             Security         = KurrentClientSecurityOptions.Insecure,
             Gossip = new() {
-                ReadPreference      = NodePreference.Leader,
+                ReadPreference      = NodeReadPreference.Leader,
                 MaxDiscoverAttempts = 2,
                 DiscoveryInterval   = TimeSpan.FromMilliseconds(50),
                 Timeout             = TimeSpan.FromSeconds(1)
@@ -172,7 +172,7 @@ public class ClusterChannelTests {
         var node         = cluster[0];
         var expectedPort = node.Endpoint.Port.ToString();
 
-        var options = CreateOptions(cluster, NodePreference.Leader);
+        var options = CreateOptions(cluster, NodeReadPreference.Leader);
         options.ConnectionScheme = KurrentConnectionScheme.Direct;
         options.Endpoints        = [node.Endpoint];
 
@@ -192,7 +192,7 @@ public class ClusterChannelTests {
         await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower);
         var leader = cluster.NodeInState(NodeState.Leader);
 
-        var options = CreateOptions(cluster, NodePreference.Leader);
+        var options = CreateOptions(cluster, NodeReadPreference.Leader);
         var expectedConnectionName = options.ConnectionName;
 
         await using var channel = ClusterChannel.Create(options);
@@ -216,7 +216,7 @@ public class ClusterChannelTests {
         var replica      = cluster.NodeInState(NodeState.ReadOnlyReplica);
         var followerPort = cluster.NodeInState(NodeState.Follower).Endpoint.Port.ToString();
 
-        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.ReadOnlyReplica));
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodeReadPreference.ReadOnlyReplica));
         var client = new ProbeClient(channel.CallInvoker);
 
         var initialPort = await ReadServingPort(client, cancellationToken);
@@ -236,7 +236,7 @@ public class ClusterChannelTests {
         // Arrange
         await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower);
 
-        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.Leader));
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodeReadPreference.Leader));
 
         // Act
         await channel.ConnectAsync(cancellationToken);
@@ -252,7 +252,7 @@ public class ClusterChannelTests {
         var leader = cluster.NodeInState(NodeState.Leader);
         var expectedTarget = $"{leader.Endpoint.Host}:{leader.Endpoint.Port}";
 
-        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.Leader));
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodeReadPreference.Leader));
         var client = new ProbeClient(channel.CallInvoker);
 
         await channel.ConnectAsync(cancellationToken);
@@ -275,7 +275,7 @@ public class ClusterChannelTests {
         const string password = "changeit";
         var expectedAuthorizationHeader = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"))}";
 
-        var options = CreateOptions(cluster, NodePreference.Leader);
+        var options = CreateOptions(cluster, NodeReadPreference.Leader);
         options.Security.Authentication = new BasicCredentials(username, password);
 
         await using var channel = ClusterChannel.Create(options);
@@ -297,7 +297,7 @@ public class ClusterChannelTests {
         var nodeA = cluster[0];
         var nodeB = cluster[1];
 
-        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.Leader));
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodeReadPreference.Leader));
         var client = new ProbeClient(channel.CallInvoker);
 
         await ReadServingPort(client, cancellationToken);
@@ -349,7 +349,7 @@ public class ClusterChannelTests {
             await using var cluster = await FakeClusterHarness.StartSecure(tls, NodeState.Leader, NodeState.Follower);
             var leader = cluster.NodeInState(NodeState.Leader);
 
-            var options = CreateOptions(cluster, NodePreference.Leader);
+            var options = CreateOptions(cluster, NodeReadPreference.Leader);
             options.Security.Transport      = TransportSecurity.Certificate(caPath);
             options.Security.Authentication = ClientCredentials.Certificate(certPath, keyPath);
 
@@ -375,7 +375,7 @@ public class ClusterChannelTests {
         var expectedLeaderPort  = cluster.NodeInState(NodeState.Leader).Endpoint.Port.ToString();
         var expectedReplicaPort = cluster.NodeInState(NodeState.ReadOnlyReplica).Endpoint.Port.ToString();
 
-        var options = CreateOptions(cluster, NodePreference.ReadOnlyReplica);
+        var options = CreateOptions(cluster, NodeReadPreference.ReadOnlyReplica);
 
         await using var channels = ClusterChannels.Create(options);
         var writeClient = new ProbeClient(channels.Write.CallInvoker);
@@ -396,7 +396,7 @@ public class ClusterChannelTests {
         await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower);
 
         // Act
-        await using var channels = ClusterChannels.Create(CreateOptions(cluster, NodePreference.Leader));
+        await using var channels = ClusterChannels.Create(CreateOptions(cluster, NodeReadPreference.Leader));
 
         // Assert
         await Assert.That(channels.Read).IsSameReferenceAs(channels.Write);
@@ -407,7 +407,7 @@ public class ClusterChannelTests {
         // Arrange
         await using var cluster = await FakeClusterHarness.Start(NodeState.Leader);
 
-        var options = CreateOptions(cluster, NodePreference.Follower);
+        var options = CreateOptions(cluster, NodeReadPreference.Follower);
         options.ConnectionScheme = KurrentConnectionScheme.Direct;
         options.Endpoints        = [cluster[0].Endpoint];
 
@@ -420,7 +420,7 @@ public class ClusterChannelTests {
 
     #region ->> Helpers <<-
 
-    static KurrentClientOptions CreateOptions(FakeClusterHarness cluster, NodePreference preference) {
+    static KurrentClientOptions CreateOptions(FakeClusterHarness cluster, NodeReadPreference preference) {
         var options = new KurrentClientOptions {
             ConnectionScheme = KurrentConnectionScheme.Discover,
             Endpoints        = cluster.Endpoints,

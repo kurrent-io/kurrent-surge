@@ -6,7 +6,7 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// <summary>
 /// Owns the write and read <see cref="ClusterChannel"/> pair for a client. Write is always
 /// leader-pinned. Read collapses onto the write channel when the configured read preference
-/// is <see cref="NodePreference.Leader"/> or the connection scheme is <see cref="KurrentConnectionScheme.Direct"/>;
+/// is <see cref="NodeReadPreference.Leader"/> or the connection scheme is <see cref="KurrentConnectionScheme.Direct"/>;
 /// otherwise it is a separate channel honoring <see cref="KurrentClientGossipOptions.ReadPreference"/>.
 /// </summary>
 sealed class ClusterChannels : IAsyncDisposable {
@@ -19,9 +19,9 @@ sealed class ClusterChannels : IAsyncDisposable {
     public ClusterChannel Read  { get; }
 
     public static ClusterChannels Create(KurrentClientOptions options) {
-        var write = ClusterChannel.Create(options, NodePreference.Leader);
+        var write = ClusterChannel.Create(options, NodeReadPreference.Leader);
 
-        var collapse = options.Gossip.ReadPreference == NodePreference.Leader
+        var collapse = options.Gossip.ReadPreference == NodeReadPreference.Leader
                     || options.ConnectionScheme == KurrentConnectionScheme.Direct;
 
         var read = collapse ? write : ClusterChannel.Create(options);

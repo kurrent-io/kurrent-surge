@@ -15,7 +15,7 @@ public class NodeSelectionPolicyTests {
 
     [Test]
     [PreferenceOrderingCases]
-    public async ValueTask ranks_connectable_nodes_by_preference(NodePreference preference, string expectedOrder) {
+    public async ValueTask ranks_connectable_nodes_by_preference(NodeReadPreference preference, string expectedOrder) {
         // Arrange: the expected order names states because the state enum is internal
         // and cannot appear in a public test signature.
         var topology = TopologyOf(ConnectableStates);
@@ -34,7 +34,7 @@ public class NodeSelectionPolicyTests {
         var expected = string.Join(",", ConnectableStates.Order());
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, NodePreference.Random, new(42));
+        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Random, new(42));
 
         // Assert
         await Assert.That(string.Join(",", ranked.Select(node => node.State).Order())).IsEqualTo(expected);
@@ -48,7 +48,7 @@ public class NodeSelectionPolicyTests {
         var topology   = new ClusterTopology([deadLeader, follower]);
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, NodePreference.Leader, new(42));
+        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Leader, new(42));
 
         // Assert
         await Assert.That(ranked).HasCount().EqualTo(1);
@@ -62,7 +62,7 @@ public class NodeSelectionPolicyTests {
         var expected = string.Join(",", ConnectableStates.Order());
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, NodePreference.Random, new(42));
+        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Random, new(42));
 
         // Assert
         await Assert.That(string.Join(",", ranked.Select(node => node.State).Order())).IsEqualTo(expected);
@@ -73,11 +73,11 @@ public class NodeSelectionPolicyTests {
             .Select((state, index) => new ClusterNode(state, IsAlive: true, new($"node-{index}", 2113)))
             .ToArray());
 
-    public sealed class PreferenceOrderingCases : TestCaseDataGenerator<(NodePreference Preference, string ExpectedOrder)> {
-        protected override IEnumerable<TestCase<(NodePreference Preference, string ExpectedOrder)>> Data() {
-            yield return new((NodePreference.Leader, "Leader,Follower,ReadOnlyReplica,ReadOnlyLeaderless"), "leader preference");
-            yield return new((NodePreference.Follower, "Follower,Leader,ReadOnlyReplica,ReadOnlyLeaderless"), "follower preference");
-            yield return new((NodePreference.ReadOnlyReplica, "ReadOnlyReplica,ReadOnlyLeaderless,Follower,Leader"), "read-only replica preference");
+    public sealed class PreferenceOrderingCases : TestCaseDataGenerator<(NodeReadPreference Preference, string ExpectedOrder)> {
+        protected override IEnumerable<TestCase<(NodeReadPreference Preference, string ExpectedOrder)>> Data() {
+            yield return new((NodeReadPreference.Leader, "Leader,Follower,ReadOnlyReplica,ReadOnlyLeaderless"), "leader preference");
+            yield return new((NodeReadPreference.Follower, "Follower,Leader,ReadOnlyReplica,ReadOnlyLeaderless"), "follower preference");
+            yield return new((NodeReadPreference.ReadOnlyReplica, "ReadOnlyReplica,ReadOnlyLeaderless,Follower,Leader"), "read-only replica preference");
         }
     }
 }

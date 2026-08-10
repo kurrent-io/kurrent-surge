@@ -8,9 +8,9 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 sealed record GossipResolverOptions {
     public required DnsEndPoint[] Seeds { get; init; }
 
-    public NodePreference NodePreference      { get; init; } = NodePreference.Leader;
-    public int            MaxDiscoverAttempts { get; init; } = 10;
-    public TimeSpan       DiscoveryInterval   { get; init; } = TimeSpan.FromMilliseconds(100);
+    public NodeReadPreference NodeReadPreference  { get; init; } = NodeReadPreference.Leader;
+    public int                MaxDiscoverAttempts { get; init; } = 10;
+    public TimeSpan           DiscoveryInterval   { get; init; } = TimeSpan.FromMilliseconds(100);
 
     /// <summary>
     /// When false the resolver publishes the seeds verbatim without querying gossip.
@@ -95,7 +95,7 @@ sealed partial class GossipResolver : PollingResolver {
                 foreach (var candidate in Shuffled(SnapshotKnownEndpoints())) {
                     try {
                         var topology = await _gossip.GetTopology(candidate, cancellationToken).ConfigureAwait(false);
-                        var ranked   = NodeSelectionPolicy.RankNodes(topology, _options.NodePreference, _random);
+                        var ranked   = NodeSelectionPolicy.RankNodes(topology, _options.NodeReadPreference, _random);
 
                         if (ranked.Count == 0)
                             throw new InvalidOperationException("No nodes are in a connectable state.");

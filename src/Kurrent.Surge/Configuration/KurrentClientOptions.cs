@@ -352,7 +352,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
             parameters.Add($"connectionName={Uri.EscapeDataString(options.ConnectionName)}");
 
         // Gossip parameters
-        if (options.Gossip.ReadPreference != NodePreference.Random)
+        if (options.Gossip.ReadPreference != NodeReadPreference.Random)
             parameters.Add($"nodePreference={options.Gossip.ReadPreference.ToString().ToLowerInvariant()}");
 
         if (options.Gossip.MaxDiscoverAttempts != KurrentClientGossipOptions.Default.MaxDiscoverAttempts)
@@ -487,7 +487,7 @@ file static class Extensions {
                 var maxDiscoverAttempts = GetParameterValue(source.Options, "MaxDiscoverAttempts", 10);
                 var discoveryInterval   = GetParameterValue(source.Options, "DiscoveryInterval", 100);
                 var gossipTimeout       = GetParameterValue(source.Options, "GossipTimeout", 5000);
-                var nodePreference      = GetParameterValue(source.Options, "NodePreference", NodePreference.Random);
+                var nodePreference      = GetParameterValue(source.Options, "NodePreference", NodeReadPreference.Random);
 
                 return new() {
                     MaxDiscoverAttempts = maxDiscoverAttempts,

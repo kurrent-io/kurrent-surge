@@ -3,7 +3,7 @@
 /// <summary>
 /// Indicates the preferred KurrentDB node type to connect to.
 /// </summary>
-public enum NodePreference {
+public enum NodeReadPreference {
 	/// <summary>
 	/// When attempting connection, prefers leader node.
 	/// </summary>

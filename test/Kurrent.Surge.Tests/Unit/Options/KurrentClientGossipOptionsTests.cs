@@ -12,7 +12,7 @@ public class KurrentClientGossipOptionsTests {
         await Assert.That(options.MaxDiscoverAttempts).IsEqualTo(10);
         await Assert.That(options.DiscoveryInterval).IsEqualTo(TimeSpan.FromMilliseconds(100));
         await Assert.That(options.Timeout).IsEqualTo(TimeSpan.FromSeconds(5));
-        await Assert.That(options.ReadPreference).IsEqualTo(NodePreference.Random);
+        await Assert.That(options.ReadPreference).IsEqualTo(NodeReadPreference.Random);
     }
 
     [Test]
@@ -22,14 +22,14 @@ public class KurrentClientGossipOptionsTests {
             MaxDiscoverAttempts = 15,
             DiscoveryInterval   = TimeSpan.FromMilliseconds(200),
             Timeout             = TimeSpan.FromSeconds(10),
-            ReadPreference      = NodePreference.Leader
+            ReadPreference      = NodeReadPreference.Leader
         };
 
         // Verify custom values were stored correctly
         await Assert.That(options.MaxDiscoverAttempts).IsEqualTo(15);
         await Assert.That(options.DiscoveryInterval).IsEqualTo(TimeSpan.FromMilliseconds(200));
         await Assert.That(options.Timeout).IsEqualTo(TimeSpan.FromSeconds(10));
-        await Assert.That(options.ReadPreference).IsEqualTo(NodePreference.Leader);
+        await Assert.That(options.ReadPreference).IsEqualTo(NodeReadPreference.Leader);
     }
 
     [Test]

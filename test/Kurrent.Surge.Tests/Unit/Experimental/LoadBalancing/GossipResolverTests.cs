@@ -27,7 +27,7 @@ public class GossipResolverTests {
         var gossip = A.Fake<IGossipClient>();
         A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>._, A<CancellationToken>._)).Returns(Topology);
 
-        using var resolver = CreateResolver(new() { Seeds = [Seed], NodePreference = NodePreference.Leader }, gossip);
+        using var resolver = CreateResolver(new() { Seeds = [Seed], NodeReadPreference = NodeReadPreference.Leader }, gossip);
         var results = StartCapturing(resolver);
 
         // Act
@@ -50,7 +50,7 @@ public class GossipResolverTests {
         A.CallTo(() => gossip.GetTopology(deadSeed, A<CancellationToken>._)).Throws(new RpcException(new(StatusCode.Unavailable, "unreachable")));
         A.CallTo(() => gossip.GetTopology(Seed, A<CancellationToken>._)).Returns(Topology);
 
-        using var resolver = CreateResolver(new() { Seeds = [deadSeed, Seed], NodePreference = NodePreference.Leader }, gossip);
+        using var resolver = CreateResolver(new() { Seeds = [deadSeed, Seed], NodeReadPreference = NodeReadPreference.Leader }, gossip);
         var results = StartCapturing(resolver);
 
         // Act
@@ -71,7 +71,7 @@ public class GossipResolverTests {
         using var resolver = CreateResolver(
             new() {
                 Seeds               = [Seed],
-                NodePreference      = NodePreference.Leader,
+                NodeReadPreference      = NodeReadPreference.Leader,
                 MaxDiscoverAttempts = 2,
                 DiscoveryInterval   = TimeSpan.FromMilliseconds(10)
             },
@@ -95,7 +95,7 @@ public class GossipResolverTests {
         var gossip = A.Fake<IGossipClient>();
         A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>._, A<CancellationToken>._)).Returns(Topology);
 
-        using var resolver = CreateResolver(new() { Seeds = [Seed], NodePreference = NodePreference.Leader }, gossip);
+        using var resolver = CreateResolver(new() { Seeds = [Seed], NodeReadPreference = NodeReadPreference.Leader }, gossip);
         var results = StartCapturing(resolver);
 
         resolver.Refresh();
@@ -118,7 +118,7 @@ public class GossipResolverTests {
         var gossip = A.Fake<IGossipClient>();
         A.CallTo(() => gossip.GetTopology(A<DnsEndPoint>._, A<CancellationToken>._)).Returns(Topology);
 
-        using var resolver = CreateResolver(new() { Seeds = [Seed], NodePreference = NodePreference.Leader }, gossip);
+        using var resolver = CreateResolver(new() { Seeds = [Seed], NodeReadPreference = NodeReadPreference.Leader }, gossip);
         var results = StartCapturing(resolver);
 
         resolver.Refresh();

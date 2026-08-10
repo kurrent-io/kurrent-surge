@@ -4,7 +4,7 @@ using KurrentDB.Client;
 namespace Kurrent.Surge.Experimental.LoadBalancing;
 
 /// <summary>
-/// Ranks cluster nodes for connection eligibility based on the configured <see cref="NodePreference"/>.
+/// Ranks cluster nodes for connection eligibility based on the configured <see cref="NodeReadPreference"/>.
 /// </summary>
 static class NodeSelectionPolicy {
     static readonly FrozenSet<VNodeState> NotAllowedStates = new[] {
@@ -25,7 +25,7 @@ static class NodeSelectionPolicy {
     /// <summary>
     /// Returns the connectable nodes ordered by preference. Ties are shuffled with <paramref name="random"/>.
     /// </summary>
-    public static IReadOnlyList<ClusterNode> RankNodes(ClusterTopology topology, NodePreference preference, Random random) {
+    public static IReadOnlyList<ClusterNode> RankNodes(ClusterTopology topology, NodeReadPreference preference, Random random) {
         return topology.Nodes
             .Where(IsConnectable)
             .OrderBy(node => GetPriority(node.State))
@@ -37,7 +37,7 @@ static class NodeSelectionPolicy {
 
         int GetPriority(VNodeState state) =>
             preference switch {
-                NodePreference.Leader => state switch {
+                NodeReadPreference.Leader => state switch {
                     VNodeState.Leader             => 0,
                     VNodeState.Follower           => 1,
                     VNodeState.ReadOnlyReplica    => 2,
@@ -45,7 +45,7 @@ static class NodeSelectionPolicy {
                     VNodeState.ReadOnlyLeaderless => 4,
                     _                             => int.MaxValue
                 },
-                NodePreference.Follower => state switch {
+                NodeReadPreference.Follower => state switch {
                     VNodeState.Follower           => 0,
                     VNodeState.Leader             => 1,
                     VNodeState.ReadOnlyReplica    => 2,
@@ -56,7 +56,7 @@ static class NodeSelectionPolicy {
                 // Deviates from the legacy comparer (replica -> leader -> follower): a replica
                 // preference expresses read offload, so fallback stays as far from the write
                 // path as possible.
-                NodePreference.ReadOnlyReplica => state switch {
+                NodeReadPreference.ReadOnlyReplica => state switch {
                     VNodeState.ReadOnlyReplica    => 0,
                     VNodeState.PreReadOnlyReplica => 1,
                     VNodeState.ReadOnlyLeaderless => 2,
