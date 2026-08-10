@@ -4,5 +4,5 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// Reads the cluster topology from a node's gossip endpoint.
 /// </summary>
 interface IGossipClient : IAsyncDisposable {
-    ValueTask<ClusterTopology> GetTopology(ClusterEndpoint endpoint, CancellationToken cancellationToken);
+    ValueTask<ClusterTopology> GetTopology(ClusterEndpoint endpoint, CancellationToken ct);
 }

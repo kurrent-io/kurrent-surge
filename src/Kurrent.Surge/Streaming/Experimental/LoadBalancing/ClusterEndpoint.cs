@@ -9,14 +9,9 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// under different casings.
 /// </summary>
 readonly record struct ClusterEndpoint {
-    // All of ASCII except 'A'-'Z': a host made only of these characters is already in
-    // canonical form. Anything outside the set — ASCII uppercase or any non-ASCII
-    // character — takes the full conversion.
     static readonly SearchValues<char> LowercaseSafeAscii = CreateLowercaseSafeAscii();
 
-    public ClusterEndpoint(string host, int port) {
-        // ToLowerInvariant always returns a new string, so the common case of an
-        // already-lowercase ASCII hostname keeps the original instance: one vectorized scan.
+    public ClusterEndpoint(string host, int port) { 
         Host = host.AsSpan().ContainsAnyExcept(LowercaseSafeAscii) ? host.ToLowerInvariant() : host;
         Port = port;
     }
@@ -31,9 +26,13 @@ readonly record struct ClusterEndpoint {
     public override string ToString() => $"{Host}:{Port}";
 
     static SearchValues<char> CreateLowercaseSafeAscii() {
+        // All of ASCII except 'A'-'Z': a host made only of these characters is already in
+        // canonical form. Anything outside the set — ASCII uppercase or any non-ASCII
+        // character — takes the full conversion.
+        
         Span<char> chars = stackalloc char[102];
-        var        count = 0;
-
+        
+        var count = 0;
         for (var c = '\0'; c <= '\x7F'; c++)
             if (c is < 'A' or > 'Z')
                 chars[count++] = c;

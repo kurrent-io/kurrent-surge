@@ -14,7 +14,7 @@ sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, 
 
     readonly ConcurrentDictionary<ClusterEndpoint, (GrpcChannel Channel, Gossip.GossipClient Client)> _channels = new();
 
-    public async ValueTask<ClusterTopology> GetTopology(ClusterEndpoint endpoint, CancellationToken cancellationToken) {
+    public async ValueTask<ClusterTopology> GetTopology(ClusterEndpoint endpoint, CancellationToken ct) {
         var (_, client) = _channels.GetOrAdd(
             endpoint,
             static (target, factory) => {
@@ -23,7 +23,7 @@ sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, 
             },
             createChannel);
 
-        using var call = client.ReadAsync(EmptyRequest, deadline: DateTime.UtcNow.Add(timeout), cancellationToken: cancellationToken);
+        using var call = client.ReadAsync(EmptyRequest, deadline: DateTime.UtcNow.Add(timeout), cancellationToken: ct);
 
         var result = await call.ResponseAsync.ConfigureAwait(false);
 

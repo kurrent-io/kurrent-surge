@@ -13,7 +13,9 @@ sealed class ClientHeadersInterceptor : Interceptor {
     readonly Metadata.Entry[] _headers;
 
     public ClientHeadersInterceptor(IReadOnlyDictionary<string, string> staticHeaders) =>
-        _headers = staticHeaders.Select(header => new Metadata.Entry(header.Key, header.Value)).ToArray();
+        _headers = staticHeaders
+            .Select(header => new Metadata.Entry(header.Key, header.Value))
+            .ToArray();
 
     public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
         TRequest request, ClientInterceptorContext<TRequest, TResponse> context,
@@ -43,9 +45,7 @@ sealed class ClientHeadersInterceptor : Interceptor {
     ClientInterceptorContext<TRequest, TResponse> WithHeaders<TRequest, TResponse>(
         in ClientInterceptorContext<TRequest, TResponse> context
     ) where TRequest : class where TResponse : class {
-        var headers = context.Options.Headers;
-
-        var result = headers is null
+        var result = context.Options.Headers is not { } headers
             ? new(context.Method, context.Host, context.Options.WithHeaders(headers = []))
             : context;
 
