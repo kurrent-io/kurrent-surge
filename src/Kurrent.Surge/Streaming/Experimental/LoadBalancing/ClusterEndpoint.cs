@@ -9,7 +9,11 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// </summary>
 readonly record struct ClusterEndpoint {
     public ClusterEndpoint(string host, int port) {
-        Host = host.ToLowerInvariant();
+        // ToLowerInvariant always returns a new string, so skip it for the common case of an
+        // already-lowercase ASCII hostname; non-ASCII hosts take the full conversion.
+        Host = System.Text.Ascii.IsValid(host) && !host.AsSpan().ContainsAnyInRange('A', 'Z')
+            ? host
+            : host.ToLowerInvariant();
         Port = port;
     }
 

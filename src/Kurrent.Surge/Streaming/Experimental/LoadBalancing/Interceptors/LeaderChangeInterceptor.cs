@@ -50,7 +50,12 @@ sealed partial class LeaderChangeInterceptor : Interceptor {
         AsyncUnaryCallContinuation<TRequest, TResponse> continuation
     ) {
         var response = continuation(request, context);
-        response.ResponseAsync.ContinueWith(InspectFailure, ContinuationOptions);
+
+        // A synchronously-completed success cannot fault, so skip the continuation and its
+        // Task allocation — this guard runs on every call and every streamed message.
+        if (!response.ResponseAsync.IsCompletedSuccessfully)
+            response.ResponseAsync.ContinueWith(InspectFailure, ContinuationOptions);
+
         return new(
             response.ResponseAsync, response.ResponseHeadersAsync, response.GetStatus,
             response.GetTrailers, response.Dispose
@@ -62,7 +67,10 @@ sealed partial class LeaderChangeInterceptor : Interceptor {
         AsyncClientStreamingCallContinuation<TRequest, TResponse> continuation
     ) {
         var response = continuation(context);
-        response.ResponseAsync.ContinueWith(InspectFailure, ContinuationOptions);
+
+        if (!response.ResponseAsync.IsCompletedSuccessfully)
+            response.ResponseAsync.ContinueWith(InspectFailure, ContinuationOptions);
+
         return new(
             new StreamWriter<TRequest>(response.RequestStream, InspectFailure),
             response.ResponseAsync, response.ResponseHeadersAsync,
@@ -103,13 +111,19 @@ sealed partial class LeaderChangeInterceptor : Interceptor {
 
         public Task CompleteAsync() {
             var task = inner.CompleteAsync();
-            task.ContinueWith(onTaskFaulted, ContinuationOptions);
+
+            if (!task.IsCompletedSuccessfully)
+                task.ContinueWith(onTaskFaulted, ContinuationOptions);
+
             return task;
         }
 
         public Task WriteAsync(T message) {
             var task = inner.WriteAsync(message);
-            task.ContinueWith(onTaskFaulted, ContinuationOptions);
+
+            if (!task.IsCompletedSuccessfully)
+                task.ContinueWith(onTaskFaulted, ContinuationOptions);
+
             return task;
         }
     }
@@ -119,7 +133,10 @@ sealed partial class LeaderChangeInterceptor : Interceptor {
 
         public Task<bool> MoveNext(CancellationToken cancellationToken) {
             var task = inner.MoveNext(cancellationToken);
-            task.ContinueWith(onTaskFaulted, ContinuationOptions);
+
+            if (!task.IsCompletedSuccessfully)
+                task.ContinueWith(onTaskFaulted, ContinuationOptions);
+
             return task;
         }
     }

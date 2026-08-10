@@ -8,11 +8,16 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// Reads cluster topology over the V1 gossip service, reusing one channel per endpoint.
 /// </summary>
 sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, TimeSpan timeout) : IGossipClient {
-    readonly ConcurrentDictionary<ClusterEndpoint, GrpcChannel> _channels = new();
+    readonly ConcurrentDictionary<ClusterEndpoint, (GrpcChannel Channel, Gossip.GossipClient Client)> _channels = new();
 
     public async ValueTask<ClusterTopology> GetTopology(ClusterEndpoint endpoint, CancellationToken cancellationToken) {
-        var channel = _channels.GetOrAdd(endpoint, createChannel);
-        var client  = new Gossip.GossipClient(channel);
+        var (_, client) = _channels.GetOrAdd(
+            endpoint,
+            static (target, factory) => {
+                var channel = factory(target);
+                return (channel, new Gossip.GossipClient(channel));
+            },
+            createChannel);
 
         using var call = client.ReadAsync(new(), deadline: DateTime.UtcNow.Add(timeout), cancellationToken: cancellationToken);
 
@@ -29,7 +34,7 @@ sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, 
     }
 
     public async ValueTask DisposeAsync() {
-        foreach (var channel in _channels.Values) {
+        foreach (var (channel, _) in _channels.Values) {
             await channel.ShutdownAsync().ConfigureAwait(false);
             channel.Dispose();
         }
