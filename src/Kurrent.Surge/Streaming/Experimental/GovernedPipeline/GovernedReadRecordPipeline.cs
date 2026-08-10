@@ -24,7 +24,7 @@ sealed class GovernedReadRecordPipeline : IStep<Record, DecodeOutcome> {
     public static GovernedReadRecordPipeline From(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, ISchemaGovernance? governance = null) {
         var (manager, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
-        var codecs = SchemaCodecProvider.From(serializerProvider);
+        var codecs = SerializerCoreCodecs.From(serializerProvider);
 
         return new(new ResolvePolicyReadStep(policy, registrations)
             .Then(new ResolveTypeReadStep(messages))

@@ -26,7 +26,7 @@ sealed class GovernedWriteRecordPipeline : IStep<AppendRecord, Contracts.AppendR
     public static GovernedWriteRecordPipeline From(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, CatalogValidationInterceptor validation) {
         var (_, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
-        var codecs = SchemaCodecProvider.From(serializerProvider);
+        var codecs = SerializerCoreCodecs.From(serializerProvider);
 
         return new(new ClassifyWriteStep(messages)
             .Then(new GovernWriteStep(validation, policy, registrations)

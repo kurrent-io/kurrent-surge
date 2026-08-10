@@ -40,6 +40,18 @@ public class KurrentClientMessageOptions {
         return this;
     }
 
+    internal List<ISchemaCodec> Codecs { get; } = [];
+
+    /// <summary>
+    /// Registers payload codecs — the custom-serializer surface. A codec is pure: two synchronous
+    /// methods and a format. Schema resolution and registry work run in the client's record
+    /// pipelines before a codec is invoked, so codecs take no dependencies at registration.
+    /// </summary>
+    public KurrentClientMessageOptions UseCodec(params IEnumerable<ISchemaCodec> codecs) {
+        Codecs.AddRange(codecs);
+        return this;
+    }
+
     internal List<Func<ISchemaManager, ISchemaSerializer>> SerializerFactories { get; } = [];
 
     /// <summary>
