@@ -4,16 +4,10 @@ using Grpc.Core.Interceptors;
 namespace Kurrent.Surge.Experimental.LoadBalancing;
 
 /// <summary>
-/// Injects the client identity headers and the <c>requires-leader</c> routing header on
-/// every call, creating the metadata collection when the caller supplied none.
+/// Injects the client identity headers on every call, creating the metadata collection
+/// when the caller supplied none.
 /// </summary>
-sealed class ClientHeadersInterceptor(
-    IReadOnlyDictionary<string, string> staticHeaders,
-    bool requiresLeader,
-    params string[] requiresLeaderExcludedMethods
-) : Interceptor {
-    const string RequiresLeaderKey = "requires-leader";
-
+sealed class ClientHeadersInterceptor(IReadOnlyDictionary<string, string> staticHeaders) : Interceptor {
     public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
         TRequest request, ClientInterceptorContext<TRequest, TResponse> context,
         AsyncUnaryCallContinuation<TRequest, TResponse> continuation
@@ -50,9 +44,6 @@ sealed class ClientHeadersInterceptor(
 
         foreach (var header in staticHeaders)
             headers.Add(header.Key, header.Value);
-
-        if (!requiresLeaderExcludedMethods.Contains(context.Method.Name, StringComparer.OrdinalIgnoreCase))
-            headers.Add(RequiresLeaderKey, requiresLeader ? bool.TrueString : bool.FalseString);
 
         return result;
     }

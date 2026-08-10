@@ -1,9 +1,13 @@
 using System.Net;
+using Google.Protobuf.WellKnownTypes;
+using Google.Rpc;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Kurrent.Rpc;
 using Kurrent.Surge.Experimental.LoadBalancing;
 using Microsoft.Extensions.Logging.Abstractions;
 using Metadata = Grpc.Core.Metadata;
+using RpcStatus = Google.Rpc.Status;
 
 namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
 
@@ -14,18 +18,10 @@ public class LeaderChangeInterceptorTests {
         new(MethodType.Unary, "TestService", "TestMethod", StringMarshaller, StringMarshaller);
 
     [Test]
-    public async ValueTask announces_leader_from_not_leader_trailers(CancellationToken cancellationToken) {
+    public async ValueTask announces_leader_from_not_leader_error_details(CancellationToken cancellationToken) {
         // Arrange
         var expectedLeader = new DnsEndPoint("node2.example.com", 2113);
-
-        var failure = new RpcException(
-            new(StatusCode.FailedPrecondition, "not leader"),
-            new Metadata {
-                { "exception", "not-leader" },
-                { "leader-endpoint-host", expectedLeader.Host },
-                { "leader-endpoint-port", expectedLeader.Port.ToString() }
-            }
-        );
+        var failure        = NotLeaderFailure(expectedLeader.Host, expectedLeader.Port);
 
         var announced = new TaskCompletionSource<DnsEndPoint>(TaskCreationOptions.RunContinuationsAsynchronously);
         var invoker   = CreateInvoker(failure, announced.SetResult);
@@ -45,12 +41,17 @@ public class LeaderChangeInterceptorTests {
     }
 
     [Test]
-    public async ValueTask ignores_failures_without_the_not_leader_code(CancellationToken cancellationToken) {
-        // Arrange
-        var failure = new RpcException(
-            new(StatusCode.FailedPrecondition, "some other failure"),
-            new Metadata { { "exception", "stream-deleted" } }
-        );
+    public async ValueTask ignores_failures_with_other_status_codes(CancellationToken cancellationToken) {
+        // Arrange: correct details but a non-FailedPrecondition status.
+        var failure = new RpcStatus {
+            Code    = (int)Code.Unavailable,
+            Message = "unavailable",
+            Details = {
+                Any.Pack(new NotLeaderNodeErrorDetails {
+                    CurrentLeader = new() { Host = "node2.example.com", Port = 2113 }
+                })
+            }
+        }.ToRpcException();
 
         var announcedLeader = false;
         var invoker         = CreateInvoker(failure, _ => announcedLeader = true);
@@ -70,16 +71,15 @@ public class LeaderChangeInterceptorTests {
     }
 
     [Test]
-    public async ValueTask ignores_not_leader_failures_with_malformed_endpoint_trailers(CancellationToken cancellationToken) {
-        // Arrange
-        var failure = new RpcException(
-            new(StatusCode.FailedPrecondition, "not leader"),
-            new Metadata {
-                { "exception", "not-leader" },
-                { "leader-endpoint-host", "node2.example.com" },
-                { "leader-endpoint-port", "not-a-port" }
+    public async ValueTask ignores_failed_precondition_without_leader_details(CancellationToken cancellationToken) {
+        // Arrange: right status code, wrong detail payload.
+        var failure = new RpcStatus {
+            Code    = (int)Code.FailedPrecondition,
+            Message = "some other precondition failure",
+            Details = {
+                Any.Pack(new Google.Rpc.ErrorInfo { Reason = "SERVER_ERROR_STREAM_DELETED", Domain = "kurrentdb" })
             }
-        );
+        }.ToRpcException();
 
         var announcedLeader = false;
         var invoker         = CreateInvoker(failure, _ => announcedLeader = true);
@@ -97,6 +97,40 @@ public class LeaderChangeInterceptorTests {
         // Assert
         await Assert.That(announcedLeader).IsFalse();
     }
+
+    [Test]
+    public async ValueTask ignores_leader_details_with_invalid_port(CancellationToken cancellationToken) {
+        // Arrange
+        var failure = NotLeaderFailure("node2.example.com", 0);
+
+        var announcedLeader = false;
+        var invoker         = CreateInvoker(failure, _ => announcedLeader = true);
+
+        // Act
+        using var call = invoker.AsyncUnaryCall(TestMethod, null, new(cancellationToken: cancellationToken), "request");
+        try {
+            await call.ResponseAsync;
+        }
+        catch (RpcException) {
+        }
+
+        await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken);
+
+        // Assert
+        await Assert.That(announcedLeader).IsFalse();
+    }
+
+    static RpcException NotLeaderFailure(string host, int port) =>
+        new RpcStatus {
+            Code    = (int)Code.FailedPrecondition,
+            Message = "The server is not the leader node and cannot handle the request.",
+            Details = {
+                Any.Pack(new Google.Rpc.ErrorInfo { Reason = "SERVER_ERROR_NOT_LEADER_NODE", Domain = "kurrentdb" }),
+                Any.Pack(new NotLeaderNodeErrorDetails {
+                    CurrentLeader = new() { Host = host, Port = port }
+                })
+            }
+        }.ToRpcException();
 
     static CallInvoker CreateInvoker(RpcException failure, Action<DnsEndPoint> announceLeader) =>
         new FaultyCallInvoker(failure).Intercept(new LeaderChangeInterceptor(announceLeader, NullLogger.Instance));

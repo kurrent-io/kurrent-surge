@@ -185,13 +185,12 @@ public class ClusterChannelTests {
     }
 
     [Test]
-    public async ValueTask sends_requires_leader_and_identity_headers(CancellationToken cancellationToken) {
+    public async ValueTask sends_identity_headers_without_requires_leader(CancellationToken cancellationToken) {
         // Arrange
         await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower);
         var leader = cluster.NodeInState(NodeState.Leader);
 
         var options = CreateOptions(cluster, NodePreference.Leader);
-        var expectedRequiresLeader = bool.TrueString;
         var expectedConnectionName = options.ConnectionName;
 
         await using var channel = ClusterChannel.Create(options);
@@ -203,9 +202,31 @@ public class ClusterChannelTests {
 
         // Assert
         await Assert.That(headers).IsNotNull();
-        await Assert.That(headers!.GetValue("requires-leader")).IsEqualTo(expectedRequiresLeader);
-        await Assert.That(headers.GetValue("connection-name")).IsEqualTo(expectedConnectionName);
+        await Assert.That(headers!.GetValue("connection-name")).IsEqualTo(expectedConnectionName);
         await Assert.That(headers.GetValue("kurrentdb.client.name")).IsNotNull();
+        await Assert.That(headers.GetValue("requires-leader")).IsNull();
+    }
+
+    [Test]
+    public async ValueTask falls_back_to_follower_when_preferred_replica_stops(CancellationToken cancellationToken) {
+        // Arrange
+        await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower, NodeState.ReadOnlyReplica);
+        var replica      = cluster.NodeInState(NodeState.ReadOnlyReplica);
+        var followerPort = cluster.NodeInState(NodeState.Follower).Endpoint.Port.ToString();
+
+        await using var channel = ClusterChannel.Create(CreateOptions(cluster, NodePreference.ReadOnlyReplica));
+        var client = new ProbeClient(channel.CallInvoker);
+
+        var initialPort = await ReadServingPort(client, cancellationToken);
+
+        // Act: the replica dies; read offload falls back to the follower, not the leader.
+        replica.IsAlive = false;
+        await replica.StopAsync();
+        var servingPort = await WaitUntilServedBy(client, followerPort, cancellationToken);
+
+        // Assert
+        await Assert.That(initialPort).IsEqualTo(replica.Endpoint.Port.ToString());
+        await Assert.That(servingPort).IsEqualTo(followerPort);
     }
 
     [Test]

@@ -77,7 +77,7 @@ public class NodeSelectionPolicyTests {
         protected override IEnumerable<TestCase<(NodePreference Preference, string ExpectedOrder)>> Data() {
             yield return new((NodePreference.Leader, "Leader,Follower,ReadOnlyReplica,ReadOnlyLeaderless"), "leader preference");
             yield return new((NodePreference.Follower, "Follower,Leader,ReadOnlyReplica,ReadOnlyLeaderless"), "follower preference");
-            yield return new((NodePreference.ReadOnlyReplica, "ReadOnlyReplica,ReadOnlyLeaderless,Leader,Follower"), "read-only replica preference");
+            yield return new((NodePreference.ReadOnlyReplica, "ReadOnlyReplica,ReadOnlyLeaderless,Follower,Leader"), "read-only replica preference");
         }
     }
 }

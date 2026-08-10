@@ -7,8 +7,11 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Google.Rpc;
 using Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster.Protocol;
+using Any = Google.Protobuf.WellKnownTypes.Any;
 using Metadata = Grpc.Core.Metadata;
+using RpcStatus = Google.Rpc.Status;
 
 namespace Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster;
 
@@ -30,8 +33,8 @@ public sealed class FakeClusterNode(FakeClusterHarness cluster, MemberInfo.Types
     public DnsEndPoint Endpoint { get; private set; } = null!;
 
     /// <summary>
-    /// When set, every call served by this node fails with the legacy not-leader
-    /// trailers advertising this endpoint as the current leader.
+    /// When set, every call served by this node fails with the V2 not-leader error
+    /// advertising this endpoint as the current leader.
     /// </summary>
     public DnsEndPoint? NotLeaderRedirect { get; set; }
 
@@ -85,15 +88,26 @@ sealed class FakeGossipService(FakeClusterNode node) : Gossip.GossipBase {
     public override Task<ClusterInfo> Read(Empty request, ServerCallContext context) {
         node.LastRequestHeaders = context.RequestHeaders;
 
+        // Mirrors the server's ApiErrors.NotLeaderNode: FailedPrecondition with a
+        // google.rpc.Status in grpc-status-details-bin carrying ErrorInfo plus the
+        // Any-packed NotLeaderNodeErrorDetails.
         if (node.NotLeaderRedirect is { } leader) {
-            throw new RpcException(
-                new(StatusCode.FailedPrecondition, "Leader info available"),
-                new Metadata {
-                    { "exception", "not-leader" },
-                    { "leader-endpoint-host", leader.Host },
-                    { "leader-endpoint-port", leader.Port.ToString() }
+            throw new RpcStatus {
+                Code    = (int)Code.FailedPrecondition,
+                Message = "The server is not the leader node and cannot handle the request.",
+                Details = {
+                    Any.Pack(new Google.Rpc.ErrorInfo {
+                        Reason = "SERVER_ERROR_NOT_LEADER_NODE",
+                        Domain = "kurrentdb"
+                    }),
+                    Any.Pack(new Kurrent.Rpc.NotLeaderNodeErrorDetails {
+                        CurrentLeader = new() {
+                            Host = leader.Host,
+                            Port = leader.Port
+                        }
+                    })
                 }
-            );
+            }.ToRpcException();
         }
 
         node.RecordServedCall();

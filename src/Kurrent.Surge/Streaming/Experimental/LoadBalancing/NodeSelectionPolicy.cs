@@ -43,12 +43,15 @@ static class NodeSelectionPolicy {
                 VNodeState.ReadOnlyLeaderless => 4,
                 _                             => int.MaxValue
             },
+            // Deviates from the legacy comparer (replica -> leader -> follower): a replica
+            // preference expresses read offload, so fallback stays as far from the write
+            // path as possible.
             NodePreference.ReadOnlyReplica => state switch {
                 VNodeState.ReadOnlyReplica    => 0,
                 VNodeState.PreReadOnlyReplica => 1,
                 VNodeState.ReadOnlyLeaderless => 2,
-                VNodeState.Leader             => 3,
-                VNodeState.Follower           => 4,
+                VNodeState.Follower           => 3,
+                VNodeState.Leader             => 4,
                 _                             => int.MaxValue
             },
             _ => 0

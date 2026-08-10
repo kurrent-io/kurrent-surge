@@ -21,10 +21,6 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 sealed class ClusterChannel : IAsyncDisposable {
     const int MaxReceiveMessageLength = 17 * 1024 * 1024; // 17MB
 
-    // The V2 multi-stream append session manages its own routing; the legacy chain
-    // excluded it from the requires-leader header as well.
-    const string RequiresLeaderExcludedMethod = "MultiStreamAppendSession";
-
     readonly GossipResolverFactory _resolverFactory;
     readonly IGossipClient         _gossipClient;
     readonly SocketsHttpHandler    _channelHandler;
@@ -116,15 +112,11 @@ sealed class ClusterChannel : IAsyncDisposable {
         var clientName    = AppVersionInfo.Current.ProductName ?? "KurrentDB .NET Client";
         var clientVersion = AppVersionInfo.Current.ProductVersion ?? AppVersionInfo.Current.FileVersion ?? "0.0.0";
 
-        var headersInterceptor = new ClientHeadersInterceptor(
-            new Dictionary<string, string> {
-                ["kurrentdb.client.name"]    = clientName,
-                ["kurrentdb.client.version"] = clientVersion,
-                ["connection-name"]          = options.ConnectionName
-            },
-            requiresLeader: options.Gossip.ReadPreference == NodePreference.Leader,
-            RequiresLeaderExcludedMethod
-        );
+        var headersInterceptor = new ClientHeadersInterceptor(new Dictionary<string, string> {
+            ["kurrentdb.client.name"]    = clientName,
+            ["kurrentdb.client.version"] = clientVersion,
+            ["connection-name"]          = options.ConnectionName
+        });
 
         var leaderChangeInterceptor = new LeaderChangeInterceptor(
             leader => resolverFactory.Resolver?.AnnounceLeader(leader),

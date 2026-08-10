@@ -1,45 +1,46 @@
 using System.Net;
+using Google.Rpc;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Kurrent.Rpc;
 using static System.Threading.Tasks.TaskContinuationOptions;
 
 namespace Kurrent.Surge.Experimental.LoadBalancing;
 
 /// <summary>
-/// Detects the legacy not-leader failure on any call shape and announces the advertised
-/// leader endpoint so the resolver can re-route without a gossip round-trip.
+/// Detects the not-leader failure on any call shape and announces the advertised leader
+/// endpoint so the resolver can re-route without a gossip round-trip.
 /// </summary>
 /// <remarks>
-/// The server reports the failure as an <see cref="RpcException"/> with trailers:
+/// The server reports the failure with <c>StatusCode.FailedPrecondition</c> and a
+/// <c>google.rpc.Status</c> in the <c>grpc-status-details-bin</c> trailer carrying an
+/// Any-packed <see cref="NotLeaderNodeErrorDetails"/>:
 /// <code>
-/// exception: not-leader
-/// leader-endpoint-host: node2.example.com
-/// leader-endpoint-port: 2113
+/// Status { Code: FAILED_PRECONDITION, Details: [
+///   ErrorInfo { Reason: "SERVER_ERROR_NOT_LEADER_NODE" },
+///   NotLeaderNodeErrorDetails { CurrentLeader { Host: "node2", Port: 2113 } }
+/// ]}
 /// </code>
+/// The detail message type, not the reason string, is the match key.
 /// </remarks>
 sealed partial class LeaderChangeInterceptor : Interceptor {
     const TaskContinuationOptions ContinuationOptions = ExecuteSynchronously | OnlyOnFaulted;
-
-    const string LegacyErrorCodeKey = "exception";
-    const string NotLeaderErrorCode = "not-leader";
-    const string LeaderHostKey      = "leader-endpoint-host";
-    const string LeaderPortKey      = "leader-endpoint-port";
 
     public LeaderChangeInterceptor(Action<DnsEndPoint> announceLeader, ILogger logger) {
         InspectFailure = task => {
             if (task.Exception?.InnerException is not RpcException rex)
                 return;
 
-            if (rex.Trailers.GetValue(LegacyErrorCodeKey) != NotLeaderErrorCode)
+            if (rex.StatusCode != StatusCode.FailedPrecondition)
                 return;
 
-            var host = rex.Trailers.GetValue(LeaderHostKey);
-            if (host is null || !int.TryParse(rex.Trailers.GetValue(LeaderPortKey), out var port))
+            var leader = rex.GetRpcStatus()?.GetDetail<NotLeaderNodeErrorDetails>()?.CurrentLeader;
+            if (leader is null || leader.Host.Length == 0 || leader.Port is <= 0 or > ushort.MaxValue)
                 return;
 
-            LogLeaderChanged(logger, host, port);
+            LogLeaderChanged(logger, leader.Host, leader.Port);
 
-            announceLeader(new(host, port));
+            announceLeader(new(leader.Host, leader.Port));
         };
     }
 
