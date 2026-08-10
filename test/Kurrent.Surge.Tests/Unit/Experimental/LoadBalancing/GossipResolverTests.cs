@@ -138,7 +138,7 @@ public class GossipResolverTests {
         // Arrange: direct single-node mode.
         var gossip = A.Fake<IGossipClient>();
 
-        using var resolver = CreateResolver(new() { Seeds = [Seed], UseGossip = false }, gossip);
+        using var resolver = CreateResolver(new() { Seeds = [Seed], DiscoveryEnabled = false }, gossip);
         var results = StartCapturing(resolver);
 
         // Act
@@ -161,5 +161,5 @@ public class GossipResolverTests {
     }
 
     static int RankOf(BalancerAddress address) =>
-        address.Attributes.TryGetValue(GossipResolver.RankKey, out int rank) ? rank : int.MaxValue;
+        address.Attributes.TryGetValue(GossipResolver.RankKey, out var rank) ? rank : int.MaxValue;
 }

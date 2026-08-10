@@ -15,7 +15,7 @@ sealed record GossipResolverOptions {
     /// When false the resolver publishes the seeds verbatim without querying gossip.
     /// Used for direct single-node connections, which still follow leader redirects.
     /// </summary>
-    public bool UseGossip { get; init; } = true;
+    public bool DiscoveryEnabled { get; init; } = true;
 }
 
 /// <summary>
@@ -61,7 +61,7 @@ sealed partial class GossipResolver : PollingResolver {
             return;
         }
 
-        if (!_options.UseGossip) {
+        if (!_options.DiscoveryEnabled) {
             Publish(_options.Seeds);
             return;
         }

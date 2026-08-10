@@ -63,64 +63,64 @@ sealed class ClusterChannel : IAsyncDisposable {
         var channelHandler = CreateHandler(options);
         var gossipHandler  = CreateHandler(options);
 
-        var useGossip = options.ConnectionScheme == KurrentConnectionScheme.Discover;
+        var discoveryEnabled = options.ConnectionScheme == KurrentConnectionScheme.Discover;
 
         var gossipClient = new GrpcGossipClient(
-            endpoint => GrpcChannel.ForAddress(
-                new UriBuilder(scheme, endpoint.Host, endpoint.Port).Uri,
-                new() {
+            createChannel: endpoint => GrpcChannel.ForAddress(
+                address: new UriBuilder(scheme: scheme, host: endpoint.Host, portNumber: endpoint.Port).Uri,
+                channelOptions: new() {
                     HttpHandler                          = gossipHandler,
                     DisposeHttpClient                    = false,
                     LoggerFactory                        = options.LoggerFactory,
                     ThrowOperationCanceledOnCancellation = true
                 }),
-            options.Gossip.Timeout
+            timeout: options.Gossip.Timeout
         );
 
-        var seeds = options.Endpoints.Select(ClusterEndpoint.From).ToArray();
+        var seeds = options.Endpoints.Select(selector: ClusterEndpoint.From).ToArray();
 
         var resolverFactory = new GossipResolverFactory(
-            new() {
-                Seeds               = useGossip ? seeds : [seeds[0]],
+            options: new() {
+                Seeds               = discoveryEnabled ? seeds : [seeds[0]],
                 NodeReadPreference  = nodePreference ?? options.Gossip.ReadPreference,
                 MaxDiscoverAttempts = options.Gossip.MaxDiscoverAttempts,
                 DiscoveryInterval   = options.Gossip.DiscoveryInterval,
-                UseGossip           = useGossip
+                DiscoveryEnabled    = discoveryEnabled
             },
-            gossipClient
+            gossip: gossipClient
         );
 
         var balancerFactory = new NodePreferenceBalancerFactory();
 
         var services = new ServiceCollection()
-            .AddSingleton<ResolverFactory>(resolverFactory)
-            .AddSingleton<LoadBalancerFactory>(balancerFactory)
+            .AddSingleton<ResolverFactory>(implementationInstance: resolverFactory)
+            .AddSingleton<LoadBalancerFactory>(implementationInstance: balancerFactory)
             .BuildServiceProvider();
 
         var serviceConfig = new ServiceConfig {
-            LoadBalancingConfigs = { new LoadBalancingConfig(NodePreferenceBalancerFactory.PolicyName) }
+            LoadBalancingConfigs = { new LoadBalancingConfig(loadBalancingPolicyName: NodePreferenceBalancerFactory.PolicyName) }
         };
 
         if (options.Resilience.Retry.Enabled)
-            serviceConfig.MethodConfigs.Add(CreateRetryMethodConfig(options));
+            serviceConfig.MethodConfigs.Add(item: CreateRetryMethodConfig(options: options));
 
         CallCredentials? callCredentials = null;
 
         if (options.Security.Authentication.Value is BasicCredentials basic) {
-            var authorizationHeader = $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{basic.Username}:{basic.Password}"))}";
+            var authorizationHeader = $"Basic {Convert.ToBase64String(inArray: Encoding.UTF8.GetBytes(s: $"{basic.Username}:{basic.Password}"))}";
 
-            callCredentials = CallCredentials.FromInterceptor((_, metadata) => {
-                metadata.Add("authorization", authorizationHeader);
+            callCredentials = CallCredentials.FromInterceptor(interceptor: (_, metadata) => {
+                metadata.Add(key: "authorization", value: authorizationHeader);
                 return Task.CompletedTask;
             });
         }
 
         var transportCredentials = insecure ? ChannelCredentials.Insecure : ChannelCredentials.SecureSsl;
-        var channelCredentials   = callCredentials is null ? transportCredentials : ChannelCredentials.Create(transportCredentials, callCredentials);
+        var channelCredentials   = callCredentials is null ? transportCredentials : ChannelCredentials.Create(channelCredentials: transportCredentials, callCredentials: callCredentials);
 
         var channel = GrpcChannel.ForAddress(
-            $"{GossipResolverFactory.Scheme}:///{options.ConnectionName}",
-            new() {
+            address: $"{GossipResolverFactory.Scheme}:///{options.ConnectionName}",
+            channelOptions: new() {
                 Credentials                             = channelCredentials,
                 HttpHandler                             = channelHandler,
                 DisposeHttpClient                       = false,
@@ -136,24 +136,31 @@ sealed class ClusterChannel : IAsyncDisposable {
         var clientName    = AppVersionInfo.Current.ProductName ?? "KurrentDB .NET Client";
         var clientVersion = AppVersionInfo.Current.ProductVersion ?? AppVersionInfo.Current.FileVersion ?? "0.0.0";
 
-        var headersInterceptor = new ClientHeadersInterceptor(new Dictionary<string, string> {
-            ["kurrentdb.client.name"]    = clientName,
-            ["kurrentdb.client.version"] = clientVersion,
-            ["connection-name"]          = options.ConnectionName
+        var headersInterceptor = new ClientHeadersInterceptor(staticHeaders: new Dictionary<string, string> {
+            [key: "kurrentdb.client.name"]    = clientName,
+            [key: "kurrentdb.client.version"] = clientVersion,
+            [key: "connection-name"]          = options.ConnectionName
         });
 
         var leaderChangeInterceptor = new LeaderChangeInterceptor(
-            leader => resolverFactory.Resolver?.AnnounceLeader(leader),
-            options.LoggerFactory.CreateLogger<LeaderChangeInterceptor>()
+            announceLeader: leader => resolverFactory.Resolver?.AnnounceLeader(leader: leader),
+            logger: options.LoggerFactory.CreateLogger<LeaderChangeInterceptor>()
         );
 
         var callInvoker = channel
             .CreateCallInvoker()
-            .Intercept([..options.Interceptors, headersInterceptor, leaderChangeInterceptor]);
+            .Intercept(interceptors: [..options.Interceptors, headersInterceptor, leaderChangeInterceptor]);
 
         return new(
-            channel, callInvoker, resolverFactory, balancerFactory, gossipClient,
-            channelHandler, gossipHandler, services, seeds[0]
+            channel: channel, 
+            callInvoker: callInvoker, 
+            resolverFactory: resolverFactory, 
+            balancerFactory: balancerFactory, 
+            gossipClient: gossipClient,
+            channelHandler: channelHandler, 
+            gossipHandler: gossipHandler, 
+            services: services, 
+            fallbackTarget: seeds[0]
         );
 
         static SocketsHttpHandler CreateHandler(KurrentClientOptions options) {
@@ -166,13 +173,13 @@ sealed class ClusterChannel : IAsyncDisposable {
             if (options.Security.Transport.IsInsecure)
                 return handler;
 
-            if (options.Security.Authentication.TryGetCertificate(out var clientCertificate))
+            if (options.Security.Authentication.TryGetCertificate(certificate: out var clientCertificate))
                 handler.SslOptions.ClientCertificates = new() { clientCertificate };
 
             handler.SslOptions.RemoteCertificateValidationCallback = options.Security.Transport.VerifyServerCertificate switch {
                 false => delegate { return true; },
-                true when options.Security.Transport.TryGetCertificate(out var trustedRoot) =>
-                    new RemoteCertificateValidator(trustedRoot, options.LoggerFactory.CreateLogger<RemoteCertificateValidator>()),
+                true when options.Security.Transport.TryGetCertificate(certificate: out var trustedRoot) =>
+                    new RemoteCertificateValidator(CaCertificate: trustedRoot, Logger: options.LoggerFactory.CreateLogger<RemoteCertificateValidator>()),
                 _ => null
             };
 
@@ -191,10 +198,10 @@ sealed class ClusterChannel : IAsyncDisposable {
 
             // The declarative channel retry policy cannot consult a predicate: these are the
             // classic transient codes the legacy policy always retried.
-            retryPolicy.RetryableStatusCodes.Add(StatusCode.Unavailable);
-            retryPolicy.RetryableStatusCodes.Add(StatusCode.Unknown);
-            retryPolicy.RetryableStatusCodes.Add(StatusCode.DeadlineExceeded);
-            retryPolicy.RetryableStatusCodes.Add(StatusCode.ResourceExhausted);
+            retryPolicy.RetryableStatusCodes.Add(item: StatusCode.Unavailable);
+            retryPolicy.RetryableStatusCodes.Add(item: StatusCode.Unknown);
+            retryPolicy.RetryableStatusCodes.Add(item: StatusCode.DeadlineExceeded);
+            retryPolicy.RetryableStatusCodes.Add(item: StatusCode.ResourceExhausted);
 
             return new() {
                 Names       = { MethodName.Default },
