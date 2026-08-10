@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using KurrentDB.Client;
 
 namespace Kurrent.Surge.Experimental.LoadBalancing;
@@ -7,62 +6,38 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// Ranks cluster nodes for connection eligibility based on the configured <see cref="NodeReadPreference"/>.
 /// </summary>
 static class NodeSelectionPolicy {
-    static readonly FrozenSet<VNodeState> NotAllowedStates = new[] {
-        VNodeState.Manager,
-        VNodeState.ShuttingDown,
-        VNodeState.Shutdown,
-        VNodeState.Unknown,
-        VNodeState.Initializing,
-        VNodeState.CatchingUp,
-        VNodeState.ResigningLeader,
-        VNodeState.PreLeader,
-        VNodeState.PreReplica,
-        VNodeState.PreReadOnlyReplica,
-        VNodeState.Clone,
-        VNodeState.DiscoverLeader
-    }.ToFrozenSet();
-
     /// <summary>
     /// Returns the connectable nodes ordered by preference. Ties are shuffled.
     /// </summary>
     public static IReadOnlyList<ClusterNode> RankNodes(ClusterTopology topology, NodeReadPreference preference) {
         return topology.Nodes
             .Where(IsConnectable)
-            .OrderBy(node => GetPriority(node.State))
+            .OrderBy(node => GetPriority(node.Role))
             .ThenBy(_ => Random.Shared.Next())
             .ToArray();
 
         static bool IsConnectable(ClusterNode node) =>
-            node.IsAlive && !NotAllowedStates.Contains(node.State);
+            node.IsAlive && node.Role != NodeRole.NotAllowed;
 
-        int GetPriority(VNodeState state) =>
+        int GetPriority(NodeRole role) =>
             preference switch {
-                NodeReadPreference.Leader => state switch {
-                    VNodeState.Leader             => 0,
-                    VNodeState.Follower           => 1,
-                    VNodeState.ReadOnlyReplica    => 2,
-                    VNodeState.PreReadOnlyReplica => 3,
-                    VNodeState.ReadOnlyLeaderless => 4,
-                    _                             => int.MaxValue
+                NodeReadPreference.Leader => role switch {
+                    NodeRole.Leader   => 0,
+                    NodeRole.Follower => 1,
+                    _                 => 2
                 },
-                NodeReadPreference.Follower => state switch {
-                    VNodeState.Follower           => 0,
-                    VNodeState.Leader             => 1,
-                    VNodeState.ReadOnlyReplica    => 2,
-                    VNodeState.PreReadOnlyReplica => 3,
-                    VNodeState.ReadOnlyLeaderless => 4,
-                    _                             => int.MaxValue
+                NodeReadPreference.Follower => role switch {
+                    NodeRole.Follower => 0,
+                    NodeRole.Leader   => 1,
+                    _                 => 2
                 },
                 // Deviates from the legacy comparer (replica -> leader -> follower): a replica
                 // preference expresses read offload, so fallback stays as far from the write
                 // path as possible.
-                NodeReadPreference.ReadOnlyReplica => state switch {
-                    VNodeState.ReadOnlyReplica    => 0,
-                    VNodeState.PreReadOnlyReplica => 1,
-                    VNodeState.ReadOnlyLeaderless => 2,
-                    VNodeState.Follower           => 3,
-                    VNodeState.Leader             => 4,
-                    _                             => int.MaxValue
+                NodeReadPreference.ReadOnlyReplica => role switch {
+                    NodeRole.Replica  => 0,
+                    NodeRole.Follower => 1,
+                    _                 => 2
                 },
                 _ => 0
             };

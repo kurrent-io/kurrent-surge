@@ -15,7 +15,7 @@ sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, 
             endpoint,
             static (target, factory) => {
                 var channel = factory(target);
-                return (channel, new Gossip.GossipClient(channel));
+                return (channel, new(channel));
             },
             createChannel);
 
@@ -25,7 +25,7 @@ sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, 
 
         var nodes = result.Members
             .Select(member => new ClusterNode(
-                (VNodeState)member.State,
+                member.State.ToNodeRole(),
                 member.IsAlive,
                 new(member.HttpEndPoint.Address, (int)member.HttpEndPoint.Port)))
             .ToArray();

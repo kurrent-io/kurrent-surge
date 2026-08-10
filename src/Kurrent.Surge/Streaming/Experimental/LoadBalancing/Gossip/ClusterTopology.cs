@@ -1,35 +1,21 @@
 namespace Kurrent.Surge.Experimental.LoadBalancing;
 
 /// <summary>
-/// The state of a cluster node as reported by gossip.
+/// The routing role of a cluster member. <see cref="NotAllowed"/> covers every wire state
+/// that must not receive traffic — transitional, administrative, dead, or unknown — and is
+/// the default so an uninitialized member is unroutable by construction.
 /// </summary>
-/// <remarks>
-/// Values match <c>event_store.client.gossip.MemberInfo.VNodeState</c> on the wire.
-/// See <c>proto/kurrentdb/protocol/v1/gossip.proto</c>.
-/// </remarks>
-enum VNodeState {
-    Initializing       = 0,
-    DiscoverLeader     = 1,
-    Unknown            = 2,
-    PreReplica         = 3,
-    CatchingUp         = 4,
-    Clone              = 5,
-    Follower           = 6,
-    PreLeader          = 7,
-    Leader             = 8,
-    Manager            = 9,
-    ShuttingDown       = 10,
-    Shutdown           = 11,
-    ReadOnlyLeaderless = 12,
-    PreReadOnlyReplica = 13,
-    ReadOnlyReplica    = 14,
-    ResigningLeader    = 15
+enum NodeRole {
+    NotAllowed = 0,
+    Leader     = 1,
+    Follower   = 2,
+    Replica    = 3
 }
 
 /// <summary>
 /// A cluster member as reported by gossip.
 /// </summary>
-sealed record ClusterNode(VNodeState State, bool IsAlive, ClusterEndpoint Endpoint);
+sealed record ClusterNode(NodeRole Role, bool IsAlive, ClusterEndpoint Endpoint);
 
 /// <summary>
 /// A point-in-time view of the cluster membership.

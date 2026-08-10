@@ -15,9 +15,9 @@ public class GossipResolverTests {
     static readonly ClusterEndpoint Replica  = new("replica", 4113);
 
     static readonly ClusterTopology Topology = new([
-        new(VNodeState.Follower, IsAlive: true, Follower),
-        new(VNodeState.Leader, IsAlive: true, Leader),
-        new(VNodeState.ReadOnlyReplica, IsAlive: true, Replica)
+        new(NodeRole.Follower, IsAlive: true, Follower),
+        new(NodeRole.Leader, IsAlive: true, Leader),
+        new(NodeRole.Replica, IsAlive: true, Replica)
     ]);
 
     [Test]
