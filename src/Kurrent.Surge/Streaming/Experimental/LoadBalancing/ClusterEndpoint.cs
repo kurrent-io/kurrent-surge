@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 
 namespace Kurrent.Surge.Experimental.LoadBalancing;
@@ -8,12 +9,15 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// under different casings.
 /// </summary>
 readonly record struct ClusterEndpoint {
+    // All of ASCII except 'A'-'Z': a host made only of these characters is already in
+    // canonical form. Anything outside the set — ASCII uppercase or any non-ASCII
+    // character — takes the full conversion.
+    static readonly SearchValues<char> LowercaseSafeAscii = CreateLowercaseSafeAscii();
+
     public ClusterEndpoint(string host, int port) {
-        // ToLowerInvariant always returns a new string, so skip it for the common case of an
-        // already-lowercase ASCII hostname; non-ASCII hosts take the full conversion.
-        Host = System.Text.Ascii.IsValid(host) && !host.AsSpan().ContainsAnyInRange('A', 'Z')
-            ? host
-            : host.ToLowerInvariant();
+        // ToLowerInvariant always returns a new string, so the common case of an
+        // already-lowercase ASCII hostname keeps the original instance: one vectorized scan.
+        Host = host.AsSpan().ContainsAnyExcept(LowercaseSafeAscii) ? host.ToLowerInvariant() : host;
         Port = port;
     }
 
@@ -25,4 +29,15 @@ readonly record struct ClusterEndpoint {
     public static implicit operator DnsEndPoint(ClusterEndpoint endpoint) => new(endpoint.Host, endpoint.Port);
 
     public override string ToString() => $"{Host}:{Port}";
+
+    static SearchValues<char> CreateLowercaseSafeAscii() {
+        Span<char> chars = stackalloc char[102];
+        var        count = 0;
+
+        for (var c = '\0'; c <= '\x7F'; c++)
+            if (c is < 'A' or > 'Z')
+                chars[count++] = c;
+
+        return SearchValues.Create(chars);
+    }
 }
