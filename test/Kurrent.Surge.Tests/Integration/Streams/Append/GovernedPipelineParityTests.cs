@@ -9,13 +9,14 @@ using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
+using Contracts = KurrentDB.Protocol.V2.Streams;
 
 namespace Kurrent.Surge.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]
 [Timeout(30_000)]
-public class GovernedPipelineParityTests {
+public class RecordPipelineTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
@@ -36,79 +37,105 @@ public class GovernedPipelineParityTests {
         return new CatalogValidationInterceptor(governance ?? SchemaGovernance.Create(Fixture.Client), catalogs, resolved);
     }
 
-    // Schema.Id is compared only when the registry supplied it: without one, both paths
-    // fall back to a fresh Guid per mapping, so the ids differ by design.
-    static async ValueTask AssertSameWireMessage(
-        KurrentDB.Protocol.V2.Streams.AppendRecord actual,
-        KurrentDB.Protocol.V2.Streams.AppendRecord expected
-    ) {
-        await Assert.That(actual.RecordId).IsEqualTo(expected.RecordId);
-        await Assert.That(actual.Stream).IsEqualTo(expected.Stream);
-        await Assert.That(actual.Schema.Name).IsEqualTo(expected.Schema.Name);
-        await Assert.That(actual.Schema.Format).IsEqualTo(expected.Schema.Format);
-        await Assert.That(actual.Data).IsEqualTo(expected.Data);
-        await Assert.That(actual.Properties).IsEqualTo(expected.Properties);
+    // The frame invariants shared by every catalog-record write case, regardless of which
+    // governance backend produced it: no minted id, the resolved (or overridden) schema name,
+    // the record's own id/stream/format carried through untouched. Payload correctness belongs
+    // to the round-trip test — comparing bytes against the output of the same codec that
+    // produced them here would be a tautology, so a non-empty check is enough.
+    static async ValueTask AssertCatalogRecordFrame(Contracts.AppendRecord actual, AppendRecord record, string expectedSchemaName) {
+        await Assert.That(actual.RecordId).IsEqualTo(record.RecordId.ToGuidString());
+        await Assert.That(actual.Stream).IsEqualTo(record.Stream);
+        await Assert.That(actual.Schema.Id).IsEmpty();
+        await Assert.That(actual.Schema.Name).IsEqualTo(expectedSchemaName);
+        await Assert.That(actual.Schema.Format).IsEqualTo((Contracts.SchemaFormat)record.DataFormat);
+        await Assert.That(actual.Data.Length).IsGreaterThan(0);
     }
 
     [Test]
-    public async ValueTask governed_write_produces_the_same_wire_message_for_catalog_records(CancellationToken ct) {
-        // Arrange
-        var streams             = new StreamsClient(Fixture.Client);
-        var serializerProvider  = Fixture.Client.SerializerProvider;
-        var policy              = streams.RegistryPolicy;
-        var pipeline            = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
-
-        var record = AppendRecord.Create(RaceCar.Generate(), r => {
-            r.Stream = $"governed-parity-{TestId.New()}";
-            r.Metadata.With("parity-key", Faker.Random.AlphaNumeric(12));
-        });
-
-        var expected = await record.ToContract(serializerProvider, policy, ct);
-
-        // Act
-        var actual = await pipeline.Execute(record, ct);
-
-        // Assert
-        await AssertSameWireMessage(actual, expected);
-    }
-
-    [Test]
-    public async ValueTask governed_write_produces_the_same_wire_message_for_raw_bytes_records(CancellationToken ct) {
+    public async ValueTask governed_write_frames_a_catalog_record_with_the_resolved_schema_name(CancellationToken ct) {
         // Arrange
         var streams            = new StreamsClient(Fixture.Client);
         var serializerProvider = Fixture.Client.SerializerProvider;
-        var policy             = streams.RegistryPolicy;
-        var pipeline           = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
+        var policy              = streams.RegistryPolicy;
+        var pipeline            = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
 
-        var record = AppendRecord.Create(Faker.Random.Bytes(64), r => {
-            r.Stream     = $"governed-parity-bytes-{TestId.New()}";
-            r.DataFormat = SchemaDataFormat.Bytes;
-            r.SchemaName = "raw-bytes";
+        var (_, messages, _) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
+
+        var metadataValue = Faker.Random.AlphaNumeric(12);
+
+        var record = AppendRecord.Create(RaceCar.Generate(), r => {
+            r.Stream = $"governed-parity-{TestId.New()}";
+            r.Metadata.With("parity-key", metadataValue);
         });
 
-        var expected = await record.ToContract(serializerProvider, policy, ct);
+        var expectedSchemaName = messages.ResolveSchemaName(record.Value!.GetType()).Value;
 
         // Act
         var actual = await pipeline.Execute(record, ct);
 
         // Assert
-        await AssertSameWireMessage(actual, expected);
+        await AssertCatalogRecordFrame(actual, record, expectedSchemaName);
+        await Assert.That(actual.Properties["parity-key"].StringValue).IsEqualTo(metadataValue);
     }
 
     [Test]
-    public async ValueTask governed_read_decodes_the_same_value_as_the_production_decoder(CancellationToken ct) {
-        // Arrange — the production read decodes the baseline copy; the governed pipeline
-        // decodes a SkipDecoding copy of the same record.
-        var streams             = new StreamsClient(Fixture.Client);
-        var serializerProvider  = Fixture.Client.SerializerProvider;
+    public async ValueTask governed_write_honors_an_explicit_schema_name_override_for_catalog_records(CancellationToken ct) {
+        // Arrange
+        var streams            = new StreamsClient(Fixture.Client);
+        var serializerProvider = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
+        var pipeline            = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
+
+        var schemaNameOverride = $"parity-override-{TestId.New()}";
+
+        var record = AppendRecord.Create(RaceCar.Generate(), r => {
+            r.Stream     = $"governed-parity-{TestId.New()}";
+            r.SchemaName = schemaNameOverride;
+        });
+
+        // Act
+        var actual = await pipeline.Execute(record, ct);
+
+        // Assert — the explicit override wins over the catalog-resolved name.
+        await AssertCatalogRecordFrame(actual, record, schemaNameOverride);
+    }
+
+    [Test]
+    public async ValueTask governed_write_frames_a_raw_bytes_record_with_its_exact_payload(CancellationToken ct) {
+        // Arrange
+        var streams            = new StreamsClient(Fixture.Client);
+        var serializerProvider = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
+        var pipeline            = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
+
+        var payload    = Faker.Random.Bytes(64);
+        var schemaName = $"raw-bytes-{TestId.New()}";
+
+        var record = AppendRecord.Create(payload, r => {
+            r.Stream     = $"governed-parity-bytes-{TestId.New()}";
+            r.DataFormat = SchemaDataFormat.Bytes;
+            r.SchemaName = schemaName;
+        });
+
+        // Act
+        var actual = await pipeline.Execute(record, ct);
+
+        // Assert
+        await Assert.That(actual.RecordId).IsEqualTo(record.RecordId.ToGuidString());
+        await Assert.That(actual.Stream).IsEqualTo(record.Stream);
+        await Assert.That(actual.Schema.Id).IsEmpty();
+        await Assert.That(actual.Schema.Name).IsEqualTo(schemaName);
+        await Assert.That(actual.Schema.Format).IsEqualTo((Contracts.SchemaFormat)SchemaDataFormat.Bytes);
+        await Assert.That(actual.Data.ToByteArray()).IsEquivalentTo(payload);
+    }
+
+    [Test]
+    public async ValueTask read_pipeline_decodes_appended_record_to_the_original_value(CancellationToken ct) {
+        // Arrange
+        var streams            = new StreamsClient(Fixture.Client);
+        var serializerProvider = Fixture.Client.SerializerProvider;
         var policy              = streams.RegistryPolicy;
         var data                = await Fixture.SeedTestStream(1, ct);
-
-        var decoded = await Fixture.Client.Streams
-            .ReadStream(data.Stream, ct)
-            .Where(msg => msg.IsRecord)
-            .Select(msg => msg.AsRecord)
-            .ToListAsync(ct);
 
         var raw = await Fixture.Client.Streams
             .ReadStream(data.Stream, new ReadStreamOptions { SkipDecoding = true }, ct)
@@ -121,10 +148,13 @@ public class GovernedPipelineParityTests {
         // Act
         var outcome = await pipeline.Execute(raw[0], ct);
 
-        // Assert
+        // Assert — decoded value matches the message that was originally arranged, before it
+        // was ever serialized.
+        var original = data.Records[0].Value!;
+
         await Assert.That(outcome).IsEqualTo(DecodeOutcome.Decoded);
-        await Assert.That(raw[0].ValueType).IsEqualTo(decoded[0].ValueType);
-        await Assert.That(raw[0].Value).IsEquivalentTo(decoded[0].Value);
+        await Assert.That(raw[0].ValueType).IsEqualTo(original.GetType());
+        await Assert.That(raw[0].Value).IsEquivalentTo(original);
     }
 
     [Test]
@@ -166,8 +196,8 @@ public class GovernedPipelineParityTests {
         // Guid fallback was a bug). The server has never received one before this test.
         var streams             = new StreamsClient(Fixture.Client);
         var serializerProvider  = Fixture.Client.SerializerProvider;
-        var policy              = streams.RegistryPolicy;
-        var pipeline            = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
+        var policy               = streams.RegistryPolicy;
+        var pipeline             = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
 
         var record   = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"governed-wire-{TestId.New()}");
         var contract = await pipeline.Execute(record, ct);
@@ -198,8 +228,8 @@ public class GovernedPipelineParityTests {
         // what the server returns.
         var streams             = new StreamsClient(Fixture.Client);
         var serializerProvider  = Fixture.Client.SerializerProvider;
-        var policy              = streams.RegistryPolicy;
-        var governance          = SchemaGovernance.Create(Fixture.Client);
+        var policy               = streams.RegistryPolicy;
+        var governance           = SchemaGovernance.Create(Fixture.Client);
 
         var write = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy, governance));
         var read  = ReadRecordPipeline.From(serializerProvider, policy, governance);
@@ -232,28 +262,31 @@ public class GovernedPipelineParityTests {
     }
 
     [Test]
-    public async ValueTask adapter_governed_write_produces_the_same_wire_message_for_catalog_records(CancellationToken ct) {
+    public async ValueTask adapter_backed_governed_write_frames_a_catalog_record_with_the_resolved_schema_name(CancellationToken ct) {
         // Arrange — validation backed by the SchemaManager adapter instead of real governance.
-        var streams             = new StreamsClient(Fixture.Client);
-        var serializerProvider  = Fixture.Client.SerializerProvider;
+        var streams            = new StreamsClient(Fixture.Client);
+        var serializerProvider = Fixture.Client.SerializerProvider;
         var policy              = streams.RegistryPolicy;
 
-        var (manager, _, _) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
+        var (manager, messages, _) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
         var pipeline = WriteRecordPipeline.From(
             serializerProvider, policy, CreateValidation(serializerProvider, policy, new SchemaManagerGovernanceAdapter(manager)));
 
+        var metadataValue = Faker.Random.AlphaNumeric(12);
+
         var record = AppendRecord.Create(RaceCar.Generate(), r => {
             r.Stream = $"governed-adapter-parity-{TestId.New()}";
-            r.Metadata.With("parity-key", Faker.Random.AlphaNumeric(12));
+            r.Metadata.With("parity-key", metadataValue);
         });
 
-        var expected = await record.ToContract(serializerProvider, policy, ct);
+        var expectedSchemaName = messages.ResolveSchemaName(record.Value!.GetType()).Value;
 
         // Act
         var actual = await pipeline.Execute(record, ct);
 
         // Assert
-        await AssertSameWireMessage(actual, expected);
+        await AssertCatalogRecordFrame(actual, record, expectedSchemaName);
+        await Assert.That(actual.Properties["parity-key"].StringValue).IsEqualTo(metadataValue);
     }
 }
