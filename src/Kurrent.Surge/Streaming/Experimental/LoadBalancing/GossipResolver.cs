@@ -28,11 +28,14 @@ sealed partial class GossipResolver : PollingResolver {
     readonly GossipResolverOptions   _options;
     readonly IGossipClient           _gossip;
     readonly ILogger<GossipResolver> _log;
-    readonly Lock                    _lock = new();
 
+    // Resolve passes never overlap (PollingResolver serializes them), so the endpoint
+    // arrays are only ever touched by the active pass. The pending leader is the one
+    // cross-thread handoff — announced from interceptor threads — and is boxed so
+    // Interlocked can swap the reference atomically; a nullable struct would tear.
     ClusterEndpoint[] _knownEndpoints;
     ClusterEndpoint[] _lastPublished = [];
-    ClusterEndpoint?  _pendingLeader;
+    object?           _pendingLeader;
 
     public GossipResolver(GossipResolverOptions options, IGossipClient gossip, ILoggerFactory loggerFactory)
         : base(loggerFactory) {
@@ -48,18 +51,12 @@ sealed partial class GossipResolver : PollingResolver {
     /// published endpoints as fallbacks. Discovery resumes on later refreshes.
     /// </summary>
     public void AnnounceLeader(ClusterEndpoint leader) {
-        lock (_lock) _pendingLeader = leader;
+        Interlocked.Exchange(ref _pendingLeader, leader);
         Refresh();
     }
 
     protected override async Task ResolveAsync(CancellationToken cancellationToken) {
-        ClusterEndpoint? leader;
-        lock (_lock) {
-            leader         = _pendingLeader;
-            _pendingLeader = null;
-        }
-
-        if (leader is { } announced) {
+        if (Interlocked.Exchange(ref _pendingLeader, null) is ClusterEndpoint announced) {
             PublishLeaderFirst(announced);
             return;
         }
@@ -72,10 +69,7 @@ sealed partial class GossipResolver : PollingResolver {
         await DiscoverAsync().ConfigureAwait(false);
 
         void PublishLeaderFirst(ClusterEndpoint endpoint) {
-            ClusterEndpoint[] lastPublished;
-            lock (_lock) lastPublished = _lastPublished;
-
-            var fallbacks = (lastPublished.Length > 0 ? lastPublished : _options.Seeds)
+            var fallbacks = (_lastPublished.Length > 0 ? _lastPublished : _options.Seeds)
                 .Where(fallback => fallback != endpoint);
 
             Publish([endpoint, ..fallbacks]);
@@ -87,7 +81,7 @@ sealed partial class GossipResolver : PollingResolver {
             while (true) {
                 attempt++;
 
-                foreach (var candidate in Shuffled(SnapshotKnownEndpoints())) {
+                foreach (var candidate in Shuffled(_knownEndpoints)) {
                     try {
                         var topology = await _gossip.GetTopology(candidate, cancellationToken).ConfigureAwait(false);
                         var ranked   = NodeSelectionPolicy.RankNodes(topology, _options.NodeReadPreference);
@@ -96,8 +90,7 @@ sealed partial class GossipResolver : PollingResolver {
                             throw new InvalidOperationException("No nodes are in a connectable state.");
 
                         // Gossip succeeded: from now on query exactly the current members, not the seeds.
-                        lock (_lock)
-                            _knownEndpoints = topology.Nodes.Select(node => node.Endpoint).ToArray();
+                        _knownEndpoints = topology.Nodes.Select(node => node.Endpoint).ToArray();
 
                         LogDiscovered(_log, ranked[0].Endpoint.Host, ranked[0].Endpoint.Port);
 
@@ -116,7 +109,7 @@ sealed partial class GossipResolver : PollingResolver {
                     break;
 
                 // Nothing answered this round: fall back to the seeds and try again.
-                lock (_lock) _knownEndpoints = _options.Seeds;
+                _knownEndpoints = _options.Seeds;
 
                 await Task.Delay(_options.DiscoveryInterval, cancellationToken).ConfigureAwait(false);
             }
@@ -126,10 +119,6 @@ sealed partial class GossipResolver : PollingResolver {
             Listener(ResolverResult.ForFailure(new(
                 StatusCode.Unavailable,
                 $"Failed to discover a candidate node in {_options.MaxDiscoverAttempts} attempts.")));
-
-            ClusterEndpoint[] SnapshotKnownEndpoints() {
-                lock (_lock) return _knownEndpoints;
-            }
 
             ClusterEndpoint[] Shuffled(ClusterEndpoint[] endpoints) {
                 var copy = endpoints.ToArray();
@@ -147,7 +136,7 @@ sealed partial class GossipResolver : PollingResolver {
     }
 
     void Publish(ClusterEndpoint[] endpoints) {
-        lock (_lock) _lastPublished = endpoints;
+        _lastPublished = endpoints;
 
         var addresses = endpoints
             .Select((endpoint, rank) => {
