@@ -21,7 +21,6 @@ public partial class StreamsClient {
         var maxRecordSize      = options?.MaxRecordSize      ?? AppendRecordsOptions.DefaultMaxRecordSize;
         var maxTransactionSize = options?.MaxTransactionSize ?? AppendRecordsOptions.DefaultMaxTransactionSize;
 
-        var ctx             = CreateMappingContext(cancellationToken);
         var request         = new Contracts.AppendRecordsRequest();
         var transactionSize = 0;
 
@@ -33,8 +32,8 @@ public partial class StreamsClient {
             if (options?.Metadata is { Count: > 0 } meta)
                 record.Metadata.WithMany(meta);
 
-            var serialized = await record
-                .ToContract(ctx)
+            var serialized = await WritePipeline
+                .Execute(record, cancellationToken)
                 .ConfigureAwait(false);
 
             // The serialized protobuf size is the unit the server enforces, so we measure the

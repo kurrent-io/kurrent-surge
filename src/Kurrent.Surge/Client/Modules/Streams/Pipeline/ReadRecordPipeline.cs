@@ -1,8 +1,12 @@
+using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
 using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Catalogs;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Kurrent.Surge.Client.Streams;
 
@@ -13,7 +17,7 @@ namespace Kurrent.Surge.Client.Streams;
 /// without breaking the composition. Guards are orchestration in <see cref="Execute"/> — they
 /// decide whether the chain runs at all.
 /// </summary>
-sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome> {
+sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
     ReadRecordPipeline(IStep<Record, DecodeOutcome> pipeline) => Pipeline = pipeline;
 
     public IStep<Record, DecodeOutcome> Pipeline { get; init; }
@@ -33,6 +37,30 @@ sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome> {
                 .Then(new DecodeReadStep(codecs))
                 .OnDecodable()));
     }
+
+    /// <summary>
+    /// Wires the canonical chain from client-composed parts.
+    /// </summary>
+    internal static ReadRecordPipeline Create(
+        MessageResolver messages,
+        SchemaRegistryPolicy policy,
+        IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> registrations,
+        SchemaCodecProvider codecs,
+        ISchemaGovernance governance
+    ) =>
+        new(new ResolvePolicyReadStep(policy, registrations)
+            .Then(new ResolveTypeReadStep(messages))
+            .Then(new GovernReadStep(governance)
+                .Then(new DecodeReadStep(codecs))
+                .OnDecodable()));
+
+    public ValueTask<DecodeOutcome> TryDecode(Record record, CancellationToken ct) =>
+        Execute(record, ct);
+
+    public JsonNode? ProjectToJson(Record record) =>
+        record.IsDecoded && record.Schema.DataFormat == SchemaDataFormat.Json
+            ? JsonSerializer.SerializeToNode(record.Value, record.ValueType, KurrentJsonContext.Default)
+            : null;
 
     public async ValueTask<DecodeOutcome> Execute(Record record, CancellationToken ct) {
         // Guards are orchestration, not stages: they decide whether the chain runs at all.

@@ -2,6 +2,8 @@ using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Experimental;
+using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Validation;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
@@ -35,6 +37,22 @@ sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
                 .OnNamed())
             .Then(new FrameWriteStep()));
     }
+
+    /// <summary>
+    /// Wires the canonical chain from client-composed parts.
+    /// </summary>
+    internal static WriteRecordPipeline Create(
+        MessageResolver messages,
+        SchemaRegistryPolicy policy,
+        IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> registrations,
+        SchemaCodecProvider codecs,
+        CatalogValidationInterceptor validation
+    ) =>
+        new(new ClassifyWriteStep(messages)
+            .Then(new GovernWriteStep(validation, policy, registrations)
+                .Then(new EncodeWriteStep(codecs))
+                .OnNamed())
+            .Then(new FrameWriteStep()));
 
     public async ValueTask<Contracts.AppendRecord> Execute(AppendRecord record, CancellationToken ct) {
         try {

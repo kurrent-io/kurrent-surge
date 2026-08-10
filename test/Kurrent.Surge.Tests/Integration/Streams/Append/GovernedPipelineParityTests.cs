@@ -1,5 +1,6 @@
 using Bogus;
 using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
@@ -21,14 +22,14 @@ public class GovernedPipelineParityTests {
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
-    CatalogValidationInterceptor CreateValidation(MappingContext mapping, ISchemaGovernance? governance = null) {
-        var (_, _, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+    CatalogValidationInterceptor CreateValidation(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, ISchemaGovernance? governance = null) {
+        var (_, _, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
             .Where(catalog => catalog.Types.Contains(typeof(RaceCar)))
             .ToList();
 
-        var resolved = mapping.Policy
+        var resolved = policy
             .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
@@ -52,16 +53,17 @@ public class GovernedPipelineParityTests {
     [Test]
     public async ValueTask governed_write_produces_the_same_wire_message_for_catalog_records(CancellationToken ct) {
         // Arrange
-        var streams  = new StreamsClient(Fixture.Client);
-        var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
+        var streams             = new StreamsClient(Fixture.Client);
+        var serializerProvider  = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
+        var pipeline            = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
 
         var record = AppendRecord.Create(RaceCar.Generate(), r => {
             r.Stream = $"governed-parity-{TestId.New()}";
             r.Metadata.With("parity-key", Faker.Random.AlphaNumeric(12));
         });
 
-        var expected = await record.ToContract(mapping);
+        var expected = await record.ToContract(serializerProvider, policy, ct);
 
         // Act
         var actual = await pipeline.Execute(record, ct);
@@ -73,9 +75,10 @@ public class GovernedPipelineParityTests {
     [Test]
     public async ValueTask governed_write_produces_the_same_wire_message_for_raw_bytes_records(CancellationToken ct) {
         // Arrange
-        var streams  = new StreamsClient(Fixture.Client);
-        var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
+        var streams            = new StreamsClient(Fixture.Client);
+        var serializerProvider = Fixture.Client.SerializerProvider;
+        var policy             = streams.RegistryPolicy;
+        var pipeline           = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
 
         var record = AppendRecord.Create(Faker.Random.Bytes(64), r => {
             r.Stream     = $"governed-parity-bytes-{TestId.New()}";
@@ -83,7 +86,7 @@ public class GovernedPipelineParityTests {
             r.SchemaName = "raw-bytes";
         });
 
-        var expected = await record.ToContract(mapping);
+        var expected = await record.ToContract(serializerProvider, policy, ct);
 
         // Act
         var actual = await pipeline.Execute(record, ct);
@@ -96,9 +99,10 @@ public class GovernedPipelineParityTests {
     public async ValueTask governed_read_decodes_the_same_value_as_the_production_decoder(CancellationToken ct) {
         // Arrange — the production read decodes the baseline copy; the governed pipeline
         // decodes a SkipDecoding copy of the same record.
-        var streams = new StreamsClient(Fixture.Client);
-        var mapping = streams.CreateMappingContext(ct);
-        var data    = await Fixture.SeedTestStream(1, ct);
+        var streams             = new StreamsClient(Fixture.Client);
+        var serializerProvider  = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
+        var data                = await Fixture.SeedTestStream(1, ct);
 
         var decoded = await Fixture.Client.Streams
             .ReadStream(data.Stream, ct)
@@ -112,7 +116,7 @@ public class GovernedPipelineParityTests {
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        var pipeline = ReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
+        var pipeline = ReadRecordPipeline.From(serializerProvider, policy, SchemaGovernance.Create(Fixture.Client));
 
         // Act
         var outcome = await pipeline.Execute(raw[0], ct);
@@ -126,10 +130,11 @@ public class GovernedPipelineParityTests {
     [Test]
     public async ValueTask governed_read_reports_unavailable_for_raw_bytes_records(CancellationToken ct) {
         // Arrange — raw bytes never decode: Data already exposes the payload.
-        var streams    = new StreamsClient(Fixture.Client);
-        var mapping    = streams.CreateMappingContext(ct);
-        var stream     = (await Fixture.TestData.GenerateSet(1, ct)).Stream;
-        var schemaName = $"raw-bytes-{TestId.New()}";
+        var streams             = new StreamsClient(Fixture.Client);
+        var serializerProvider  = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
+        var stream              = (await Fixture.TestData.GenerateSet(1, ct)).Stream;
+        var schemaName          = $"raw-bytes-{TestId.New()}";
 
         var record = AppendRecord.Create(Faker.Random.Bytes(32), r => {
             r.Stream     = stream;
@@ -145,7 +150,7 @@ public class GovernedPipelineParityTests {
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        var pipeline = ReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
+        var pipeline = ReadRecordPipeline.From(serializerProvider, policy, SchemaGovernance.Create(Fixture.Client));
 
         // Act
         var outcome = await pipeline.Execute(raw[0], ct);
@@ -159,9 +164,10 @@ public class GovernedPipelineParityTests {
     public async ValueTask server_accepts_a_governed_record_with_absent_schema_id(CancellationToken ct) {
         // Arrange — a governed wire record: SchemaInfo.Id deliberately absent (the per-record
         // Guid fallback was a bug). The server has never received one before this test.
-        var streams  = new StreamsClient(Fixture.Client);
-        var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
+        var streams             = new StreamsClient(Fixture.Client);
+        var serializerProvider  = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
+        var pipeline            = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy));
 
         var record   = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"governed-wire-{TestId.New()}");
         var contract = await pipeline.Execute(record, ct);
@@ -190,12 +196,13 @@ public class GovernedPipelineParityTests {
         // Arrange — 100 catalog records through the FULL governed path: write chain frames
         // them (absent SchemaInfo.Id), raw V2 append sends them, governed read chain decodes
         // what the server returns.
-        var streams  = new StreamsClient(Fixture.Client);
-        var mapping  = streams.CreateMappingContext(ct);
-        var governance = SchemaGovernance.Create(Fixture.Client);
+        var streams             = new StreamsClient(Fixture.Client);
+        var serializerProvider  = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
+        var governance          = SchemaGovernance.Create(Fixture.Client);
 
-        var write = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping, governance));
-        var read  = ReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, governance);
+        var write = WriteRecordPipeline.From(serializerProvider, policy, CreateValidation(serializerProvider, policy, governance));
+        var read  = ReadRecordPipeline.From(serializerProvider, policy, governance);
 
         var stream   = $"governed-roundtrip-{TestId.New()}";
         var expected = Enumerable.Range(0, 100).Select(_ => RaceCar.Generate()).ToList();
@@ -227,20 +234,21 @@ public class GovernedPipelineParityTests {
     [Test]
     public async ValueTask adapter_governed_write_produces_the_same_wire_message_for_catalog_records(CancellationToken ct) {
         // Arrange — validation backed by the SchemaManager adapter instead of real governance.
-        var streams  = new StreamsClient(Fixture.Client);
-        var mapping  = streams.CreateMappingContext(ct);
+        var streams             = new StreamsClient(Fixture.Client);
+        var serializerProvider  = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
 
-        var (manager, _, _) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+        var (manager, _, _) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
         var pipeline = WriteRecordPipeline.From(
-            mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping, new SchemaManagerGovernanceAdapter(manager)));
+            serializerProvider, policy, CreateValidation(serializerProvider, policy, new SchemaManagerGovernanceAdapter(manager)));
 
         var record = AppendRecord.Create(RaceCar.Generate(), r => {
             r.Stream = $"governed-adapter-parity-{TestId.New()}";
             r.Metadata.With("parity-key", Faker.Random.AlphaNumeric(12));
         });
 
-        var expected = await record.ToContract(mapping);
+        var expected = await record.ToContract(serializerProvider, policy, ct);
 
         // Act
         var actual = await pipeline.Execute(record, ct);

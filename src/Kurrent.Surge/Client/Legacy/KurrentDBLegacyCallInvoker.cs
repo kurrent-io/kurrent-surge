@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using Grpc.Core;
+using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using KurrentDB.Client;
 
@@ -18,8 +19,13 @@ sealed class KurrentDBLegacyCallInvoker : CallInvoker, IAsyncDisposable {
 
 	bool _disposed;
 
-	internal KurrentDBLegacyCallInvoker(KurrentClientOptions options, bool disposeClient = true) {
-		_legacyClient  = LegacyClusterClient.Create(options.ConvertToLegacySettings());
+	internal KurrentDBLegacyCallInvoker(KurrentClientOptions options, Interceptor[]? prepend = null, bool disposeClient = true) {
+		var settings = options.ConvertToLegacySettings();
+
+		if (prepend is { Length: > 0 })
+			settings.Interceptors = [..prepend, ..settings.Interceptors];
+
+		_legacyClient  = LegacyClusterClient.Create(settings);
 		_disposeClient = disposeClient;
 	}
 

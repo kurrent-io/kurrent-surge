@@ -40,21 +40,22 @@ public class GovernedAppendBenchmarks {
 
         _streams = new StreamsClient(_fixture.Client);
 
-        var mapping = _streams.CreateMappingContext(CancellationToken.None);
+        var serializerProvider = _fixture.Client.SerializerProvider;
+        var policy              = _streams.RegistryPolicy;
 
-        var (manager, _, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+        var (manager, _, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
             .Where(catalog => catalog.Types.Contains(typeof(RaceCar)))
             .ToList();
 
-        var resolved = mapping.Policy
+        var resolved = policy
             .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var validation = new CatalogValidationInterceptor(new SchemaManagerGovernanceAdapter(manager), catalogs, resolved);
 
-        _governed = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, validation);
+        _governed = WriteRecordPipeline.From(serializerProvider, policy, validation);
 
         // Pre-built catalog records, one stream — both paths map the same instances per op.
         var stream = $"governed-append-bench-{RecordCount}";

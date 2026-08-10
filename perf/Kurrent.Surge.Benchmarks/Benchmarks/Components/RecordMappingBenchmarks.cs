@@ -44,9 +44,7 @@ public class RecordMappingBenchmarks {
 
         foreach (var readEvent in _events) {
             var ctx = new MappingContext(
-                NullSerializerProvider.Instance,
                 _metadataDecoder,
-                SchemaRegistryPolicy.NoRequirements,
                 new RecordDecoder(NullSerializerProvider.Instance, SchemaRegistryPolicy.NoRequirements),
                 CancellationToken.None);
 
@@ -60,9 +58,7 @@ public class RecordMappingBenchmarks {
     [Benchmark(OperationsPerInvoke = RecordsPerOp, Description = "shared decoder (hoisted)")]
     public async Task<int> map_with_shared_decoder() {
         var ctx = new MappingContext(
-            NullSerializerProvider.Instance,
             _metadataDecoder,
-            SchemaRegistryPolicy.NoRequirements,
             _sharedDecoder,
             CancellationToken.None);
 

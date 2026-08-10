@@ -1,4 +1,3 @@
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Client.Streams;
@@ -17,9 +16,7 @@ public class MapToRecordAsyncTests {
 
         // Act
         var ctx = new MappingContext(
-            NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
-            SchemaRegistryPolicy.NoRequirements,
             new RecordDecoder(NullSchemaSerializerProvider.Instance),
             CancellationToken.None
         );
@@ -44,9 +41,7 @@ public class MapToRecordAsyncTests {
 
         // Act
         var ctx = new MappingContext(
-            NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
-            SchemaRegistryPolicy.NoRequirements,
             new RecordDecoder(NullSchemaSerializerProvider.Instance),
             CancellationToken.None
         );
@@ -70,9 +65,7 @@ public class MapToRecordAsyncTests {
 
         // Act
         var ctx = new MappingContext(
-            NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
-            SchemaRegistryPolicy.NoRequirements,
             new RecordDecoder(NullSchemaSerializerProvider.Instance),
             CancellationToken.None
         );
@@ -94,9 +87,7 @@ public class MapToRecordAsyncTests {
         
         // Act & Assert
         var ctx = new MappingContext(
-            NullSchemaSerializerProvider.Instance,
             NullMetadataDecoder.Instance,
-            SchemaRegistryPolicy.NoRequirements,
             new RecordDecoder(NullSchemaSerializerProvider.Instance),
             CancellationToken.None
         );

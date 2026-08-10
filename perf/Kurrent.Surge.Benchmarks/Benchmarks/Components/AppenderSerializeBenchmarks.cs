@@ -47,12 +47,12 @@ public class AppenderSerializeBenchmarks {
     }
 
     /// <summary>
-    /// One Append call's caller-thread work: create the mapping context, serialize the record
-    /// to its wire contract. Mirrors Appender.Append up to the lane enqueue.
+    /// One Append call's caller-thread work: serialize the record to its wire contract.
+    /// Mirrors Appender.Append up to the lane enqueue.
     /// </summary>
     [Benchmark(Description = "ToContract (caller-thread serialize)")]
     public async ValueTask<object> serialize() =>
-        await _record.ToContract(_streams.CreateMappingContext(CancellationToken.None));
+        await _record.ToContract(_fixture.Client.SerializerProvider, _streams.RegistryPolicy, CancellationToken.None);
 
     [GlobalCleanup]
     public async Task Cleanup() => await _fixture.As<IAsyncDisposable>().DisposeAsync();

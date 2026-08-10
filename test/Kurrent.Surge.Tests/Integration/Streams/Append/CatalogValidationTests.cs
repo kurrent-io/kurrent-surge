@@ -71,16 +71,17 @@ public class CatalogValidationTests {
     public async ValueTask first_grpc_call_validates_the_catalog_through_real_governance(CancellationToken ct) {
         // Arrange — the real constructor: governance + live catalog entries + resolved policy,
         // attached to a dedicated client.
-        var data    = await Fixture.SeedTestStream(1, ct);
-        var streams = new StreamsClient(Fixture.Client);
-        var mapping = streams.CreateMappingContext(ct);
+        var data                = await Fixture.SeedTestStream(1, ct);
+        var streams             = new StreamsClient(Fixture.Client);
+        var serializerProvider  = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
 
-        var (_, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+        var (_, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
         var raceCarType = typeof(Kurrent.Testkit.Datasets.ArcadeRacer.Model.RaceCar);
         var schemaName  = messages.ResolveSchemaName(raceCarType);
 
-        var resolved = mapping.Policy
+        var resolved = policy
             .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
@@ -109,15 +110,16 @@ public class CatalogValidationTests {
     public async ValueTask catalog_validation_is_a_noop_under_no_requirements_policy(CancellationToken ct) {
         // Arrange — real governance, the live catalog entry for RaceCar, and today's live
         // policy (NoRequirements): validation must complete without touching the registry.
-        var streams = new StreamsClient(Fixture.Client);
-        var mapping = streams.CreateMappingContext(ct);
+        var streams             = new StreamsClient(Fixture.Client);
+        var serializerProvider  = Fixture.Client.SerializerProvider;
+        var policy              = streams.RegistryPolicy;
 
-        var (_, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+        var (_, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
         var raceCarType = typeof(Kurrent.Testkit.Datasets.ArcadeRacer.Model.RaceCar);
         var schemaName  = messages.ResolveSchemaName(raceCarType);
 
-        var resolved = mapping.Policy
+        var resolved = policy
             .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 

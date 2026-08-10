@@ -1,4 +1,5 @@
 using Google.Protobuf;
+using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 
 using Contracts = KurrentDB.Protocol.V2.Streams;
@@ -7,16 +8,18 @@ namespace Kurrent.Surge.Client.Streams;
 
 static class AppendRecordsMapping {
     extension(AppendRecord source) {
-        public async ValueTask<Contracts.AppendRecord> ToContract(MappingContext ctx) {
+        public async ValueTask<Contracts.AppendRecord> ToContract(
+            ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, CancellationToken cancellationToken
+        ) {
             try {
                 var context = new SchemaSerializationContext {
                     Stream               = source.Stream,
                     RecordSchema         = new() { DataFormat = source.DataFormat },
-                    SchemaRegistryPolicy = ctx.Policy,
-                    CancellationToken    = ctx.CancellationToken
+                    SchemaRegistryPolicy = policy,
+                    CancellationToken    = cancellationToken
                 };
 
-                var data = await ctx.SerializerProvider
+                var data = await serializerProvider
                     .GetSerializer(source.DataFormat)
                     .Serialize(source.Value, context)
                     .ConfigureAwait(false);

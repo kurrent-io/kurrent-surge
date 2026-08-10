@@ -82,17 +82,20 @@ public class KurrentClientMessageOptions {
 
     /// <summary>
     /// The freeze: unions the default catalog, explicitly used catalogs, and every always-active
-    /// catalog into one snapshot resolver. Discovery always runs, but only
+    /// catalog into one snapshot resolver, and returns the same catalog list so callers can reuse
+    /// it (e.g. catalog validation) without repeating discovery. Discovery always runs, but only
     /// <see cref="MessageCatalog.AlwaysActive"/> catalogs (system streams, streaming contracts)
     /// register by default — the rest are opt-in via <see cref="UseCatalog"/>. Conflicting
     /// mappings fail construction loudly, naming the offending catalog.
     /// </summary>
-    internal MessageResolver BuildResolver() {
+    internal (MessageResolver Resolver, IReadOnlyList<MessageCatalog> Catalogs) BuildResolver() {
         var discovered = MessageCatalogDiscovery.GetCatalogs();
 
         // AlwaysActive catalogs are foundational and register unconditionally; everything else
         // discovered is opt-in and arrives only through UseCatalog (UsedCatalogs). The union, dedup,
         // and conflict detection (the freeze) now live in MessageResolver.From.
-        return MessageResolver.From([Catalog, ..UsedCatalogs, ..discovered.Where(c => c.AlwaysActive)]);
+        List<MessageCatalog> catalogs = [Catalog, ..UsedCatalogs, ..discovered.Where(c => c.AlwaysActive)];
+
+        return (MessageResolver.From(catalogs), catalogs);
     }
 }

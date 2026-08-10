@@ -51,17 +51,18 @@ public class GovernedWriteMappingBenchmarks {
 
         _streams = new StreamsClient(_client);
 
-        var mapping = _streams.CreateMappingContext(CancellationToken.None);
+        var serializerProvider = _client.SerializerProvider;
+        var policy              = _streams.RegistryPolicy;
 
-        var (manager, _, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+        var (manager, _, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
-        var resolved = mapping.Policy
+        var resolved = policy
             .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var validation = new CatalogValidationInterceptor(new SchemaManagerGovernanceAdapter(manager), [catalog], resolved);
 
-        _governed = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, validation);
+        _governed = WriteRecordPipeline.From(serializerProvider, policy, validation);
 
         var request = NewAppendRequest();
 
@@ -110,7 +111,7 @@ public class GovernedWriteMappingBenchmarks {
 
     [Benchmark(Baseline = true, Description = "ToContract mapping")]
     public async ValueTask<object> to_contract() =>
-        await _record.ToContract(_streams.CreateMappingContext(CancellationToken.None));
+        await _record.ToContract(_client.SerializerProvider, _streams.RegistryPolicy, CancellationToken.None);
 
     [Benchmark(Description = "WriteRecordPipeline (governed steps, no id fallback)")]
     public async ValueTask<object> governed_pipeline() =>
