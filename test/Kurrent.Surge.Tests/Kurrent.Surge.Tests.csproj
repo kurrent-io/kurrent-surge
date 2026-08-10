@@ -31,6 +31,16 @@
     <PackageReference Include="TUnit" />
   </ItemGroup>
 
+  <!-- In-process fake cluster for the experimental load balancer tests: server-side
+       gossip stubs generated from a wire-compatible proto copy. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Grpc.AspNetCore.Server" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+    <PackageReference Include="Google.Protobuf" />
+    <Protobuf Include="Integration\Experimental\LoadBalancing\FakeCluster\fake_gossip.proto" GrpcServices="Both" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
