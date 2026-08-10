@@ -84,13 +84,13 @@ sealed partial class GossipResolver : PollingResolver {
                 foreach (var candidate in _knownEndpoints.Shuffle()) {
                     try {
                         var topology = await _gossip.GetTopology(candidate, cancellationToken).ConfigureAwait(false);
-                        var ranked   = NodeSelectionPolicy.RankNodes(topology, _options.NodeReadPreference);
+                        var ranked   = topology.RankNodes(_options.NodeReadPreference);
 
                         if (ranked.Count == 0)
                             throw new InvalidOperationException("No nodes are in a connectable state.");
 
                         // Gossip succeeded: from now on query exactly the current members, not the seeds.
-                        _knownEndpoints = topology.Nodes.Select(node => node.Endpoint).ToArray();
+                        _knownEndpoints = [.. topology.Nodes.Select(node => node.Endpoint)];
 
                         LogDiscovered(_log, ranked[0].Endpoint.Host, ranked[0].Endpoint.Port);
 

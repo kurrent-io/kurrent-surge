@@ -3,7 +3,7 @@ using KurrentDB.Client;
 
 namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
 
-public class NodeSelectionPolicyTests {
+public class ClusterTopologyTests {
     static readonly NodeRole[] ConnectableRoles = [NodeRole.Leader, NodeRole.Follower, NodeRole.Replica];
 
     [Test]
@@ -13,7 +13,7 @@ public class NodeSelectionPolicyTests {
         var topology = TopologyOf(ConnectableRoles);
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, preference);
+        var ranked = topology.RankNodes(preference);
 
         // Assert
         await Assert.That(string.Join(",", ranked.Select(node => node.Role))).IsEqualTo(expectedOrder);
@@ -27,7 +27,7 @@ public class NodeSelectionPolicyTests {
         var topology   = new ClusterTopology([notAllowed, follower]);
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Leader);
+        var ranked = topology.RankNodes(NodeReadPreference.Leader);
 
         // Assert
         await Assert.That(ranked).HasCount().EqualTo(1);
@@ -42,7 +42,7 @@ public class NodeSelectionPolicyTests {
         var topology   = new ClusterTopology([deadLeader, follower]);
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Leader);
+        var ranked = topology.RankNodes(NodeReadPreference.Leader);
 
         // Assert
         await Assert.That(ranked).HasCount().EqualTo(1);
@@ -56,7 +56,7 @@ public class NodeSelectionPolicyTests {
         var expected = string.Join(",", ConnectableRoles.Order());
 
         // Act
-        var ranked = NodeSelectionPolicy.RankNodes(topology, NodeReadPreference.Random);
+        var ranked = topology.RankNodes(NodeReadPreference.Random);
 
         // Assert
         await Assert.That(string.Join(",", ranked.Select(node => node.Role).Order())).IsEqualTo(expected);
