@@ -1,4 +1,5 @@
 using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Schema.Serialization;
@@ -37,4 +38,25 @@ public class UnsupportedSchemaDataFormatException(SchemaDataFormat expectedForma
 	: SchemaSerializationException($"Unsupported schema format. Expected {expectedFormat}, but got {actualFormat}.", actualFormat) {
 	public SchemaDataFormat ExpectedFormat { get; } = expectedFormat;
 	public SchemaDataFormat ActualFormat   { get; } = actualFormat;
+}
+
+/// <summary>
+/// Exception thrown when a schema validation fails.
+/// </summary>
+public class SchemaValidationException(SchemaDataFormat dataFormat, SchemaIdentifier schemaIdentifier, Type messageType, IReadOnlyList<SchemaCompatibilityError> validationErrors)
+	: KurrentException(ErrorCode.FromType<SchemaValidationException>(), ErrorMessage(messageType, schemaIdentifier, validationErrors)) {
+	public SchemaDataFormat                        DataFormat       { get; } = dataFormat;
+	public Type                                    MessageType      { get; } = messageType;
+	public SchemaIdentifier                        SchemaIdentifier { get; } = schemaIdentifier;
+	public IReadOnlyList<SchemaCompatibilityError> ValidationErrors { get; } = validationErrors;
+
+	static string ErrorMessage(Type messageType, SchemaIdentifier schemaIdentifier, IReadOnlyList<SchemaCompatibilityError> validationErrors) {
+		var schemaIdentifierText = schemaIdentifier.Match(
+			schemaName => $"schema '{schemaName}'",
+			schemaVersionId => $"schema version '{schemaVersionId}'"
+		);
+
+		return $"Schema validation failed for message type '{messageType.FullName}' with {schemaIdentifierText}."
+		     + $"Found {validationErrors.Count} errors:{Environment.NewLine}{string.Join(Environment.NewLine, validationErrors.Select(error => $" - {error}"))}";
+	}
 }

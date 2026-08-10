@@ -3,7 +3,6 @@ using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Schema.Serialization.Json;
-using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using JsonSerializer = System.Text.Json.JsonSerializer;
@@ -20,22 +19,6 @@ sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
     ReadRecordPipeline(IStep<Record, DecodeOutcome> pipeline) => Pipeline = pipeline;
 
     public IStep<Record, DecodeOutcome> Pipeline { get; init; }
-
-    /// <summary>
-    /// Wires the canonical chain. Passing no governance falls back to the
-    /// <see cref="SchemaManagerGovernanceAdapter"/> over the client's live manager.
-    /// </summary>
-    public static ReadRecordPipeline From(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, ISchemaGovernance? governance = null) {
-        var (manager, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
-
-        var codecs = SerializerCoreCodecs.From(serializerProvider);
-
-        return new(new ResolvePolicyReadStep(policy, registrations)
-            .Then(new ResolveTypeReadStep(messages))
-            .Then(new GovernReadStep(governance ?? new SchemaManagerGovernanceAdapter(manager))
-                .Then(new DecodeReadStep(codecs))
-                .OnDecodable()));
-    }
 
     /// <summary>
     /// Wires the canonical chain from client-composed parts.

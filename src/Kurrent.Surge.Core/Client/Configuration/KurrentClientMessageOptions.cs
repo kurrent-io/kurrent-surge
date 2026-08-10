@@ -52,19 +52,6 @@ public class KurrentClientMessageOptions {
         return this;
     }
 
-    internal List<Func<ISchemaManager, ISchemaSerializer>> SerializerFactories { get; } = [];
-
-    /// <summary>
-    /// Registers a schema serializer, deferred until the client builds its own <see cref="ISchemaManager"/>.
-    /// The built-in JSON, Protobuf, and bytes-passthrough serializers register through this exact same
-    /// path (see <c>KurrentClientMessageOptionsExtensions.UseJson</c>/<c>UseProtobuf</c>/<c>UseBytes</c> in
-    /// Kurrent.Surge) — there is no separate mechanism for built-ins versus custom serializers.
-    /// </summary>
-    public KurrentClientMessageOptions UseSerializer(params IEnumerable<Func<ISchemaManager, ISchemaSerializer>> factories) {
-        SerializerFactories.AddRange(factories);
-        return this;
-    }
-
     public KurrentClientMessageOptions MapMessage<T>(string schemaName) {
         Catalog.Map<T>(schemaName);
         return this;

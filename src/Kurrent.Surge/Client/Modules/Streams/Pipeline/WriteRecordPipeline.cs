@@ -1,7 +1,6 @@
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Validation;
@@ -14,29 +13,12 @@ namespace Kurrent.Surge.Client.Streams;
 /// governed segment is lifted over the <see cref="WriteResolution"/> union, so raw-bytes
 /// records pass straight through to the shared frame while catalog records run the full
 /// segment. Validation is orchestration in <see cref="Execute"/> — it decides whether the
-/// chain runs at all. Produces the same wire message as the <c>ToContract</c> mapping, which
-/// stays untouched as the baseline.
+/// chain runs at all.
 /// </summary>
 sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
     WriteRecordPipeline(IStep<AppendRecord, Contracts.AppendRecord> pipeline) => Pipeline = pipeline;
 
     public IStep<AppendRecord, Contracts.AppendRecord> Pipeline { get; init; }
-
-    /// <summary>
-    /// Wires the canonical chain. Per-record governance does not exist on this path — the
-    /// interceptor's single-flight catalog validation carries the schema info.
-    /// </summary>
-    public static WriteRecordPipeline From(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, CatalogValidationInterceptor validation) {
-        var (_, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
-
-        var codecs = SerializerCoreCodecs.From(serializerProvider);
-
-        return new(new ClassifyWriteStep(messages)
-            .Then(new GovernWriteStep(validation, policy, registrations)
-                .Then(new EncodeWriteStep(codecs))
-                .OnNamed())
-            .Then(new FrameWriteStep()));
-    }
 
     /// <summary>
     /// Wires the canonical chain from client-composed parts.
