@@ -368,6 +368,56 @@ public class ClusterChannelTests {
         }
     }
 
+    [Test]
+    public async ValueTask reads_stay_on_replica_while_appends_route_to_leader(CancellationToken cancellationToken) {
+        // Arrange
+        await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower, NodeState.ReadOnlyReplica);
+        var expectedLeaderPort  = cluster.NodeInState(NodeState.Leader).Endpoint.Port.ToString();
+        var expectedReplicaPort = cluster.NodeInState(NodeState.ReadOnlyReplica).Endpoint.Port.ToString();
+
+        var options = CreateOptions(cluster, NodePreference.ReadOnlyReplica);
+
+        await using var channels = ClusterChannels.Create(options);
+        var writeClient = new ProbeClient(channels.Write.CallInvoker);
+        var readClient  = new ProbeClient(channels.Read.CallInvoker);
+
+        // Act
+        var writeServingPort = await ReadServingPort(writeClient, cancellationToken);
+        var readServingPort  = await ReadServingPort(readClient, cancellationToken);
+
+        // Assert
+        await Assert.That(writeServingPort).IsEqualTo(expectedLeaderPort);
+        await Assert.That(readServingPort).IsEqualTo(expectedReplicaPort);
+    }
+
+    [Test]
+    public async ValueTask collapses_to_a_single_channel_when_read_preference_is_leader() {
+        // Arrange
+        await using var cluster = await FakeClusterHarness.Start(NodeState.Leader, NodeState.Follower);
+
+        // Act
+        await using var channels = ClusterChannels.Create(CreateOptions(cluster, NodePreference.Leader));
+
+        // Assert
+        await Assert.That(channels.Read).IsSameReferenceAs(channels.Write);
+    }
+
+    [Test]
+    public async ValueTask collapses_to_a_single_channel_when_scheme_is_direct() {
+        // Arrange
+        await using var cluster = await FakeClusterHarness.Start(NodeState.Leader);
+
+        var options = CreateOptions(cluster, NodePreference.Follower);
+        options.ConnectionScheme = KurrentConnectionScheme.Direct;
+        options.Endpoints        = [cluster[0].Endpoint];
+
+        // Act
+        await using var channels = ClusterChannels.Create(options);
+
+        // Assert
+        await Assert.That(channels.Read).IsSameReferenceAs(channels.Write);
+    }
+
     #region ->> Helpers <<-
 
     static KurrentClientOptions CreateOptions(FakeClusterHarness cluster, NodePreference preference) {

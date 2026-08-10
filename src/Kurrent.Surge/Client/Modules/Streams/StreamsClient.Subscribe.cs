@@ -58,7 +58,7 @@ public partial class StreamsClient {
 
         // ── Connection phase ── throws directly to caller, no yield here
         try {
-            grpcSession = LegacyServiceClient.Read(request, cancellationToken: ct);
+            grpcSession = LegacyReadServiceClient.Read(request, cancellationToken: ct);
 
             await grpcSession.ResponseStream.MoveNext(ct).ConfigureAwait(false);
 

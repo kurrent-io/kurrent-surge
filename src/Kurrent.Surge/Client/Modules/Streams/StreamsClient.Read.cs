@@ -214,7 +214,7 @@ public partial class StreamsClient {
         ReadReq request, bool skipDecoding, bool throwOnUnresolved,
         RecordFilter filter, uint maxSearchWindow, [EnumeratorCancellation] CancellationToken ct
     ) {
-        var session = LegacyServiceClient.Read(request, cancellationToken: ct).All(TranslateError);
+        var session = LegacyReadServiceClient.Read(request, cancellationToken: ct).All(TranslateError);
 
         var sequencer = new SequenceGenerator();
 

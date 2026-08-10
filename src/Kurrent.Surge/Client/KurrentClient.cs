@@ -19,17 +19,11 @@ public class KurrentClient : IKurrentClient {
 
 	    Options = options;
 
-        ClusterChannel = ClusterChannel.Create(options, NodePreference.Leader);
-        CallInvoker    = ClusterChannel.CallInvoker;
+        Channels        = ClusterChannels.Create(options);
+        CallInvoker     = Channels.Write.CallInvoker;
+        ReadCallInvoker = Channels.Read.CallInvoker;
 
-        if (options.Gossip.ReadPreference != NodePreference.Leader) {
-            options.LoggerFactory.CreateLogger<KurrentClient>().LogWarning(
-                "ReadPreference {ReadPreference} is not supported yet by this client version; all traffic routes to the leader.",
-                options.Gossip.ReadPreference
-            );
-        }
-
-        BackdoorClientFactory = new(ClusterChannel, options);
+        BackdoorClientFactory = new(Channels.Write, options);
 
         // The freeze: snapshot the message catalogs (system + default + explicit + auto-
         // discovered) into a read-only resolver. Catalog changes after this point never
@@ -62,8 +56,9 @@ public class KurrentClient : IKurrentClient {
     internal bool Shared { get; init; }
 
     internal KurrentClientOptions         Options               { get; }
-    internal ClusterChannel               ClusterChannel        { get; }
+    internal ClusterChannels              Channels              { get; }
     internal CallInvoker                  CallInvoker           { get; }
+    internal CallInvoker                  ReadCallInvoker       { get; }
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
     internal ISchemaSerializerProvider    SerializerProvider    { get; }
 
@@ -78,7 +73,7 @@ public class KurrentClient : IKurrentClient {
 
         BackdoorClientFactory.Dispose();
 
-        await ClusterChannel
+        await Channels
             .DisposeAsync()
             .ConfigureAwait(false);
     }
