@@ -3,6 +3,7 @@ using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
@@ -17,9 +18,8 @@ namespace Kurrent.Surge.Experimental;
 /// <see cref="SchemaGovernance"/> is the real implementation.
 /// </summary>
 sealed class SchemaManagerGovernanceAdapter(ISchemaManager manager) : ISchemaGovernance {
-    // Same lifetime caveat as SchemaResolver's cache: safe while the client's registry policy
-    // is fixed at construction (NoRequirements today) — a policy that varies per stream needs
-    // the resolved policy in the key.
+    // Safe while the client's registry policy is fixed at construction (NoRequirements
+    // today) — a policy that varies per stream needs the resolved policy in the key.
     readonly ConcurrentDictionary<(Type MessageType, SchemaDataFormat Format), SchemaVersionId> _registered = new();
 
     public async ValueTask<SchemaVersionId> EnsureRegistered(SchemaName schema, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {

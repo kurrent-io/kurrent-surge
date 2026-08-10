@@ -2,6 +2,7 @@ using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Google.Protobuf;
 using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
@@ -13,23 +14,22 @@ using Contracts = KurrentDB.Protocol.V2.Streams;
 namespace Benchmarks;
 
 /// <summary>
-/// Prices the governed write chain against the split pipeline and the ToContract baseline on
-/// the identical record. The governed chain decomposes resolution into discrete steps AND
-/// never mints the per-record SchemaInfo.Id fallback the other two shapes still pay — so its
-/// delta is step tax minus one Guid.NewGuid().ToString() per record. Three formats only: the
-/// msgpack rows register standalone catalogs the governed extraction cannot see.
+/// Prices the governed write chain against the ToContract baseline on the identical record.
+/// The governed chain decomposes resolution into discrete steps AND never mints the
+/// per-record SchemaInfo.Id fallback the baseline still pays — so its delta is step tax minus
+/// one Guid.NewGuid().ToString() per record. Three formats only: the msgpack rows register
+/// standalone catalogs the governed extraction cannot see.
 /// </summary>
 [Config(typeof(BenchmarkConfig))]
 [BenchmarkCategory("Mapping")]
 public class GovernedWriteMappingBenchmarks {
     readonly Random _rng = new(42);
 
-    ClientBenchmarkFixture      _fixture  = null!;
-    KurrentClient               _client   = null!;
-    StreamsClient               _streams  = null!;
-    WriteRecordPipeline         _split    = null!;
-    GovernedWriteRecordPipeline _governed = null!;
-    AppendRecord                _record   = null!;
+    ClientBenchmarkFixture _fixture  = null!;
+    KurrentClient          _client   = null!;
+    StreamsClient          _streams  = null!;
+    WriteRecordPipeline    _governed = null!;
+    AppendRecord           _record   = null!;
 
     [Params("bytes", "json", "proto")]
     public string Payload { get; set; } = "";
@@ -52,7 +52,6 @@ public class GovernedWriteMappingBenchmarks {
         _streams = new StreamsClient(_client);
 
         var mapping = _streams.CreateMappingContext(CancellationToken.None);
-        _split = WriteRecordPipeline.Split(mapping.SerializerProvider, mapping.Policy);
 
         var (manager, _, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
 
@@ -62,7 +61,7 @@ public class GovernedWriteMappingBenchmarks {
 
         var validation = new CatalogValidationInterceptor(new SchemaManagerGovernanceAdapter(manager), [catalog], resolved);
 
-        _governed = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, validation);
+        _governed = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, validation);
 
         var request = NewAppendRequest();
 
@@ -113,11 +112,7 @@ public class GovernedWriteMappingBenchmarks {
     public async ValueTask<object> to_contract() =>
         await _record.ToContract(_streams.CreateMappingContext(CancellationToken.None));
 
-    [Benchmark(Description = "WriteRecordPipeline.Split (resolve + encode)")]
-    public async ValueTask<object> split_pipeline() =>
-        await _split.Execute(_record, CancellationToken.None);
-
-    [Benchmark(Description = "GovernedWriteRecordPipeline (governed steps, no id fallback)")]
+    [Benchmark(Description = "WriteRecordPipeline (governed steps, no id fallback)")]
     public async ValueTask<object> governed_pipeline() =>
         await _governed.Execute(_record, CancellationToken.None);
 

@@ -1,9 +1,10 @@
 using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
 
-namespace Kurrent.Surge.Experimental;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// The governed read chain over the decode stage — same scope as <c>RecordDecoder.TryDecode</c>,
@@ -12,8 +13,8 @@ namespace Kurrent.Surge.Experimental;
 /// without breaking the composition. Guards are orchestration in <see cref="Execute"/> — they
 /// decide whether the chain runs at all.
 /// </summary>
-sealed class GovernedReadRecordPipeline : IStep<Record, DecodeOutcome> {
-    GovernedReadRecordPipeline(IStep<Record, DecodeOutcome> pipeline) => Pipeline = pipeline;
+sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome> {
+    ReadRecordPipeline(IStep<Record, DecodeOutcome> pipeline) => Pipeline = pipeline;
 
     public IStep<Record, DecodeOutcome> Pipeline { get; init; }
 
@@ -21,7 +22,7 @@ sealed class GovernedReadRecordPipeline : IStep<Record, DecodeOutcome> {
     /// Wires the canonical chain. Passing no governance falls back to the
     /// <see cref="SchemaManagerGovernanceAdapter"/> over the client's live manager.
     /// </summary>
-    public static GovernedReadRecordPipeline From(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, ISchemaGovernance? governance = null) {
+    public static ReadRecordPipeline From(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, ISchemaGovernance? governance = null) {
         var (manager, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
         var codecs = SerializerCoreCodecs.From(serializerProvider);
@@ -29,7 +30,7 @@ sealed class GovernedReadRecordPipeline : IStep<Record, DecodeOutcome> {
         return new(new ResolvePolicyReadStep(policy, registrations)
             .Then(new ResolveTypeReadStep(messages))
             .Then(new GovernReadStep(governance ?? new SchemaManagerGovernanceAdapter(manager))
-                .Then(new GovernedDecodeStep(codecs))
+                .Then(new DecodeReadStep(codecs))
                 .OnDecodable()));
     }
 

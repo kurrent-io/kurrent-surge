@@ -1,11 +1,11 @@
 using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Variant;
 
-namespace Kurrent.Surge.Experimental;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Typestate carrier after policy resolution. Guards (already decoded, empty payload, Bytes)
@@ -101,7 +101,7 @@ static class TypeResolutionSteps {
 /// Pure decode over an already-resolved type through the format's codec. Materializes the
 /// value onto the record like <c>RecordDecoder</c> does.
 /// </summary>
-sealed class GovernedDecodeStep(SchemaCodecProvider codecs) : IStep<DecodableRead, DecodeOutcome> {
+sealed class DecodeReadStep(SchemaCodecProvider codecs) : IStep<DecodableRead, DecodeOutcome> {
     public ValueTask<DecodeOutcome> Execute(DecodableRead input, CancellationToken ct) {
         var record = input.Source;
 

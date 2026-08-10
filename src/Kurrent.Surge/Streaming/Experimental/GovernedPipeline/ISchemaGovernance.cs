@@ -1,10 +1,9 @@
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
-namespace Kurrent.Surge.Experimental;
+namespace Kurrent.Surge.Client.Schema.Governance;
 
 /// <summary>
 /// Schema registry governance as a standalone service: the effectful half of today's

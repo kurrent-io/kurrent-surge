@@ -1,5 +1,6 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;

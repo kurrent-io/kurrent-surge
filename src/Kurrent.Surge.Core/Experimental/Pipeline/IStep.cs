@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Experimental;
+namespace Kurrent.Surge;
 
 /// <summary>
 /// One typed processing stage. Stages compose with <see cref="Step.Then{TIn,TMid,TOut}(IStep{TIn,TMid},IStep{TMid,TOut})"/>;

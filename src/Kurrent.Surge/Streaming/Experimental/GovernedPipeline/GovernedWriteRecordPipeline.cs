@@ -1,10 +1,11 @@
 using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Experimental;
 using Kurrent.Validation;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
-namespace Kurrent.Surge.Experimental;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// The governed write chain: classify → govern → encode → frame, one composed chain. The
@@ -14,8 +15,8 @@ namespace Kurrent.Surge.Experimental;
 /// chain runs at all. Produces the same wire message as the <c>ToContract</c> mapping, which
 /// stays untouched as the baseline.
 /// </summary>
-sealed class GovernedWriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
-    GovernedWriteRecordPipeline(IStep<AppendRecord, Contracts.AppendRecord> pipeline) => Pipeline = pipeline;
+sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
+    WriteRecordPipeline(IStep<AppendRecord, Contracts.AppendRecord> pipeline) => Pipeline = pipeline;
 
     public IStep<AppendRecord, Contracts.AppendRecord> Pipeline { get; init; }
 
@@ -23,16 +24,16 @@ sealed class GovernedWriteRecordPipeline : IStep<AppendRecord, Contracts.AppendR
     /// Wires the canonical chain. Per-record governance does not exist on this path — the
     /// interceptor's single-flight catalog validation carries the schema info.
     /// </summary>
-    public static GovernedWriteRecordPipeline From(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, CatalogValidationInterceptor validation) {
+    public static WriteRecordPipeline From(ISchemaSerializerProvider serializerProvider, SchemaRegistryPolicy policy, CatalogValidationInterceptor validation) {
         var (_, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
 
         var codecs = SerializerCoreCodecs.From(serializerProvider);
 
         return new(new ClassifyWriteStep(messages)
             .Then(new GovernWriteStep(validation, policy, registrations)
-                .Then(new GovernedEncodeStep(codecs))
+                .Then(new EncodeWriteStep(codecs))
                 .OnNamed())
-            .Then(new GovernedFrameStep()));
+            .Then(new FrameWriteStep()));
     }
 
     public async ValueTask<Contracts.AppendRecord> Execute(AppendRecord record, CancellationToken ct) {

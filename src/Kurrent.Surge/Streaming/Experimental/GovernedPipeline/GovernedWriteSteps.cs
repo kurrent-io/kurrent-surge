@@ -1,15 +1,15 @@
 using System.Buffers;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Variant;
 using Google.Protobuf;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
-namespace Kurrent.Surge.Experimental;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// Typestate carrier after catalog resolution: the source record and its schema name.
@@ -21,6 +21,17 @@ readonly record struct NamedWrite(AppendRecord Source, SchemaName Schema);
 /// name, or a raw-bytes record already encoded.
 /// </summary>
 readonly partial record struct WriteResolution : IVariant<NamedWrite, EncodedWrite>;
+
+/// <summary>
+/// Typestate carrier between resolve and encode: the source record and its resolved wire schema.
+/// </summary>
+readonly record struct ResolvedWrite(AppendRecord Source, RecordSchemaInfo Schema);
+
+/// <summary>
+/// Typestate carrier between encode and frame: the source record, the schema the serializer
+/// resolved, and the serialized payload.
+/// </summary>
+readonly record struct EncodedWrite(AppendRecord Source, RecordSchemaInfo Schema, ReadOnlyMemory<byte> Payload);
 
 /// <summary>
 /// Routes the record. Raw Bytes unwraps straight to an encoded write — no name to resolve,
@@ -97,7 +108,7 @@ sealed class GovernWriteStep(
 /// <summary>
 /// Pure encode over an already-resolved schema through the format's codec.
 /// </summary>
-sealed class GovernedEncodeStep(SchemaCodecProvider codecs) : IStep<ResolvedWrite, EncodedWrite> {
+sealed class EncodeWriteStep(SchemaCodecProvider codecs) : IStep<ResolvedWrite, EncodedWrite> {
     public ValueTask<EncodedWrite> Execute(ResolvedWrite input, CancellationToken ct) {
         var source = input.Source;
 
@@ -119,7 +130,7 @@ sealed class GovernedEncodeStep(SchemaCodecProvider codecs) : IStep<ResolvedWrit
 /// Frames the wire message. <c>SchemaInfo.Id</c> is set only when the registry supplied a
 /// version id — an absent id stays absent on the wire, never minted client-side.
 /// </summary>
-sealed class GovernedFrameStep : IStep<EncodedWrite, Contracts.AppendRecord> {
+sealed class FrameWriteStep : IStep<EncodedWrite, Contracts.AppendRecord> {
     public ValueTask<Contracts.AppendRecord> Execute(EncodedWrite input, CancellationToken ct) {
         var source = input.Source;
 

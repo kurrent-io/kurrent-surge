@@ -1,11 +1,10 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
-namespace Kurrent.Surge.Experimental;
+namespace Kurrent.Surge.Client.Schema.Governance;
 
 /// <summary>
 /// Starts catalog validation on the back of the FIRST gRPC call — the earliest moment the

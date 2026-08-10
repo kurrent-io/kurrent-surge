@@ -1,15 +1,13 @@
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
-using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
-namespace Kurrent.Surge.Experimental;
+namespace Kurrent.Surge.Client.Schema.Governance;
 
 /// <summary>
 /// The real <see cref="ISchemaGovernance"/>: registry RPC, registration race protocol, and

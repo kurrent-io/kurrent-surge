@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
@@ -23,10 +24,10 @@ namespace Benchmarks;
 [Config(typeof(BenchmarkConfig))]
 [BenchmarkCategory("Append")]
 public class GovernedAppendBenchmarks {
-    ClientBenchmarkFixture      _fixture  = null!;
-    StreamsClient               _streams  = null!;
-    GovernedWriteRecordPipeline _governed = null!;
-    AppendRecord[]              _records  = null!;
+    ClientBenchmarkFixture _fixture  = null!;
+    StreamsClient          _streams  = null!;
+    WriteRecordPipeline    _governed = null!;
+    AppendRecord[]         _records  = null!;
 
     /// <summary>Records per append call — the mapping delta scales with the batch.</summary>
     [Params(10, 100)]
@@ -53,7 +54,7 @@ public class GovernedAppendBenchmarks {
 
         var validation = new CatalogValidationInterceptor(new SchemaManagerGovernanceAdapter(manager), catalogs, resolved);
 
-        _governed = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, validation);
+        _governed = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, validation);
 
         // Pre-built catalog records, one stream — both paths map the same instances per op.
         var stream = $"governed-append-bench-{RecordCount}";

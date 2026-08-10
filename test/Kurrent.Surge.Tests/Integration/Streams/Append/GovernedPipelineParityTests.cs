@@ -1,5 +1,6 @@
 using Bogus;
 using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Experimental;
@@ -53,7 +54,7 @@ public class GovernedPipelineParityTests {
         // Arrange
         var streams  = new StreamsClient(Fixture.Client);
         var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
+        var pipeline = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
 
         var record = AppendRecord.Create(RaceCar.Generate(), r => {
             r.Stream = $"governed-parity-{TestId.New()}";
@@ -74,7 +75,7 @@ public class GovernedPipelineParityTests {
         // Arrange
         var streams  = new StreamsClient(Fixture.Client);
         var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
+        var pipeline = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
 
         var record = AppendRecord.Create(Faker.Random.Bytes(64), r => {
             r.Stream     = $"governed-parity-bytes-{TestId.New()}";
@@ -111,7 +112,7 @@ public class GovernedPipelineParityTests {
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        var pipeline = GovernedReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
+        var pipeline = ReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
 
         // Act
         var outcome = await pipeline.Execute(raw[0], ct);
@@ -144,7 +145,7 @@ public class GovernedPipelineParityTests {
             .Select(msg => msg.AsRecord)
             .ToListAsync(ct);
 
-        var pipeline = GovernedReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
+        var pipeline = ReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, SchemaGovernance.Create(Fixture.Client));
 
         // Act
         var outcome = await pipeline.Execute(raw[0], ct);
@@ -160,7 +161,7 @@ public class GovernedPipelineParityTests {
         // Guid fallback was a bug). The server has never received one before this test.
         var streams  = new StreamsClient(Fixture.Client);
         var mapping  = streams.CreateMappingContext(ct);
-        var pipeline = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
+        var pipeline = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping));
 
         var record   = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"governed-wire-{TestId.New()}");
         var contract = await pipeline.Execute(record, ct);
@@ -193,8 +194,8 @@ public class GovernedPipelineParityTests {
         var mapping  = streams.CreateMappingContext(ct);
         var governance = SchemaGovernance.Create(Fixture.Client);
 
-        var write = GovernedWriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping, governance));
-        var read  = GovernedReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, governance);
+        var write = WriteRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping, governance));
+        var read  = ReadRecordPipeline.From(mapping.SerializerProvider, mapping.Policy, governance);
 
         var stream   = $"governed-roundtrip-{TestId.New()}";
         var expected = Enumerable.Range(0, 100).Select(_ => RaceCar.Generate()).ToList();
@@ -231,7 +232,7 @@ public class GovernedPipelineParityTests {
 
         var (manager, _, _) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
 
-        var pipeline = GovernedWriteRecordPipeline.From(
+        var pipeline = WriteRecordPipeline.From(
             mapping.SerializerProvider, mapping.Policy, CreateValidation(mapping, new SchemaManagerGovernanceAdapter(manager)));
 
         var record = AppendRecord.Create(RaceCar.Generate(), r => {
