@@ -1,12 +1,12 @@
 # Kurrent.Surge.MessagePack.Nerdbank
 
-A MessagePack `ISchemaSerializer` for the [Kurrent](https://kurrent.io) .NET SDK, backed by
+A MessagePack `ISchemaCodec` for the [Kurrent](https://kurrent.io) .NET SDK, backed by
 [Nerdbank.MessagePack](https://github.com/AArnott/Nerdbank.MessagePack).
 
 ## What this package does
 
 Kurrent Surge's message pipeline serializes and deserializes your message types through a pluggable
-`ISchemaSerializer`. `Kurrent.Surge.MessagePack.Nerdbank` adds MessagePack as one of those formats, alongside
+`ISchemaCodec`. `Kurrent.Surge.MessagePack.Nerdbank` adds MessagePack as one of those formats, alongside
 the SDK's built-in JSON and Protobuf support — same registration model, same message catalog, same read/write
 path. Install it, register your message types, and MessagePack becomes just another format choice for your
 streams.

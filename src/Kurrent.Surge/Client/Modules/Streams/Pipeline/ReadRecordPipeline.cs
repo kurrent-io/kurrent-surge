@@ -11,11 +11,10 @@ using JsonSerializer = System.Text.Json.JsonSerializer;
 namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
-/// The governed read chain over the decode stage — same scope as <c>RecordDecoder.TryDecode</c>,
-/// which stays untouched as the comparison baseline. One composed chain: the decodable segment
-/// is lifted over the <see cref="TypeResolution"/> union, so terminal resolutions exit mid-chain
-/// without breaking the composition. Guards are orchestration in <see cref="Execute"/> — they
-/// decide whether the chain runs at all.
+/// The read chain over the decode stage, exposed as <see cref="IRecordDecoder"/>. One composed
+/// chain: the decodable segment is lifted over the <see cref="TypeResolution"/> union, so
+/// terminal resolutions exit mid-chain without breaking the composition. Guards are
+/// orchestration in <see cref="Execute"/> — they decide whether the chain runs at all.
 /// </summary>
 sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
     ReadRecordPipeline(IStep<Record, DecodeOutcome> pipeline) => Pipeline = pipeline;

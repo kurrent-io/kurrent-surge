@@ -50,9 +50,9 @@ public class AppenderSerializeBenchmarks {
     /// One Append call's caller-thread work: serialize the record to its wire contract.
     /// Mirrors Appender.Append up to the lane enqueue.
     /// </summary>
-    [Benchmark(Description = "ToContract (caller-thread serialize)")]
+    [Benchmark(Description = "WriteRecordPipeline (caller-thread serialize)")]
     public async ValueTask<object> serialize() =>
-        await _record.ToContract(_fixture.Client.SerializerProvider, _streams.RegistryPolicy, CancellationToken.None);
+        await _streams.WritePipeline.Execute(_record, CancellationToken.None);
 
     [GlobalCleanup]
     public async Task Cleanup() => await _fixture.As<IAsyncDisposable>().DisposeAsync();

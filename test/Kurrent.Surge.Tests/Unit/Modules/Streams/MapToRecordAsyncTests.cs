@@ -1,5 +1,3 @@
-using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Schema;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using KurrentDB.Client;
@@ -17,7 +15,7 @@ public class MapToRecordAsyncTests {
         // Act
         var ctx = new MappingContext(
             NullMetadataDecoder.Instance,
-            new RecordDecoder(NullSchemaSerializerProvider.Instance),
+            NullableRecordDecoder.Instance,
             CancellationToken.None
         );
         var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
@@ -42,7 +40,7 @@ public class MapToRecordAsyncTests {
         // Act
         var ctx = new MappingContext(
             NullMetadataDecoder.Instance,
-            new RecordDecoder(NullSchemaSerializerProvider.Instance),
+            NullableRecordDecoder.Instance,
             CancellationToken.None
         );
         var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
@@ -66,7 +64,7 @@ public class MapToRecordAsyncTests {
         // Act
         var ctx = new MappingContext(
             NullMetadataDecoder.Instance,
-            new RecordDecoder(NullSchemaSerializerProvider.Instance),
+            NullableRecordDecoder.Instance,
             CancellationToken.None
         );
         var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
@@ -88,7 +86,7 @@ public class MapToRecordAsyncTests {
         // Act & Assert
         var ctx = new MappingContext(
             NullMetadataDecoder.Instance,
-            new RecordDecoder(NullSchemaSerializerProvider.Instance),
+            NullableRecordDecoder.Instance,
             CancellationToken.None
         );
         Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -101,14 +99,5 @@ public class MapToRecordAsyncTests {
 
         public ValueTask<Metadata> Decode(ReadOnlyMemory<byte> bytes, MetadataDecoderContext context) =>
             new(new Metadata());
-    }
-
-    sealed class NullSchemaSerializerProvider : ISchemaSerializerProvider {
-        public static readonly NullSchemaSerializerProvider Instance = new();
-
-        public bool SupportsDataFormat(SchemaDataFormat dataFormat) => false;
-
-        public ISchemaSerializer GetSerializer(SchemaDataFormat dataFormat) =>
-            throw new NotSupportedException();
     }
 }

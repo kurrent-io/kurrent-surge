@@ -99,7 +99,7 @@ static class TypeResolutionSteps {
 
 /// <summary>
 /// Pure decode over an already-resolved type through the format's codec. Materializes the
-/// value onto the record like <c>RecordDecoder</c> does.
+/// decoded value onto the record.
 /// </summary>
 sealed class DecodeReadStep(SchemaCodecProvider codecs) : IStep<DecodableRead, DecodeOutcome> {
     public ValueTask<DecodeOutcome> Execute(DecodableRead input, CancellationToken ct) {

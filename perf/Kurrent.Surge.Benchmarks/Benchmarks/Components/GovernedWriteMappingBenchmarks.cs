@@ -4,7 +4,6 @@ using Google.Protobuf;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using TUnit.Core.Interfaces;
@@ -14,11 +13,8 @@ using Contracts = KurrentDB.Protocol.V2.Streams;
 namespace Benchmarks;
 
 /// <summary>
-/// Prices the governed write chain against the ToContract baseline on the identical record.
-/// The governed chain decomposes resolution into discrete steps AND never mints the
-/// per-record SchemaInfo.Id fallback the baseline still pays — so its delta is step tax minus
-/// one Guid.NewGuid().ToString() per record. Three formats only: the msgpack rows register
-/// standalone catalogs the governed extraction cannot see.
+/// Prices the governed write chain's mapping cost per payload format. Three formats only: the
+/// msgpack rows register standalone catalogs the governed extraction cannot see.
 /// </summary>
 [Config(typeof(BenchmarkConfig))]
 [BenchmarkCategory("Mapping")]
@@ -51,18 +47,16 @@ public class GovernedWriteMappingBenchmarks {
 
         _streams = new StreamsClient(_client);
 
-        var serializerProvider = _client.SerializerProvider;
-        var policy              = _streams.RegistryPolicy;
-
-        var (manager, _, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
+        var policy = _streams.RegistryPolicy;
 
         var resolved = policy
-            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .Resolve(_client.Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
-        var validation = new CatalogValidationInterceptor(new SchemaManagerGovernanceAdapter(manager), [catalog], resolved);
+        var validation = new CatalogValidationInterceptor(SchemaGovernance.Create(_client), [catalog], resolved);
 
-        _governed = WriteRecordPipeline.From(serializerProvider, policy, validation);
+        _governed = WriteRecordPipeline.Create(
+            _client.MessageResolver, policy, _client.Registrations, _client.Codecs, validation);
 
         var request = NewAppendRequest();
 
@@ -109,11 +103,7 @@ public class GovernedWriteMappingBenchmarks {
         return request;
     }
 
-    [Benchmark(Baseline = true, Description = "ToContract mapping")]
-    public async ValueTask<object> to_contract() =>
-        await _record.ToContract(_client.SerializerProvider, _streams.RegistryPolicy, CancellationToken.None);
-
-    [Benchmark(Description = "WriteRecordPipeline (governed steps, no id fallback)")]
+    [Benchmark(Description = "WriteRecordPipeline mapping cost")]
     public async ValueTask<object> governed_pipeline() =>
         await _governed.Execute(_record, CancellationToken.None);
 

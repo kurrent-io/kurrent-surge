@@ -45,7 +45,6 @@ sealed class ClassifyWriteStep(MessageResolver messages) : IStep<AppendRecord, W
             ? (WriteResolution)new EncodedWrite(input, new RecordSchemaInfo { DataFormat = SchemaDataFormat.Bytes }, UnwrapBytes(input.Value))
             : (WriteResolution)new NamedWrite(input, messages.ResolveSchemaName(input.Value.GetType())));
 
-    // Kept in sync with BytesPassthroughSerializer.Serialize.
     static ReadOnlyMemory<byte> UnwrapBytes(object? value) =>
         value switch {
             byte[] bytes               => bytes,

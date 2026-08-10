@@ -3,7 +3,6 @@ using Benchmarks.Infrastructure;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
@@ -40,22 +39,20 @@ public class GovernedAppendBenchmarks {
 
         _streams = new StreamsClient(_fixture.Client);
 
-        var serializerProvider = _fixture.Client.SerializerProvider;
-        var policy              = _streams.RegistryPolicy;
-
-        var (manager, _, registrations) = SchemaManagerGovernanceAdapter.Extract(serializerProvider);
+        var policy = _streams.RegistryPolicy;
 
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
             .Where(catalog => catalog.Types.Contains(typeof(RaceCar)))
             .ToList();
 
         var resolved = policy
-            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .Resolve(_fixture.Client.Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
-        var validation = new CatalogValidationInterceptor(new SchemaManagerGovernanceAdapter(manager), catalogs, resolved);
+        var validation = new CatalogValidationInterceptor(SchemaGovernance.Create(_fixture.Client), catalogs, resolved);
 
-        _governed = WriteRecordPipeline.From(serializerProvider, policy, validation);
+        _governed = WriteRecordPipeline.Create(
+            _fixture.Client.MessageResolver, policy, _fixture.Client.Registrations, _fixture.Client.Codecs, validation);
 
         // Pre-built catalog records, one stream — both paths map the same instances per op.
         var stream = $"governed-append-bench-{RecordCount}";

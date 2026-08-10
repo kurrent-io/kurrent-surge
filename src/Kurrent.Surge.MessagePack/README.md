@@ -6,7 +6,7 @@ by the official [MessagePack-CSharp](https://github.com/MessagePack-CSharp/Messa
 ## What this package does
 
 Kurrent Surge's message pipeline serializes and deserializes your message types through a pluggable
-`ISchemaSerializer`. `Kurrent.Surge.MessagePack` adds MessagePack as one of those formats, alongside the SDK's
+`ISchemaCodec`. `Kurrent.Surge.MessagePack` adds MessagePack as one of those formats, alongside the SDK's
 built-in JSON and Protobuf support — same registration model, same message catalog, same read/write path.
 Install it, register your message types, and MessagePack becomes just another format choice for your streams.
 

@@ -37,25 +37,13 @@ public class KurrentClient : IKurrentClient {
         // The freeze: snapshot the message catalogs (system + default + explicit + auto-
         // discovered) into a read-only resolver. Catalog changes after this point never
         // affect this client.
-        var (messageResolver, catalogs) = options.Messages
-            .UseBytes()
-            .UseJson()
-            .UseProtobuf()
-            .BuildResolver();
+        var (messageResolver, catalogs) = options.Messages.BuildResolver();
 
-        Catalogs = catalogs;
+        MessageResolver = messageResolver;
+        Catalogs        = catalogs;
 
         if (options.Messages.Protobuf.Context is not null)
             ProtobufMessages.System.Configure(options.Messages.Protobuf.Context);
-
-        // Old serialization stack: still constructed — the parity suites compare the governed
-        // pipelines against it until the wire-regression transform lands.
-        var schemaManager = new SchemaManager(new(this), NJsonSchemaExporter.Instance, messageResolver);
-
-        // Deferred: every registered factory (built-in or custom) runs now, once schemaManager exists.
-        SerializerProvider = new SchemaSerializerProvider(
-            options.Messages.SerializerFactories.Select(factory => factory(schemaManager))
-        );
 
         // Soon enough, the schema registry policy will be retrieved from the server during client
         // initialization (defaults), and then on a per-stream basis during stream operations.
@@ -87,12 +75,12 @@ public class KurrentClient : IKurrentClient {
     internal KurrentClientOptions         Options               { get; }
     internal KurrentDBLegacyCallInvoker   LegacyCallInvoker     { get; }
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
-    internal ISchemaSerializerProvider    SerializerProvider    { get; }
 
     internal CatalogValidationInterceptor CatalogValidation { get; }
     internal ISchemaGovernance            Governance        { get; }
     internal SchemaCodecProvider          Codecs            { get; }
     internal SchemaRegistryPolicy         RegistryPolicy    { get; }
+    internal MessageResolver              MessageResolver   { get; }
     internal IReadOnlyList<MessageCatalog> Catalogs         { get; }
     internal WriteRecordPipeline          WritePipeline     { get; }
     internal ReadRecordPipeline           ReadPipeline      { get; }
