@@ -133,7 +133,7 @@ sealed class ClusterChannel : IAsyncDisposable {
             channelOptions: channelOptions
         );
 
-        var appInfo = AppVersionInfo.Current;
+        var appInfo = AppInfo.Current;
 
         var clientName    = appInfo.ProductName ?? "KurrentDB .NET Client";
         var clientVersion = appInfo.ProductVersion ?? appInfo.FileVersion ?? "0.0.0";

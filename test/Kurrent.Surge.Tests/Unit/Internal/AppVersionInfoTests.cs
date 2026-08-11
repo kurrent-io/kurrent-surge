@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Kurrent.Surge.Tests.Internal;
 
-public class AppVersionInfoTests {
+public class AppInfoTests {
     [Test]
     public async ValueTask exposes_the_current_platform_as_a_short_os_name() {
         // Arrange
@@ -12,7 +12,7 @@ public class AppVersionInfoTests {
             : RuntimeInformation.OSDescription;
 
         // Act
-        var info = AppVersionInfo.Current;
+        var info = AppInfo.Current;
 
         // Assert
         await Assert.That(info.OsName).IsEqualTo(expectedOsName);
@@ -21,12 +21,12 @@ public class AppVersionInfoTests {
     [Test]
     public async ValueTask exposes_process_environment_information() {
         // Arrange
-        var expectedArchitecture  = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+        var expectedArchitecture   = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
         var expectedRuntimeVersion = Environment.Version.ToString();
         var expectedOsVersion      = Environment.OSVersion.Version.ToString();
 
         // Act
-        var info = AppVersionInfo.Current;
+        var info = AppInfo.Current;
 
         // Assert
         await Assert.That(info.HostArchitecture).IsEqualTo(expectedArchitecture);
