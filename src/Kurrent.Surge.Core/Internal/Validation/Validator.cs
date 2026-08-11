@@ -549,8 +549,10 @@ sealed class NestedValidatorAction<T, TProperty>(
         var value = accessor(instance);
         if (value is null) return;
 
+        // IsValid is severity-based, so a valid nested result can still carry warnings —
+        // gate on the presence of problems, not on validity.
         var result = validate(value);
-        if (result.IsValid) return;
+        if (result.Problems.Length == 0) return;
 
         // prefix nested problems with parent property name
         foreach (var problem in result.Problems) {

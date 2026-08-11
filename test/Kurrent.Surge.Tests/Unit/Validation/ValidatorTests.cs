@@ -104,6 +104,12 @@ public class ValidatorTests {
         }
     }
 
+    class NestedSeverityValidator : Validator<NestedSeverityValidator, Container> {
+        public NestedSeverityValidator() {
+            RuleFor(x => x.Person!).SetValidator(SeverityValidator.Instance);
+        }
+    }
+
     class SeverityValidator : Validator<SeverityValidator, Person> {
         public SeverityValidator() {
             RuleFor(x => x.Name).NotEmpty().WithSeverity(RuleSeverity.Error);
@@ -638,6 +644,22 @@ public class ValidatorTests {
         // Assert
         await Assert.That(result.IsInvalid).IsTrue();
         await Assert.That(result.Problems[0].FieldName).IsEqualTo("Person.Name");
+    }
+
+    [Test]
+    public async ValueTask nested_validator_propagates_warnings_on_valid_result() {
+        // Arrange
+        var validator = new NestedSeverityValidator();
+        var container = new Container(new Person("Alice", 0), []); // Age=0 fails but is Warning
+
+        // Act
+        var result = validator.Validate(container);
+
+        // Assert
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Problems).HasSingleItem();
+        await Assert.That(result.Problems[0].FieldName).IsEqualTo("Person.Age");
+        await Assert.That(result.Problems[0].Severity).IsEqualTo(RuleSeverity.Warning);
     }
 
     [Test]
