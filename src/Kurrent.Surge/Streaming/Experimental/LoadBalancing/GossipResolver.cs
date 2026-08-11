@@ -33,6 +33,7 @@ sealed partial class GossipResolver : PollingResolver {
     // arrays are only ever touched by the active pass. The pending leader is the one
     // cross-thread handoff — announced from interceptor threads — and is boxed so
     // Interlocked can swap the reference atomically; a nullable struct would tear.
+    
     ClusterEndpoint[] _knownEndpoints;
     ClusterEndpoint[] _lastPublished = [];
     object?           _pendingLeader;
@@ -45,28 +46,23 @@ sealed partial class GossipResolver : PollingResolver {
         _log            = loggerFactory.CreateLogger<GossipResolver>();
     }
 
-    /// <summary>
-    /// Routes traffic to the advertised leader without a gossip round-trip, matching the legacy
-    /// NewLeader reconnection: the next publish ranks that endpoint first and keeps the previously
-    /// published endpoints as fallbacks. Discovery resumes on later refreshes.
-    /// </summary>
-    public void AnnounceLeader(ClusterEndpoint leader) {
-        Interlocked.Exchange(ref _pendingLeader, leader);
-        Refresh();
-    }
-
     protected override async Task ResolveAsync(CancellationToken cancellationToken) {
         if (Interlocked.Exchange(ref _pendingLeader, null) is ClusterEndpoint announced) {
             PublishAnnouncedLeader(announced);
             return;
         }
 
-        if (!_options.DiscoveryEnabled) {
+        if (_options.DiscoveryEnabled)
+            await DiscoverAsync().ConfigureAwait(false);
+        else
             Publish(_options.Seeds);
-            return;
-        }
 
-        await DiscoverAsync().ConfigureAwait(false);
+        // AnnounceLeader's Refresh() call is a no-op whenever a pass is already running
+        // (PollingResolver serializes passes and drops concurrent refreshes), so an
+        // announcement made mid-pass would otherwise sit unconsumed until some other
+        // trigger arrives. Catch up immediately instead of waiting for one.
+        if (Interlocked.Exchange(ref _pendingLeader, null) is ClusterEndpoint announcedDuringPass)
+            PublishAnnouncedLeader(announcedDuringPass);
 
         void PublishAnnouncedLeader(ClusterEndpoint endpoint) {
             var fallbacks = (_lastPublished.Length > 0 ? _lastPublished : _options.Seeds)
@@ -129,6 +125,16 @@ sealed partial class GossipResolver : PollingResolver {
         }
     }
 
+    /// <summary>
+    /// Routes traffic to the advertised leader without a gossip round-trip, matching the legacy
+    /// NewLeader reconnection: the next publish ranks that endpoint first and keeps the previously
+    /// published endpoints as fallbacks. Discovery resumes on later refreshes.
+    /// </summary>
+    public void AnnounceLeader(ClusterEndpoint leader) {
+        Interlocked.Exchange(ref _pendingLeader, leader);
+        Refresh();
+    }
+    
     void Publish(ClusterEndpoint[] endpoints) {
         _lastPublished = endpoints;
 

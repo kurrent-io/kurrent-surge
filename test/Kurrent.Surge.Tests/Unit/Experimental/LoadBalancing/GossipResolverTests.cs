@@ -112,6 +112,44 @@ public class GossipResolverTests {
     }
 
     [Test]
+    [Timeout(5_000)]
+    public async ValueTask announced_leader_survives_a_pass_already_in_flight(CancellationToken cancellationToken) {
+        // Arrange: gossip blocks until released, so AnnounceLeader lands while a resolve
+        // pass is still running. PollingResolver.Refresh() is a documented no-op whenever
+        // a pass hasn't completed yet, so the announcement's own Refresh() call is dropped.
+        var gossipEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gossipGate     = new TaskCompletionSource<ClusterTopology>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gossip         = A.Fake<IGossipClient>();
+
+        A.CallTo(() => gossip.GetTopology(A<ClusterEndpoint>._, A<CancellationToken>._))
+            .ReturnsLazily(() => {
+                gossipEntered.TrySetResult();
+                return new ValueTask<ClusterTopology>(gossipGate.Task);
+            });
+
+        using var resolver = CreateResolver(new() { Seeds = [Seed], NodeReadPreference = NodeReadPreference.Leader }, gossip);
+        var results = StartCapturing(resolver);
+
+        // Act: start a pass, wait until it is genuinely in flight (blocked on gossip),
+        // announce a leader while it's running, then let the pass complete.
+        resolver.Refresh();
+        await gossipEntered.Task;
+
+        resolver.AnnounceLeader(Replica);
+        gossipGate.SetResult(Topology);
+
+        var fromDiscovery = await results.ReadAsync(cancellationToken);
+        var fromAnnounce  = await results.ReadAsync(cancellationToken);
+
+        // Assert: the in-flight pass still publishes its own (stale) gossip view first,
+        // but the dropped announcement is not lost — it catches up right after instead of
+        // waiting for an external trigger that may never come.
+        await Assert.That(fromDiscovery.Addresses![0].EndPoint.Host).IsEqualTo(Leader.Host);
+        await Assert.That(fromAnnounce.Addresses![0].EndPoint.Host).IsEqualTo(Replica.Host);
+        await Assert.That(RankOf(fromAnnounce.Addresses[0])).IsEqualTo(0);
+    }
+
+    [Test]
     public async ValueTask queries_discovered_members_instead_of_seeds_after_first_success(CancellationToken cancellationToken) {
         // Arrange: the seed is not a cluster member; discovery must move on to members.
         var gossip = A.Fake<IGossipClient>();
