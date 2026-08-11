@@ -28,7 +28,13 @@ public record KurrentClientCompressionOptions : SelfValidating<KurrentClientComp
     /// The compression algorithm requested for outgoing calls when <see cref="Enabled"/> is <see langword="true"/>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Default value is <see cref="CompressionAlgorithm.Gzip"/>.
+    /// </para>
+    /// <para>
+    /// The KurrentDB server currently only implements <see cref="CompressionAlgorithm.Gzip"/> —
+    /// see the remarks on <see cref="CompressionAlgorithm"/> before choosing another value.
+    /// </para>
     /// </remarks>
     public CompressionAlgorithm Algorithm { get; set; } = CompressionAlgorithm.Gzip;
 
