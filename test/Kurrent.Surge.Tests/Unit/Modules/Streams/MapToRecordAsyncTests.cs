@@ -3,6 +3,7 @@ using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.Streams.Checkpoints;
+using Kurrent.Surge.Legacy;
 
 namespace Kurrent.Surge.Tests.Modules.Streams;
 

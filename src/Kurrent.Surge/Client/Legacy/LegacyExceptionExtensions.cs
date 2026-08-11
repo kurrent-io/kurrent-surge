@@ -2,9 +2,9 @@ using System.Diagnostics.CodeAnalysis;
 using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Surge.Client.Streams;
+namespace Kurrent.Surge.Legacy;
 
-static partial class KurrentDBLegacyExceptionExtensions {
+static partial class LegacyExceptionExtensions {
     const string LegacyErrorCodeKey = "exception";
 
     extension(Exception ex) {
@@ -54,4 +54,10 @@ static partial class KurrentDBLegacyExceptionExtensions {
     static bool IsHiddenLogPositionNotFound(RpcException rex) =>
         rex.StatusCode == StatusCode.Unknown &&
         rex.Message.Contains("InvalidPosition >>", StringComparison.OrdinalIgnoreCase);
+}
+
+static class LegacyErrorCodes {
+    public const string StreamDeleted        = "stream-deleted";
+    public const string WrongExpectedVersion = "wrong-expected-version";
+    public const string LogPositionNotFound  = "invalid-log-position";
 }

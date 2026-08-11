@@ -8,6 +8,7 @@ using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using Kurrent.Grpc;
+using Kurrent.Surge.Legacy;
 using KurrentDB.Protocol.V1.Streams;
 using static Kurrent.Surge.Client.Streams.StreamsClientMapping;
 using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;

@@ -8,6 +8,7 @@ using Google.Protobuf.WellKnownTypes;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams.Checkpoints;
+using Kurrent.Surge.Legacy;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 

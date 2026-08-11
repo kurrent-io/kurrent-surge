@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams.Checkpoints;
+using Kurrent.Surge.Legacy;
 using KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Surge.Client.Streams;

@@ -1,4 +1,5 @@
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Legacy;
 
 namespace Kurrent.Surge.Tests.Legacy;
 
