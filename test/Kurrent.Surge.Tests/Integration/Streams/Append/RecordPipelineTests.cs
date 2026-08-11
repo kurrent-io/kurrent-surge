@@ -60,6 +60,29 @@ public class RecordPipelineTests {
     }
 
     [Test]
+    public async ValueTask governed_write_cancellation_abandons_a_pending_catalog_validation(CancellationToken ct) {
+        // Arrange — a validation that never completes: the caller's token must abandon the
+        // wait instead of blocking until the client lifetime ends. The client-level seam
+        // cannot host this proof: options.Interceptors joins the gRPC chain only, while the
+        // pipeline awaits the client's own ctor-constructed interceptor.
+        var streams = new StreamsClient(Fixture.Client);
+
+        var pending = new CatalogValidationInterceptor(() =>
+            new TaskCompletionSource<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>>().Task);
+
+        var pipeline = WriteRecordPipeline.Create(Resolver, streams.RegistryPolicy, Registrations, Codecs, pending);
+
+        var record = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"validation-cancel-{TestId.New()}");
+
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(250));
+
+        // Act & Assert — cancellation surfaces as cancellation, not as a mapping failure.
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await pipeline.Execute(record, cancellation.Token));
+    }
+
+    [Test]
     public async ValueTask governed_write_frames_a_catalog_record_with_the_resolved_schema_name(CancellationToken ct) {
         // Arrange
         var streams  = new StreamsClient(Fixture.Client);

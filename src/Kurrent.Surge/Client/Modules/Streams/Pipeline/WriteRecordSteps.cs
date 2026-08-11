@@ -90,7 +90,9 @@ sealed class GovernWriteStep(
     public async ValueTask<ResolvedWrite> Execute(NamedWrite input, CancellationToken ct) {
         var source = input.Source;
 
-        var validated = await validation.Validation.ConfigureAwait(false);
+        // WaitAsync abandons only this caller's wait — the single-flight validation keeps
+        // running on the client lifetime token for every other caller.
+        var validated = await validation.Validation.WaitAsync(ct).ConfigureAwait(false);
 
         policy
             .Resolve(registrations[source.DataFormat], source.Stream, source.DataFormat)

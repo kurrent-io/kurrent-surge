@@ -42,8 +42,9 @@ sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
 
             return await Pipeline.Execute(record, ct).ConfigureAwait(false);
         }
-        // Validation speaks for itself — the wrap preserves the mapping contract for the rest.
-        catch (Exception ex) when (ex is not ValidationException) {
+        // Validation speaks for itself, and cancellation must surface as cancellation —
+        // the wrap preserves the mapping contract for the rest.
+        catch (Exception ex) when (ex is not ValidationException and not OperationCanceledException) {
             throw new ArgumentException($"Failed to map AppendRecord for stream '{record.Stream}'", ex);
         }
     }
