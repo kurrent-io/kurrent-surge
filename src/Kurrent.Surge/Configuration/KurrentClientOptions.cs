@@ -141,6 +141,14 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// </remarks>
     public KurrentClientSchemaOptions Schema { get; set; } = KurrentClientSchemaOptions.FullValidation;
 
+    /// <summary>
+    /// Compression configuration for outgoing gRPC calls.
+    /// </summary>
+    /// <remarks>
+    /// Disabled by default. See <see cref="KurrentClientCompressionOptions"/>.
+    /// </remarks>
+    public KurrentClientCompressionOptions Compression { get; set; } = KurrentClientCompressionOptions.Default;
+
 	/// <summary>
 	/// Metadata decoder for processing event metadata.
 	/// </summary>
@@ -264,6 +272,9 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
 
             RuleFor(options => options.Security)
                 .SetValidator(KurrentClientSecurityOptions.Validator.Instance);
+
+            RuleFor(options => options.Compression)
+                .SetValidator(KurrentClientCompressionOptions.Validator.Instance);
         }
     }
 

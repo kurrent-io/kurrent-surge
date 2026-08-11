@@ -5,6 +5,7 @@ using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Balancer;
 using Grpc.Net.Client.Configuration;
+using Kurrent.Grpc.Compression;
 using Kurrent.Grpc.Interceptors;
 using Kurrent.Http;
 using Kurrent.Surge.Client;
@@ -113,19 +114,24 @@ sealed class ClusterChannel : IAsyncDisposable {
         var transportCredentials = insecure ? ChannelCredentials.Insecure : ChannelCredentials.SecureSsl;
         var channelCredentials   = callCredentials is null ? transportCredentials : ChannelCredentials.Create(channelCredentials: transportCredentials, callCredentials: callCredentials);
 
+        var channelOptions = new GrpcChannelOptions {
+            Credentials                             = channelCredentials,
+            HttpHandler                             = channelHandler,
+            DisposeHttpClient                       = false,
+            LoggerFactory                           = options.LoggerFactory,
+            ServiceProvider                         = services,
+            ServiceConfig                           = serviceConfig,
+            MaxReceiveMessageSize                   = MaxReceiveMessageLength,
+            ThrowOperationCanceledOnCancellation    = true,
+            UnsafeUseInsecureChannelCallCredentials = insecure && callCredentials is not null
+        };
+
+        if (options.Compression.Enabled)
+            channelOptions.WithCompressionProviders();
+
         var channel = GrpcChannel.ForAddress(
             address: $"{GossipResolverFactory.Scheme}:///{options.ConnectionName}",
-            channelOptions: new() {
-                Credentials                             = channelCredentials,
-                HttpHandler                             = channelHandler,
-                DisposeHttpClient                       = false,
-                LoggerFactory                           = options.LoggerFactory,
-                ServiceProvider                         = services,
-                ServiceConfig                           = serviceConfig,
-                MaxReceiveMessageSize                   = MaxReceiveMessageLength,
-                ThrowOperationCanceledOnCancellation    = true,
-                UnsafeUseInsecureChannelCallCredentials = insecure && callCredentials is not null
-            }
+            channelOptions: channelOptions
         );
 
         var clientName    = AppVersionInfo.Current.ProductName ?? "KurrentDB .NET Client";
@@ -142,9 +148,13 @@ sealed class ClusterChannel : IAsyncDisposable {
             logger: options.LoggerFactory.CreateLogger<LeaderChangeInterceptor>()
         );
 
+        Interceptor[] interceptors = options.Compression.Enabled
+            ? [..options.Interceptors, headersInterceptor, leaderChangeInterceptor, new CompressionInterceptor(options.Compression.Algorithm)]
+            : [..options.Interceptors, headersInterceptor, leaderChangeInterceptor];
+
         var callInvoker = channel
             .CreateCallInvoker()
-            .Intercept(interceptors: [..options.Interceptors, headersInterceptor, leaderChangeInterceptor]);
+            .Intercept(interceptors: interceptors);
 
         return new(
             channel: channel,
