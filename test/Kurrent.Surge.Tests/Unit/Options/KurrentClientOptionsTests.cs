@@ -302,6 +302,33 @@ public class KurrentClientOptionsTests {
     }
 
     [Test]
+    public async ValueTask parses_node_preference_from_the_legacy_cross_sdk_parameter_name() {
+        var connectionString = "kurrentdb+discover://localhost?nodePreference=follower";
+
+        var options = KurrentClientOptions.Parse(connectionString);
+
+        await Assert.That(options.Gossip.ReadPreference).IsEqualTo(NodeReadPreference.Follower);
+    }
+
+    [Test]
+    public async ValueTask parses_node_preference_from_the_read_preference_parameter_name() {
+        var connectionString = "kurrentdb+discover://localhost?readPreference=follower";
+
+        var options = KurrentClientOptions.Parse(connectionString);
+
+        await Assert.That(options.Gossip.ReadPreference).IsEqualTo(NodeReadPreference.Follower);
+    }
+
+    [Test]
+    public async ValueTask read_preference_parameter_wins_when_both_preference_parameters_are_present() {
+        var connectionString = "kurrentdb+discover://localhost?nodePreference=leader&readPreference=follower";
+
+        var options = KurrentClientOptions.Parse(connectionString);
+
+        await Assert.That(options.Gossip.ReadPreference).IsEqualTo(NodeReadPreference.Follower);
+    }
+
+    [Test]
     public async Task throws_when_parsing_connection_string_with_invalid_integer_parameters() {
         var connectionString = "kurrentdb://localhost?maxDiscoverAttempts=notAnInteger";
 

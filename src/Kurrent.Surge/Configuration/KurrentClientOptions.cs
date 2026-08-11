@@ -487,20 +487,34 @@ file static class Extensions {
                 var maxDiscoverAttempts = GetParameterValue(source.Options, "MaxDiscoverAttempts", 10);
                 var discoveryInterval   = GetParameterValue(source.Options, "DiscoveryInterval", 100);
                 var gossipTimeout       = GetParameterValue(source.Options, "GossipTimeout", 5000);
-                var nodePreference      = GetParameterValue(source.Options, "NodePreference", NodeReadPreference.Random);
+
+                // ReadPreference is the name going forward across every SDK; NodePreference is
+                // the current cross-SDK spelling every client still documents and emits. Accept
+                // both, ReadPreference wins if a connection string somehow carries both.
+                var readPreference = GetParameterValue(
+                    source.Options, "ReadPreference",
+                    GetParameterValue(source.Options, "NodePreference", NodeReadPreference.Random));
 
                 return new() {
                     MaxDiscoverAttempts = maxDiscoverAttempts,
                     DiscoveryInterval   = FromMilliseconds(discoveryInterval),
                     Timeout             = FromMilliseconds(gossipTimeout),
-                    ReadPreference      = nodePreference
+                    ReadPreference      = readPreference
                 };
             }
         }
     }
 
-    static T GetParameterValue<T>(Dictionary<string, string> source, string key, T defaultValue) =>
-        !source.TryGetValue(key, out var strValue) ? defaultValue : (T)Convert.ChangeType(strValue, typeof(T));
+    static T GetParameterValue<T>(Dictionary<string, string> source, string key, T defaultValue) {
+        if (!source.TryGetValue(key, out var strValue))
+            return defaultValue;
+
+        // Convert.ChangeType cannot cast a name-based string (e.g. "follower") to an enum;
+        // it only round-trips the underlying numeric representation. Parse enums by name.
+        return typeof(T).IsEnum
+            ? (T)Enum.Parse(typeof(T), strValue, ignoreCase: true)
+            : (T)Convert.ChangeType(strValue, typeof(T));
+    }
 
     static string? GetParameterValue(Dictionary<string, string> source, string key, string? defaultValue) =>
         !source.TryGetValue(key, out var value) ? defaultValue : value;
