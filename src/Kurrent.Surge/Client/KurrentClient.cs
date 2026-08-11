@@ -15,7 +15,7 @@ namespace Kurrent.Surge.Client;
 [PublicAPI]
 public class KurrentClient : IKurrentClient {
     public KurrentClient(KurrentClientOptions options) {
-	    options.EnsureValid();
+	    options.EnsureValid(options.LoggerFactory.CreateLogger<KurrentClient>());
 
 	    Options = options;
 

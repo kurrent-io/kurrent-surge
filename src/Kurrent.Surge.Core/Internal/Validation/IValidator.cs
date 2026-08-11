@@ -90,6 +90,21 @@ public sealed class ValidationResult {
     }
 
     /// <summary>
+    /// Logs warning-severity problems to <paramref name="logger"/>, then throws a
+    /// <see cref="ValidationException"/> if the result is invalid.
+    /// </summary>
+    /// <remarks>
+    /// Warnings are logged before the throw so an invalid result still reports its advisories.
+    /// </remarks>
+    public void EnsureValid(ILogger logger) {
+        foreach (var problem in Problems)
+            if (problem.Severity == RuleSeverity.Warning)
+                logger.LogWarning("Validation warning for {Field}: {Message}", problem.FieldName, problem.Message);
+
+        EnsureValid();
+    }
+
+    /// <summary>
     /// Creates a failure result from an error code and one or more validation problems.
     /// </summary>
     public static ValidationResult Failure(ErrorCode code, params ValidationProblem[] problems) {
