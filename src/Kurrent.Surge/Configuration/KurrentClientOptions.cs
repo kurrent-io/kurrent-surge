@@ -509,8 +509,6 @@ file static class Extensions {
         if (!source.TryGetValue(key, out var strValue))
             return defaultValue;
 
-        // Convert.ChangeType cannot cast a name-based string (e.g. "follower") to an enum;
-        // it only round-trips the underlying numeric representation. Parse enums by name.
         return typeof(T).IsEnum
             ? (T)Enum.Parse(typeof(T), strValue, ignoreCase: true)
             : (T)Convert.ChangeType(strValue, typeof(T));
