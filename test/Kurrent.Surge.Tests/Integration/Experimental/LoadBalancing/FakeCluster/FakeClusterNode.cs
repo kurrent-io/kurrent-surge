@@ -10,12 +10,12 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Google.Rpc;
-using Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster.Protocol;
+using Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster.Protocol;
 using Any = Google.Protobuf.WellKnownTypes.Any;
 using Metadata = Grpc.Core.Metadata;
 using RpcStatus = Google.Rpc.Status;
 
-namespace Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster;
+namespace Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster;
 
 /// <summary>
 /// One in-process cluster node: a Kestrel HTTP/2 endpoint on a dynamic loopback port

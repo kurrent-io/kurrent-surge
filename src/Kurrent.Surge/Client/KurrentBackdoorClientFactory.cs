@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Kurrent.Http;
-using Kurrent.Surge.Experimental.LoadBalancing;
+using Kurrent.Surge.Client.LoadBalancing;
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
 

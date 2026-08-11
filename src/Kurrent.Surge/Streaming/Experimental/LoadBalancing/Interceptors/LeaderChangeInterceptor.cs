@@ -4,7 +4,7 @@ using Grpc.Core.Interceptors;
 using Kurrent.Rpc;
 using static System.Threading.Tasks.TaskContinuationOptions;
 
-namespace Kurrent.Surge.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Client.LoadBalancing;
 
 /// <summary>
 /// Detects the not-leader failure on any call shape and announces the advertised leader

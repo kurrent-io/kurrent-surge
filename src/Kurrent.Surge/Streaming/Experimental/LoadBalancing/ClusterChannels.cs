@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client;
 using KurrentDB.Client;
 
-namespace Kurrent.Surge.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Client.LoadBalancing;
 
 /// <summary>
 /// Owns the write and read <see cref="ClusterChannel"/> pair for a client. Write is always

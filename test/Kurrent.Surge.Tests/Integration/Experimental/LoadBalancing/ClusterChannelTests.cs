@@ -3,13 +3,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Grpc.Core;
-using Kurrent.Surge.Experimental.LoadBalancing;
-using Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster;
+using Kurrent.Surge.Client.LoadBalancing;
+using Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster;
 using KurrentDB.Client;
-using NodeState = Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster.Protocol.MemberInfo.Types.VNodeState;
+using NodeState = Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster.Protocol.MemberInfo.Types.VNodeState;
 using ProbeClient = EventStore.Client.Gossip.Gossip.GossipClient;
 
-namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Tests.Client.LoadBalancing;
 
 [Category("Integration")]
 [Timeout(30_000)]

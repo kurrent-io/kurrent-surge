@@ -3,12 +3,12 @@ using Google.Rpc;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Kurrent.Rpc;
-using Kurrent.Surge.Experimental.LoadBalancing;
+using Kurrent.Surge.Client.LoadBalancing;
 using Microsoft.Extensions.Logging.Abstractions;
 using Metadata = Grpc.Core.Metadata;
 using RpcStatus = Google.Rpc.Status;
 
-namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Tests.Client.LoadBalancing;
 
 public class LeaderChangeInterceptorTests {
     static readonly Marshaller<string> StringMarshaller = Marshallers.Create(_ => [], _ => "");

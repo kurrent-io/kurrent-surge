@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Client.LoadBalancing;
 
 /// <summary>
 /// Reads the cluster topology from a node's gossip endpoint.

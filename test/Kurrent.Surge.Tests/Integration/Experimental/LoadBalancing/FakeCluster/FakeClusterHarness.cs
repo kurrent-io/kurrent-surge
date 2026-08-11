@@ -1,7 +1,7 @@
 using System.Net;
-using Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster.Protocol;
+using Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster.Protocol;
 
-namespace Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster;
+namespace Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster;
 
 /// <summary>
 /// An in-process KurrentDB-shaped cluster: N Kestrel nodes on dynamic loopback ports,

@@ -1,6 +1,6 @@
 using Grpc.Net.Client.Balancer;
 
-namespace Kurrent.Surge.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Client.LoadBalancing;
 
 /// <summary>
 /// Creates <see cref="KurrentDBLoadBalancer"/> instances and keeps a handle to the

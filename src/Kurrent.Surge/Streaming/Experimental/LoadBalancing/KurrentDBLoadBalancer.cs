@@ -1,7 +1,7 @@
 using Grpc.Core;
 using Grpc.Net.Client.Balancer;
 
-namespace Kurrent.Surge.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Client.LoadBalancing;
 
 /// <summary>
 /// Routes every call to the most preferred node, as ranked by <see cref="GossipResolver"/>.

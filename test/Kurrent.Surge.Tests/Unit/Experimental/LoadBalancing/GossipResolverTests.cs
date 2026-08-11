@@ -1,12 +1,12 @@
 using System.Threading.Channels;
 using Grpc.Core;
 using Grpc.Net.Client.Balancer;
-using Kurrent.Surge.Experimental.LoadBalancing;
+using Kurrent.Surge.Client.LoadBalancing;
 using KurrentDB.Client;
 using Microsoft.Extensions.Logging.Abstractions;
-using IGossipClient = Kurrent.Surge.Experimental.LoadBalancing.IGossipClient;
+using IGossipClient = Kurrent.Surge.Client.LoadBalancing.IGossipClient;
 
-namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Tests.Client.LoadBalancing;
 
 public class GossipResolverTests {
     static readonly ClusterEndpoint Seed     = new("seed", 1113);

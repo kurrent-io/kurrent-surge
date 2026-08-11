@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package event_store.client.gossip;
 
-option csharp_namespace = "Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster.Protocol";
+option csharp_namespace = "Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster.Protocol";
 
 // Wire-compatible replica of proto/kurrentdb/protocol/v1/gossip.proto with server
 // codegen for the in-process fake cluster. The service path on the wire is

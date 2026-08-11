@@ -2,7 +2,7 @@ using Grpc.Core;
 using Grpc.Net.Client.Balancer;
 using KurrentDB.Client;
 
-namespace Kurrent.Surge.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Client.LoadBalancing;
 
 sealed record GossipResolverOptions {
     public required ClusterEndpoint[] Seeds { get; init; }

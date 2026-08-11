@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using Kurrent.Surge.Experimental.LoadBalancing;
+using Kurrent.Surge.Client.LoadBalancing;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Benchmarks;

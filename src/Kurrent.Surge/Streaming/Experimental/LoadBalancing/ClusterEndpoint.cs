@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Net;
 
-namespace Kurrent.Surge.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Client.LoadBalancing;
 
 /// <summary>
 /// The identity of a cluster node: host and port with value equality. The host is

@@ -3,7 +3,7 @@ using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Testkit;
 
-namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Tests.Client.LoadBalancing;
 
 [Category("Integration")]
 public class ClusterConvergenceTests {

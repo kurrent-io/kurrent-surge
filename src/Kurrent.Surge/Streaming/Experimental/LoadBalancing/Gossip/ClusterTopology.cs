@@ -1,6 +1,6 @@
 using KurrentDB.Client;
 
-namespace Kurrent.Surge.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Client.LoadBalancing;
 
 /// <summary>
 /// The routing role of a cluster member. <see cref="NotAllowed"/> covers every wire state

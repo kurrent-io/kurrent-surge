@@ -1,7 +1,7 @@
-using Kurrent.Surge.Experimental.LoadBalancing;
+using Kurrent.Surge.Client.LoadBalancing;
 using KurrentDB.Client;
 
-namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Tests.Client.LoadBalancing;
 
 public class ClusterTopologyTests {
     static readonly NodeRole[] ConnectableRoles = [NodeRole.Leader, NodeRole.Follower, NodeRole.Replica];

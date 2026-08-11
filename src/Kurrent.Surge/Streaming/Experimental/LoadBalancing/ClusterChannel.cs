@@ -10,7 +10,7 @@ using Kurrent.Surge.Client;
 using KurrentDB.Client;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Kurrent.Surge.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Client.LoadBalancing;
 
 /// <summary>
 /// A load-balanced gRPC channel over a KurrentDB cluster. Discovery, node preference,

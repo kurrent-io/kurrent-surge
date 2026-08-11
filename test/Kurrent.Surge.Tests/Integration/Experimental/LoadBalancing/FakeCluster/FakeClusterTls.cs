@@ -2,7 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Kurrent.Surge.Tests.Experimental.LoadBalancing.FakeCluster;
+namespace Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster;
 
 /// <summary>
 /// An ephemeral CA plus a CA-signed server certificate (SAN: 127.0.0.1 / localhost) and a

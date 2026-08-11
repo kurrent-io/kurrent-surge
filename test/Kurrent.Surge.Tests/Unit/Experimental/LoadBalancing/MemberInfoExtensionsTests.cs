@@ -1,8 +1,8 @@
 using EventStore.Client.Gossip;
-using Kurrent.Surge.Experimental.LoadBalancing;
+using Kurrent.Surge.Client.LoadBalancing;
 using VNodeState = EventStore.Client.Gossip.MemberInfo.Types.VNodeState;
 
-namespace Kurrent.Surge.Tests.Experimental.LoadBalancing;
+namespace Kurrent.Surge.Tests.Client.LoadBalancing;
 
 public class MemberInfoExtensionsTests {
     // Explicit per-state table with no default arm: a new wire state fails the coverage
