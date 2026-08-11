@@ -329,6 +329,20 @@ public class KurrentClientOptionsTests {
     }
 
     [Test]
+    public async ValueTask parses_certificate_credentials_with_key_password() {
+        var connectionString = "kurrentdb://localhost?userCertFile=/certs/client.crt&userKeyFile=/certs/client.key&userKeyPassword=changeit";
+
+        var options = KurrentClientOptions.Parse(connectionString);
+
+        await Assert.That(options.Security.Authentication.IsFileCertificateCredentials).IsTrue();
+
+        var credentials = options.Security.Authentication.AsFileCertificateCredentials;
+        await Assert.That(credentials.CertificatePath).IsEqualTo("/certs/client.crt");
+        await Assert.That(credentials.KeyPath).IsEqualTo("/certs/client.key");
+        await Assert.That(credentials.Password).IsEqualTo("changeit");
+    }
+
+    [Test]
     public async Task throws_when_parsing_connection_string_with_invalid_integer_parameters() {
         var connectionString = "kurrentdb://localhost?maxDiscoverAttempts=notAnInteger";
 

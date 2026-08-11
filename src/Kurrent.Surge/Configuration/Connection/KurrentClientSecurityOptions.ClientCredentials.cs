@@ -32,8 +32,8 @@ public readonly partial record struct ClientCredentials : IVariant<NoCredentials
     public static ClientCredentials Basic(string username, string? password) =>
         new BasicCredentials(username, password);
 
-    public static ClientCredentials Certificate(string certificatePath, string keyPath) =>
-        new FileCertificateCredentials(certificatePath, keyPath);
+    public static ClientCredentials Certificate(string certificatePath, string keyPath, string? password = null) =>
+        new FileCertificateCredentials(certificatePath, keyPath, password);
 
     public static ClientCredentials Certificate(X509Certificate2 certificate) =>
         new X509CertificateCredentials(certificate);

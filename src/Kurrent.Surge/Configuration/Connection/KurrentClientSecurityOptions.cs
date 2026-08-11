@@ -68,10 +68,11 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
     /// <param name="clientCertPath">Path to client certificate file.</param>
     /// <param name="clientKeyPath">Path to client private key file.</param>
     /// <param name="rootCaPath">Optional path to root CA certificate.</param>
-    public static KurrentClientSecurityOptions MutualTls(string clientCertPath, string clientKeyPath, string? rootCaPath = null) =>
+    /// <param name="password">Optional password for an encrypted client private key or PFX file.</param>
+    public static KurrentClientSecurityOptions MutualTls(string clientCertPath, string clientKeyPath, string? rootCaPath = null, string? password = null) =>
         new() {
             Transport      = rootCaPath is not null ? TransportSecurity.Certificate(rootCaPath) : TransportSecurity.Standard,
-            Authentication = new FileCertificateCredentials(clientCertPath, clientKeyPath)
+            Authentication = new FileCertificateCredentials(clientCertPath, clientKeyPath, password)
         };
 
     /// <summary>

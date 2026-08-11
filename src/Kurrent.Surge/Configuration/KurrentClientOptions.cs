@@ -467,11 +467,12 @@ file static class Extensions {
                 }
 
                 ClientCredentials ConfigureAuthentication() {
-                    var userCertFile = GetParameterValue(source.Options, "UserCertFile", null);
-                    var userKeyFile  = GetParameterValue(source.Options, "UserKeyFile", null);
+                    var userCertFile    = GetParameterValue(source.Options, "UserCertFile", null);
+                    var userKeyFile     = GetParameterValue(source.Options, "UserKeyFile", null);
+                    var userKeyPassword = GetParameterValue(source.Options, "UserKeyPassword", null);
 
                     return !string.IsNullOrEmpty(userCertFile) && !string.IsNullOrEmpty(userKeyFile)
-                        ? ClientCredentials.Certificate(userCertFile, userKeyFile)
+                        ? ClientCredentials.Certificate(userCertFile, userKeyFile, userKeyPassword)
                         : source.UserInfo is not null
                             ? ClientCredentials.Basic(source.UserInfo.Value.User, source.UserInfo.Value.Password)
                             : ClientCredentials.None;

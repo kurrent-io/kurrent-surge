@@ -58,8 +58,9 @@ public readonly partial record struct TransportSecurity : IVariant<NoTls, Standa
     /// Creates a transport security configuration using a custom CA certificate file.
     /// </summary>
     /// <param name="caPath">Path to the CA certificate file.</param>
+    /// <param name="password">Optional password for password-protected CA files.</param>
     /// <returns>A CertificateFileTls configuration with the specified CA certificate.</returns>
-    public static TransportSecurity Certificate(string caPath) => new FileCertificateTls(caPath);
+    public static TransportSecurity Certificate(string caPath, string? password = null) => new FileCertificateTls(caPath, password);
 
     /// <summary>
     /// Creates a transport security configuration using a custom CA certificate object.
