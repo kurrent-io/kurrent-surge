@@ -94,7 +94,8 @@ public abstract class Validator<TValidator, T> : IValidator<TValidator, T>, IVal
 
     /// <summary>
     /// Validates the given instance and returns a <see cref="ValidationResult"/>.
-    /// Only <see cref="RuleSeverity.Error"/> problems cause a failure result.
+    /// Only <see cref="RuleSeverity.Error"/> problems cause a failure result;
+    /// a warnings-only outcome yields a valid result that carries the warnings.
     /// </summary>
     public ValidationResult Validate(T instance) {
         var problems = new List<ValidationProblem>();
@@ -102,12 +103,15 @@ public abstract class Validator<TValidator, T> : IValidator<TValidator, T>, IVal
         foreach (var rule in _rules)
             rule.Evaluate(instance, problems);
 
-        // filter to Error-severity only for the failure result
+        if (problems.Count == 0)
+            return ValidationResult.Valid;
+
+        // failure results carry Error-severity problems only
         var errors = problems.Where(p => p.Severity == RuleSeverity.Error).ToArray();
 
         return errors.Length > 0
             ? ValidationResult.Failure(ErrorCode, errors)
-            : ValidationResult.Valid;
+            : ValidationResult.WithWarnings([.. problems]);
     }
 
     #endregion

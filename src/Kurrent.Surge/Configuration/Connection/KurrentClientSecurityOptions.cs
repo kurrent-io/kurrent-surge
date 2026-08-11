@@ -106,6 +106,16 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
                     .WithSeverity(RuleSeverity.Warning);
             });
 
+            // Certificate-based (mTLS) auth is a TLS-level mechanism: with transport security
+            // disabled, the client certificate is built but never presented — SslOptions is
+            // only consulted once a TLS handshake actually happens.
+            When(options => options.Authentication.IsCertificateBased, () => {
+                RuleFor(options => options.Transport.IsEnabled)
+                    .Equal(true)
+                    .WithMessage("Certificate-based authentication requires TLS — the client certificate is never presented on an insecure connection.")
+                    .WithSeverity(RuleSeverity.Warning);
+            });
+
             // Certificate path validation for Authentication
             When(options => options.Authentication.IsFileCertificateCredentials, () => {
                 RuleFor(options => options.Authentication.AsFileCertificateCredentials.CertificatePath)

@@ -45,6 +45,11 @@ public sealed class ValidationResult {
         Problems  = [];
     }
 
+    ValidationResult(ValidationProblem[] warnings) {
+        ErrorCode = ErrorCode.None;
+        Problems  = warnings;
+    }
+
     ValidationResult(ErrorCode errorCode, string errorMessage, ValidationProblem[] problems) {
         ErrorCode    = errorCode;
         ErrorMessage = errorMessage;
@@ -69,7 +74,7 @@ public sealed class ValidationResult {
     /// <summary>
     /// Whether the validation passed with no error-level problems.
     /// </summary>
-    public bool IsValid => Problems.Length == 0;
+    public bool IsValid => !Array.Exists(Problems, static p => p.Severity == RuleSeverity.Error);
 
     /// <summary>
     /// Whether the validation failed.
@@ -97,6 +102,14 @@ public sealed class ValidationResult {
     /// </summary>
     public static ValidationResult Failure(params ValidationProblem[] problems) =>
         Failure(ErrorCode.From("VALIDATION_FAILURE"), problems);
+
+    /// <summary>
+    /// Creates a valid result that carries advisory warning problems.
+    /// </summary>
+    public static ValidationResult WithWarnings(params ValidationProblem[] problems) {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(problems.Length, 0);
+        return new(problems);
+    }
 
     /// <summary>
     /// Creates a failure result from a single problem message.
