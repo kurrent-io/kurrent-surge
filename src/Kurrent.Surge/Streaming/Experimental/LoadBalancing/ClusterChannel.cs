@@ -15,14 +15,14 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// <summary>
 /// A load-balanced gRPC channel over a KurrentDB cluster. Discovery, node preference,
 /// leader redirects and failover run inside the channel through <see cref="GossipResolver"/>
-/// and <see cref="NodePreferenceBalancer"/>, so callers use a plain <see cref="Grpc.Core.CallInvoker"/>
+/// and <see cref="KurrentDBLoadBalancer"/>, so callers use a plain <see cref="Grpc.Core.CallInvoker"/>
 /// instead of the legacy deferred call-invoker bridge.
 /// </summary>
 sealed class ClusterChannel : IAsyncDisposable {
     const int MaxReceiveMessageLength = 17 * 1024 * 1024; // 17MB
 
     readonly GossipResolverFactory         _resolverFactory;
-    readonly NodePreferenceBalancerFactory _balancerFactory;
+    readonly KurrentDBLoadBalancerFactory  _balancerFactory;
     readonly IGossipClient                 _gossipClient;
     readonly SocketsHttpHandler            _channelHandler;
     readonly SocketsHttpHandler            _gossipHandler;
@@ -33,7 +33,7 @@ sealed class ClusterChannel : IAsyncDisposable {
 
     ClusterChannel(
         GrpcChannel channel, CallInvoker callInvoker, GossipResolverFactory resolverFactory,
-        NodePreferenceBalancerFactory balancerFactory, IGossipClient gossipClient,
+        KurrentDBLoadBalancerFactory balancerFactory, IGossipClient gossipClient,
         SocketsHttpHandler channelHandler, SocketsHttpHandler gossipHandler,
         ServiceProvider services, ClusterEndpoint fallbackTarget
     ) {
@@ -87,7 +87,7 @@ sealed class ClusterChannel : IAsyncDisposable {
         var gossipClient    = CreateGossipClient(options, gossipHandler, scheme);
         var resolverFactory = CreateResolverFactory(options, nodePreference, gossipClient);
 
-        var balancerFactory = new NodePreferenceBalancerFactory();
+        var balancerFactory = new KurrentDBLoadBalancerFactory();
 
         var services = new ServiceCollection()
             .AddSingleton<ResolverFactory>(resolverFactory)
@@ -95,7 +95,7 @@ sealed class ClusterChannel : IAsyncDisposable {
             .BuildServiceProvider();
 
         var serviceConfig = new ServiceConfig {
-            LoadBalancingConfigs = { new LoadBalancingConfig(NodePreferenceBalancerFactory.PolicyName) }
+            LoadBalancingConfigs = { new LoadBalancingConfig(KurrentDBLoadBalancerFactory.PolicyName) }
         };
 
         if (options.Resilience.Retry.Enabled)

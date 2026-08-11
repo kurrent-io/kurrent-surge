@@ -10,8 +10,8 @@ namespace Kurrent.Surge.Experimental.LoadBalancing;
 /// is unreachable. When the top-ranked target changes (leader moved), the subchannel is
 /// replaced so traffic follows the new target instead of sticking to the old connection.
 /// </summary>
-sealed partial class NodePreferenceBalancer(IChannelControlHelper controller, ILoggerFactory loggerFactory) : LoadBalancer {
-    readonly ILogger<NodePreferenceBalancer> _log = loggerFactory.CreateLogger<NodePreferenceBalancer>();
+sealed partial class KurrentDBLoadBalancer(IChannelControlHelper controller, ILoggerFactory loggerFactory) : LoadBalancer {
+    readonly ILogger<KurrentDBLoadBalancer> _log = loggerFactory.CreateLogger<KurrentDBLoadBalancer>();
 
     Subchannel?       _subchannel;
     ClusterEndpoint?  _currentTarget;
