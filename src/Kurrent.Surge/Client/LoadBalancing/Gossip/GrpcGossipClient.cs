@@ -1,10 +1,11 @@
 using System.Collections.Concurrent;
 using EventStore.Client.Gossip;
 using Grpc.Net.Client;
+using Kurrent.Surge.Client.LoadBalancing;
 using KurrentDB.Protocol.V1;
 using static EventStore.Client.Gossip.MemberInfo.Types;
 
-namespace Kurrent.Surge.Client.LoadBalancing;
+namespace Kurrent.Surge.LoadBalancing.Gossip;
 
 /// <summary>
 /// Reads cluster topology over the V1 gossip service, reusing one channel per endpoint.
@@ -12,7 +13,7 @@ namespace Kurrent.Surge.Client.LoadBalancing;
 sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, TimeSpan timeout) : IGossipClient {
     static readonly Empty EmptyRequest = new();
 
-    readonly ConcurrentDictionary<ClusterEndpoint, (GrpcChannel Channel, Gossip.GossipClient Client)> _channels = new();
+    readonly ConcurrentDictionary<ClusterEndpoint, (GrpcChannel Channel, EventStore.Client.Gossip.Gossip.GossipClient Client)> _channels = new();
 
     public async ValueTask<ClusterTopology> GetTopology(ClusterEndpoint endpoint, CancellationToken ct) {
         var (_, client) = _channels.GetOrAdd(

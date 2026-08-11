@@ -3,7 +3,7 @@ using Grpc.Core;
 using Grpc.Net.Client.Balancer;
 using Kurrent.Surge.Client.LoadBalancing;
 using Microsoft.Extensions.Logging.Abstractions;
-using IGossipClient = Kurrent.Surge.Client.LoadBalancing.IGossipClient;
+using IGossipClient = Kurrent.Surge.LoadBalancing.Gossip.IGossipClient;
 
 namespace Kurrent.Surge.Tests.Client.LoadBalancing;
 
