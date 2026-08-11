@@ -83,8 +83,8 @@ public class WriteMappingPipelineBenchmarks {
                 case "msgpack-nerdbank":
                     var nerdbankCatalog = new MessageCatalog("mapping-bench-msgpack-nerdbank").Map<CalibrationMsgPackRequest>();
 
-                    opts.Messages.UseSerializer(_ => new NerdbankMsgPack.MessagePackSchemaSerializer(
-                        new NerdbankMsgPack.MessagePackSchemaSerializerOptions {
+                    opts.Messages.UseSerializer(_ => new NerdbankMsgPack.NerdbankMessagePackSchemaSerializer(
+                        new NerdbankMsgPack.NerdbankMessagePackSchemaSerializerOptions {
                             SchemaRegistration = SchemaRegistrationOptions.ManualMap,
                             TypeShapeProvider  = CalibrationMessagePackWitness.GeneratedTypeShapeProvider
                         },

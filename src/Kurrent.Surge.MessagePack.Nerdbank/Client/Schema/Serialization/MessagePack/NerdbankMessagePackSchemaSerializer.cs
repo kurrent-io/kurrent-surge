@@ -4,7 +4,7 @@ using PolyType;
 
 namespace Kurrent.Surge.Client.Schema.Serialization.MessagePack;
 
-public class MessagePackSchemaSerializer(MessagePackSchemaSerializerOptions options, ISchemaManager schemaManager)
+public class NerdbankMessagePackSchemaSerializer(NerdbankMessagePackSchemaSerializerOptions options, ISchemaManager schemaManager)
     : SchemaSerializerBase(options, schemaManager) {
     MessagePackSerializer Serializer        { get; } = options.MessagePackSerializer;
     ITypeShapeProvider    TypeShapeProvider { get; } = options.TypeShapeProvider;

@@ -3,7 +3,7 @@ using PolyType;
 namespace Kurrent.Surge.Client.Schema.Serialization.MessagePack;
 
 [PublicAPI]
-public record MessagePackSchemaSerializerOptions : SchemaSerializerOptions {
+public record NerdbankMessagePackSchemaSerializerOptions : SchemaSerializerOptions {
 	/// <summary>
 	/// The type shape provider for the consumer's registered message types, typically the
 	/// source-generated <c>Witness.GeneratedTypeShapeProvider</c> from a partial class carrying
