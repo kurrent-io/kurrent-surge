@@ -2,7 +2,6 @@ using System.Threading.Channels;
 using Grpc.Core;
 using Grpc.Net.Client.Balancer;
 using Kurrent.Surge.Client.LoadBalancing;
-using KurrentDB.Client;
 using Microsoft.Extensions.Logging.Abstractions;
 using IGossipClient = Kurrent.Surge.Client.LoadBalancing.IGossipClient;
 

@@ -5,7 +5,6 @@ using System.Text;
 using Grpc.Core;
 using Kurrent.Surge.Client.LoadBalancing;
 using Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster;
-using KurrentDB.Client;
 using NodeState = Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster.Protocol.MemberInfo.Types.VNodeState;
 using ProbeClient = EventStore.Client.Gossip.Gossip.GossipClient;
 

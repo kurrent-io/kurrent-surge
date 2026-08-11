@@ -1,5 +1,4 @@
 using Kurrent.Validation;
-using KurrentDB.Client;
 
 namespace Kurrent.Surge.Client;
 

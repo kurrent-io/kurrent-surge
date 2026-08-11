@@ -1,4 +1,4 @@
-﻿namespace KurrentDB.Client;
+﻿namespace Kurrent.Surge.Client;
 
 /// <summary>
 /// Indicates the preferred KurrentDB node type to connect to.

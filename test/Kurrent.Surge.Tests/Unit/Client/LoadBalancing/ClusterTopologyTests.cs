@@ -1,5 +1,4 @@
 using Kurrent.Surge.Client.LoadBalancing;
-using KurrentDB.Client;
 
 namespace Kurrent.Surge.Tests.Client.LoadBalancing;
 

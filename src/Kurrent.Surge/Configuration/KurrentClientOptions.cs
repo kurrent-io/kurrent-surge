@@ -3,7 +3,6 @@ using System.Net;
 using System.Text;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Validation;
-using KurrentDB.Client;
 using static System.StringComparer;
 using static System.TimeSpan;
 

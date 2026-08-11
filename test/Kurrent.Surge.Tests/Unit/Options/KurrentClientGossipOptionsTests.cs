@@ -1,5 +1,3 @@
-using KurrentDB.Client;
-
 namespace Kurrent.Surge.Tests.Options;
 
 public class KurrentClientGossipOptionsTests {

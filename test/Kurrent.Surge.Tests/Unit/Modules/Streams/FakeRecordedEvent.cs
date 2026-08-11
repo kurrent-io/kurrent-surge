@@ -1,6 +1,6 @@
 using Bogus;
 using Google.Protobuf;
-using KurrentDB.Client;
+using Kurrent.Surge.Client.Streams;
 using KurrentDB.Protocol.V1;
 
 using ReadEvent = KurrentDB.Protocol.V1.Streams.ReadResp.Types.ReadEvent;

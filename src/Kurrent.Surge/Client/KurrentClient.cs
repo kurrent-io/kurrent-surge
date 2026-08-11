@@ -7,7 +7,6 @@ using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.LoadBalancing;
-using KurrentDB.Client;
 using ProtobufMessages = Kurrent.Surge.Client.Schema.Serialization.Protobuf.ProtobufMessages;
 
 namespace Kurrent.Surge.Client;

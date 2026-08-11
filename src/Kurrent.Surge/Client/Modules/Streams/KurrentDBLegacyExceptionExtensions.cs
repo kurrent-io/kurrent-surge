@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Surge.Client.Legacy;
+namespace Kurrent.Surge.Client.Streams;
 
 static partial class KurrentDBLegacyExceptionExtensions {
     const string LegacyErrorCodeKey = "exception";

@@ -1,4 +1,4 @@
-namespace KurrentDB.Client;
+namespace Kurrent.Surge.Client.Streams;
 
 static class EpochExtensions {
 	static readonly DateTime UnixEpoch = DateTime.UnixEpoch;

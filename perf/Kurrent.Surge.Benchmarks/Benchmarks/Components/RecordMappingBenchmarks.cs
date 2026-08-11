@@ -5,7 +5,6 @@ using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using Kurrent.Surge.Schema;
-using KurrentDB.Client;
 
 using ReadEvent = KurrentDB.Protocol.V1.Streams.ReadResp.Types.ReadEvent;
 

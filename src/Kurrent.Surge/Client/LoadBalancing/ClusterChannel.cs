@@ -9,7 +9,6 @@ using Kurrent.Grpc.Compression;
 using Kurrent.Grpc.Interceptors;
 using Kurrent.Http;
 using Kurrent.Surge.Client;
-using KurrentDB.Client;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Kurrent.Surge.Client.LoadBalancing;

@@ -1,5 +1,5 @@
 using System.Net;
-using KurrentDB.Client;
+using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Tests.Options;
 

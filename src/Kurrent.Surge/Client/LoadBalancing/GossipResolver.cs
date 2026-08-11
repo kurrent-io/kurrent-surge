@@ -1,6 +1,5 @@
 using Grpc.Core;
 using Grpc.Net.Client.Balancer;
-using KurrentDB.Client;
 
 namespace Kurrent.Surge.Client.LoadBalancing;
 

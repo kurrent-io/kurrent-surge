@@ -10,7 +10,6 @@ using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
-using KurrentDB.Client;
 
 using Contracts = KurrentDB.Protocol.V1.Streams;
 

@@ -1,4 +1,4 @@
-namespace KurrentDB.Client;
+namespace Kurrent.Surge.Client.Streams;
 
 static class Constants {
 	public static class LegacyErrorCodes {

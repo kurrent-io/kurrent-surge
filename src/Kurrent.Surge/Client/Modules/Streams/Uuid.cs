@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using KurrentDB.Protocol.V1;
 
-namespace KurrentDB.Client;
+namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
 /// An RFC-4122 compliant v4 UUID.
@@ -115,7 +115,7 @@ readonly struct Uuid : IEquatable<Uuid> {
 	public override bool Equals(object? obj) => obj is Uuid other && Equals(other);
 
 	/// <inheritdoc />
-	public override int GetHashCode() => HashCode.Hash.Combine(LeastSignificantBits).Combine(MostSignificantBits);
+	public override int GetHashCode() => HashCode.Combine(LeastSignificantBits, MostSignificantBits);
 
 	/// <summary>
 	/// Compares left and right for equality.

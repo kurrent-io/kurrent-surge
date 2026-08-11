@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
-using Kurrent.Surge.Client.Legacy;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using KurrentDB.Protocol.V1.Streams;
 
