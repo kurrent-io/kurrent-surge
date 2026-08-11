@@ -257,7 +257,8 @@ public static class KurrentDBBuilderExtensions {
                     .Nodes
                     .Select(r => r.Name)
                     .Distinct(StringComparer.Ordinal)
-                    .Prepend("localhost"));
+                    .Prepend("localhost")
+                    .Prepend("eventstoredb-node"));
 
             context.Args.Add(scriptPath);
             context.Args.Add("--output");
@@ -294,9 +295,10 @@ static class NodeConfiguration {
         ["KURRENTDB_TRUSTED_ROOT_CERTIFICATES_PATH"] = "/etc/kurrentdb/certs/ca",
         ["KURRENTDB_CERTIFICATE_FILE"]               = "/etc/kurrentdb/certs/node/node.crt",
         ["KURRENTDB_CERTIFICATE_PRIVATE_KEY_FILE"]   = "/etc/kurrentdb/certs/node/node.key",
-        // The shared node cert carries DNS SANs for node 01 only (gencert.sh ignores its --dns
-        // argument), so multi-node peer validation must trust by the cert's reserved CN instead
-        // of the peer hostname — the es-gencert default CN below.
+        // The same node cert is shared across every node, so no per-node hostname can be a
+        // SAN. Multi-node peer validation instead matches this reserved name against the
+        // cert's SANs (server peer-cert matching is SAN-only when SANs exist, CN is ignored),
+        // which is why AddCertificateGenerator's DNS list must also carry it.
         ["KURRENTDB_CERTIFICATE_RESERVED_NODE_COMMON_NAME"] = "eventstoredb-node"
     };
 }
