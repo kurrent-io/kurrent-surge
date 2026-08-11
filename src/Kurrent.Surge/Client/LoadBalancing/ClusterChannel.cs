@@ -21,7 +21,6 @@ namespace Kurrent.Surge.Client.LoadBalancing;
 sealed class ClusterChannel : IAsyncDisposable {
     const int MaxReceiveMessageLength = 17 * 1024 * 1024; // 17MB
 
-    readonly GossipResolverFactory         _resolverFactory;
     readonly KurrentDBLoadBalancerFactory  _balancerFactory;
     readonly IGossipClient                 _gossipClient;
     readonly SocketsHttpHandler            _channelHandler;
@@ -32,14 +31,12 @@ sealed class ClusterChannel : IAsyncDisposable {
     bool _disposed;
 
     ClusterChannel(
-        GrpcChannel channel, CallInvoker callInvoker, GossipResolverFactory resolverFactory,
-        KurrentDBLoadBalancerFactory balancerFactory, IGossipClient gossipClient,
-        SocketsHttpHandler channelHandler, SocketsHttpHandler gossipHandler,
+        GrpcChannel channel, CallInvoker callInvoker, KurrentDBLoadBalancerFactory balancerFactory,
+        IGossipClient gossipClient, SocketsHttpHandler channelHandler, SocketsHttpHandler gossipHandler,
         ServiceProvider services, ClusterEndpoint fallbackTarget
     ) {
         Channel          = channel;
         CallInvoker      = callInvoker;
-        _resolverFactory = resolverFactory;
         _balancerFactory = balancerFactory;
         _gossipClient    = gossipClient;
         _channelHandler  = channelHandler;
@@ -149,10 +146,9 @@ sealed class ClusterChannel : IAsyncDisposable {
             .Intercept(interceptors: [..options.Interceptors, headersInterceptor, leaderChangeInterceptor]);
 
         return new(
-            channel: channel, 
-            callInvoker: callInvoker, 
-            resolverFactory: resolverFactory, 
-            balancerFactory: balancerFactory, 
+            channel: channel,
+            callInvoker: callInvoker,
+            balancerFactory: balancerFactory,
             gossipClient: gossipClient,
             channelHandler: channelHandler, 
             gossipHandler: gossipHandler, 
