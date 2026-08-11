@@ -21,19 +21,12 @@ public class KurrentClient : IKurrentClient {
         options.EnsureValid();
 
         Options = options;
-
-        // The interceptor is constructed before anything it observes: its closure defers
-        // governance resolution to the first gRPC call, so the construction cycle
-        // (invoker → registry → governance) never binds here.
-        var catalogValidation = new CatalogValidationInterceptor(() =>
-            Governance.ValidateCatalog(
-                Catalogs,
-                RegistryPolicy.Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json),
-                Lifetime.Token));
-
-        LegacyCallInvoker     = new(options, [catalogValidation]);
-        BackdoorClientFactory = new(LegacyCallInvoker, options);
-
+        
+        // Soon enough, the schema registry policy will be retrieved from the server during client
+        // initialization (defaults), and then on a per-stream basis during stream operations.
+        // For now, we can use a default policy that allows for all operations without enforcement.
+        RegistryPolicy = SchemaRegistryPolicy.NoRequirements;
+        
         // The freeze: snapshot the message catalogs (system + default + explicit + auto-
         // discovered) into a read-only resolver. Catalog changes after this point never
         // affect this client.
@@ -44,19 +37,31 @@ public class KurrentClient : IKurrentClient {
         if (options.Messages.Protobuf.Context is not null)
             ProtobufMessages.System.Configure(options.Messages.Protobuf.Context);
 
-        // Soon enough, the schema registry policy will be retrieved from the server during client
-        // initialization (defaults), and then on a per-stream basis during stream operations.
-        // For now, we can use a default policy that allows for all operations without enforcement.
-        RegistryPolicy = SchemaRegistryPolicy.NoRequirements;
-
         Registrations = BuildRegistrations(options.Messages);
 
+        // The interceptor is constructed before anything it observes: its closure defers
+        // governance resolution to the first gRPC call, so the construction cycle
+        // (invoker → registry → governance) never binds here.
+        var catalogValidation = new CatalogValidationInterceptor(() =>
+            Governance.ValidateCatalog(
+                Catalogs,
+                RegistryPolicy.Resolve(
+                    options: Registrations[SchemaDataFormat.Json], 
+                    stream: null, 
+                    dataFormat: SchemaDataFormat.Json),
+                Lifetime.Token));
+
+        LegacyCallInvoker     = new(options, [catalogValidation]);
+        BackdoorClientFactory = new(LegacyCallInvoker, options);
+        
         var codecs = new SchemaCodecProvider([
             new JsonSchemaCodec(options.Messages.Json),
             new ProtobufSchemaCodec(),
             ..options.Messages.Codecs
         ]);
 
+        // Modules capture the invoker at construction — registry and governance must
+        // follow LegacyCallInvoker, or every client ctor throws on a null invoker.
         Registry   = new RegistryClient(this);
         Governance = SchemaGovernance.Create(this);
 
