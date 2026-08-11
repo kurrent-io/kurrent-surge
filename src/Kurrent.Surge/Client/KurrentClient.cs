@@ -25,13 +25,13 @@ public class KurrentClient : IKurrentClient {
         // The interceptor is constructed before anything it observes: its closure defers
         // governance resolution to the first gRPC call, so the construction cycle
         // (invoker → registry → governance) never binds here.
-        CatalogValidation = new CatalogValidationInterceptor(() =>
+        var catalogValidation = new CatalogValidationInterceptor(() =>
             Governance.ValidateCatalog(
                 Catalogs,
                 RegistryPolicy.Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json),
                 Lifetime.Token));
 
-        LegacyCallInvoker     = new(options, [CatalogValidation]);
+        LegacyCallInvoker     = new(options, [catalogValidation]);
         BackdoorClientFactory = new(LegacyCallInvoker, options);
 
         // The freeze: snapshot the message catalogs (system + default + explicit + auto-
@@ -61,7 +61,7 @@ public class KurrentClient : IKurrentClient {
         Registry   = new RegistryClient(this);
         Governance = SchemaGovernance.Create(this);
 
-        WritePipeline = WriteRecordPipeline.Create(messageResolver, RegistryPolicy, Registrations, Codecs, CatalogValidation);
+        WritePipeline = WriteRecordPipeline.Create(messageResolver, RegistryPolicy, Registrations, Codecs, catalogValidation);
         ReadPipeline  = ReadRecordPipeline.Create(messageResolver, RegistryPolicy, Registrations, Codecs, Governance);
 
         Streams    = new StreamsClient(this);
@@ -76,18 +76,17 @@ public class KurrentClient : IKurrentClient {
     internal KurrentDBLegacyCallInvoker   LegacyCallInvoker     { get; }
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
 
-    internal CatalogValidationInterceptor CatalogValidation { get; }
-    internal ISchemaGovernance            Governance        { get; }
-    internal SchemaCodecProvider          Codecs            { get; }
-    internal SchemaRegistryPolicy         RegistryPolicy    { get; }
-    internal MessageResolver              MessageResolver   { get; }
-    internal IReadOnlyList<MessageCatalog> Catalogs         { get; }
-    internal WriteRecordPipeline          WritePipeline     { get; }
-    internal ReadRecordPipeline           ReadPipeline      { get; }
+    ISchemaGovernance             Governance { get; }
+    IReadOnlyList<MessageCatalog> Catalogs   { get; }
+    CancellationTokenSource       Lifetime   { get; } = new();
+
+    internal SchemaCodecProvider  Codecs          { get; }
+    internal SchemaRegistryPolicy RegistryPolicy  { get; }
+    internal MessageResolver      MessageResolver { get; }
+    internal WriteRecordPipeline  WritePipeline   { get; }
+    internal ReadRecordPipeline   ReadPipeline    { get; }
 
     internal IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> Registrations { get; }
-
-    internal CancellationTokenSource Lifetime { get; } = new();
 
     public IStreamsClient    Streams    { get; }
     public IRegistryClient   Registry   { get; }
