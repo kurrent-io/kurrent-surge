@@ -133,13 +133,20 @@ sealed class ClusterChannel : IAsyncDisposable {
             channelOptions: channelOptions
         );
 
-        var clientName    = AppVersionInfo.Current.ProductName ?? "KurrentDB .NET Client";
-        var clientVersion = AppVersionInfo.Current.ProductVersion ?? AppVersionInfo.Current.FileVersion ?? "0.0.0";
+        var appInfo = AppVersionInfo.Current;
+
+        var clientName    = appInfo.ProductName ?? "KurrentDB .NET Client";
+        var clientVersion = appInfo.ProductVersion ?? appInfo.FileVersion ?? "0.0.0";
 
         var headersInterceptor = new ClientHeadersInterceptor(staticHeaders: new Dictionary<string, string> {
-            [key: "kurrentdb.client.name"]    = clientName,
-            [key: "kurrentdb.client.version"] = clientVersion,
-            [key: "connection-name"]          = options.ConnectionName
+            [Constants.Headers.ClientName]       = clientName,
+            [Constants.Headers.ClientVersion]    = clientVersion,
+            [Constants.Headers.ConnectionName]   = options.ConnectionName,
+            [Constants.Headers.OsName]           = appInfo.OsName,
+            [Constants.Headers.OsVersion]        = appInfo.OsVersion,
+            [Constants.Headers.RuntimeName]      = appInfo.RuntimeName,
+            [Constants.Headers.RuntimeVersion]   = appInfo.RuntimeVersion,
+            [Constants.Headers.HostArchitecture] = appInfo.HostArchitecture
         });
 
         var leaderChangeInterceptor = new LeaderChangeInterceptor(

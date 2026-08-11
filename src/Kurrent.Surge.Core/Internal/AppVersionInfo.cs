@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace Kurrent.Surge.Client;
 
@@ -61,6 +62,37 @@ class AppVersionInfo {
     /// From <see cref="AssemblyName.Version"/>.
     /// </summary>
     public Version? AssemblyVersion { get; private init; }
+
+    /// <summary>
+    /// Gets the operating system name (e.g., windows, linux, darwin).
+    /// </summary>
+    public string OsName { get; } = GetOsName();
+
+    /// <summary>
+    /// Gets the operating system version (e.g., 10.0.22621).
+    /// </summary>
+    public string OsVersion { get; } = Environment.OSVersion.Version.ToString();
+
+    /// <summary>
+    /// Gets the runtime name (e.g., .NET).
+    /// </summary>
+    public string RuntimeName { get; } = ".NET";
+
+    /// <summary>
+    /// Gets the runtime version (e.g., 10.0.0).
+    /// </summary>
+    public string RuntimeVersion { get; } = Environment.Version.ToString();
+
+    /// <summary>
+    /// Gets the process CPU architecture (e.g., x64, arm64).
+    /// </summary>
+    public string HostArchitecture { get; } = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+
+    static string GetOsName() =>
+        OperatingSystem.IsWindows() ? "windows"
+        : OperatingSystem.IsMacOS() ? "darwin"
+        : OperatingSystem.IsLinux() ? "linux"
+        : RuntimeInformation.OSDescription;
 
     /// <summary>
     /// Retrieves version information for the entry assembly of the current application.
