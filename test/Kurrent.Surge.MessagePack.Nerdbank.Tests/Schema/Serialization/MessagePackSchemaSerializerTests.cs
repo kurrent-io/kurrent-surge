@@ -9,7 +9,7 @@ namespace Kurrent.Surge.MessagePack.Nerdbank.Tests.Schema.Serialization;
 
 [InheritsTests]
 [Category("SerDe")]
-public class MessagePackSchemaSerializerTests : Kurrent.Surge.Tests.Schema.Serialization.SchemaSerializerTestFixture {
+public class MessagePackSchemaSerializerTests : SchemaSerializerTestFixture {
 	protected override SchemaDataFormat ExpectedDataFormat => SchemaDataFormat.MessagePack;
 
 	protected override ISchemaSerializer CreateSut() {

@@ -1,5 +1,3 @@
-using Kurrent.Surge.Tests.Schema.Serialization;
-
 namespace Kurrent.Surge.MessagePack.Tests;
 
 [InheritsTests]

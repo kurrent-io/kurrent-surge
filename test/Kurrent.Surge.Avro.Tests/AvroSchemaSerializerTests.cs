@@ -1,4 +1,12 @@
-using Kurrent.Surge.Tests.Schema.Serialization;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization.Avro;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Catalogs;
+using TUnit.Assertions;
+using TUnit.Assertions.Extensions;
+using TUnit.Core;
 
 namespace Kurrent.Surge.Avro.Tests;
 
