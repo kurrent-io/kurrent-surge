@@ -26,10 +26,7 @@ sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, 
         using var call = client.ReadAsync(EmptyRequest, deadline: DateTime.UtcNow.Add(timeout), cancellationToken: ct);
 
         var result = await call.ResponseAsync.ConfigureAwait(false);
-
-        var nodes = result.Members
-            .Select(member => member.ToClusterNode())
-            .ToArray();
+        var nodes  = result.Members.ToClusterNodes().ToArray();
 
         return new(nodes);
     }
@@ -45,6 +42,14 @@ sealed class GrpcGossipClient(Func<ClusterEndpoint, GrpcChannel> createChannel, 
 }
 
 static class MemberInfoExtensions {
+    extension(IEnumerable<MemberInfo> members) {
+        // http_end_point is a proto3 singular message field: null whenever a member
+        // hasn't advertised one yet (transitional states). Drop it here instead of
+        // letting the whole response fail because one member is incomplete.
+        public IEnumerable<ClusterNode> ToClusterNodes() =>
+            members.Where(member => member.HttpEndPoint is not null).Select(member => member.ToClusterNode());
+    }
+
     extension(MemberInfo source) {
         public ClusterNode ToClusterNode() =>
             new(source.NodeRole, source.IsAlive, source.ClusterEndPoint);

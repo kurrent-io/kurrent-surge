@@ -45,4 +45,21 @@ public class MemberInfoExtensionsTests {
             await Assert.That(node.Role).IsEqualTo(ExpectedRoles[state]);
         }
     }
+
+    [Test]
+    public async ValueTask skips_a_member_with_no_advertised_endpoint(CancellationToken cancellationToken) {
+        // Arrange: http_end_point is a proto3 singular message field — it is null on the
+        // wire whenever a member hasn't advertised one yet (observed for transitional states).
+        MemberInfo[] members = [
+            new() { State = VNodeState.Initializing, IsAlive = true, HttpEndPoint = null },
+            new() { State = VNodeState.Leader, IsAlive = true, HttpEndPoint = new() { Address = "leader", Port = 2113 } }
+        ];
+
+        // Act
+        var nodes = members.ToClusterNodes().ToArray();
+
+        // Assert: the incomplete member is dropped instead of crashing the whole mapping.
+        await Assert.That(nodes.Length).IsEqualTo(1);
+        await Assert.That(nodes[0].Role).IsEqualTo(NodeRole.Leader);
+    }
 }
