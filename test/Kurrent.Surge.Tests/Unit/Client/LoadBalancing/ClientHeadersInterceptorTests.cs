@@ -1,9 +1,9 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using Kurrent.Surge.Client.LoadBalancing;
+using Kurrent.Grpc.Interceptors;
 using Metadata = Grpc.Core.Metadata;
 
-namespace Kurrent.Surge.Tests.Client.LoadBalancing;
+namespace Kurrent.Surge.Tests.Internal;
 
 public class ClientHeadersInterceptorTests {
     static readonly Marshaller<string> StringMarshaller = Marshallers.Create(_ => [], _ => "");

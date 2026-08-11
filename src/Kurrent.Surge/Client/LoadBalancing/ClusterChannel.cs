@@ -5,6 +5,7 @@ using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Balancer;
 using Grpc.Net.Client.Configuration;
+using Kurrent.Grpc.Interceptors;
 using Kurrent.Http;
 using Kurrent.Surge.Client;
 using KurrentDB.Client;
@@ -78,8 +79,8 @@ sealed class ClusterChannel : IAsyncDisposable {
         // The balanced channel's handler cannot be shared with the gossip channels:
         // the balancer installs its own ConnectCallback on the handler it owns, which
         // would hijack plain direct-channel requests going through the same instance.
-        var channelHandler = CreateHandler(options);
-        var gossipHandler  = CreateHandler(options);
+        var channelHandler = CreateHttpHandler(options);
+        var gossipHandler  = CreateHttpHandler(options);
         
         var gossipClient    = CreateGossipClient(options, gossipHandler, scheme);
         var resolverFactory = CreateResolverFactory(options, nodePreference, gossipClient);
@@ -185,7 +186,7 @@ sealed class ClusterChannel : IAsyncDisposable {
             );
         }
 
-        static SocketsHttpHandler CreateHandler(KurrentClientOptions options) {
+        static SocketsHttpHandler CreateHttpHandler(KurrentClientOptions options) {
             var handler = new SocketsHttpHandler {
                 KeepAlivePingDelay             = options.Resilience.KeepAliveInterval,
                 KeepAlivePingTimeout           = options.Resilience.KeepAliveTimeout,

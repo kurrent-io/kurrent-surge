@@ -1,25 +1,20 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 
-namespace Kurrent.Surge.Client.LoadBalancing;
+namespace Kurrent.Grpc.Interceptors;
 
 /// <summary>
-/// Injects the client identity headers on every call, creating the metadata collection
+/// Injects a fixed set of headers on every call, creating the metadata collection
 /// when the caller supplied none.
 /// </summary>
 sealed class ClientHeadersInterceptor : Interceptor {
-    // global::-qualified: this namespace nests under both Kurrent.Surge.Client (which
-    // declares its own domain Metadata type) and Kurrent (which has a Kurrent.Grpc
-    // namespace), so an unqualified or partially-qualified Grpc.Core.Metadata resolves
-    // to the wrong type instead of the gRPC one.
-
     // The entries are immutable and safely shared across calls: building them once removes
     // three Metadata.Entry allocations plus a dictionary-enumerator box from every gRPC call.
-    readonly global::Grpc.Core.Metadata.Entry[] _headers;
+    readonly Metadata.Entry[] _headers;
 
     public ClientHeadersInterceptor(IReadOnlyDictionary<string, string> staticHeaders) =>
         _headers = staticHeaders
-            .Select(header => new global::Grpc.Core.Metadata.Entry(header.Key, header.Value))
+            .Select(header => new Metadata.Entry(header.Key, header.Value))
             .ToArray();
 
     public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
