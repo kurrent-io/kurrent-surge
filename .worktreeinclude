@@ -1,9 +1,13 @@
 # .worktreeinclude — gitignore syntax.
 # Copies gitignored-but-present files from the main checkout into every new
 # worktree. A git worktree only checks out TRACKED files; these are ignored,
-# so without this list they vanish in worktrees. Tracked agent tooling
-# (.claude/context, .claude/skills, .claude/settings.json, CLAUDE.md/AGENTS.md)
-# already travels with the checkout and does not belong here.
+# so without this list they vanish in worktrees.
+#
+# COPY vs LINK: this file COPIES, which suits static config only. The living
+# stores — .claude/context (knowledge base) and .claude/memory — must NOT be
+# copied: a copy forks them and worktree-side writes never reach the real
+# store. Those two are SYMLINKED into each worktree instead (one physical
+# home in the main checkout). Do not add them here.
 
 # Local agent source: system-prompts, sub-agents, skills
 .agents/
@@ -11,3 +15,6 @@
 # Personal, machine-local overrides.
 CLAUDE.local.md
 .claude/settings.local.json
+
+# Writing-standards config read by the ste100 checkers.
+.claude/ste100.json
