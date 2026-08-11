@@ -1,7 +1,11 @@
 using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
@@ -41,18 +45,26 @@ public class GovernedAppendBenchmarks {
 
         var policy = _streams.RegistryPolicy;
 
+        // Self-composed, equivalent to the fixture client's own defaults — the pipeline-
+        // composition seam on KurrentClient is gone, so the benchmark builds its own
+        // resolver/registrations/codecs instead of borrowing the client's.
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
             .Where(catalog => catalog.Types.Contains(typeof(RaceCar)))
             .ToList();
 
+        var resolver = MessageResolver.From(catalogs);
+
+        var registrations = Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
+
+        var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
+
         var resolved = policy
-            .Resolve(_fixture.Client.Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var validation = new CatalogValidationInterceptor(SchemaGovernance.Create(_fixture.Client), catalogs, resolved);
 
-        _governed = WriteRecordPipeline.Create(
-            _fixture.Client.MessageResolver, policy, _fixture.Client.Registrations, _fixture.Client.Codecs, validation);
+        _governed = WriteRecordPipeline.Create(resolver, policy, registrations, codecs, validation);
 
         // Pre-built catalog records, one stream — both paths map the same instances per op.
         var stream = $"governed-append-bench-{RecordCount}";

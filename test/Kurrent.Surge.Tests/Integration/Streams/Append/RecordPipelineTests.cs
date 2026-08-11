@@ -2,6 +2,9 @@ using Bogus;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
@@ -21,16 +24,25 @@ public class RecordPipelineTests {
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
-    CatalogValidationInterceptor CreateValidation(SchemaRegistryPolicy policy, ISchemaGovernance? governance = null) {
-        var catalogs = MessageCatalogDiscovery.GetCatalogs()
-            .Where(catalog => catalog.Types.Contains(typeof(RaceCar)))
-            .ToList();
+    // Self-composed, equivalent to the fixture client's own defaults — the pipeline-composition
+    // seam on KurrentClient is gone, so tests build their own resolver/registrations/codecs
+    // instead of borrowing the client's. This is pipeline semantics under test, not composition.
+    static readonly List<MessageCatalog> Catalogs =
+        MessageCatalogDiscovery.GetCatalogs().Where(catalog => catalog.Types.Contains(typeof(RaceCar))).ToList();
 
+    static readonly MessageResolver Resolver = MessageResolver.From(Catalogs);
+
+    static readonly IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> Registrations =
+        Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
+
+    static readonly SchemaCodecProvider Codecs = new([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
+
+    CatalogValidationInterceptor CreateValidation(SchemaRegistryPolicy policy, ISchemaGovernance? governance = null) {
         var resolved = policy
-            .Resolve(Fixture.Client.Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
-        return new CatalogValidationInterceptor(governance ?? SchemaGovernance.Create(Fixture.Client), catalogs, resolved);
+        return new CatalogValidationInterceptor(governance ?? SchemaGovernance.Create(Fixture.Client), Catalogs, resolved);
     }
 
     // The frame invariants shared by every catalog-record write case: no minted id, the
@@ -53,7 +65,7 @@ public class RecordPipelineTests {
         var streams  = new StreamsClient(Fixture.Client);
         var policy   = streams.RegistryPolicy;
         var pipeline = WriteRecordPipeline.Create(
-            Fixture.Client.MessageResolver, policy, Fixture.Client.Registrations, Fixture.Client.Codecs, CreateValidation(policy));
+            Resolver, policy, Registrations, Codecs,CreateValidation(policy));
 
         var metadataValue = Faker.Random.AlphaNumeric(12);
 
@@ -62,7 +74,7 @@ public class RecordPipelineTests {
             r.Metadata.With("parity-key", metadataValue);
         });
 
-        var expectedSchemaName = Fixture.Client.MessageResolver.ResolveSchemaName(record.Value!.GetType()).Value;
+        var expectedSchemaName = Resolver.ResolveSchemaName(record.Value!.GetType()).Value;
 
         // Act
         var actual = await pipeline.Execute(record, ct);
@@ -78,7 +90,7 @@ public class RecordPipelineTests {
         var streams  = new StreamsClient(Fixture.Client);
         var policy   = streams.RegistryPolicy;
         var pipeline = WriteRecordPipeline.Create(
-            Fixture.Client.MessageResolver, policy, Fixture.Client.Registrations, Fixture.Client.Codecs, CreateValidation(policy));
+            Resolver, policy, Registrations, Codecs,CreateValidation(policy));
 
         var schemaNameOverride = $"parity-override-{TestId.New()}";
 
@@ -100,7 +112,7 @@ public class RecordPipelineTests {
         var streams  = new StreamsClient(Fixture.Client);
         var policy   = streams.RegistryPolicy;
         var pipeline = WriteRecordPipeline.Create(
-            Fixture.Client.MessageResolver, policy, Fixture.Client.Registrations, Fixture.Client.Codecs, CreateValidation(policy));
+            Resolver, policy, Registrations, Codecs,CreateValidation(policy));
 
         var payload    = Faker.Random.Bytes(64);
         var schemaName = $"raw-bytes-{TestId.New()}";
@@ -137,7 +149,7 @@ public class RecordPipelineTests {
             .ToListAsync(ct);
 
         var pipeline = ReadRecordPipeline.Create(
-            Fixture.Client.MessageResolver, policy, Fixture.Client.Registrations, Fixture.Client.Codecs, SchemaGovernance.Create(Fixture.Client));
+            Resolver, policy, Registrations, Codecs,SchemaGovernance.Create(Fixture.Client));
 
         // Act
         var outcome = await pipeline.Execute(raw[0], ct);
@@ -174,7 +186,7 @@ public class RecordPipelineTests {
             .ToListAsync(ct);
 
         var pipeline = ReadRecordPipeline.Create(
-            Fixture.Client.MessageResolver, policy, Fixture.Client.Registrations, Fixture.Client.Codecs, SchemaGovernance.Create(Fixture.Client));
+            Resolver, policy, Registrations, Codecs,SchemaGovernance.Create(Fixture.Client));
 
         // Act
         var outcome = await pipeline.Execute(raw[0], ct);
@@ -191,7 +203,7 @@ public class RecordPipelineTests {
         var streams  = new StreamsClient(Fixture.Client);
         var policy   = streams.RegistryPolicy;
         var pipeline = WriteRecordPipeline.Create(
-            Fixture.Client.MessageResolver, policy, Fixture.Client.Registrations, Fixture.Client.Codecs, CreateValidation(policy));
+            Resolver, policy, Registrations, Codecs,CreateValidation(policy));
 
         var record   = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"governed-wire-{TestId.New()}");
         var contract = await pipeline.Execute(record, ct);
@@ -225,9 +237,9 @@ public class RecordPipelineTests {
         var governance = SchemaGovernance.Create(Fixture.Client);
 
         var write = WriteRecordPipeline.Create(
-            Fixture.Client.MessageResolver, policy, Fixture.Client.Registrations, Fixture.Client.Codecs, CreateValidation(policy, governance));
+            Resolver, policy, Registrations, Codecs,CreateValidation(policy, governance));
         var read = ReadRecordPipeline.Create(
-            Fixture.Client.MessageResolver, policy, Fixture.Client.Registrations, Fixture.Client.Codecs, governance);
+            Resolver, policy, Registrations, Codecs,governance);
 
         var stream   = $"governed-roundtrip-{TestId.New()}";
         var expected = Enumerable.Range(0, 100).Select(_ => RaceCar.Generate()).ToList();

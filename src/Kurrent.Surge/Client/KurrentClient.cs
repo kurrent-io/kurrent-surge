@@ -39,8 +39,7 @@ public class KurrentClient : IKurrentClient {
         // affect this client.
         var (messageResolver, catalogs) = options.Messages.BuildResolver();
 
-        MessageResolver = messageResolver;
-        Catalogs        = catalogs;
+        Catalogs = catalogs;
 
         if (options.Messages.Protobuf.Context is not null)
             ProtobufMessages.System.Configure(options.Messages.Protobuf.Context);
@@ -52,7 +51,7 @@ public class KurrentClient : IKurrentClient {
 
         Registrations = BuildRegistrations(options.Messages);
 
-        Codecs = new SchemaCodecProvider([
+        var codecs = new SchemaCodecProvider([
             new JsonSchemaCodec(options.Messages.Json),
             new ProtobufSchemaCodec(),
             ..options.Messages.Codecs
@@ -61,8 +60,8 @@ public class KurrentClient : IKurrentClient {
         Registry   = new RegistryClient(this);
         Governance = SchemaGovernance.Create(this);
 
-        WritePipeline = WriteRecordPipeline.Create(messageResolver, RegistryPolicy, Registrations, Codecs, catalogValidation);
-        ReadPipeline  = ReadRecordPipeline.Create(messageResolver, RegistryPolicy, Registrations, Codecs, Governance);
+        WritePipeline = WriteRecordPipeline.Create(messageResolver, RegistryPolicy, Registrations, codecs, catalogValidation);
+        ReadPipeline  = ReadRecordPipeline.Create(messageResolver, RegistryPolicy, Registrations, codecs, Governance);
 
         Streams    = new StreamsClient(this);
         Indexes    = new IndexesClient(this);
@@ -76,17 +75,15 @@ public class KurrentClient : IKurrentClient {
     internal KurrentDBLegacyCallInvoker   LegacyCallInvoker     { get; }
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
 
+    internal SchemaRegistryPolicy RegistryPolicy { get; }
+    internal WriteRecordPipeline  WritePipeline  { get; }
+    internal ReadRecordPipeline   ReadPipeline   { get; }
+
+    IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> Registrations { get; }
+
     ISchemaGovernance             Governance { get; }
     IReadOnlyList<MessageCatalog> Catalogs   { get; }
     CancellationTokenSource       Lifetime   { get; } = new();
-
-    internal SchemaCodecProvider  Codecs          { get; }
-    internal SchemaRegistryPolicy RegistryPolicy  { get; }
-    internal MessageResolver      MessageResolver { get; }
-    internal WriteRecordPipeline  WritePipeline   { get; }
-    internal ReadRecordPipeline   ReadPipeline    { get; }
-
-    internal IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> Registrations { get; }
 
     public IStreamsClient    Streams    { get; }
     public IRegistryClient   Registry   { get; }

@@ -1,5 +1,6 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
@@ -13,6 +14,12 @@ namespace Kurrent.Surge.Tests.Streams;
 public class CatalogValidationTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
+
+    // Self-composed, equivalent to the fixture client's own defaults — the pipeline-composition
+    // seam on KurrentClient is gone, so tests build their own resolver/registrations instead of
+    // borrowing the client's.
+    static readonly IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> Registrations =
+        Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
 
     [Test]
     public async ValueTask first_grpc_call_starts_catalog_validation_exactly_once(CancellationToken ct) {
@@ -75,15 +82,16 @@ public class CatalogValidationTests {
         var policy   = streams.RegistryPolicy;
 
         var raceCarType = typeof(Kurrent.Testkit.Datasets.ArcadeRacer.Model.RaceCar);
-        var schemaName  = Fixture.Client.MessageResolver.ResolveSchemaName(raceCarType);
-
-        var resolved = policy
-            .Resolve(Fixture.Client.Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
-            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
             .Where(catalog => catalog.Types.Contains(raceCarType))
             .ToList();
+
+        var schemaName = MessageResolver.From(catalogs).ResolveSchemaName(raceCarType);
+
+        var resolved = policy
+            .Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var governance  = SchemaGovernance.Create(Fixture.Client);
         var interceptor = new CatalogValidationInterceptor(governance, catalogs, resolved, ct);
@@ -110,15 +118,16 @@ public class CatalogValidationTests {
         var policy  = streams.RegistryPolicy;
 
         var raceCarType = typeof(Kurrent.Testkit.Datasets.ArcadeRacer.Model.RaceCar);
-        var schemaName  = Fixture.Client.MessageResolver.ResolveSchemaName(raceCarType);
-
-        var resolved = policy
-            .Resolve(Fixture.Client.Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
-            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
             .Where(catalog => catalog.Types.Contains(raceCarType))
             .ToList();
+
+        var schemaName = MessageResolver.From(catalogs).ResolveSchemaName(raceCarType);
+
+        var resolved = policy
+            .Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var governance = SchemaGovernance.Create(Fixture.Client);
 

@@ -2,7 +2,11 @@ using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Google.Protobuf;
 using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
@@ -49,14 +53,23 @@ public class GovernedWriteMappingBenchmarks {
 
         var policy = _streams.RegistryPolicy;
 
+        // Self-composed, equivalent to the client's own defaults — the pipeline-composition seam
+        // on KurrentClient is gone, so the benchmark builds its own resolver/registrations/codecs
+        // instead of borrowing the client's. The resolver is scoped to the same standalone catalog
+        // this client was constructed with.
+        var resolver = MessageResolver.From(catalog);
+
+        var registrations = Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
+
+        var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
+
         var resolved = policy
-            .Resolve(_client.Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var validation = new CatalogValidationInterceptor(SchemaGovernance.Create(_client), [catalog], resolved);
 
-        _governed = WriteRecordPipeline.Create(
-            _client.MessageResolver, policy, _client.Registrations, _client.Codecs, validation);
+        _governed = WriteRecordPipeline.Create(resolver, policy, registrations, codecs, validation);
 
         var request = NewAppendRequest();
 
