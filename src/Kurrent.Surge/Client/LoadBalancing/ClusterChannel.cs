@@ -133,20 +133,17 @@ sealed class ClusterChannel : IAsyncDisposable {
             channelOptions: channelOptions
         );
 
-        var appInfo = AppInfo.Current;
+        var clientInfo = ClientInfo.Current;
 
-        var clientName    = appInfo.ProductName ?? "KurrentDB .NET Client";
-        var clientVersion = appInfo.ProductVersion ?? appInfo.FileVersion ?? "0.0.0";
-
-        var headersInterceptor = new ClientHeadersInterceptor(staticHeaders: new Dictionary<string, string> {
-            [Constants.Headers.ClientName]       = clientName,
-            [Constants.Headers.ClientVersion]    = clientVersion,
+        var headersInterceptor = new ClientHeadersInterceptor(new Dictionary<string, string> {
+            [Constants.Headers.ClientName]       = clientInfo.ClientName,
+            [Constants.Headers.ClientVersion]    = clientInfo.ClientVersion,
             [Constants.Headers.ConnectionName]   = options.ConnectionName,
-            [Constants.Headers.OsName]           = appInfo.OsName,
-            [Constants.Headers.OsVersion]        = appInfo.OsVersion,
-            [Constants.Headers.RuntimeName]      = appInfo.RuntimeName,
-            [Constants.Headers.RuntimeVersion]   = appInfo.RuntimeVersion,
-            [Constants.Headers.HostArchitecture] = appInfo.HostArchitecture
+            [Constants.Headers.OsName]           = clientInfo.OsName,
+            [Constants.Headers.OsVersion]        = clientInfo.OsVersion,
+            [Constants.Headers.RuntimeName]      = clientInfo.RuntimeName,
+            [Constants.Headers.RuntimeVersion]   = clientInfo.RuntimeVersion,
+            [Constants.Headers.HostArchitecture] = clientInfo.HostArchitecture
         });
 
         var leaderChangeInterceptor = new LeaderChangeInterceptor(
@@ -160,7 +157,7 @@ sealed class ClusterChannel : IAsyncDisposable {
 
         var callInvoker = channel
             .CreateCallInvoker()
-            .Intercept(interceptors: interceptors);
+            .Intercept(interceptors);
 
         return new(
             channel: channel,
