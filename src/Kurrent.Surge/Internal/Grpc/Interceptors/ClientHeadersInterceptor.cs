@@ -4,8 +4,8 @@ using Grpc.Core.Interceptors;
 namespace Kurrent.Grpc.Interceptors;
 
 /// <summary>
-/// Injects a fixed set of headers on every call, creating the metadata collection
-/// when the caller supplied none.
+/// Injects a fixed set of headers on every call. A caller-supplied value wins over a
+/// static header with the same key, and the caller's metadata instance is never mutated.
 /// </summary>
 sealed class ClientHeadersInterceptor : Interceptor {
     // The entries are immutable and safely shared across calls: building them once removes
@@ -45,13 +45,31 @@ sealed class ClientHeadersInterceptor : Interceptor {
     ClientInterceptorContext<TRequest, TResponse> WithHeaders<TRequest, TResponse>(
         in ClientInterceptorContext<TRequest, TResponse> context
     ) where TRequest : class where TResponse : class {
-        var result = context.Options.Headers is not { } headers
-            ? new(context.Method, context.Host, context.Options.WithHeaders(headers = []))
-            : context;
+        var existing = context.Options.Headers;
+
+        // Build a fresh collection instead of adding into the caller's: a Metadata instance
+        // reused across calls would otherwise accumulate the static entries on every call,
+        // and a caller-set key would be sent twice.
+        var effective = new Metadata();
+
+        if (existing is not null)
+            foreach (var entry in existing)
+                effective.Add(entry);
 
         foreach (var header in _headers)
-            headers.Add(header);
+            if (existing is null || !ContainsKey(existing, header.Key))
+                effective.Add(header);
 
-        return result;
+        return new(context.Method, context.Host, context.Options.WithHeaders(effective));
+
+        // Grpc.Core lowercases entry keys on construction and the static keys are declared
+        // lowercase, so ordinal comparison is exact.
+        static bool ContainsKey(Metadata metadata, string key) {
+            foreach (var entry in metadata)
+                if (string.Equals(entry.Key, key, StringComparison.Ordinal))
+                    return true;
+
+            return false;
+        }
     }
 }
