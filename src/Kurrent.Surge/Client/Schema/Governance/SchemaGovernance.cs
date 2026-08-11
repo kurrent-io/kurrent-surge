@@ -32,6 +32,11 @@ sealed class SchemaGovernance(RegistryClient registry, ISchemaExporter exporter)
 
         foreach (var catalog in catalogs) {
             foreach (var entry in catalog.Entries) {
+                // System vocabulary ($>, $metadata, …) is the server's, never client-registered —
+                // the registry's name validator rejects those names outright.
+                if (entry.Key.StartsWith('$'))
+                    continue;
+
                 var versionId = await EnsureRegistered(entry.Key, entry.Value, policy, ct).ConfigureAwait(false);
 
                 results[(entry.Value, policy.DataFormat)] = new RecordSchemaInfo {
