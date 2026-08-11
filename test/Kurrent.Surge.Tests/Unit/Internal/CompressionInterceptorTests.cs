@@ -70,6 +70,28 @@ public class CompressionInterceptorTests {
         await Assert.That(headers.GetValue(GrpcCompression.CompressionRequestAlgorithmHeader)).IsEqualTo("identity");
     }
 
+    [Test]
+    public async ValueTask overrides_a_caller_set_algorithm_that_differs_from_the_configured_one(CancellationToken cancellationToken) {
+        // Arrange: something upstream already requested gzip, but the channel is configured
+        // for Brotli — the channel's configured algorithm wins.
+        var callerHeaders = new Metadata();
+        callerHeaders.WithCompression(CompressionAlgorithm.Gzip);
+
+        var invoker = new CapturingCallInvoker();
+        var subject = invoker.Intercept(new CompressionInterceptor(CompressionAlgorithm.Brotli));
+
+        // Act
+        using var call = subject.AsyncUnaryCall(
+            TestMethod, null,
+            new(headers: callerHeaders, cancellationToken: cancellationToken), "request");
+        await call.ResponseAsync;
+        var headers = invoker.CapturedOptions!.Value.Headers;
+
+        // Assert: exactly one header, now requesting the configured algorithm.
+        await Assert.That(headers!.Count).IsEqualTo(1);
+        await Assert.That(headers.GetValue(GrpcCompression.CompressionRequestAlgorithmHeader)).IsEqualTo("br");
+    }
+
     sealed class CapturingCallInvoker : CallInvoker {
         public CallOptions? CapturedOptions { get; private set; }
 

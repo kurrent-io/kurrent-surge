@@ -10,7 +10,9 @@ namespace Kurrent.Grpc.Compression;
 static class GrpcCompression {
     public const string CompressionRequestAlgorithmHeader = "grpc-internal-encoding-request";
 
-    // The standard grpc-encoding value meaning "do not compress this message".
+    // The standard grpc-encoding value meaning "do not compress this message". Confirmed
+    // against the IANA HTTP content-coding registry and grpc-dotnet's own internal checks
+    // for it; the surrounding grpc-internal-encoding-request header itself is undocumented.
     const string IdentityEncoding = "identity";
 
     public static readonly Dictionary<string, ICompressionProvider> FastestCompressionProviders = new(StringComparer.OrdinalIgnoreCase) {
@@ -152,27 +154,53 @@ static class GrpcCompression {
         };
 
     /// <summary>
+    /// Sets <paramref name="entry"/> as the call's compression header, enforcing it over
+    /// whatever algorithm is already requested — except an explicit "identity" opt-out
+    /// (see <see cref="WithoutCompression(Metadata?)"/>), which is left alone. Used by
+    /// CompressionInterceptor: the channel's configured algorithm wins over an accidental
+    /// or stale mismatch, but a deliberate per-call bypass still works.
+    /// </summary>
+    internal static void EnforceCompression(this Metadata headers, Metadata.Entry entry) {
+        var index = headers.IndexOfCompressionHeader();
+
+        if (index < 0) {
+            headers.Add(entry);
+            return;
+        }
+
+        if (string.Equals(headers[index].Value, IdentityEncoding, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        headers[index] = entry;
+    }
+
+    /// <summary>
     /// Adds <paramref name="entry"/> unless a header with the same key (case-insensitive) is
-    /// already present. Iterates by index to avoid the enumerator allocation LINQ's Any/FirstOrDefault
-    /// would incur going through Metadata's IEnumerable interface.
+    /// already present.
     /// </summary>
     /// <returns><see langword="true"/> if the entry was added.</returns>
     internal static bool TryAddIfAbsent(this Metadata headers, Metadata.Entry entry) {
-        for (var i = 0; i < headers.Count; i++) {
-            if (string.Equals(headers[i].Key, entry.Key, StringComparison.OrdinalIgnoreCase))
-                return false;
-        }
+        if (headers.IndexOfCompressionHeader() >= 0)
+            return false;
 
         headers.Add(entry);
         return true;
     }
 
     internal static void RemoveCompressionHeader(this Metadata headers) {
+        var index = headers.IndexOfCompressionHeader();
+        if (index >= 0)
+            headers.RemoveAt(index);
+    }
+
+    // Iterates by index to avoid the enumerator allocation LINQ's Any/FirstOrDefault would
+    // incur going through Metadata's IEnumerable interface.
+    static int IndexOfCompressionHeader(this Metadata headers) {
         for (var i = 0; i < headers.Count; i++) {
-            if (string.Equals(headers[i].Key, CompressionRequestAlgorithmHeader, StringComparison.OrdinalIgnoreCase)) {
-                headers.RemoveAt(i);
-                return;
-            }
+            if (string.Equals(headers[i].Key, CompressionRequestAlgorithmHeader, StringComparison.OrdinalIgnoreCase))
+                return i;
         }
+
+        return -1;
     }
 }

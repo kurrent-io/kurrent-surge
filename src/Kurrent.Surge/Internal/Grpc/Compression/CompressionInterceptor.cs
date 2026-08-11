@@ -6,16 +6,15 @@ using Metadata = Grpc.Core.Metadata;
 namespace Kurrent.Grpc.Compression;
 
 /// <summary>
-/// Requests the configured compression algorithm on every outgoing call, creating the
-/// metadata collection when the caller supplied none.
+/// Enforces the configured compression algorithm on every outgoing call, creating the
+/// metadata collection when the caller supplied none and overriding any mismatched
+/// algorithm already present. An explicit WithoutCompression ("identity") opt-out is
+/// left alone — it's the one recognized per-call bypass.
 /// </summary>
-sealed class CompressionInterceptor : Interceptor {
+sealed class CompressionInterceptor(CompressionAlgorithm algorithm) : Interceptor {
     // The entry is immutable and safely shared across calls: building it once removes a
     // Metadata.Entry allocation from every gRPC call.
-    readonly Metadata.Entry _header;
-
-    public CompressionInterceptor(CompressionAlgorithm algorithm) =>
-        _header = new Metadata.Entry(GrpcCompression.CompressionRequestAlgorithmHeader, algorithm.ToEncodingName());
+    readonly Metadata.Entry _header = new(GrpcCompression.CompressionRequestAlgorithmHeader, algorithm.ToEncodingName());
 
     public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
         TRequest request, ClientInterceptorContext<TRequest, TResponse> context,
@@ -44,7 +43,7 @@ sealed class CompressionInterceptor : Interceptor {
             ? new(context.Method, context.Host, context.Options.WithHeaders(headers = []))
             : context;
 
-        headers.TryAddIfAbsent(_header);
+        headers.EnforceCompression(_header);
 
         return result;
     }
