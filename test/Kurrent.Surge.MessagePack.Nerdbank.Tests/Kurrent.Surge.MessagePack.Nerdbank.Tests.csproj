@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <Using Include="TUnit" />
+    <Using Include="Bogus" />
     <Using Include="Kurrent.Testkit" />
     <Using Include="Kurrent.Testkit.TUnit" />
     <Using Include="Kurrent.Testkit.TUnit.Assertions" />
