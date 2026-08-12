@@ -6,7 +6,7 @@ backed by the official [Apache.Avro](https://github.com/apache/avro/tree/main/la
 ## What this package does
 
 Kurrent Surge's message pipeline serializes and deserializes your message types through a pluggable
-`ISchemaSerializer`. `Kurrent.Surge.Avro` adds Avro as one of those formats, alongside the SDK's built-in JSON
+`ISchemaCodec`. `Kurrent.Surge.Avro` adds Avro as one of those formats, alongside the SDK's built-in JSON
 and Protobuf support — same registration model, same message catalog, same read/write path. Install it,
 register your message types, and Avro becomes just another format choice for your streams.
 
@@ -116,17 +116,6 @@ confirmed by direct testing):
 <PropertyGroup>
   <AvroSourceGeneratorAccessModifier>internal</AvroSourceGeneratorAccessModifier>
 </PropertyGroup>
-```
-
-## Registering a custom Avro configuration
-
-`UseAvro()` takes an optional `AvroSchemaSerializerOptions` for anything beyond the defaults — currently just
-the schema-registration policy every serializer in this SDK shares:
-
-```csharp
-opts.Messages.UseAvro(new AvroSchemaSerializerOptions {
-    SchemaRegistration = SchemaRegistrationOptions.ManualMap
-});
 ```
 
 ## Links

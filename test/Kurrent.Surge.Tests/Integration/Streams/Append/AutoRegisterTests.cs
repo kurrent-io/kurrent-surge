@@ -83,7 +83,7 @@ public class AutoRegisterTests {
 
         var data = await Fixture.TestData.GenerateSet(ct);
 
-        // Two records of the same CLR type so the second append hits the SchemaManager cache.
+        // Two records of the same CLR type so the second append hits the governance cache.
         var sameType = data.Records
             .Where(r => r.Value is LapCompleted)
             .Take(2)

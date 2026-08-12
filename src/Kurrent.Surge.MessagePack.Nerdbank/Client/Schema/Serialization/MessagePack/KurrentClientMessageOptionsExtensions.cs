@@ -3,8 +3,8 @@ using Kurrent.Surge.Client;
 namespace Kurrent.Surge.Client.Schema.Serialization.MessagePack;
 
 /// <summary>
-/// Registers <see cref="MessagePackSchemaSerializer"/> (Nerdbank.MessagePack) through the same
-/// <see cref="KurrentClientMessageOptions.UseSerializer"/> path every built-in and opt-in serializer
+/// Registers <see cref="MessagePackSchemaCodec"/> (Nerdbank.MessagePack) through the same
+/// <see cref="KurrentClientMessageOptions.UseCodec"/> path every built-in and opt-in codec
 /// uses. Import this namespace to bring <c>UseNerdbankMessagePack()</c> into scope on
 /// <c>options.Messages</c>.
 /// </summary>
@@ -16,6 +16,6 @@ public static class KurrentClientMessageOptionsExtensions {
         /// is required, with no reflection-based default to fall back to.
         /// </summary>
         public KurrentClientMessageOptions UseNerdbankMessagePack(MessagePackSchemaSerializerOptions config) =>
-            options.UseSerializer(schemaManager => new MessagePackSchemaSerializer(config, schemaManager));
+            options.UseCodec(new MessagePackSchemaCodec(config));
     }
 }

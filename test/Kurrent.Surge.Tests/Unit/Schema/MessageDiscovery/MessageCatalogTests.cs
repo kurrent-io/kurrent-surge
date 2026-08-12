@@ -103,7 +103,7 @@ public class MessageCatalogTests {
         options.UseHandRolledCatalog();
 
         // Act
-        var resolver = options.BuildResolver();
+        var (resolver, _) = options.BuildResolver();
 
         // Assert
         await Assert.That(resolver.ResolveSchemaName(typeof(HandRolledPing)).Value).IsEqualTo("hand-rolled.ping.v1");
@@ -132,7 +132,7 @@ public class MessageCatalogTests {
 
         // Act
         options.UseScannedCatalog().UsePinnedCatalog();
-        var resolver = options.BuildResolver();
+        var (resolver, _) = options.BuildResolver();
 
         // Assert
         await Assert.That(resolver.ResolveSchemaName(typeof(ScannedOrderPlaced)).Value).IsNotNull();
@@ -146,7 +146,7 @@ public class MessageCatalogTests {
         var options = new KurrentClientMessageOptions();
 
         // Act
-        var resolver = options.BuildResolver();
+        var (resolver, _) = options.BuildResolver();
         var scanned  = () => resolver.ResolveSchemaName(typeof(ScannedOrderPlaced));
         var external = () => resolver.ResolveSchemaName(typeof(ExternalInvoiceIssued));
 
@@ -161,7 +161,7 @@ public class MessageCatalogTests {
         var options = new KurrentClientMessageOptions();
         options.UseScannedCatalog();
 
-        var resolver = options.BuildResolver();
+        var (resolver, _) = options.BuildResolver();
 
         // Act — PinnedOrderPlaced lives in the unselected "pinned" catalog.
         var resolving = () => resolver.ResolveSchemaName(typeof(PinnedOrderPlaced));
@@ -177,7 +177,7 @@ public class MessageCatalogTests {
         options.MapMessage<UnmarkedMessage>("unmarked.v1");
 
         // Act
-        var resolver = options.BuildResolver();
+        var (resolver, _) = options.BuildResolver();
 
         // Assert
         await Assert.That(resolver.ResolveType("unmarked.v1")).IsEqualTo(typeof(UnmarkedMessage));
@@ -189,7 +189,7 @@ public class MessageCatalogTests {
         var options = new KurrentClientMessageOptions();
 
         // Act
-        var resolver = options.BuildResolver();
+        var (resolver, _) = options.BuildResolver();
 
         // Assert
         await Assert.That(resolver.ResolveSchemaName(typeof(AmbientSignal)).Value).IsNotNull();
@@ -201,7 +201,7 @@ public class MessageCatalogTests {
         var options = new KurrentClientMessageOptions();
 
         // Act
-        var resolver = options.BuildResolver();
+        var (resolver, _) = options.BuildResolver();
 
         // Assert
         await Assert.That(resolver.ResolveType("$metadata")).IsNotNull();

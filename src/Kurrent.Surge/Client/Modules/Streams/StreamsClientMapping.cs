@@ -5,8 +5,6 @@ using System.Collections;
 using System.Diagnostics;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
-using Kurrent.Surge.Client.Schema;
-using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
@@ -21,9 +19,7 @@ namespace Kurrent.Surge.Client.Streams;
 /// Created once per operation call — stack-allocated, zero GC pressure.
 /// </summary>
 readonly record struct MappingContext(
-    ISchemaSerializerProvider SerializerProvider,
     IMetadataDecoder MetadataDecoder,
-    SchemaRegistryPolicy Policy,
     IRecordDecoder Decoder,
     CancellationToken CancellationToken
 );

@@ -159,7 +159,7 @@ public class KurrentClientConfigurationTests {
         var provider = services.BuildServiceProvider();
         var client   = provider.GetRequiredService<KurrentClient>();
 
-        var resolver = client.Options.Messages.BuildResolver();
+        var (resolver, _) = client.Options.Messages.BuildResolver();
 
         // Assert — the catalog's mapping resolves on the client
         await Assert.That(resolver.ResolveSchemaName(typeof(SampleMessage)).Value).IsEqualTo("sample-v1");
