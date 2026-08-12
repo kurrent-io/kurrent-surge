@@ -1,7 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using Google.Protobuf;
-using Kurrent.Surge.Client.Schema;
-using Kurrent.Surge.Client.Schema.Serialization;
+using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using Kurrent.Surge.Legacy;
@@ -12,10 +11,11 @@ using ReadEvent = KurrentDB.Protocol.V1.Streams.ReadResp.Types.ReadEvent;
 namespace Benchmarks;
 
 /// <summary>
-/// Isolates the wire→Record mapping step from the network: pre-built ReadEvents mapped
-/// in memory, no server. Two decoder shapes run side by side — a fresh RecordDecoder per
-/// record (the pre-hoist shape) against the client's shared instance — so the per-record
-/// cost of the decoder allocation is a within-run comparison immune to transport noise.
+/// Isolates the wire→Record mapping step from the network: pre-built ReadEvents mapped in
+/// memory, no server round trip. The decoder is the client's real ReadRecordPipeline, built
+/// from client-composed parts — KurrentClient construction is lazy (no connection is dialed
+/// until the first RPC), so this stays a pure in-memory measurement. End-to-end append/read
+/// benchmarks cannot resolve mapping-stage deltas on their own; this rig is what does.
 /// </summary>
 [Config(typeof(BenchmarkConfig))]
 [BenchmarkCategory("Mapping")]
@@ -26,45 +26,24 @@ public class RecordMappingBenchmarks {
 
     readonly DefaultMetadataDecoder _metadataDecoder = new();
 
-    ReadEvent[]    _events        = null!;
-    RecordDecoder  _sharedDecoder = null!;
+    KurrentClient  _client  = null!;
+    ReadEvent[]    _events  = null!;
+    IRecordDecoder _decoder = null!;
 
     [GlobalSetup]
     public void Setup() {
-        _sharedDecoder = new RecordDecoder(NullSerializerProvider.Instance, SchemaRegistryPolicy.NoRequirements);
+        // No connection is dialed here — KurrentClient construction is lazy.
+        _client  = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
+        _decoder = _client.ReadPipeline;
 
         _events = new ReadEvent[RecordsPerOp];
         for (var i = 0; i < RecordsPerOp; i++)
             _events[i] = NewReadEvent(i);
     }
 
-    [Benchmark(Baseline = true, OperationsPerInvoke = RecordsPerOp, Description = "decoder per record (pre-hoist shape)")]
-    public async Task<int> map_with_decoder_per_record() {
-        var count = 0;
-
-        foreach (var readEvent in _events) {
-            var ctx = new MappingContext(
-                NullSerializerProvider.Instance,
-                _metadataDecoder,
-                SchemaRegistryPolicy.NoRequirements,
-                new RecordDecoder(NullSerializerProvider.Instance, SchemaRegistryPolicy.NoRequirements),
-                CancellationToken.None);
-
-            var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
-            count += record.IsLink ? 0 : 1;
-        }
-
-        return count;
-    }
-
-    [Benchmark(OperationsPerInvoke = RecordsPerOp, Description = "shared decoder (hoisted)")]
-    public async Task<int> map_with_shared_decoder() {
-        var ctx = new MappingContext(
-            NullSerializerProvider.Instance,
-            _metadataDecoder,
-            SchemaRegistryPolicy.NoRequirements,
-            _sharedDecoder,
-            CancellationToken.None);
+    [Benchmark(OperationsPerInvoke = RecordsPerOp, Description = "wire-to-Record mapping (shared ReadRecordPipeline)")]
+    public async Task<int> map_records() {
+        var ctx = new MappingContext(_metadataDecoder, _decoder, CancellationToken.None);
 
         var count = 0;
 
@@ -75,6 +54,9 @@ public class RecordMappingBenchmarks {
 
         return count;
     }
+
+    [GlobalCleanup]
+    public async Task Cleanup() => await _client.DisposeAsync();
 
     // Deterministic hand-built events — Bogus randomness would vary string lengths between
     // runs and pollute the allocation comparison. Shape mirrors the V1 wire contract: schema
@@ -94,14 +76,5 @@ public class RecordMappingBenchmarks {
         recorded.Metadata["content-type"] = "application/json";
 
         return new ReadEvent { Event = recorded, CommitPosition = recorded.CommitPosition };
-    }
-
-    sealed class NullSerializerProvider : ISchemaSerializerProvider {
-        public static readonly NullSerializerProvider Instance = new();
-
-        public bool SupportsDataFormat(SchemaDataFormat dataFormat) => false;
-
-        public ISchemaSerializer GetSerializer(SchemaDataFormat dataFormat) =>
-            throw new NotSupportedException();
     }
 }

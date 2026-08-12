@@ -40,16 +40,15 @@ public class KurrentClientMessageOptions {
         return this;
     }
 
-    internal List<Func<ISchemaManager, ISchemaSerializer>> SerializerFactories { get; } = [];
+    internal List<ISchemaCodec> Codecs { get; } = [];
 
     /// <summary>
-    /// Registers a schema serializer, deferred until the client builds its own <see cref="ISchemaManager"/>.
-    /// The built-in JSON, Protobuf, and bytes-passthrough serializers register through this exact same
-    /// path (see <c>KurrentClientMessageOptionsExtensions.UseJson</c>/<c>UseProtobuf</c>/<c>UseBytes</c> in
-    /// Kurrent.Surge) — there is no separate mechanism for built-ins versus custom serializers.
+    /// Registers payload codecs — the custom-serializer surface. A codec is pure: two synchronous
+    /// methods and a format. Schema resolution and registry work run in the client's record
+    /// pipelines before a codec is invoked, so codecs take no dependencies at registration.
     /// </summary>
-    public KurrentClientMessageOptions UseSerializer(params IEnumerable<Func<ISchemaManager, ISchemaSerializer>> factories) {
-        SerializerFactories.AddRange(factories);
+    public KurrentClientMessageOptions UseCodec(params IEnumerable<ISchemaCodec> codecs) {
+        Codecs.AddRange(codecs);
         return this;
     }
 
@@ -70,17 +69,20 @@ public class KurrentClientMessageOptions {
 
     /// <summary>
     /// The freeze: unions the default catalog, explicitly used catalogs, and every always-active
-    /// catalog into one snapshot resolver. Discovery always runs, but only
+    /// catalog into one snapshot resolver, and returns the same catalog list so callers can reuse
+    /// it (e.g. catalog validation) without repeating discovery. Discovery always runs, but only
     /// <see cref="MessageCatalog.AlwaysActive"/> catalogs (system streams, streaming contracts)
     /// register by default — the rest are opt-in via <see cref="UseCatalog"/>. Conflicting
     /// mappings fail construction loudly, naming the offending catalog.
     /// </summary>
-    internal MessageResolver BuildResolver() {
+    internal (MessageResolver Resolver, IReadOnlyList<MessageCatalog> Catalogs) BuildResolver() {
         var discovered = MessageCatalogDiscovery.GetCatalogs();
 
         // AlwaysActive catalogs are foundational and register unconditionally; everything else
         // discovered is opt-in and arrives only through UseCatalog (UsedCatalogs). The union, dedup,
         // and conflict detection (the freeze) now live in MessageResolver.From.
-        return MessageResolver.From([Catalog, ..UsedCatalogs, ..discovered.Where(c => c.AlwaysActive)]);
+        List<MessageCatalog> catalogs = [Catalog, ..UsedCatalogs, ..discovered.Where(c => c.AlwaysActive)];
+
+        return (MessageResolver.From(catalogs), catalogs);
     }
 }

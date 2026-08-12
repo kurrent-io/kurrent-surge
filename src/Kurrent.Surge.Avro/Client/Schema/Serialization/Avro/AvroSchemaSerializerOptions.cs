@@ -1,7 +1,7 @@
 namespace Kurrent.Surge.Client.Schema.Serialization.Avro;
 
 /// <summary>
-/// Options for <see cref="AvroSchemaSerializer"/>.
+/// Options for <see cref="AvroSchemaCodec"/>.
 /// </summary>
 [PublicAPI]
 public record AvroSchemaSerializerOptions : SchemaSerializerOptions {

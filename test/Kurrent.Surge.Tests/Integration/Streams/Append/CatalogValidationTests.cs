@@ -1,7 +1,8 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Experimental;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
@@ -13,6 +14,12 @@ namespace Kurrent.Surge.Tests.Streams;
 public class CatalogValidationTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
+
+    // Self-composed, equivalent to the fixture client's own defaults — the pipeline-composition
+    // seam on KurrentClient is gone, so tests build their own resolver/registrations instead of
+    // borrowing the client's.
+    static readonly IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> Registrations =
+        Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
 
     [Test]
     public async ValueTask first_grpc_call_starts_catalog_validation_exactly_once(CancellationToken ct) {
@@ -70,22 +77,21 @@ public class CatalogValidationTests {
     public async ValueTask first_grpc_call_validates_the_catalog_through_real_governance(CancellationToken ct) {
         // Arrange — the real constructor: governance + live catalog entries + resolved policy,
         // attached to a dedicated client.
-        var data    = await Fixture.SeedTestStream(1, ct);
-        var streams = new StreamsClient(Fixture.Client);
-        var mapping = streams.CreateMappingContext(ct);
-
-        var (_, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+        var data     = await Fixture.SeedTestStream(1, ct);
+        var streams  = new StreamsClient(Fixture.Client);
+        var policy   = streams.RegistryPolicy;
 
         var raceCarType = typeof(Kurrent.Testkit.Datasets.ArcadeRacer.Model.RaceCar);
-        var schemaName  = messages.ResolveSchemaName(raceCarType);
-
-        var resolved = mapping.Policy
-            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
-            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
             .Where(catalog => catalog.Types.Contains(raceCarType))
             .ToList();
+
+        var schemaName = MessageResolver.From(catalogs).ResolveSchemaName(raceCarType);
+
+        var resolved = policy
+            .Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var governance  = SchemaGovernance.Create(Fixture.Client);
         var interceptor = new CatalogValidationInterceptor(governance, catalogs, resolved, ct);
@@ -109,20 +115,19 @@ public class CatalogValidationTests {
         // Arrange — real governance, the live catalog entry for RaceCar, and today's live
         // policy (NoRequirements): validation must complete without touching the registry.
         var streams = new StreamsClient(Fixture.Client);
-        var mapping = streams.CreateMappingContext(ct);
-
-        var (_, messages, registrations) = SchemaManagerGovernanceAdapter.Extract(mapping.SerializerProvider);
+        var policy  = streams.RegistryPolicy;
 
         var raceCarType = typeof(Kurrent.Testkit.Datasets.ArcadeRacer.Model.RaceCar);
-        var schemaName  = messages.ResolveSchemaName(raceCarType);
-
-        var resolved = mapping.Policy
-            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
-            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
             .Where(catalog => catalog.Types.Contains(raceCarType))
             .ToList();
+
+        var schemaName = MessageResolver.From(catalogs).ResolveSchemaName(raceCarType);
+
+        var resolved = policy
+            .Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
         var governance = SchemaGovernance.Create(Fixture.Client);
 

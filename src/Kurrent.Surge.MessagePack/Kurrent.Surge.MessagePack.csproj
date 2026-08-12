@@ -16,10 +16,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Public dependency: Kurrent.Surge.MessagePack.nupkg depends on Kurrent.Surge.nupkg. SchemaSerializerBase
-         and SchemaManager (the schema-registration base this serializer plugs into) live in Kurrent.Surge, not
-         Kurrent.Surge.Core — matches the Kurrent.Projectors.DuckDB add-on precedent. -->
-    <ProjectReference Include="..\Kurrent.Surge\Kurrent.Surge.csproj" />
+    <!-- Public dependency: Kurrent.Surge.MessagePack.nupkg depends on Kurrent.Surge.Core.nupkg,
+         which declares ISchemaCodec — the pure, dependency-free codec surface this package
+         plugs into. -->
+    <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

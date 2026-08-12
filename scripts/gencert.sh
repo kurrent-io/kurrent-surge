@@ -198,6 +198,8 @@ mkdir -p "$CERTS_DIR"
 echo ">> Certs directory: ${CERTS_DIR}"
 [[ "$FORCE" == true ]] && echo ">> Force mode: regenerating all certificates."
 
+# macOS ships bash 3.2, where expanding an empty array under `set -u` is fatal
+# (fixed in bash 4.4). Every expansion site guards with ${force_flag[@]+...}.
 force_flag=()
 [[ "$FORCE" == true ]] && force_flag=(-force)
 

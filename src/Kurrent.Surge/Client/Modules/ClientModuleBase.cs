@@ -1,4 +1,3 @@
-using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Client;
@@ -22,8 +21,7 @@ public abstract class ClientModuleBase {
     protected internal ILoggerFactory LoggerFactory { get; }
     protected internal ILogger        Logger        { get; }
 
-    protected ISchemaSerializerProvider SerializerProvider => KurrentClient.SerializerProvider;
-    protected IMetadataDecoder          MetadataDecoder    => KurrentClient.Options.MetadataDecoder;
+    protected IMetadataDecoder MetadataDecoder => KurrentClient.Options.MetadataDecoder;
 
     protected HttpClient GetBackdoorClient() =>
         KurrentClient.BackdoorClientFactory.GetClient();
