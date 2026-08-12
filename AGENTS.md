@@ -39,7 +39,8 @@ are not consumer-facing, so the minimum-supported TFM rule does not apply.
 When debugging CI or workflow issues, create a minimal throwaway workflow targeting just the failing step
 instead of running the full pipeline.
 
-`tools/` contains .NET 10 file-based apps (`.cs` files with `#:` directives). Restore once after cloning: `dotnet tool restore`.
+`tools/` contains .NET 10 file-based apps (`.cs` files with `#:` directives). Restore once after cloning:
+`dotnet tool restore`.
 
 | Method     | Example                                    | Notes                          |
 |------------|--------------------------------------------|--------------------------------|
@@ -74,7 +75,8 @@ Solution-level shared libraries — `Variant`, `Kurrent.Client.SourceGenerators`
 
 `Kurrent.Client` contains a `Legacy/` folder with V1 gRPC compatibility — not a separate package.
 
-Streams module split across 15+ partial class files. Naming convention documented in [Module Organization](.claude/context/project/module-organization.md).
+Streams module split across 15+ partial class files. Naming convention documented in
+[Module Organization](.claude/context/project/module-organization.md).
 
 Sum types use source-generated `IVariant` discriminated unions. Exception types decorated with
 `[KurrentOperationError]` get source-generated constructors.
@@ -119,7 +121,8 @@ The five canonical triage roles map onto Linear's native workflow states plus th
 
 - Single-context: `CONTEXT.md` at the repo root.
 - Existing reference docs under `.claude/context/project/`.
-- ADRs are not part of our doc workflow, but some skills under evaluation emit them — if one is ever created it goes in `.claude/context/docs/adr/`, reserved so those skills work.
+- ADRs are not part of our doc workflow, but some skills under evaluation emit them — if one is ever created
+  it goes in `.claude/context/docs/adr/`, reserved so those skills work.
 
 <!-- jbcontext-instructions-start -->
 # Tools
@@ -131,20 +134,24 @@ Use the `/context-search` skill or run `jbcontext search "<query>"` to find code
 
 ### When to use
 
-`jbcontext search` is a **code-discovery** tool. Reach for it only when a task requires finding or understanding code whose location you don't already know.
+`jbcontext search` is a **code-discovery** tool. Reach for it only when a task requires finding or
+understanding code whose location you don't already know.
 
 Skip it — go straight to the right tool — when:
 - the task names the exact file, class, or symbol (keyword grep is faster);
 - the relevant file is already open or identified;
-- the task doesn't involve locating code at all — git operations (rebase, merge, commit), running tests or builds, shell/statusline/config setup, or reviewing a diff you already have.
+- the task doesn't involve locating code at all — git operations (rebase, merge, commit), running tests or
+  builds, shell/statusline/config setup, or reviewing a diff you already have.
 
 ### How to use it
-- Start with `jbcontext search` before planning, editing, or exact search in unfamiliar code when you do not yet know the right file, subsystem, implementation, or related test.
+- Start with `jbcontext search` before planning, editing, or exact search in unfamiliar code when you do not
+  yet know the right file, subsystem, implementation, or related test.
 - Use one focused natural-language query per search.
 - Do not start with grep, ripgrep, or find when the search problem is still semantic or exploratory.
 - Inspect the first relevant file or directory before issuing another broad semantic search.
 - Use another broad `jbcontext search` only if the local path stops being productive.
-- Once you know the relevant file, symbol, or directory, switch to direct file reads or exact search for local inspection.
+- Once you know the relevant file, symbol, or directory, switch to direct file reads or exact search for
+  local inspection.
 - If you search again after finding a relevant area, narrow with `-p <path>`.
 
 <!-- jbcontext-instructions-end -->
