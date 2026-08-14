@@ -25,11 +25,16 @@ interface ISchemaGovernance {
     ValueTask<SchemaVersionId> EnsureCompatible(RecordSchemaInfo schemaInfo, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct);
 
     /// <summary>
-    /// Validates with the server that the catalogs' messages can be produced — registering or
-    /// checking compatibility per policy — and returns the complete wire schema info for every
-    /// validated entry. Idempotent through the caches; a policy that requires nothing yields
-    /// entries without a version id.
+    /// The single-flight catalog registration: registers the client's catalogs with the
+    /// server — or verifies them when the policy forbids registration — and carries the
+    /// complete wire schema info for every entry. The first awaiter starts it; every
+    /// awaiter shares the same task, faults included. A policy that requires no registry
+    /// contact yields an already-completed empty result.
     /// </summary>
-    Task<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>> ValidateCatalog(
-        IEnumerable<MessageCatalog> catalogs, ResolvedSchemaRegistryPolicy policy, CancellationToken ct);
+    Task<CatalogSchemaMap> CatalogRegistration { get; }
+
+    /// <summary>
+    /// Starts the catalog registration without awaiting it.
+    /// </summary>
+    void StartCatalogRegistration();
 }

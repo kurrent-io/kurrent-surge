@@ -5,10 +5,11 @@ using Kurrent.Surge.Schema;
 namespace Kurrent.Surge.Client.Schema;
 
 /// <summary>
-/// Defines the schema registry policy for controlling schema registration, validation,
-/// and formatting settings in the context of client and server operations.
+/// The server's voice: the registration, validation, and format requirements the server
+/// enforces. Never user-configured — populated from server capabilities when
+/// <c>FromServerFeatures</c> goes live.
 /// </summary>
-public record SchemaRegistryPolicy {
+internal record SchemaRegistryPolicy {
 	public static readonly SchemaRegistryPolicy Disabled = new() { Enabled = false };
 
 	public static readonly SchemaRegistryPolicy NoRequirements = new() {
@@ -39,53 +40,26 @@ public record SchemaRegistryPolicy {
 	public SchemaDataFormat EnforcedDataFormat { get; init; } = SchemaDataFormat.Unspecified;
 
     /// <summary>
-    /// Resolves the effective schema registry policy by considering both client-provided
-    /// options and the server's schema registry policy settings.
+    /// Resolves the effective policy: the server's requirements override the client's
+    /// options, and the client decides only what the server leaves optional.
     /// </summary>
-    /// <param name="options">The schema registration options provided by the client.</param>
+    /// <param name="options">The client's schema options.</param>
     /// <param name="stream">The stream identifier associated with the schema.</param>
     /// <param name="dataFormat">The data format used by the serializer, which may be considered in resolution if the server does not enforce a specific format.</param>
     /// <returns>A <see cref="ResolvedSchemaRegistryPolicy"/> object that encapsulates the resolved settings.</returns>
-    public ResolvedSchemaRegistryPolicy Resolve(SchemaRegistrationOptions options, string? stream, SchemaDataFormat dataFormat = SchemaDataFormat.Unspecified) {
+    public ResolvedSchemaRegistryPolicy Resolve(KurrentClientSchemaOptions options, string? stream, SchemaDataFormat dataFormat = SchemaDataFormat.Unspecified) {
 		// If schema registry is disabled on server, create a policy with local operations only
 		if (!Enabled)
 			return new(false, false, SchemaDataFormat.Unspecified, stream);
 
-		// Resolve auto-registration based on client mode and server policy
 		var autoRegister = options.RegistrationMode switch {
-			SchemaRegistrationMode.Auto => RegistrationRequirement switch {
-				PolicyRequirement.Required   => true,
-				PolicyRequirement.Prohibited => false,
-				_                            => true // Default to true for Auto mode
-			},
-
-			SchemaRegistrationMode.Manual => RegistrationRequirement switch {
-				PolicyRequirement.Required   => true,
-				PolicyRequirement.Prohibited => false,
-				_                            => false // Default to false for Manual mode
-			},
-
-			SchemaRegistrationMode.ServerPolicy => RegistrationRequirement == PolicyRequirement.Required,
-			_ => false
+			SchemaRegistrationMode.Auto => RegistrationRequirement is not PolicyRequirement.Prohibited,
+			_                           => RegistrationRequirement is PolicyRequirement.Required
 		};
 
-		// Resolve validation based on client mode and server policy
-		var validate = RegistrationRequirement is PolicyRequirement.Prohibited || options.ValidationMode switch {
-			SchemaValidationMode.Enabled => ValidationRequirement switch {
-				PolicyRequirement.Required   => true,
-				PolicyRequirement.Prohibited => false,
-				_                            => true // Default to true for Enabled mode
-			},
-
-			SchemaValidationMode.Disabled => ValidationRequirement switch {
-				PolicyRequirement.Required   => true,
-				PolicyRequirement.Prohibited => false,
-				_                            => false // Default to false for Disabled mode
-			},
-
-			SchemaValidationMode.ServerPolicy => ValidationRequirement == PolicyRequirement.Required,
-
-			_ => false
+		var validate = options.ValidationMode switch {
+			SchemaValidationMode.Enabled => ValidationRequirement is not PolicyRequirement.Prohibited,
+			_                            => ValidationRequirement is PolicyRequirement.Required
 		};
 
 		var actualDataFormat = EnforcedDataFormat != SchemaDataFormat.Unspecified

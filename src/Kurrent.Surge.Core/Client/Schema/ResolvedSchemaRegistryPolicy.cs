@@ -7,7 +7,7 @@ namespace Kurrent.Surge.Client.Schema;
 /// Contains the resolved policy decisions for schema registry operations
 /// after evaluating client options against server requirements.
 /// </summary>
-public record ResolvedSchemaRegistryPolicy {
+internal record ResolvedSchemaRegistryPolicy {
 	internal ResolvedSchemaRegistryPolicy(
 		bool autoRegisterSchemas,
 		bool validateSchemas,

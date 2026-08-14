@@ -5,115 +5,149 @@ using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
+using Kurrent.Surge.Schema.Naming;
 
 namespace Kurrent.Surge.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]
 [Timeout(30_000)]
-public class CatalogValidationTests {
+public class CatalogRegistrationTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     // Self-composed, equivalent to the fixture client's own defaults — the pipeline-composition
-    // seam on KurrentClient is gone, so tests build their own resolver/registrations instead of
+    // seam on KurrentClient is gone, so tests build their own resolver/schema instead of
     // borrowing the client's.
-    static readonly IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> Registrations =
-        Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
+    static readonly KurrentClientSchemaOptions Schema = KurrentClientSchemaOptions.Disabled;
+
+    static ISchemaNameStrategy NewIsolatedNameStrategy() =>
+        SchemaNameStrategies.Namespace($"test-registration-{Guid.NewGuid():N}");
 
     [Test]
-    public async ValueTask first_grpc_call_starts_catalog_validation_exactly_once(CancellationToken ct) {
-        // Arrange — a dedicated client carrying the interceptor; the shared fixture client
-        // seeds the stream both clients read.
+    public async ValueTask first_connection_runs_initialization_tasks_exactly_once(CancellationToken ct) {
+        // Arrange — a counting task on a default (lax) client; the shared fixture client
+        // seeds the stream the reads use.
         var data = await Fixture.SeedTestStream(1, ct);
 
-        var validations = 0;
+        var executions = 0;
 
-        IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo> empty =
-            new Dictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>();
-
-        var interceptor = new CatalogValidationInterceptor(() => {
-            Interlocked.Increment(ref validations);
-            return Task.FromResult(empty);
+        var options = KurrentClientOptions.Parse(Fixture.ConnectionString);
+        options.Initialization.AddTask("count-executions", (_, _) => {
+            Interlocked.Increment(ref executions);
+            return ValueTask.CompletedTask;
         });
 
-        var options = KurrentClientOptions.Parse(Fixture.ConnectionString);
-        options.Interceptors = [interceptor];
-
         await using var client = new KurrentClient(options);
 
-        // Act — two calls; only the first may start validation.
+        // Act — two calls; initialization runs off the first connection only.
         await client.Streams.ReadStream(data.Stream, ct).Where(msg => msg.IsRecord).ToListAsync(ct);
         await client.Streams.ReadStream(data.Stream, ct).Where(msg => msg.IsRecord).ToListAsync(ct);
 
-        // Assert — the counter is checked BEFORE touching Validation: its getter would start
-        // the task itself and mask a call path that never triggered.
-        await Assert.That(validations).IsEqualTo(1);
+        // Assert — the runner is asynchronous: it fires on connection, not inside the call.
+        await Assert.That(async () => {
+            await Assert.That(executions).IsEqualTo(1);
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 
     [Test]
-    public async ValueTask validation_failure_does_not_fault_the_triggering_call(CancellationToken ct) {
-        // Arrange — a validation that always fails; the fault must stay stored in the task.
+    public async ValueTask connect_async_runs_initialization_without_any_operation(CancellationToken ct) {
+        // Arrange — a counting task; no read or append ever happens.
+        var executions = 0;
+
+        var options = KurrentClientOptions.Parse(Fixture.ConnectionString);
+        options.Initialization.AddTask("count-executions", (_, _) => {
+            Interlocked.Increment(ref executions);
+            return ValueTask.CompletedTask;
+        });
+
+        await using var client = new KurrentClient(options);
+
+        // Act — the explicit pre-warm is the only trigger.
+        await client.ConnectAsync(ct);
+
+        // Assert
+        await Assert.That(async () => {
+            await Assert.That(executions).IsEqualTo(1);
+        }).EventuallyPasses(RetryOnTransients(ct));
+    }
+
+    [Test]
+    public async ValueTask failed_warn_task_does_not_affect_the_client(CancellationToken ct) {
+        // Arrange — a Warn task that always fails; the client must stay fully usable.
         var data = await Fixture.SeedTestStream(1, ct);
 
-        var interceptor = new CatalogValidationInterceptor(
-            () => Task.FromException<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>>(
-                new InvalidOperationException("induced validation failure")));
-
         var options = KurrentClientOptions.Parse(Fixture.ConnectionString);
-        options.Interceptors = [interceptor];
+        options.Initialization.AddTask("induced-warn-failure", (_, _) =>
+            throw new InvalidOperationException("induced initialization failure"));
 
         await using var client = new KurrentClient(options);
 
-        // Act — the triggering call succeeds untaxed.
+        // Act
         var read = await client.Streams.ReadStream(data.Stream, ct).Where(msg => msg.IsRecord).ToListAsync(ct);
 
-        // Assert — the failure surfaces only to whoever awaits the validation.
+        // Assert
         await Assert.That(read).Count().IsEqualTo(1);
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await interceptor.Validation);
     }
 
     [Test]
-    public async ValueTask first_grpc_call_validates_the_catalog_through_real_governance(CancellationToken ct) {
-        // Arrange — the real constructor: governance + live catalog entries + resolved policy,
-        // attached to a dedicated client.
-        var data     = await Fixture.SeedTestStream(1, ct);
-        var streams  = new StreamsClient(Fixture.Client);
-        var policy   = streams.RegistryPolicy;
-
-        var raceCarType = typeof(Kurrent.Testkit.Datasets.ArcadeRacer.Model.RaceCar);
-
-        var catalogs = MessageCatalogDiscovery.GetCatalogs()
-            .Where(catalog => catalog.Types.Contains(raceCarType))
-            .ToList();
-
-        var schemaName = MessageResolver.From(catalogs).ResolveSchemaName(raceCarType);
-
-        var resolved = policy
-            .Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
-            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
-
-        var governance  = SchemaGovernance.Create(Fixture.Client);
-        var interceptor = new CatalogValidationInterceptor(governance, catalogs, resolved, ct);
+    public async ValueTask failed_fault_task_faults_subsequent_stream_operations(CancellationToken ct) {
+        // Arrange — a Fault task that always fails; once initialization stores the fault,
+        // every stream operation throws it.
+        var data = await Fixture.SeedTestStream(1, ct);
 
         var options = KurrentClientOptions.Parse(Fixture.ConnectionString);
-        options.Interceptors = [interceptor];
+        options.Initialization.AddTask(
+            "induced-fault-failure",
+            (_, _) => throw new InvalidOperationException("induced initialization fault"),
+            throwOnFailure: true);
 
         await using var client = new KurrentClient(options);
 
-        // Act — the first call starts the validation; awaiting proves it completes.
-        await client.Streams.ReadStream(data.Stream, ct).Where(msg => msg.IsRecord).ToListAsync(ct);
-        await interceptor.Validation;
-
-        // Assert — steady-state governance after validation is pure lookup returning Unset.
-        var versionId = await governance.EnsureRegistered(schemaName, raceCarType, resolved, ct);
-        await Assert.That(versionId).IsEqualTo(SchemaVersionId.Unset);
+        // Act — the first call triggers the connection; initialization runs concurrently, so
+        // the fault lands eventually, then every operation throws it.
+        await Assert.That(async () => {
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await client.Streams.ReadStream(data.Stream, ct).Where(msg => msg.IsRecord).ToListAsync(ct));
+        }).EventuallyPasses(RetryOnTransients(ct));
     }
 
     [Test]
-    public async ValueTask catalog_validation_is_a_noop_under_no_requirements_policy(CancellationToken ct) {
+    public async ValueTask first_connection_registers_the_catalog_through_real_governance(CancellationToken ct) {
+        // Arrange — an auto-registering client whose only catalog maps one isolated name. The
+        // triggering read skips decoding, so registration is provably driven by the connection,
+        // never by a governed operation.
+        var seeded       = await Fixture.SeedTestStream(1, ct);
+        var nameStrategy = NewIsolatedNameStrategy();
+        var messageType  = seeded.Records[0].Value!.GetType();
+        var schemaName   = nameStrategy.GenerateSchemaName(messageType);
+        var catalog      = new MessageCatalog("registration-single-type").Map(schemaName, messageType);
+
+        await using var client = KurrentClient.Create(Fixture.ConnectionString, opts => {
+            opts.LoggerFactory = Fixture.LoggerFactory;
+            opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Schema        = KurrentClientSchemaOptions.AutoRegister;
+            opts.Messages.UseCatalog(catalog);
+        });
+
+        // Act — a non-governed call: decode skipped, no pipeline governance involved.
+        await client.Streams
+            .ReadStream(seeded.Stream, new ReadStreamOptions { SkipDecoding = true }, ct)
+            .Where(msg => msg.IsRecord)
+            .ToListAsync(ct);
+
+        // Assert — the registry learned the schema on the back of the connection alone.
+        await Assert.That(async () => {
+            var schema = await Fixture.Client.Registry.GetSchema(schemaName, ct);
+            await Assert.That(schema.SchemaName).IsEqualTo(schemaName);
+        }).EventuallyPasses(RetryOnTransients(ct));
+    }
+
+    [Test]
+    public async ValueTask catalog_registration_is_empty_under_no_requirements_policy(CancellationToken ct) {
         // Arrange — real governance, the live catalog entry for RaceCar, and today's live
-        // policy (NoRequirements): validation must complete without touching the registry.
+        // policy (NoRequirements): the registration completes empty without touching the
+        // registry, and steady-state governance stays pure lookup.
         var streams = new StreamsClient(Fixture.Client);
         var policy  = streams.RegistryPolicy;
 
@@ -126,18 +160,17 @@ public class CatalogValidationTests {
         var schemaName = MessageResolver.From(catalogs).ResolveSchemaName(raceCarType);
 
         var resolved = policy
-            .Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .Resolve(Schema, null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
-        var governance = SchemaGovernance.Create(Fixture.Client);
+        var governance = SchemaGovernance.Create(Fixture.Client, catalogs, resolved);
 
         // Act
-        var validated = await governance.ValidateCatalog(catalogs, resolved, ct);
+        var registered = await governance.CatalogRegistration;
 
-        // Assert — the entry carries the full schema info with no version id, and steady-state
-        // governance after validation is pure lookup returning Unset.
-        var expectedInfo = new RecordSchemaInfo { Schema = schemaName, DataFormat = SchemaDataFormat.Json };
-        await Assert.That(validated[(raceCarType, SchemaDataFormat.Json)]).IsEqualTo(expectedInfo);
+        // Assert — nothing was required, so nothing was walked, and steady-state governance
+        // is pure lookup returning Unset.
+        await Assert.That(registered.Count).IsEqualTo(0);
 
         var versionId = await governance.EnsureRegistered(schemaName, raceCarType, resolved, ct);
         await Assert.That(versionId).IsEqualTo(SchemaVersionId.Unset);
