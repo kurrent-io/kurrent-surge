@@ -158,9 +158,9 @@ public class TransactionalProjectionCoverageTests {
 
     void ConfigureConnection(DuckDBProjectorOptions options, SeededTestStream seeded) {
         options.Connection(Fixture.ConnectionString, client => {
-            client.LoggerFactory      = Fixture.LoggerFactory;
-            client.Schema.PreValidate = false;
-            client.Resilience         = KurrentClientResilienceOptions.NoResilience;
+            client.LoggerFactory         = Fixture.LoggerFactory;
+            client.Schema.ValidationMode = SchemaValidationMode.Disabled;
+            client.Resilience            = KurrentClientResilienceOptions.NoResilience;
 
             // The ArcadeRacer contracts are discovered but not always-active. AppendProjection has no
             // fallback and only dispatches decoded records, so without this every record is skipped —

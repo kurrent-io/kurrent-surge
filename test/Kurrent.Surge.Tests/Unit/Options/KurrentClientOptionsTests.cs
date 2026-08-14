@@ -22,7 +22,7 @@ public class KurrentClientOptionsTests {
         await Assert.That(options.Gossip).IsDeepEquivalentTo(KurrentClientGossipOptions.Default);
         await Assert.That(options.Security).IsDeepEquivalentTo(KurrentClientSecurityOptions.Tls);
         await Assert.That(options.Resilience).IsDeepEquivalentTo(KurrentClientResilienceOptions.NoResilience);
-        await Assert.That(options.Schema).IsDeepEquivalentTo(KurrentClientSchemaOptions.FullValidation);
+        await Assert.That(options.Schema).IsDeepEquivalentTo(KurrentClientSchemaOptions.Disabled);
         await Assert.That(options.Interceptors).IsEmpty();
     }
 
@@ -175,6 +175,32 @@ public class KurrentClientOptionsTests {
         var result = options.Validate();
 
         await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask duplicate_initialization_task_names_fail_validation() {
+        var options = new KurrentClientOptions();
+
+        options.Initialization
+            .AddTask("same-name", (_, _) => ValueTask.CompletedTask)
+            .AddTask("same-name", (_, _) => ValueTask.CompletedTask);
+
+        var result = options.Validate();
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask distinct_initialization_task_names_pass_validation() {
+        var options = new KurrentClientOptions();
+
+        options.Initialization
+            .AddTask("first-task", (_, _) => ValueTask.CompletedTask)
+            .AddTask("second-task", (_, _) => ValueTask.CompletedTask);
+
+        var result = options.Validate();
+
+        await Assert.That(result.IsValid).IsTrue();
     }
 
     [Test]

@@ -1,6 +1,7 @@
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
@@ -39,22 +40,20 @@ public class SchemaGovernanceTests {
             .Map<RaceFinished>(strategy)
             .Map<RaceInsight>(strategy);
 
-    // registration: null keeps the framework default (Manual/Disabled — lax, no registry contact).
+    // schema: null keeps the lax dial (Disabled — no registry contact).
     static Action<KurrentClientOptions> ConfigureIsolatedClient(
-        KurrentDBFixture fixture, ISchemaNameStrategy nameStrategy, SchemaRegistrationOptions? registration = null
+        KurrentDBFixture fixture, ISchemaNameStrategy nameStrategy, KurrentClientSchemaOptions? schema = null
     ) =>
-        ConfigureClientWithCatalog(fixture, NewIsolatedCatalog(nameStrategy), registration);
+        ConfigureClientWithCatalog(fixture, NewIsolatedCatalog(nameStrategy), schema);
 
     static Action<KurrentClientOptions> ConfigureClientWithCatalog(
-        KurrentDBFixture fixture, MessageCatalog catalog, SchemaRegistrationOptions? registration = null
+        KurrentDBFixture fixture, MessageCatalog catalog, KurrentClientSchemaOptions? schema = null
     ) =>
         opts => {
             opts.LoggerFactory = fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Schema        = schema ?? KurrentClientSchemaOptions.Disabled;
             opts.Messages.UseCatalog(catalog);
-
-            if (registration is not null)
-                opts.Messages.Json = new() { SchemaRegistration = registration };
         };
 
     // A definition that structurally conflicts with whatever the client itself would export for
@@ -71,7 +70,7 @@ public class SchemaGovernanceTests {
         var nameStrategy = NewIsolatedNameStrategy();
 
         await using var client = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, SchemaRegistrationOptions.AutoRegister));
+            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, KurrentClientSchemaOptions.AutoRegister));
 
         var data        = await Fixture.TestData.GenerateRecord(ct);
         var messageType = data.Records[0].Value!.GetType();
@@ -99,28 +98,29 @@ public class SchemaGovernanceTests {
     }
 
     [Test]
-    public async ValueTask validate_only_client_with_unregistered_schema_fails_the_first_governed_append(CancellationToken ct) {
-        // Arrange — a validate-only client whose isolated schema names were never registered.
-        var nameStrategy = NewIsolatedNameStrategy();
+    public async ValueTask strict_client_with_unregistered_schema_fails_the_first_governed_append(CancellationToken ct) {
+        // Arrange — a strict client whose isolated schema names were never registered.
+        var nameStrategy     = NewIsolatedNameStrategy();
+        var catalog          = NewIsolatedCatalog(nameStrategy);
+        var expectedFailures = catalog.Entries.Count();
 
         await using var client = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, SchemaRegistrationOptions.ManualRegister));
+            Fixture.ConnectionString, ConfigureClientWithCatalog(Fixture, catalog, KurrentClientSchemaOptions.Strict));
 
         var data = await Fixture.TestData.GenerateRecord(ct);
 
         // Act — no registry call exists on the write path itself: the walk validates the catalog
-        // on the back of this call, and its stored fault rethrows here, at the first governed record.
-        var ex = await Assert.ThrowsAsync<ArgumentException>(
+        // on the back of this call, and its stored fault rethrows bare at the first governed record.
+        var ex = await Assert.ThrowsAsync<CatalogRegistrationFailedException>(
             async () => await client.Streams.AppendStream(data.Stream, data.Records, ct));
 
-        // Assert — WriteRecordPipeline.Execute's mapping wrap around the walk's own wrap:
-        // ArgumentException -> SchemaSerializationFailedException -> SchemaNotFoundException.
-        await Assert.That(ex?.InnerException).IsTypeOf<SchemaSerializationFailedException>();
-        await Assert.That(ex?.InnerException?.InnerException).IsTypeOf<SchemaNotFoundException>();
+        // Assert — the walk aggregates: every unregistered entry is reported, not only the first.
+        await Assert.That(ex?.Failures).Count().IsEqualTo(expectedFailures);
+        await Assert.That(ex!.Failures.All(failure => failure.Cause is SchemaNotFoundException)).IsTrue();
     }
 
     [Test]
-    public async ValueTask validate_only_client_fails_the_append_when_the_registered_schema_is_incompatible(CancellationToken ct) {
+    public async ValueTask strict_client_fails_the_append_when_the_registered_schema_is_incompatible(CancellationToken ct) {
         // Arrange — pre-register a conflicting definition under the exact name the client resolves.
         // The client's catalog maps ONLY this one type: the walk validates every catalog entry it
         // sees, and the other 10 ArcadeRacer types would surface as unrelated SchemaNotFoundException
@@ -137,29 +137,28 @@ public class SchemaGovernanceTests {
         await Assert.That(async () => { await Fixture.Client.Registry.GetSchema(schemaName, ct); }).EventuallyPasses(RetryOnTransients(ct));
 
         await using var client = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureClientWithCatalog(Fixture, catalog, SchemaRegistrationOptions.ManualRegister));
+            Fixture.ConnectionString, ConfigureClientWithCatalog(Fixture, catalog, KurrentClientSchemaOptions.Strict));
 
         // Act — same walk-fault-at-append surface as the unregistered case, but the registry
         // check now fails on incompatibility rather than absence.
-        var ex = await Assert.ThrowsAsync<ArgumentException>(
+        var ex = await Assert.ThrowsAsync<CatalogRegistrationFailedException>(
             async () => await client.Streams.AppendStream(data.Stream, data.Records, ct));
 
-        // Assert — SchemaValidationException is not itself a SchemaSerializationException, so
-        // EnsureRegistered's catch-all wraps it exactly like the not-found case above.
-        await Assert.That(ex?.InnerException).IsTypeOf<SchemaSerializationFailedException>();
-        await Assert.That(ex?.InnerException?.InnerException).IsTypeOf<SchemaValidationException>();
+        // Assert — the single-type catalog yields exactly one failure, an incompatibility.
+        await Assert.That(ex?.Failures).Count().IsEqualTo(1);
+        await Assert.That(ex?.Failures[0].Cause).IsTypeOf<SchemaValidationException>();
     }
 
     [Test]
-    public async ValueTask validating_client_decodes_a_record_with_a_registered_compatible_schema(CancellationToken ct) {
+    public async ValueTask strict_client_decodes_a_record_with_a_registered_compatible_schema(CancellationToken ct) {
         // Arrange — one isolated namespace shared by both clients' catalogs.
         var nameStrategy = NewIsolatedNameStrategy();
 
         await using var producer = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, SchemaRegistrationOptions.AutoRegister));
+            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, KurrentClientSchemaOptions.AutoRegister));
 
         await using var consumer = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, SchemaRegistrationOptions.ManualRegister));
+            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, KurrentClientSchemaOptions.Strict));
 
         var data = await Fixture.TestData.GenerateRecord(ct);
 
@@ -182,16 +181,18 @@ public class SchemaGovernanceTests {
     }
 
     [Test]
-    public async ValueTask validating_client_fails_the_decode_when_the_registered_schema_is_incompatible(CancellationToken ct) {
+    public async ValueTask strict_client_fails_the_first_read_when_the_registered_schema_is_incompatible(CancellationToken ct) {
         // Arrange — a plain (lax) producer frames the record by name only, no registry contact.
+        // The consumer's catalog maps ONLY the one conflicting type, so the walk fails
+        // deterministically on incompatibility rather than on unrelated unregistered names.
         var nameStrategy = NewIsolatedNameStrategy();
+        var data         = await Fixture.TestData.GenerateRecord(ct);
+        var messageType  = data.Records[0].Value!.GetType();
+        var schemaName   = nameStrategy.GenerateSchemaName(messageType);
+        var catalog      = new MessageCatalog("governance-single-type-read").Map(schemaName, messageType);
 
         await using var producer = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, SchemaRegistrationOptions.ManualMap));
-
-        var data        = await Fixture.TestData.GenerateRecord(ct);
-        var messageType = data.Records[0].Value!.GetType();
-        var schemaName  = nameStrategy.GenerateSchemaName(messageType);
+            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, KurrentClientSchemaOptions.Disabled));
 
         await producer.Streams.AppendStream(data.Stream, data.Records, ct);
 
@@ -201,31 +202,31 @@ public class SchemaGovernanceTests {
         await Assert.That(async () => { await Fixture.Client.Registry.GetSchema(schemaName, ct); }).EventuallyPasses(RetryOnTransients(ct));
 
         await using var consumer = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy, SchemaRegistrationOptions.ManualRegister));
+            Fixture.ConnectionString, ConfigureClientWithCatalog(Fixture, catalog, KurrentClientSchemaOptions.Strict));
 
-        // Act — unlike the write path, GovernReadStep calls EnsureCompatible directly, per
-        // record, with no walk/interceptor involved: no schema id on the wire means compatibility
-        // is checked by name.
-        var ex = await Assert.ThrowsAsync<SchemaDeserializationFailedException>(
+        // Act — the same walk-fault-at-first-call surface as the append-side sibling, on the
+        // read path: the walk validates the catalog on the back of the first read and its
+        // stored fault rethrows bare at the first governed record.
+        var ex = await Assert.ThrowsAsync<CatalogRegistrationFailedException>(
             async () => await consumer.Streams.ReadStream(data.Stream, ct).Where(msg => msg.IsRecord).ToListAsync(ct));
 
-        // Assert — EnsureCompatibleByName wraps SchemaIncompatibleException as SchemaValidationException;
-        // EnsureCompatible's own catch wraps that again as SchemaDeserializationFailedException.
-        await Assert.That(ex?.InnerException).IsTypeOf<SchemaValidationException>();
+        // Assert — identical shape on both paths: one failure, an incompatibility.
+        await Assert.That(ex?.Failures).Count().IsEqualTo(1);
+        await Assert.That(ex?.Failures[0].Cause).IsTypeOf<SchemaValidationException>();
     }
 
     [Test]
-    public async ValueTask validating_client_fails_the_read_for_an_unknown_schema_name(CancellationToken ct) {
+    public async ValueTask strict_client_fails_the_read_for_an_unknown_schema_name(CancellationToken ct) {
         // Arrange — producer and consumer map the same contract types under disjoint namespaces,
         // so the consumer's resolver never recognizes the producer's wire schema name.
         var producerNames = NewIsolatedNameStrategy();
         var consumerNames = NewIsolatedNameStrategy();
 
         await using var producer = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, producerNames, SchemaRegistrationOptions.ManualMap));
+            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, producerNames, KurrentClientSchemaOptions.Disabled));
 
         await using var consumer = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, consumerNames, SchemaRegistrationOptions.ManualRegister));
+            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, consumerNames, KurrentClientSchemaOptions.Strict));
 
         var data = await Fixture.TestData.GenerateRecord(ct);
 
@@ -238,13 +239,13 @@ public class SchemaGovernanceTests {
     }
 
     [Test]
-    public async ValueTask lax_client_passes_an_unknown_schema_record_through_undecoded(CancellationToken ct) {
+    public async ValueTask disabled_client_passes_an_unknown_schema_record_through_undecoded(CancellationToken ct) {
         // Arrange — same disjoint-namespace setup, but the consumer keeps the lax default policy.
         var producerNames = NewIsolatedNameStrategy();
         var consumerNames = NewIsolatedNameStrategy();
 
         await using var producer = KurrentClient.Create(
-            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, producerNames, SchemaRegistrationOptions.ManualMap));
+            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, producerNames, KurrentClientSchemaOptions.Disabled));
 
         await using var consumer = KurrentClient.Create(
             Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, consumerNames));
@@ -264,5 +265,66 @@ public class SchemaGovernanceTests {
         await Assert.That(read).Count().IsEqualTo(1);
         await Assert.That(read[0].IsDecoded).IsFalse();
         await Assert.That(read[0].Value).IsNull();
+    }
+
+    [Test]
+    public async ValueTask auto_register_client_appends_despite_an_incompatible_registered_schema(CancellationToken ct) {
+        // Arrange — the exact conflict that faults a Strict client's walk.
+        var nameStrategy = NewIsolatedNameStrategy();
+        var data         = await Fixture.TestData.GenerateRecord(ct);
+        var messageType  = data.Records[0].Value!.GetType();
+        var schemaName   = nameStrategy.GenerateSchemaName(messageType);
+        var catalog      = new MessageCatalog("governance-no-validation").Map(schemaName, messageType);
+
+        await Fixture.Client.Registry.CreateSchema(
+            schemaName, await NewConflictingDefinition(messageType), SchemaDataFormat.Json, CompatibilityMode.Backward, ct);
+
+        await Assert.That(async () => { await Fixture.Client.Registry.GetSchema(schemaName, ct); }).EventuallyPasses(RetryOnTransients(ct));
+
+        await using var client = KurrentClient.Create(
+            Fixture.ConnectionString, ConfigureClientWithCatalog(Fixture, catalog, KurrentClientSchemaOptions.AutoRegister));
+
+        // Act — validation is off: the incompatibility is invisible end to end.
+        await client.Streams.AppendStream(data.Stream, data.Records, ct);
+
+        var read = await client.Streams
+            .ReadStream(data.Stream, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        // Assert
+        await Assert.That(read).Count().IsEqualTo(1);
+        await Assert.That(read[0].IsDecoded).IsTrue();
+    }
+
+    [Test]
+    public async ValueTask disabled_client_round_trips_records_without_registry_contact(CancellationToken ct) {
+        // Arrange — the default lax dial on both paths; the registry must never learn the name.
+        var nameStrategy = NewIsolatedNameStrategy();
+
+        await using var client = KurrentClient.Create(
+            Fixture.ConnectionString, ConfigureIsolatedClient(Fixture, nameStrategy));
+
+        var data        = await Fixture.TestData.GenerateRecord(ct);
+        var messageType = data.Records[0].Value!.GetType();
+        var schemaName  = nameStrategy.GenerateSchemaName(messageType);
+
+        // Act
+        await client.Streams.AppendStream(data.Stream, data.Records, ct);
+
+        var read = await client.Streams
+            .ReadStream(data.Stream, ct)
+            .Where(msg => msg.IsRecord)
+            .Select(msg => msg.AsRecord)
+            .ToListAsync(ct);
+
+        // Assert — decoded locally, never registered.
+        await Assert.That(read).Count().IsEqualTo(1);
+        await Assert.That(read[0].IsDecoded).IsTrue();
+        await Assert.That(read[0].Value).IsEquivalentTo(data.Records[0].Value);
+
+        await Assert.ThrowsAsync<SchemaNotFoundException>(
+            async () => await Fixture.Client.Registry.GetSchema(schemaName, ct));
     }
 }

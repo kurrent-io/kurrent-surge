@@ -86,7 +86,7 @@ public class KurrentDBFixture : AspireFixture {
     public KurrentClient GetNewClient(string connectionString, Action<KurrentClientOptions>? configure = null) =>
         KurrentClient.Create(connectionString, opts => {
             opts.LoggerFactory = LoggerFactory;
-            opts.Schema        = KurrentClientSchemaOptions.NoValidation;
+            opts.Schema        = KurrentClientSchemaOptions.AutoRegister;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
             // The Testkit catalog (race contracts) is discovered but not always-active, so it must
             // be opted in explicitly — every fixture client speaks the test vocabulary by default.

@@ -22,7 +22,7 @@ public class ReadRecordPipelineTests {
         ReadRecordPipeline.Create(
             MessageResolver.From(),
             SchemaRegistryPolicy.NoRequirements,
-            Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions()),
+            KurrentClientSchemaOptions.Disabled,
             new SchemaCodecProvider([]),
             new UnreachableGovernance());
 
@@ -78,15 +78,17 @@ public class ReadRecordPipelineTests {
     }
 
     // Never reached: the LinkTo/Bytes guard in Execute short-circuits before governance runs.
+    // The catalog registration is completed-and-empty rather than throwing because the govern
+    // step would await it before any other member.
     sealed class UnreachableGovernance : ISchemaGovernance {
+        public Task<CatalogSchemaMap> CatalogRegistration { get; } = Task.FromResult(CatalogSchemaMap.Empty);
+
+        public void StartCatalogRegistration() { }
+
         public ValueTask<SchemaVersionId> EnsureRegistered(SchemaName schema, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) =>
             throw new UnreachableException();
 
         public ValueTask<SchemaVersionId> EnsureCompatible(RecordSchemaInfo schemaInfo, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) =>
             throw new UnreachableException();
-
-        public Task<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>> ValidateCatalog(
-            IEnumerable<MessageCatalog> catalogs, ResolvedSchemaRegistryPolicy policy, CancellationToken ct
-        ) => throw new UnreachableException();
     }
 }
