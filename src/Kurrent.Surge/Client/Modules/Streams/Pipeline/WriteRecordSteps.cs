@@ -76,33 +76,33 @@ static class WriteResolutionSteps {
 }
 
 /// <summary>
-/// THE governance step — the only one. Awaits the interceptor's single-flight validation
-/// (free once complete; a failed catalog validation rethrows here, at the first governed
+/// THE governance step — the only one. Awaits the interceptor's single-flight registration
+/// (free once complete; a failed catalog registration rethrows here, at the first governed
 /// record), resolves the policy (folded in: it stays per-record because it will consult the
 /// server's settings when <c>SchemaRegistryPolicy.FromServerFeatures</c> goes live), and reads
-/// the version id from the validation results. No registry call exists on this path.
+/// the version id from the registration results. No registry call exists on this path.
 /// </summary>
 sealed class GovernWriteStep(
-    CatalogValidationInterceptor validation,
+    ISchemaGovernance governance,
     SchemaRegistryPolicy policy,
-    IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> registrations
+    KurrentClientSchemaOptions schema
 ) : IStep<NamedWrite, ResolvedWrite> {
     public async ValueTask<ResolvedWrite> Execute(NamedWrite input, CancellationToken ct) {
         var source = input.Source;
 
-        // WaitAsync abandons only this caller's wait — the single-flight validation keeps
+        // WaitAsync abandons only this caller's wait — the single-flight registration keeps
         // running on the client lifetime token for every other caller.
-        var validated = await validation.Validation.WaitAsync(ct).ConfigureAwait(false);
+        var registered = await governance.CatalogRegistration.WaitAsync(ct).ConfigureAwait(false);
 
         policy
-            .Resolve(registrations[source.DataFormat], source.Stream, source.DataFormat)
+            .Resolve(schema, source.Stream, source.DataFormat)
             .EnsureDataFormatCompliance(source.DataFormat);
 
-        var schema = validated.TryGetValue((source.Value.GetType(), source.DataFormat), out var info)
+        var schemaInfo = registered.TryGet(source.Value.GetType(), source.DataFormat, out var info)
             ? info
             : new RecordSchemaInfo { Schema = input.Schema, DataFormat = source.DataFormat };
 
-        return new(source, schema);
+        return new(source, schemaInfo);
     }
 }
 

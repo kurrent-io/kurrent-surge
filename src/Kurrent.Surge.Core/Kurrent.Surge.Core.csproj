@@ -81,6 +81,7 @@
          those internals are granted access here. -->
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Surge" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Arrow" />
     <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
     <InternalsVisibleTo Include="Kurrent.Projectors.DuckDB.Tests" />

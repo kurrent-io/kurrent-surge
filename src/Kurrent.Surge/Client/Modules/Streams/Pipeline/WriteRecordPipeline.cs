@@ -26,12 +26,12 @@ sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
     internal static WriteRecordPipeline Create(
         MessageResolver messages,
         SchemaRegistryPolicy policy,
-        IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> registrations,
+        KurrentClientSchemaOptions schema,
         SchemaCodecProvider codecs,
-        CatalogValidationInterceptor validation
+        ISchemaGovernance governance
     ) =>
         new(new ClassifyWriteStep(messages)
-            .Then(new GovernWriteStep(validation, policy, registrations)
+            .Then(new GovernWriteStep(governance, policy, schema)
                 .Then(new EncodeWriteStep(codecs))
                 .OnNamed())
             .Then(new FrameWriteStep()));
@@ -42,9 +42,10 @@ sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
 
             return await Pipeline.Execute(record, ct).ConfigureAwait(false);
         }
-        // Validation speaks for itself, and cancellation must surface as cancellation —
+        // Validation speaks for itself, cancellation must surface as cancellation, and a
+        // failed catalog walk surfaces bare so both pipelines share one exception contract —
         // the wrap preserves the mapping contract for the rest.
-        catch (Exception ex) when (ex is not ValidationException and not OperationCanceledException) {
+        catch (Exception ex) when (ex is not ValidationException and not OperationCanceledException and not CatalogRegistrationFailedException) {
             throw new ArgumentException($"Failed to map AppendRecord for stream '{record.Stream}'", ex);
         }
     }

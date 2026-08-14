@@ -38,29 +38,31 @@ public class KurrentClient : IKurrentClient {
         if (options.Messages.Protobuf.Context is not null)
             ProtobufMessages.System.Configure(options.Messages.Protobuf.Context);
 
-        Registrations = BuildRegistrations(options.Messages);
+        // The gate tests the RESOLVED policy, never the raw dial: when server policy
+        // resolution goes live, a server-side Required overrides even a lax client dial,
+        // and this gate keeps working because resolution already carries the server's voice.
+        var resolvedPolicy = RegistryPolicy.Resolve(options.Schema, stream: null, SchemaDataFormat.Json);
 
-        // The interceptor is constructed before anything it observes: its closure defers
-        // governance resolution to the first gRPC call, so the construction cycle
-        // (invoker → registry → governance) never binds here.
-        var catalogValidation = new CatalogValidationInterceptor(() =>
-            Governance.ValidateCatalog(
-                Catalogs,
-                RegistryPolicy.Resolve(
-                    options: Registrations[SchemaDataFormat.Json],
-                    stream: null,
-                    dataFormat: SchemaDataFormat.Json),
-                Lifetime.Token));
+        // Never throw-on-failure: the walk's failure travels its own channel — the result
+        // task the govern steps await — so it surfaces at the first governed operation
+        // without bricking reads of raw or unmapped records. The task captures the concrete
+        // client because governance does not exist yet; it resolves at execution time.
+        InitializationTaskRegistration[] builtins = resolvedPolicy.SchemaRegistryRequired
+            ? [new(new CatalogRegistrationTask(this), ThrowOnFailure: false)]
+            : [];
 
-        // The balanced channels replaced the legacy invoker; catalog validation rides both
-        // channels through the options attachment, which ClusterChannel.Create consumes.
-        options.Interceptors = [..options.Interceptors, catalogValidation];
+        Initializer = new(
+            [..builtins, ..options.Initialization.Tasks],
+            options.LoggerFactory.CreateLogger<ClientInitializer>());
 
+        // The fault gate rides the invokers, never the channel config: every module —
+        // current and future — is constructed over these references, so a faulted client
+        // makes no calls without any operation naming the gate.
         Channels        = ClusterChannels.Create(options);
-        CallInvoker     = Channels.Write.CallInvoker;
-        ReadCallInvoker = Channels.Read.CallInvoker;
+        CallInvoker     = new FaultGateCallInvoker(Channels.Write.CallInvoker, Initializer);
+        ReadCallInvoker = new FaultGateCallInvoker(Channels.Read.CallInvoker, Initializer);
 
-        BackdoorClientFactory = new(Channels.Write, options);
+        BackdoorClientFactory = new(Channels.Write, options, Initializer);
 
         var codecs = new SchemaCodecProvider([
             new JsonSchemaCodec(options.Messages.Json),
@@ -71,15 +73,24 @@ public class KurrentClient : IKurrentClient {
         // Modules capture the invoker at construction — registry and governance must
         // follow the channel wiring, or every client ctor throws on a null invoker.
         Registry   = new RegistryClient(this);
-        Governance = SchemaGovernance.Create(this);
+        Governance = SchemaGovernance.Create(this, Catalogs, resolvedPolicy, Lifetime.Token);
 
-        WritePipeline = WriteRecordPipeline.Create(messageResolver, RegistryPolicy, Registrations, codecs, catalogValidation);
-        ReadPipeline  = ReadRecordPipeline.Create(messageResolver, RegistryPolicy, Registrations, codecs, Governance);
+        WritePipeline = WriteRecordPipeline.Create(messageResolver, RegistryPolicy, options.Schema, codecs, Governance);
+        ReadPipeline  = ReadRecordPipeline.Create(messageResolver, RegistryPolicy, options.Schema, codecs, Governance);
 
         Streams    = new StreamsClient(this);
         Indexes    = new IndexesClient(this);
         Connectors = new ConnectorsClient(this);
         Admin      = new AdminClient(this);
+
+        // Initialization runs off-thread once the first connection is established. The
+        // watcher is passive — a client that never makes a call never initializes.
+        _ = RunInitialization();
+
+        async Task RunInitialization() {
+            if (await Channels.WaitForConnectedAsync(Lifetime.Token).ConfigureAwait(false))
+                await Initializer.Run(this, Lifetime.Token).ConfigureAwait(false);
+        }
     }
 
     internal bool Shared { get; init; }
@@ -91,12 +102,12 @@ public class KurrentClient : IKurrentClient {
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
 
     internal SchemaRegistryPolicy RegistryPolicy { get; }
+    internal ClientInitializer    Initializer    { get; }
     internal WriteRecordPipeline  WritePipeline  { get; }
     internal ReadRecordPipeline   ReadPipeline   { get; }
 
-    IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> Registrations { get; }
+    internal ISchemaGovernance Governance { get; }
 
-    ISchemaGovernance             Governance { get; }
     IReadOnlyList<MessageCatalog> Catalogs   { get; }
     CancellationTokenSource       Lifetime   { get; } = new();
 
@@ -105,6 +116,14 @@ public class KurrentClient : IKurrentClient {
     public IIndexesClient    Indexes    { get; }
     public IConnectorsClient Connectors { get; }
     public IAdminClient      Admin      { get; }
+
+    /// <summary>
+    /// Connects ahead of the first operation: runs discovery, establishes the connections,
+    /// and lets the initialization tasks fire. Optional — without it the client connects
+    /// on the first operation.
+    /// </summary>
+    public ValueTask ConnectAsync(CancellationToken cancellationToken = default) =>
+        Channels.ConnectAsync(cancellationToken);
 
     public async ValueTask DisposeAsync() {
         if (Shared) return;
@@ -118,15 +137,6 @@ public class KurrentClient : IKurrentClient {
         await Channels
             .DisposeAsync()
             .ConfigureAwait(false);
-    }
-
-    static IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> BuildRegistrations(KurrentClientMessageOptions messages) {
-        var registrations = Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
-
-        registrations[SchemaDataFormat.Json]     = messages.Json.SchemaRegistration;
-        registrations[SchemaDataFormat.Protobuf] = messages.Protobuf.SchemaRegistration;
-
-        return registrations;
     }
 
     /// <summary>

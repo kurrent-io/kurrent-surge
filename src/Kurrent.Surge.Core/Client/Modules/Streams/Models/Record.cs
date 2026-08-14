@@ -55,7 +55,7 @@ public record Record {
     /// <summary>
     /// The schema information associated with the record.
     /// </summary>
-    public RecordSchemaInfo Schema { get; init; } = RecordSchemaInfo.None;
+    public RecordSchemaInfo Schema { get; internal set; } = RecordSchemaInfo.None;
 
     /// <summary>
     /// Indicates whether this record is a link event whose resolved target was unavailable.

@@ -1,3 +1,4 @@
+using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
@@ -32,11 +33,11 @@ readonly partial record struct TypeResolution : IVariant<DecodableRead, Terminal
 /// </summary>
 sealed class ResolvePolicyReadStep(
     SchemaRegistryPolicy policy,
-    IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> registrations
+    KurrentClientSchemaOptions schema
 ) : IStep<Record, PolicyResolvedRead> {
     public ValueTask<PolicyResolvedRead> Execute(Record input, CancellationToken ct) {
         var resolved = policy
-            .Resolve(registrations[input.Schema.DataFormat], input.Stream, input.Schema.DataFormat)
+            .Resolve(schema, input.Stream, input.Schema.DataFormat)
             .EnsureDataFormatCompliance(input.Schema.DataFormat);
 
         return new(new PolicyResolvedRead(input, resolved));
@@ -57,10 +58,10 @@ sealed class ResolveTypeReadStep(MessageResolver messages) : IStep<PolicyResolve
         if (messageType is null) {
             return policy.ValidateSchemas
                 ? throw new MessageTypeResolutionException(record.Schema.Schema)
-                : new((TypeResolution)new TerminalRead(DecodeOutcome.UnknownType));
+                : new(new TerminalRead(DecodeOutcome.UnknownType));
         }
 
-        return new((TypeResolution)new DecodableRead(record, policy, messageType));
+        return new(new DecodableRead(record, policy, messageType));
     }
 }
 
@@ -71,9 +72,26 @@ sealed class ResolveTypeReadStep(MessageResolver messages) : IStep<PolicyResolve
 /// </summary>
 sealed class GovernReadStep(ISchemaGovernance governance) : IStep<DecodableRead, DecodableRead> {
     public async ValueTask<DecodableRead> Execute(DecodableRead input, CancellationToken ct) {
-        await governance
-            .EnsureCompatible(input.Source.Schema, input.MessageType, input.Policy, ct)
+        var record = input.Source;
+
+        // V1 reads carry no version id on the wire. Catalog messages got theirs during the
+        // startup walk, so the record is backfilled from the walk's map first —
+        // policy-free and without a registry round trip.
+        if (!record.Schema.HasSchemaId) {
+            var registered = await governance.CatalogRegistration.WaitAsync(ct).ConfigureAwait(false);
+
+            if (registered.TryGet(input.MessageType, record.Schema.DataFormat, out var info) && info.HasSchemaId)
+                record.Schema = record.Schema with { VersionId = info.VersionId };
+        }
+
+        // Compatibility-by-name covers the rest under a validating policy; the resolved id
+        // is backfilled the same way so readers learn which registered version matched.
+        var backfill = await governance
+            .EnsureCompatible(record.Schema, input.MessageType, input.Policy, ct)
             .ConfigureAwait(false);
+
+        if (backfill != SchemaVersionId.Unset)
+            record.Schema = record.Schema with { VersionId = backfill };
 
         return input;
     }

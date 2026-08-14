@@ -14,7 +14,7 @@ namespace Kurrent.Surge.Client;
 /// <see cref="ClusterChannel"/>.
 /// </summary>
 class KurrentBackdoorClientFactory : IDisposable {
-    public KurrentBackdoorClientFactory(ClusterChannel channel, KurrentClientOptions options) {
+    public KurrentBackdoorClientFactory(ClusterChannel channel, KurrentClientOptions options, ClientInitializer initializer) {
         Channel = channel;
         Logger  = options.LoggerFactory.CreateLogger("KurrentBackdoorClient");
 
@@ -23,9 +23,11 @@ class KurrentBackdoorClientFactory : IDisposable {
 
         ParseTargetNodeUri = CreateTargetNodeUriParser(options.HttpUriScheme);
 
-        BackdoorHandler = new EnsureSuccessStatusHandler {
-            InnerHandler = new ResilienceHandler(CreateResiliencePipeline(options.Resilience, Logger)) {
-                InnerHandler = CreatePrimaryHandler(options.Security, options.Resilience, Logger)
+        BackdoorHandler = new FaultGateHttpHandler(initializer) {
+            InnerHandler = new EnsureSuccessStatusHandler {
+                InnerHandler = new ResilienceHandler(CreateResiliencePipeline(options.Resilience, Logger)) {
+                    InnerHandler = CreatePrimaryHandler(options.Security, options.Resilience, Logger)
+                }
             }
         };
     }

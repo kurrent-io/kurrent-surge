@@ -26,11 +26,11 @@ sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
     internal static ReadRecordPipeline Create(
         MessageResolver messages,
         SchemaRegistryPolicy policy,
-        IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> registrations,
+        KurrentClientSchemaOptions schema,
         SchemaCodecProvider codecs,
         ISchemaGovernance governance
     ) =>
-        new(new ResolvePolicyReadStep(policy, registrations)
+        new(new ResolvePolicyReadStep(policy, schema)
             .Then(new ResolveTypeReadStep(messages))
             .Then(new GovernReadStep(governance)
                 .Then(new DecodeReadStep(codecs))
