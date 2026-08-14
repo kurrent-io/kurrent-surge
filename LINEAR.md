@@ -82,4 +82,3 @@ scopes and commit types are owned by the `devx-git-conventions` skill, not repea
 | Concern | Owned by |
 |---|---|
 | Git commit/PR title format, scopes, past-tense rules | `devx-git-conventions` skill |
-

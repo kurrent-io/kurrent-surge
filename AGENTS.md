@@ -124,6 +124,7 @@ The five canonical triage roles map onto Linear's native workflow states plus th
 - ADRs are not part of our doc workflow, but some skills under evaluation emit them — if one is ever created
   it goes in `.claude/context/docs/adr/`, reserved so those skills work.
 
+<!-- markdownlint-disable MD025 MD013 -->
 <!-- jbcontext-instructions-start -->
 # Tools
 
@@ -157,3 +158,4 @@ Skip it — go straight to the right tool — when:
 - If you search again after finding a relevant area, narrow with `-p <path>`.
 
 <!-- jbcontext-instructions-end -->
+<!-- markdownlint-restore -->
