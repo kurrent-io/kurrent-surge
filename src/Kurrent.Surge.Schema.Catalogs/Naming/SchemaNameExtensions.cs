@@ -2,10 +2,19 @@ using System.Text.RegularExpressions;
 
 namespace Kurrent.Surge.Schema.Naming;
 
-static class SchemaNameExtensions {
+static partial class SchemaNameExtensions {
+	[GeneratedRegex(@"([\p{Lu}]+)([\p{Lu}][\p{Ll}])")]
+	private static partial Regex AcronymBoundary();
+
+	[GeneratedRegex(@"([\p{Ll}\d])([\p{Lu}])")]
+	private static partial Regex CaseBoundary();
+
+	[GeneratedRegex(@"[-\s]")]
+	private static partial Regex Separators();
+
 	extension(string input) {
         public string ToSnakeCase() =>
-            Regex.Replace(Regex.Replace(Regex.Replace(input, @"([\p{Lu}]+)([\p{Lu}][\p{Ll}])", "$1_$2"), @"([\p{Ll}\d])([\p{Lu}])", "$1_$2"), @"[-\s]", "_").ToLowerInvariant();
+            Separators().Replace(CaseBoundary().Replace(AcronymBoundary().Replace(input, "$1_$2"), "$1_$2"), "_").ToLowerInvariant();
 
         public string ToKebabCase() => input.ToSnakeCase().Replace('_', '-');
     }
