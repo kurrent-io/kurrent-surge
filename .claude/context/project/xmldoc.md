@@ -1,246 +1,120 @@
 # XML Documentation Standards
 
-Guidelines for writing XML documentation comments in the Kurrent SDK.
+Rules for XML documentation comments in the Kurrent SDK.
 
 **Scope:** All C# source files in `src/`. Generated files (`*.g.cs`, `/obj/`, `/bin/`) and source generator projects
-(`netstandard2.0`) are exempt.
+(`netstandard2.0`) are exempt. For `// why` comments inside method bodies, see the Code Comments section in the coding
+conventions.
 
-> This document covers **XML documentation on types and members**. For implementation-detail comments
-> (the `// why` comments inside method bodies), see the Code Comments section in the coding conventions.
+## The Six Rules
 
-## Contents
+1. **Docs state current behavior.** Never history, rationale, or causality between components. "Appends one or more
+   records to a stream" — not "validation now happens here because the governance layer changed". A doc comment is a
+   contract, not a changelog — and a contract matches what the code actually does. When behavior changes, rewrite the
+   docs as if the new behavior had always been true — the reader has no old version to compare against; git holds the
+   history.
 
-- [General Principles](#general-principles) — public vs internal scope, quality standards, good vs poor docs
-- [XML Documentation Tags](#xml-documentation-tags) — required (`<summary>`, `<param>`, `<returns>`), conditional, and
-  banned tags
-- [Templates by Construct Type](#templates-by-construct-type) — classes, interfaces, methods, properties, constructors,
-  events, enums, records, internal members
-- [Common Patterns in Kurrent SDK](#common-patterns-in-kurrent-sdk) — client classes, C# 14 extension blocks,
-  configuration options
-- [Best Practices](#best-practices) — DO and DON'T with examples
-- [Special Cases](#special-cases) — generics, obsolete, experimental, IVariant
-- [Validation](#validation) — pre-commit checklist
-- [Resources](#resources) — Microsoft XML doc references
+2. **Public members get complete, terse docs.** One-sentence `<summary>`, always in the multiline form — never
+   `<summary>text</summary>` on one line. `<param>`/`<returns>` on everything that has them, one line each — partial
+   parameter docs raise CS1573. `<exception>` for every exception thrown. Overrides and interface implementations
+   use `<inheritdoc/>` — it counts as documented. Verbose docs go unread.
 
-## General Principles
+3. **`<remarks>` earns its place or is absent.** Permitted content: threading/concurrency, lifetime and disposal,
+   ordering constraints, side effects, non-obvious defaults, failure semantics, and a pointer to the member's
+   companion type as rule 5 defines it (`Use <see cref="CompanionType"/> to control [behavior].`). No tutorial-style
+   usage guidance beyond that pointer. No elaboration of the summary. Most members have no remarks.
 
-### Public vs Internal APIs
+4. **Internal and private members get docs only when non-obvious.** A well-named member stays bare. When the name cannot
+   carry the meaning, a one-sentence `<summary>` — never `<param>`, `<returns>`, `<remarks>`, or `<exception>`. A
+   `<see cref>` inside that sentence is allowed.
 
-**Public APIs require complete, terse documentation:**
+5. **Cross-references are actionable-only.** `<see cref>` only when the reader must go there: the replacement for an
+   obsolete member, a companion type, the type an extension block extends, the standard constructor boilerplate. A
+   companion type is one the caller must use with this member and that the signature does not already show —
+   `ExpectedStreamState` for an append. `<seealso>` is banned. API names always take `<see cref>`, never `<c>` —
+   `<c>` is for literals and keywords (`null`, `true`). A member's docs describe that member — the fewer pointers to
+   other components, the better.
 
-- All public classes, interfaces, methods, properties, and events must be documented
-- `<summary>` (one sentence), `<param>`/`<returns>` on all members that have them, `<exception>` where thrown
-- `<remarks>` only for hazards and contracts — see the remarks bar under Conditional Tags
-- This documentation generates IntelliSense tooltips for SDK consumers
+6. **`<example>` is banned.** Usage examples live in the docs site and READMEs, not IntelliSense.
 
-**Internal and private APIs are documented only when non-obvious:**
+## Tags
 
-- A well-named member needs no docs — leave it bare
-- When the name cannot carry the meaning, add a one-sentence `<summary>` and nothing else
-- Never `<param>`, `<returns>`, `<remarks>`, or `<exception>` on internal members
-- A `<see cref>` inside that summary sentence is allowed
+| Tag                                 | Public                           | Internal              | Content                                                                    |
+|-------------------------------------|----------------------------------|-----------------------|----------------------------------------------------------------------------|
+| `<summary>`                         | Required                         | Only when non-obvious | One sentence. Behavior, not implementation. Always multiline form.         |
+| `<param>`                           | Required on all                  | Never                 | One line, canonical phrasing.                                              |
+| `<returns>`                         | Required (non-void)              | Never                 | One line. Include the `null` case.                                         |
+| `<exception>`                       | Required where thrown            | Never                 | The condition that triggers it.                                            |
+| `<typeparam>`                       | Required                         | Never                 | One line.                                                                  |
+| `<inheritdoc/>`                     | On overrides + implementations   | Fine                  | Replaces the doc block; counts as documented.                              |
+| `<remarks>`                         | Hazards + contracts only         | Never                 | See rule 3.                                                                |
+| `<value>`                           | Only when summary can't carry it | Never                 | Valid values and their meaning.                                            |
+| `<see cref>`                        | Actionable-only                  | Allowed in summary    | See rule 5.                                                                |
+| `<paramref>`                        | Fine                             | Allowed in summary    | When referring to a parameter in text.                                     |
+| `<c>`, `<code>`, `<para>`, `<list>` | Fine                             | Allowed in summary    | Formatting. Use `<list>`, never markdown dashes — they don't render. No other HTML. |
+| `<example>`                         | Banned                           | Banned                | —                                                                          |
+| `<seealso>`                         | Banned                           | Banned                | —                                                                          |
 
-### Quality Standards
+### Lists
 
-Good XML documentation:
-
-1. **Is complete** — all public API surface is documented
-2. **Is terse** — one-sentence summaries, one-line params; verbose docs stop being read
-3. **Is clear** — plain language that developers can understand
-4. **Is accurate** — matches actual behavior
-5. **States current behavior** — never history, rationale, or causality between components
-6. **Stands alone** — a member's docs describe that member, not what other components do
-
-### What Makes Good Documentation
-
-**Good documentation:**
-
-- Describes behavior, not implementation
-- Says everything once, in one sentence where one sentence is enough
-- Documents exceptions that can be thrown
-- Names the replacement for deprecated APIs
-
-**Poor documentation:**
-
-- Simply restates the member name ("Gets or sets the name")
-- Narrates history or design rationale ("does X because Y now does Z")
-- Explains a member by describing another component's behavior
-- Missing parameter descriptions
-- Inconsistent terminology
-
-## XML Documentation Tags
-
-### Required Tags
-
-#### `<summary>`
-
-Brief description of the type or member. One sentence — behavior, not implementation. Always the multiline form —
-never `<summary>text</summary>` on one line.
-
-```csharp
-/// <summary>
-/// Represents the name of a stream in KurrentDB.
-/// </summary>
-```
-
-#### `<param>`
-
-Describes each parameter. Required for all public method/constructor parameters — partial parameter docs raise CS1573.
-One line each, canonical phrasing; never multi-sentence prose.
-
-```csharp
-/// <param name="stream">The name of the stream to append to.</param>
-/// <param name="cancellationToken">The cancellation token.</param>
-```
-
-#### `<returns>`
-
-Describes the return value. Required for all public methods that return a value (except `void`).
-
-```csharp
-/// <returns>The service collection for method chaining.</returns>
-```
-
-### Conditional Tags
-
-#### `<remarks>`
-
-Hazards and contracts only: threading/concurrency, lifetime and disposal, ordering constraints, side effects,
-non-obvious defaults, failure semantics, and a pointer to the member's companion type — a type the caller must use
-with the member and that the signature does not already show. No tutorial-style usage guidance beyond that pointer, no
-elaboration of the summary. A member that has none of these gets no `<remarks>`.
-
-```csharp
-/// <remarks>
-/// Not thread-safe. Create one instance per consumer, or synchronize access externally.
-/// </remarks>
-
-/// <remarks>
-/// Use <see cref="ExpectedStreamState"/> to control optimistic concurrency.
-/// </remarks>
-```
-
-#### `<exception>`
-
-Documents exceptions that can be thrown. Include for all public methods that throw.
-
-```csharp
-/// <exception cref="KurrentClientNotConfiguredException">
-/// Thrown on first resolution when neither a registered <see cref="KurrentClientOptions"/> nor
-/// a <c>ConnectionStrings:KurrentDB</c> entry can be found.
-/// </exception>
-/// <exception cref="InvalidOperationException">
-/// A checkpoint has already been requested for this record.
-/// </exception>
-```
-
-#### `<value>`
-
-Describes the meaning of a property value when the summary cannot carry it.
-
-```csharp
-/// <value>
-/// A dictionary where the key is the partition and the value is a
-/// <see cref="PartitionProgress"/> containing the tracked and flushed positions.
-/// </value>
-```
-
-#### `<list>`
-
-Creates lists in XML documentation. Use `type="bullet"` for bulleted lists, `type="number"` for numbered lists.
-
-**Bulleted list:**
+Markdown dashes do not render in XML docs. The three `<list>` shapes:
 
 ```csharp
 /// <list type="bullet">
-///   <item><description><see cref="MessageTypeMapper"/> — assigned to <c>Schema.Mapper</c></description></item>
-///   <item><description><see cref="ILoggerFactory"/> — assigned to <c>LoggerFactory</c></description></item>
+///   <item><description>Bulleted entry.</description></item>
 /// </list>
-```
-
-**Numbered list:**
-
-```csharp
+///
 /// <list type="number">
-///   <item><description>A <see cref="KurrentClientOptions"/> instance registered in the service provider.</description></item>
-///   <item><description>A connection string at <c>ConnectionStrings:KurrentDB</c> in <see cref="IConfiguration"/>.</description></item>
+///   <item><description>Numbered entry.</description></item>
 /// </list>
-```
-
-**List with descriptions:**
-
-```csharp
+///
 /// <list type="bullet">
 ///   <item>
 ///     <term>First</term>
 ///     <description>"account-9E763770-0A8D" → category "account"</description>
 ///   </item>
-///   <item>
-///     <term>Last</term>
-///     <description>"shopping-cart-1" → category "shopping-cart"</description>
-///   </item>
 /// </list>
 ```
 
-**Important:** Do not use markdown-style lists with hyphens (`-`) or asterisks (`*`) in XML documentation — they will
-not render correctly. Always use the `<list>` tag.
+## Canonical Phrasing
 
-### Banned Tags
+Pre-approved one-liners. Reuse them verbatim — do not restyle per member.
 
-- `<example>` — banned everywhere. Usage examples live in the docs site and READMEs, not IntelliSense.
-- `<seealso>` — banned everywhere. Cross-references are actionable-only — see Best Practices.
+| Shape                          | Phrasing                                            |
+|--------------------------------|------------------------------------------------------|
+| `CancellationToken` parameter  | `The cancellation token.`                            |
+| Options parameter              | `The options for [operation].`                       |
+| Stream name parameter          | `The name of the stream.`                            |
+| Return with a null case        | `The [thing] if found; otherwise, <c>null</c>.`      |
+| Builder return                 | `The builder for method chaining.`                   |
+| Service collection return      | `The service collection for method chaining.`        |
+| Class summary                  | `Represents [what it models]…`                       |
+| Interface summary              | `Defines [the contract]…`                            |
+| Event summary                  | `Occurs when [condition].`                           |
+| Constructor summary            | `Initializes a new instance of the <see cref="ClassName"/> class.` |
+| Module client summary          | `Provides operations for [module] in KurrentDB.`     |
 
-## Templates by Construct Type
+Style: methods start with a verb ("Appends…", "Configures…"). Properties in present tense ("Gets…", never "Will get…").
+State non-obvious defaults inline: `Defaults to 30 seconds.` The constructor boilerplate carries the one summary
+`<see cref>` that rule 5 sanctions.
 
-### Classes
+## Terminology
 
-```csharp
-/// <summary>
-/// Represents [what this class models/encapsulates].
-/// </summary>
-public class ResourceName { }
-```
+One word per concept, everywhere:
 
-**Example:**
+| Use               | Never                                     |
+|-------------------|--------------------------------------------|
+| stream            | topic, queue                              |
+| record            | event (in V2 API context)                 |
+| processor         | consumer, subscriber                      |
+| drone             | — (a running processor instance)          |
+| checkpoint        | offset, cursor                            |
+| position          | offset, sequence number                   |
+| connection string | URI, address (for `kurrentdb://` strings) |
 
-```csharp
-/// <summary>
-/// Represents a KurrentDB stream processing unit with checkpoint support.
-/// </summary>
-public class KurrentProcessor { }
-```
+## Shapes
 
-### Interfaces
-
-```csharp
-/// <summary>
-/// Defines [the contract/behavior this interface requires].
-/// </summary>
-public interface IInterfaceName { }
-```
-
-**Example:**
-
-```csharp
-/// <summary>
-/// Defines the contract for processing stream records one at a time.
-/// </summary>
-public interface IRecordProcessor { }
-```
-
-### Methods
-
-```csharp
-/// <summary>
-/// [Action this method performs] [on/for what].
-/// </summary>
-/// <param name="paramName">One-line description.</param>
-/// <returns>Description of what is returned.</returns>
-/// <exception cref="ExceptionType">When this exception is thrown.</exception>
-public ReturnType MethodName(Type paramName) { }
-```
-
-**Example:**
+Method — the complete public shape; add nothing else:
 
 ```csharp
 /// <summary>
@@ -248,28 +122,37 @@ public ReturnType MethodName(Type paramName) { }
 /// </summary>
 /// <param name="stream">The name of the stream to append to.</param>
 /// <param name="records">The records to append.</param>
+/// <param name="cancellationToken">The cancellation token.</param>
 /// <returns>The result of the append operation, including the new stream revision.</returns>
-/// <remarks>
-/// Use <see cref="ExpectedStreamState"/> to control optimistic concurrency.
-/// </remarks>
+/// <exception cref="StreamDeletedException">The stream has been deleted.</exception>
 public ValueTask<AppendRecordsResult> AppendRecords(
     string stream,
-    IEnumerable<RecordToWrite> records) { }
+    IEnumerable<RecordToWrite> records,
+    CancellationToken cancellationToken = default) { }
 ```
 
-### Properties
+Remarks that earn their place — a contract the signature cannot express:
 
 ```csharp
 /// <summary>
-/// Gets [or sets] [what this property represents].
+/// Creates a session for batched appends.
 /// </summary>
-/// <value>
-/// [Valid values and their meaning — only when the summary cannot carry them]
-/// </value>
-public Type PropertyName { get; set; }
+/// <returns>The append session.</returns>
+/// <remarks>
+/// Not thread-safe. The session must be disposed before the client is disposed.
+/// </remarks>
+public AppendSession CreateSession() { }
 ```
 
-**Example:**
+Companion-type pointer — the type that controls the operation, always cref'd, never `<c>`:
+
+```csharp
+/// <remarks>
+/// Use <see cref="ExpectedStreamState"/> to control optimistic concurrency.
+/// </remarks>
+```
+
+Property — `<value>` only when the summary cannot carry the value semantics:
 
 ```csharp
 /// <summary>
@@ -281,109 +164,37 @@ public Type PropertyName { get; set; }
 public Uri Address { get; }
 ```
 
-### Constructors
+Record struct — constructor parameters documented on the type:
 
 ```csharp
 /// <summary>
-/// Initializes a new instance of the <see cref="ClassName"/> class.
-/// </summary>
-/// <param name="paramName">Description of parameter.</param>
-/// <exception cref="ExceptionType">When this exception is thrown.</exception>
-public ClassName(Type paramName) { }
-```
-
-**Example:**
-
-```csharp
-/// <summary>
-/// Initializes a new instance of the <see cref="KurrentException"/> class.
-/// </summary>
-/// <param name="code">The error code identifying the failure category.</param>
-/// <param name="reason">A human-readable description of the error.</param>
-/// <param name="innerException">The exception that caused this error, or <c>null</c> if none.</param>
-public KurrentException(ErrorCode code, string reason, Exception? innerException = null) { }
-```
-
-### Events
-
-```csharp
-/// <summary>
-/// Occurs when [condition that triggers the event].
-/// </summary>
-public event EventHandler? EventName;
-```
-
-### Enums
-
-```csharp
-/// <summary>
-/// Specifies [what this enum represents/controls].
-/// </summary>
-public enum EnumName {
-    /// <summary>
-    /// [Description of this enum value].
-    /// </summary>
-    Value1,
-
-    /// <summary>
-    /// [Description of this enum value].
-    /// </summary>
-    Value2
-}
-```
-
-### Records (Value Types)
-
-```csharp
-/// <summary>
-/// [What this value type represents].
-/// </summary>
-/// <param name="ParamName">Description of the constructor parameter.</param>
-public readonly record struct TypeName(Type ParamName) { }
-```
-
-**Example:**
-
-```csharp
-/// <summary>
-/// Represents a position within a stream, combining the stream name and revision number.
+/// Represents a position within a stream.
 /// </summary>
 /// <param name="Stream">The name of the stream.</param>
 /// <param name="Revision">The revision number within the stream.</param>
 public readonly record struct RecordPosition(StreamName Stream, ulong Revision) { }
 ```
 
-### Internal and Private Members
-
-No docs by default. When the name cannot carry the meaning, one line:
-
-```csharp
-// GOOD — bare when the name says it all
-internal static StreamName Normalize(StreamName stream) { }
-
-/// <summary>
-/// Caches resolved endpoints per node until the next gossip refresh.
-/// </summary>
-internal sealed class EndpointCache { }
-```
-
-## Common Patterns in Kurrent SDK
-
-### Client Classes
-
-Client classes provide access to a specific KurrentDB module (streams, registry, connectors, etc.).
+Enum — every value gets one line:
 
 ```csharp
 /// <summary>
-/// Provides operations for [module description] in KurrentDB.
+/// Specifies how the consumer starts when no checkpoint exists.
 /// </summary>
-public class ModuleClient { }
+public enum StartPosition {
+    /// <summary>
+    /// Start from the earliest available record.
+    /// </summary>
+    Earliest,
+
+    /// <summary>
+    /// Start from the next record appended after subscription.
+    /// </summary>
+    Latest
+}
 ```
 
-### Extension Methods — C# 14 `extension(Type)` Blocks
-
-Extension methods use C# 14 `extension(Type)` blocks. The class-level summary documents the extension group; individual
-members get their own XML docs inside the block.
+C# 14 extension block — the class summary names the extended type; members carry their own docs inside:
 
 ```csharp
 /// <summary>
@@ -402,25 +213,7 @@ public static class KurrentClientServiceCollectionExtensions {
 }
 ```
 
-### Fluent Builders
-
-Fluent builders extend `FluentBuilder<TBuilder, TResult>` and expose chainable methods that accumulate transformations
-via `With(r => r with { ... })`.
-
-```csharp
-/// <summary>
-/// Fluent builder for constructing <see cref="ResultType"/> instances.
-/// </summary>
-public class Builder : FluentBuilder<Builder, ResultType> {
-    /// <summary>
-    /// Sets [what this method configures].
-    /// </summary>
-    public Builder MethodName(Type value) =>
-        With(r => r with { Property = value });
-}
-```
-
-**Example:**
+Fluent builder — summary-only members:
 
 ```csharp
 /// <summary>
@@ -428,222 +221,14 @@ public class Builder : FluentBuilder<Builder, ResultType> {
 /// </summary>
 public class Builder : FluentBuilder<Builder, ReadRecordsRequest> {
     /// <summary>
-    /// Sets the starting position for the read operation in the global log.
+    /// Sets the starting position for the read in the global log.
     /// </summary>
     public Builder FromPosition(LogPosition position) =>
         With(r => r with { Start = position });
-
-    /// <summary>
-    /// Limit the number of records returned.
-    /// </summary>
-    public Builder Limit(long maxRecords) =>
-        With(x => x with { Limit = maxRecords });
 }
 ```
 
-## Best Practices
-
-### DO
-
-- **Use consistent terminology** throughout the codebase
-  - "stream" not "topic" or "queue"
-  - "record" not "event" (in V2 API context)
-  - "processor" not "consumer" or "subscriber"
-  - "drone" for running processor instances
-  - "checkpoint" not "offset" or "cursor"
-  - "position" not "offset" or "sequence number"
-  - "connection string" not "URI" or "address" (for `kurrentdb://` strings)
-
-- **Start with a verb for methods**
-  - "Appends records to a stream..."
-  - "Configures the processor..."
-  - "Gets the connection string..."
-
-- **Use present tense for properties**
-  - "Gets the endpoint..." not "Will get the endpoint..."
-  - "Represents the configuration..." not "Will represent..."
-
-- **Include the `<paramref>` tag when referring to parameters in text:**
-  ```csharp
-  /// <param name="name">The name of the stream.</param>
-  /// <remarks>
-  /// The <paramref name="name"/> must be unique within the application model.
-  /// </remarks>
-  ```
-
-- **Use `<see cref="">` only when the reader must go there** — the replacement for an obsolete member, a companion
-  type (one the caller must use with the member and that the signature does not already show), the type an extension
-  block extends. Everything else is noise. API names always take `<see cref>`, never `<c>` — `<c>` is for literals and
-  keywords (`null`, `true`), not for API members.
-
-- **Document default values:**
-  ```csharp
-  /// <param name="timeout">The timeout in seconds. Defaults to 30 seconds if not specified.</param>
-  ```
-
-- **Explain null behavior:**
-  ```csharp
-  /// <returns>
-  /// The stream position if found; otherwise, <c>null</c>.
-  /// </returns>
-  ```
-
-### DON'T
-
-- **Don't just restate the member name:**
-  ```csharp
-  // BAD
-  /// <summary>
-  /// Gets the stream name.
-  /// </summary>
-  public StreamName StreamName { get; }
-
-  // GOOD
-  /// <summary>
-  /// Gets the name of the stream this record was appended to.
-  /// </summary>
-  public StreamName StreamName { get; }
-  ```
-
-- **Don't use implementation details in documentation:**
-  ```csharp
-  // BAD
-  /// <summary>
-  /// Sends AppendRecords RPC via the V2 gRPC channel.
-  /// </summary>
-
-  // GOOD
-  /// <summary>
-  /// Appends one or more records to a stream.
-  /// </summary>
-  ```
-
-- **Don't leave placeholder or TODO comments:**
-  ```csharp
-  // BAD
-  /// <summary>
-  /// TODO: Add documentation
-  /// </summary>
-  ```
-
-- **Don't use abbreviations without explanation:**
-  ```csharp
-  // BAD
-  /// <summary>
-  /// Gets the conn str for KDB.
-  /// </summary>
-
-  // GOOD
-  /// <summary>
-  /// Gets the connection string for KurrentDB.
-  /// </summary>
-  ```
-
-- **Don't use markdown-style lists in XML documentation:**
-  ```csharp
-  // BAD — markdown lists don't render in XML docs
-  /// Supports:
-  /// - Option 1
-  /// - Option 2
-
-  // GOOD — use XML list tags
-  /// <list type="bullet">
-  /// <item>Option 1</item>
-  /// <item>Option 2</item>
-  /// </list>
-  ```
-
-- **Don't document internal APIs that need no explanation:**
-  ```csharp
-  // BAD — the name already says all of this
-  /// <summary>
-  /// Provides utilities for managing gRPC channel lifecycle.
-  /// </summary>
-  /// <remarks>
-  /// <para>
-  /// This class handles connection pooling, reconnection logic,
-  /// and TLS certificate rotation...
-  /// </para>
-  /// </remarks>
-  internal class ChannelManager
-
-  // GOOD — bare, or one line when the name cannot carry it
-  internal class ChannelManager
-  ```
-
-- **Don't write changelog or causality docs.** When behavior changes, rewrite the docs as if the new behavior had always
-  been true — the reader has no old version to compare against; git holds the history:
-  ```csharp
-  // BAD — narrates another component's behavior and the design's history
-  /// <summary>
-  /// Appends records. Validation now happens here because SchemaGovernance
-  /// no longer validates on read.
-  /// </summary>
-
-  // BAD — change narration; state only what IS
-  /// <summary>
-  /// Reads records. Previously returned an empty batch; now throws.
-  /// </summary>
-
-  // GOOD — states what this member does
-  /// <summary>
-  /// Appends one or more records to a stream.
-  /// </summary>
-  ```
-
-- **Don't add remarks that elaborate instead of warn:**
-  ```csharp
-  // BAD — restates and pads the summary
-  /// <remarks>
-  /// This method is useful when you want to append records to a stream.
-  /// </remarks>
-
-  // GOOD — remarks carry a hazard or contract, or don't exist
-  /// <remarks>
-  /// The returned session must be disposed before the client is disposed.
-  /// </remarks>
-  ```
-
-- **Don't include HTML tags** (except `<c>`, `<code>`, `<para>` which are standard XML doc tags)
-
-## Special Cases
-
-### Generic Type Parameters
-
-```csharp
-/// <typeparam name="T">The type of the variant case.</typeparam>
-```
-
-### Obsolete APIs
-
-```csharp
-/// <summary>
-/// Gets the connection string.
-/// </summary>
-/// <remarks>
-/// This property is obsolete. Use <see cref="ConnectionStringExpression"/> instead.
-/// </remarks>
-[Obsolete("Use ConnectionStringExpression instead.")]
-public string ConnectionString { get; }
-```
-
-### Experimental APIs
-
-```csharp
-/// <summary>
-/// Configures the processor to use batched dispatch (preview).
-/// </summary>
-/// <remarks>
-/// This is an experimental feature and may change in future releases.
-/// </remarks>
-[Experimental("KURRENT001")]
-public static KurrentProcessor CreateBatched(...) { }
-```
-
-### IVariant Discriminated Unions
-
-Source-generated `IVariant` types need documentation on the base interface and each variant case. The source generator
-produces implicit conversion operators — those don't need manual XML docs.
+IVariant union — base interface plus each case; generated conversion operators need nothing:
 
 ```csharp
 /// <summary>
@@ -663,19 +248,111 @@ public partial interface IConsistencyCheck {
 }
 ```
 
+Obsolete — remarks carry the replacement, the one always-actionable cross-reference:
+
+```csharp
+/// <summary>
+/// Gets the connection string.
+/// </summary>
+/// <remarks>
+/// Obsolete. Use <see cref="ConnectionStringExpression"/> instead.
+/// </remarks>
+[Obsolete("Use ConnectionStringExpression instead.")]
+public string ConnectionString { get; }
+```
+
+Experimental — stability is a contract:
+
+```csharp
+/// <summary>
+/// Configures the processor to use batched dispatch.
+/// </summary>
+/// <remarks>
+/// Experimental. May change in future releases.
+/// </remarks>
+[Experimental("KURRENT001")]
+public static KurrentProcessor CreateBatched(...) { }
+```
+
+Internal — bare by default, one line when the name cannot carry it:
+
+```csharp
+internal static StreamName Normalize(StreamName stream) { }
+
+/// <summary>
+/// Caches resolved endpoints per node until the next gossip refresh.
+/// </summary>
+internal sealed class EndpointCache { }
+```
+
+## Anti-Patterns
+
+```csharp
+// BAD — restates the member name
+/// <summary>
+/// Gets the stream name.
+/// </summary>
+public StreamName StreamName { get; }
+
+// GOOD — adds the information the name cannot carry
+/// <summary>
+/// Gets the name of the stream this record was appended to.
+/// </summary>
+public StreamName StreamName { get; }
+
+// BAD — single-line summary; always use the multiline form
+/// <summary>Appends one or more records to a stream.</summary>
+
+// BAD — implementation detail
+/// <summary>
+/// Sends AppendRecords RPC via the V2 gRPC channel.
+/// </summary>
+
+// BAD — changelog / causality
+/// <summary>
+/// Appends records. Validation now happens here because SchemaGovernance
+/// no longer validates on read.
+/// </summary>
+
+// BAD — change narration; state only what IS
+/// <summary>
+/// Reads records. Previously returned an empty batch; now throws.
+/// </summary>
+
+// BAD — remarks elaborating the summary
+/// <remarks>
+/// This method is useful when you want to append records.
+/// </remarks>
+
+// BAD — internal member with public-grade docs
+/// <summary>
+/// Creates the channel.
+/// </summary>
+/// <param name="address">The address.</param>
+/// <returns>The channel.</returns>
+internal GrpcChannel Create(Uri address) { }
+
+// BAD — placeholder
+/// <summary>
+/// TODO: Add documentation
+/// </summary>
+
+// BAD — unexplained abbreviations
+/// <summary>
+/// Gets the conn str for KDB.
+/// </summary>
+public string ConnectionString { get; }
+```
+
 ## Validation
 
-Before committing code with XML documentation:
-
-1. **Build the project** — XML doc warnings are errors
-2. **Check IntelliSense** — hover over APIs in an IDE to see how the documentation appears
-3. **Review consistency** — ensure terminology and style match existing documentation
-4. **Spell check** — use a spell checker on documentation comments
-5. **Run API documentation tools** — if available, generate HTML docs to review formatting
+1. Build — XML doc warnings are errors
+2. Hover in an IDE — check IntelliSense rendering
+3. Terminology and phrasing match this document
+4. Spell check
 
 ## Resources
 
-- [C# XML Documentation Comments (Microsoft Docs)](https://learn.microsoft.com/dotnet/csharp/language-reference/xmldoc/)
-- [Recommended XML Tags (Microsoft
-  Docs)](https://learn.microsoft.com/dotnet/csharp/language-reference/xmldoc/recommended-tags)
+- [C# XML Documentation Comments](https://learn.microsoft.com/dotnet/csharp/language-reference/xmldoc/)
+- [Recommended XML Tags](https://learn.microsoft.com/dotnet/csharp/language-reference/xmldoc/recommended-tags)
 - [.NET API Documentation Guidelines](https://github.com/dotnet/dotnet-api-docs/wiki)
