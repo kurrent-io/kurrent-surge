@@ -138,7 +138,12 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// Controls how the client handles event schemas and versioning.
     /// </para>
     /// </remarks>
-    public KurrentClientSchemaOptions Schema { get; set; } = KurrentClientSchemaOptions.FullValidation;
+    public KurrentClientSchemaOptions Schema { get; set; } = KurrentClientSchemaOptions.Disabled;
+
+    /// <summary>
+    /// Tasks that run once, in order, when the client first establishes a connection.
+    /// </summary>
+    public KurrentClientInitializationOptions Initialization { get; set; } = new();
 
     /// <summary>
     /// Compression configuration for outgoing gRPC calls.
@@ -274,6 +279,20 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
 
             RuleFor(options => options.Compression)
                 .SetValidator(KurrentClientCompressionOptions.Validator.Instance);
+
+            // Task names key logs and failure reports; a duplicate usually means the same
+            // task was registered twice and would silently run twice.
+            RuleFor(options => options.Initialization.Tasks)
+                .Must(tasks => tasks.Distinct().Count() == tasks.Count,
+                    "Initialization task names must be unique.")
+                .WithMessage(options => {
+                    var duplicates = options.Initialization.Tasks
+                        .GroupBy(registration => registration.Task.Name, StringComparer.Ordinal)
+                        .Where(group => group.Count() > 1)
+                        .Select(group => $"'{group.Key}'");
+
+                    return $"Duplicate initialization task names: {string.Join(", ", duplicates)}.";
+                });
         }
     }
 

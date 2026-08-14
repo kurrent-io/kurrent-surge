@@ -4,188 +4,89 @@ using Kurrent.Validation;
 namespace Kurrent.Surge.Client;
 
 /// <summary>
-/// Defines schema settings for a KurrentDB client, including naming strategies and auto-registration.
+/// Defines schema settings for a KurrentDB client: registration, validation, and naming.
 /// </summary>
 /// <remarks>
-/// <para>
-/// This record provides configuration options for schema handling, validation, and registration
-/// strategies when working with message schemas in KurrentDB.
-/// </para>
-/// <para>
-/// Schema options control how the client interacts with the schema registry, including whether
-/// schemas are automatically registered, validated, and how schema names are generated.
-/// </para>
-/// <para>
-/// Several predefined configurations are available as static properties: <see cref="FullValidation"/>,
-/// <see cref="NoAutomaticRegistration"/>, <see cref="NoValidation"/>, and <see cref="Disabled"/>.
-/// </para>
+/// The server policy overrides these options when it requires or prohibits an operation.
+/// The client decides only what the server leaves optional. Server policy resolution is
+/// not implemented yet — no requirement is enforced.
 /// </remarks>
-/// <example>
-/// <code>
-/// // Create custom schema options
-/// var schemaOptions = new KurrentClientSchemaOptions {
-///     AutoRegister = true,
-///     Validate = true,
-///     SchemaNameStrategy = new CustomSchemaNameStrategy()
-/// };
-///
-/// // Or use predefined options
-/// var client = new KurrentClient(connectionSettings, KurrentClientSchemaOptions.Default);
-/// </code>
-/// </example>
 [PublicAPI]
 public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOptions, KurrentClientSchemaOptions.Validator> {
 	/// <summary>
-	/// Whether schemas should be automatically registered.
+	/// Controls schema registration behavior.
+	/// Defaults to <see cref="SchemaRegistrationMode.Manual"/>.
 	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// When set to <see langword="true"/>, the client will automatically register schemas for message types
-	/// the first time they are encountered. When <see langword="false"/>, schemas must be registered manually.
-	/// </para>
-	/// <para>
-	/// Automatic registration simplifies development but may not be suitable for production environments
-	/// where schema changes should be more strictly controlled.
-	/// </para>
-	/// <para>
-	/// Defaults to <see langword="true"/>.
-	/// </para>
-	/// </remarks>
-	public bool AutoRegister { get; set; } = true;
+	public SchemaRegistrationMode RegistrationMode { get; set; } = SchemaRegistrationMode.Manual;
 
 	/// <summary>
-	/// Whether messages should be validated against their schemas.
+	/// Controls schema validation against the registry.
+	/// Defaults to <see cref="SchemaValidationMode.Disabled"/>.
 	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// When set to <see langword="true"/>, messages will be validated against their registered schemas before being sent.
-	/// And when reading messages, the client will ensure they conform to the expected schema.
-	/// This helps ensure data integrity but may impact performance.
-	/// </para>
-	/// <para>
-	/// Validation provides an additional safety layer to ensure that messages conform to their expected schema
-	/// before they are sent to the server.
-	/// </para>
-	/// <para>
-	/// Defaults to <see langword="true"/>.
-	/// </para>
-	/// </remarks>
-	public bool PreValidate { get; set; } = true;
+	public SchemaValidationMode ValidationMode { get; set; } = SchemaValidationMode.Disabled;
 
 	/// <summary>
-	/// The strategy used for generating schema names.
-	/// This determines how schemas are named when registering message types.
+	/// The strategy used for generating schema names from message types.
+	/// Defaults to <see cref="SchemaNameStrategies.TypeName"/>.
 	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// The schema name strategy controls how the client generates schema names for message types.
-	/// The default implementation, <see cref="MessageSchemaNameStrategy"/>, uses the message type's
-	/// namespace and name to create schema identifiers.
-	/// </para>
-	/// <para>
-	/// Custom strategies can be implemented by creating classes that implement the <see cref="ISchemaNameStrategy"/> interface.
-	/// </para>
-	/// <para>
-	/// Defaults to <see cref="MessageSchemaNameStrategy"/>, which enables zero-code automatic serialization and deserialization.
-	/// </para>
-	/// </remarks>
 	public ISchemaNameStrategy NameStrategy { get; set; } = SchemaNameStrategies.TypeName();
 
 	/// <summary>
-	/// Configuration options for the JSON schema serializer.
+	/// The registry is not involved. Schema names map locally, produced records carry names
+	/// only, and records with unknown schemas pass through reads undecoded. The default.
 	/// </summary>
-	/// <summary>
-	/// The default schema registry settings with all standard options enabled.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// Provides a preconfigured set of schema options with all standard features enabled:
-	/// </para>
-	/// <list type="table">
-	///   <item><description><see cref="MessageSchemaNameStrategy"/> for schema naming</description></item>
-	///   <item><description>Automatic schema registration enabled</description></item>
-	///   <item><description>Schema validation enabled</description></item>
-	/// </list>
-	/// <para>
-	/// This is the most convenient option for development and testing scenarios.
-	/// </para>
-	/// </remarks>
-	/// <returns>
-	/// A new <see cref="KurrentClientSchemaOptions"/> instance with default settings.
-	/// </returns>
-	public static KurrentClientSchemaOptions FullValidation => new();
-
-	/// <summary>
-	/// Schema options with automatic registration disabled.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// Provides a preconfigured set of schema options with automatic registration disabled.
-	/// Schema validation remains enabled.
-	/// </para>
-	/// <para>
-	/// Use this configuration when you want to manually control schema registration
-	/// but still benefit from schema validation.
-	/// </para>
-	/// </remarks>
-	/// <returns>
-	/// A new <see cref="KurrentClientSchemaOptions"/> instance with auto-registration disabled.
-	/// </returns>
-	public static KurrentClientSchemaOptions NoAutomaticRegistration => new() {
-		AutoRegister = false
-	};
-
-	/// <summary>
-	/// Schema options with validation disabled.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// Provides a preconfigured set of schema options with validation disabled.
-	/// Automatic schema registration remains enabled.
-	/// </para>
-	/// <para>
-	/// Use this configuration in performance-sensitive scenarios where you trust
-	/// the message data and want to avoid the overhead of schema validation.
-	/// </para>
-	/// </remarks>
-	/// <returns>
-	/// A new <see cref="KurrentClientSchemaOptions"/> instance with validation disabled.
-	/// </returns>
-	/// <example>
-	/// <code>
-	/// // Create a client that automatically registers schemas but skips validation
-	/// var client = new KurrentClient(connectionSettings, KurrentClientSchemaOptions.NoValidation);
-	/// </code>
-	/// </example>
-	public static KurrentClientSchemaOptions NoValidation => new() {
-		PreValidate = false
-	};
-
-	/// <summary>
-	/// Schema options with both automatic registration and validation disabled.
-	/// </summary>
-	/// <remarks>
-	/// <para>
-	/// Provides a preconfigured set of schema options with both automatic registration
-	/// and validation disabled.
-	/// </para>
-	/// <para>
-	/// This is the most lightweight configuration and is suitable for advanced scenarios
-	/// where you want complete control over schema handling or maximum performance.
-	/// </para>
-	/// <para>
-	/// <b>Note:</b> With this configuration, you are responsible for ensuring message
-	/// compatibility with the schema registry.
-	/// </para>
-	/// </remarks>
-	/// <returns>
-	/// A new <see cref="KurrentClientSchemaOptions"/> instance with both auto-registration
-	/// and validation disabled.
-	/// </returns>
 	public static KurrentClientSchemaOptions Disabled => new() {
-		AutoRegister = false,
-		PreValidate  = false
+		RegistrationMode = SchemaRegistrationMode.Manual,
+		ValidationMode   = SchemaValidationMode.Disabled
+	};
+
+	/// <summary>
+	/// Registers the schemas of produced messages automatically and never validates.
+	/// Consuming stays tolerant: records with unknown schemas pass through reads undecoded.
+	/// </summary>
+	public static KurrentClientSchemaOptions AutoRegister => new() {
+		RegistrationMode = SchemaRegistrationMode.Auto,
+		ValidationMode   = SchemaValidationMode.Disabled
+	};
+
+	/// <summary>
+	/// Never registers. Verifies every catalog schema is pre-registered and compatible before
+	/// the first operation, and fails reads that carry unknown or incompatible schemas.
+	/// </summary>
+	public static KurrentClientSchemaOptions Strict => new() {
+		RegistrationMode = SchemaRegistrationMode.Manual,
+		ValidationMode   = SchemaValidationMode.Enabled
 	};
 
     public class Validator : Validator<Validator, KurrentClientSchemaOptions> { }
+}
+
+/// <summary>
+/// Defines how schema registration is handled.
+/// </summary>
+public enum SchemaRegistrationMode {
+	/// <summary>
+	/// Automatically register schemas when they are first encountered.
+	/// </summary>
+	Auto,
+
+	/// <summary>
+	/// Do not register schemas automatically - schemas must be pre-registered.
+	/// </summary>
+	Manual
+}
+
+/// <summary>
+/// Defines how schema validation is handled.
+/// </summary>
+public enum SchemaValidationMode {
+	/// <summary>
+	/// Validate schemas against the registry.
+	/// </summary>
+	Enabled,
+
+	/// <summary>
+	/// Skip validation against the registry.
+	/// </summary>
+	Disabled
 }
