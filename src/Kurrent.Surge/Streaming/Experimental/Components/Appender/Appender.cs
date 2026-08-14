@@ -35,18 +35,13 @@ sealed class Appender : IAppender {
 
     public Appender(AppenderOptions options) {
         options.EnsureValid();
-        _options = options;
-
-        _client  = KurrentClient.Create(options.ClientOptions!);
-        // The experimental appender speaks concrete-client internals (mapping context, raw service
-        // client), so it builds its own StreamsClient instead of taking IKurrentClient.Streams.
-        _streams = new StreamsClient(_client);
-
-        //TODO SS: could the default lane be 0 if we simply start the keyed lanes on 1? :)
-
+        
+        _options     = options;
+        _client      = KurrentClient.Create(options.ClientOptions!);
+        _streams     = new StreamsClient(_client);
         _defaultLane = new FlushLane(options, _streams, _stopping.Token);
-
-        _keyedLanes = new FlushLane[options.Concurrency];
+        _keyedLanes  = new FlushLane[options.Concurrency];
+        
         for (var i = 0; i < options.Concurrency; i++)
             _keyedLanes[i] = new FlushLane(options, _streams, _stopping.Token);
     }

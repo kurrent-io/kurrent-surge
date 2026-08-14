@@ -40,7 +40,7 @@ sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
         Execute(record, ct);
 
     public JsonNode? ProjectToJson(Record record) =>
-        record.IsDecoded && record.Schema.DataFormat == SchemaDataFormat.Json
+        record is { IsDecoded: true, Schema.DataFormat: SchemaDataFormat.Json }
             ? JsonSerializer.SerializeToNode(record.Value, record.ValueType, KurrentJsonContext.Default)
             : null;
 
