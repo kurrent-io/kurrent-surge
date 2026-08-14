@@ -127,7 +127,5 @@
     ],
     "baseRef": "head"
   },
-  "enabledPlugins": {
-    "motherduck-skills@motherduck-skills": true
-  }
+  "enabledPlugins": {}
 }
