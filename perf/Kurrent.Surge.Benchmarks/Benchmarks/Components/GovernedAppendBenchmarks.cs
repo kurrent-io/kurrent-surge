@@ -47,24 +47,24 @@ public class GovernedAppendBenchmarks {
 
         // Self-composed, equivalent to the fixture client's own defaults — the pipeline-
         // composition seam on KurrentClient is gone, so the benchmark builds its own
-        // resolver/registrations/codecs instead of borrowing the client's.
+        // resolver/schema/codecs instead of borrowing the client's.
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
             .Where(catalog => catalog.Types.Contains(typeof(RaceCar)))
             .ToList();
 
         var resolver = MessageResolver.From(catalogs);
 
-        var registrations = Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
+        var schema = KurrentClientSchemaOptions.Disabled;
 
         var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
 
         var resolved = policy
-            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .Resolve(schema, null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
-        var validation = new CatalogValidationInterceptor(SchemaGovernance.Create(_fixture.Client), catalogs, resolved);
+        var governance = SchemaGovernance.Create(_fixture.Client, catalogs, resolved);
 
-        _governed = WriteRecordPipeline.Create(resolver, policy, registrations, codecs, validation);
+        _governed = WriteRecordPipeline.Create(resolver, policy, schema, codecs, governance);
 
         // Pre-built catalog records, one stream — both paths map the same instances per op.
         var stream = $"governed-append-bench-{RecordCount}";
