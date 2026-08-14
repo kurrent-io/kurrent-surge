@@ -97,9 +97,22 @@ Read these before working on related areas. Do not read all upfront.
 | [Kurrent.Client](.claude/context/project/client.md)                   | Before working on the client library                     |
 | [Builder Conventions](.claude/context/project/builder-conventions.md) | Before adding builders, factories, or fluent APIs        |
 | [Packaging](.claude/context/project/packaging.md)                     | Before adding project references to packable projects    |
-| [XML Documentation](.claude/context/project/xmldoc.md)                | Before writing or reviewing XML docs on public APIs      |
 | [Module Organization](.claude/context/project/module-organization.md) | Before adding files, models, or mappers to a module      |
 | [Docs Guidelines](.claude/context/project/docs-guidelines.md)         | Before writing or updating documentation                 |
+
+### XML documentation
+
+XML docs follow the devx standard bundled with the `devx-xmldoc-audit` skill: docs state current behavior
+only (never a changelog); public members get complete, terse docs with multiline summaries; `<remarks>` only
+for hazards and contracts; internal members documented only when non-obvious; cross-references
+actionable-only; `<example>` and `<seealso>` banned. Domain vocabulary lives in [CONTEXT.md](CONTEXT.md).
+
+Repo addenda for the audit:
+
+- Module client summaries read `Provides operations for [module] in KurrentDB.`
+- Never sweep `src/Kurrent.Client/` or `src/Kurrent.Streaming/` — on disk with no `.csproj`, untracked
+  leftovers.
+- Exemption: source-generator-emitted implicit conversion operators on `IVariant` types.
 
 ## Agent skills
 
