@@ -3,6 +3,7 @@ using DuckDB.NET.Data;
 using DuckDB.NET.Native;
 using Kurrent.Quack;
 using Kurrent.Quack.ConnectionPool;
+using ModelContextProtocol.Extensions.Tasks;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Polly;

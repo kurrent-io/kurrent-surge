@@ -1,7 +1,7 @@
 using Kurrent.Surge.Mcp.DuckDB;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using ModelContextProtocol.Server;
+using ModelContextProtocol.Extensions.Tasks;
 using Polly;
 
 namespace Microsoft.Extensions.DependencyInjection;

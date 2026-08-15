@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using ModelContextProtocol.Server;
+using ModelContextProtocol.Extensions.Tasks;
 
 namespace Kurrent.Surge.Mcp;
 
