@@ -1,3 +1,5 @@
+using System.IO.Hashing;
+using System.Text;
 using Aspire.Hosting.KurrentDB;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,9 +74,17 @@ public static class KurrentDBBuilderExtensions {
         int nodes = 3,
         int replicas = 0
     ) {
-        builder.Resource.Settings.Topology.Nodes    = nodes;
-        builder.Resource.Settings.Topology.Replicas = replicas;
+        builder.Resource.Settings.WithCluster(nodes, replicas);
         return builder;
+    }
+
+    /// <summary>
+    /// Configures the cluster topology with the specified number of nodes and optional read-only replicas.
+    /// </summary>
+    public static KurrentDBSettings WithCluster(this KurrentDBSettings settings, int nodes = 3, int replicas = 0) {
+        settings.Topology.Nodes    = nodes;
+        settings.Topology.Replicas = replicas;
+        return settings;
     }
 
     /// <summary>
@@ -141,8 +151,6 @@ public static class KurrentDBBuilderExtensions {
 
     #endregion // Builder Extensions
 
-    const int ClusterClientPortBase = 21131;
-
     static IResourceBuilder<KurrentDBResource> AddNode(
         this IResourceBuilder<KurrentDBServerResource> serverBuilder,
         int nodeIndex,
@@ -166,8 +174,13 @@ public static class KurrentDBBuilderExtensions {
         // resolves to the target port on persistent resources (Aspire 13.4), which every
         // node would then share. Single-node keeps a dynamic port — its clients connect
         // by connection string and never read gossip.
+        //
+        // The base port is derived from the server's resource name (deterministically hashed,
+        // see GetClusterPortBase) instead of a shared constant, so a second named cluster gets
+        // its own non-overlapping port block for free and the same name keeps mapping to the
+        // same ports across restarts of a persistent resource, with nothing to persist.
         var clientPort = settings.Topology.TotalNodeCount > 1
-            ? ClusterClientPortBase + nodeIndex
+            ? GetClusterPortBase(server.Name) + nodeIndex
             : (int?)null;
 
         var builder = app
@@ -221,20 +234,29 @@ public static class KurrentDBBuilderExtensions {
             .WithAdminCommands();
 
         return builder;
+
+        static int GetClusterPortBase(string resourceName, int portRangeStart = 20000) {
+            const int bucketSize  = 16;   // enough headroom for up to a 16-node cluster
+            const int bucketCount = 1000;
+
+            var bucket = XxHash3.HashToUInt64(Encoding.UTF8.GetBytes(resourceName)) % bucketCount;
+            var port   = portRangeStart + (int)bucket * bucketSize;
+            
+            return port;
+        }
     }
 
     public static IResourceBuilder<KurrentDBServerResource> WithClusterHealthCheck(this IResourceBuilder<KurrentDBServerResource> serverBuilder) {
         var app    = serverBuilder.ApplicationBuilder;
         var server = serverBuilder.Resource;
 
-        app
-            .Services.AddHttpClient(KurrentDBClusterHealthCheck.HttpClientName)
+        app.Services
+            .AddHttpClient(KurrentDBClusterHealthCheck.HttpClientName)
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { ServerCertificateCustomValidationCallback = (_, _, _, _) => true });
 
         var healthCheckKey = $"{server.Name}_cluster_check";
 
-        app
-            .Services
+        app.Services
             .AddHealthChecks()
             .AddTypeActivatedCheck<KurrentDBClusterHealthCheck>(healthCheckKey, server);
 
@@ -243,13 +265,11 @@ public static class KurrentDBBuilderExtensions {
 
     static IResourceBuilder<ExecutableResource> AddCertificateGenerator(
         this IDistributedApplicationBuilder app,
-        string name,
-        string certsHostPath,
+        string name, string certsHostPath,
         KurrentDBServerResource server
     ) {
         var scriptPath = Path.Combine(AppContext.BaseDirectory, "gencert.sh");
-
-        var certGen = app.AddExecutable($"{name}-certs", "/bin/bash", ".");
+        var certGen    = app.AddExecutable($"{name}-certs", "/bin/bash", ".");
 
         certGen.WithArgs(context => {
             var dnsNames = string.Join(

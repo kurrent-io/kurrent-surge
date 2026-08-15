@@ -48,8 +48,8 @@ public class KurrentDBServerResourceTests {
 
         builder
             .AddKurrentDB(cfg => {
-                cfg.TlsEnabled     = false;
-                cfg.Topology.Nodes = 3;
+                cfg.TlsEnabled = false;
+                cfg.WithCluster(nodes: 3);
             })
             .WithEnvironment(envKey, envValue);
 

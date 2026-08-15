@@ -183,8 +183,8 @@ public sealed class KurrentDBClusterFixture : KurrentDBFixture {
     protected override string ResourceName => "kdb-cluster";
 
     protected override void ConfigureSettings(KurrentDBSettings settings) {
-        settings.Lifetime   = ContainerLifetime.Persistent;
-        settings.Topology   = new() { Nodes = 3, Replicas = 1 };
+        settings.Lifetime = ContainerLifetime.Persistent;
+        settings.WithCluster(nodes: 3, replicas: 1);
         settings.TlsEnabled = true;
     }
 }
