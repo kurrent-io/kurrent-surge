@@ -1,5 +1,5 @@
 using System.Net;
-using KurrentDB.Client;
+using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Tests.Options;
 
@@ -22,7 +22,7 @@ public class KurrentClientOptionsTests {
         await Assert.That(options.Gossip).IsDeepEquivalentTo(KurrentClientGossipOptions.Default);
         await Assert.That(options.Security).IsDeepEquivalentTo(KurrentClientSecurityOptions.Tls);
         await Assert.That(options.Resilience).IsDeepEquivalentTo(KurrentClientResilienceOptions.NoResilience);
-        await Assert.That(options.Schema).IsDeepEquivalentTo(KurrentClientSchemaOptions.FullValidation);
+        await Assert.That(options.Schema).IsDeepEquivalentTo(KurrentClientSchemaOptions.Disabled);
         await Assert.That(options.Interceptors).IsEmpty();
     }
 
@@ -130,7 +130,7 @@ public class KurrentClientOptionsTests {
                 MaxDiscoverAttempts = 15,
                 DiscoveryInterval   = TimeSpan.FromMilliseconds(200),
                 Timeout             = TimeSpan.FromSeconds(10),
-                ReadPreference      = NodePreference.Leader
+                ReadPreference      = NodeReadPreference.Leader
             }
         };
 
@@ -178,6 +178,32 @@ public class KurrentClientOptionsTests {
     }
 
     [Test]
+    public async ValueTask duplicate_initialization_task_names_fail_validation() {
+        var options = new KurrentClientOptions();
+
+        options.Initialization
+            .AddTask("same-name", (_, _) => ValueTask.CompletedTask)
+            .AddTask("same-name", (_, _) => ValueTask.CompletedTask);
+
+        var result = options.Validate();
+
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask distinct_initialization_task_names_pass_validation() {
+        var options = new KurrentClientOptions();
+
+        options.Initialization
+            .AddTask("first-task", (_, _) => ValueTask.CompletedTask)
+            .AddTask("second-task", (_, _) => ValueTask.CompletedTask);
+
+        var result = options.Validate();
+
+        await Assert.That(result.IsValid).IsTrue();
+    }
+
+    [Test]
     public async Task discovery_connection_with_many_hosts_preserves_all_hosts() {
         var endpoints = new[] {
             new DnsEndPoint("node1.example.com", 2113),
@@ -201,10 +227,10 @@ public class KurrentClientOptionsTests {
     [Test]
     public async Task discovery_connection_with_different_node_preferences() {
         var nodePreferences = new[] {
-            NodePreference.Leader,
-            NodePreference.Follower,
-            NodePreference.Random,
-            NodePreference.ReadOnlyReplica
+            NodeReadPreference.Leader,
+            NodeReadPreference.Follower,
+            NodeReadPreference.Random,
+            NodeReadPreference.ReadOnlyReplica
         };
 
         foreach (var preference in nodePreferences) {
@@ -218,7 +244,7 @@ public class KurrentClientOptionsTests {
 
             var connectionString = options.ToString();
 
-            if (preference != NodePreference.Random)
+            if (preference != NodeReadPreference.Random)
                 await Assert.That(connectionString).Contains($"nodePreference={preference.ToString().ToLowerInvariant()}");
         }
     }
@@ -299,6 +325,47 @@ public class KurrentClientOptionsTests {
         var connectionString = "kurrentdb+discover://localhost?nodePreference=invalidPreference";
 
         await Assert.That(() => KurrentClientOptions.Parse(connectionString)).ThrowsException();
+    }
+
+    [Test]
+    public async ValueTask parses_node_preference_from_the_legacy_cross_sdk_parameter_name() {
+        var connectionString = "kurrentdb+discover://localhost?nodePreference=follower";
+
+        var options = KurrentClientOptions.Parse(connectionString);
+
+        await Assert.That(options.Gossip.ReadPreference).IsEqualTo(NodeReadPreference.Follower);
+    }
+
+    [Test]
+    public async ValueTask parses_node_preference_from_the_read_preference_parameter_name() {
+        var connectionString = "kurrentdb+discover://localhost?readPreference=follower";
+
+        var options = KurrentClientOptions.Parse(connectionString);
+
+        await Assert.That(options.Gossip.ReadPreference).IsEqualTo(NodeReadPreference.Follower);
+    }
+
+    [Test]
+    public async ValueTask read_preference_parameter_wins_when_both_preference_parameters_are_present() {
+        var connectionString = "kurrentdb+discover://localhost?nodePreference=leader&readPreference=follower";
+
+        var options = KurrentClientOptions.Parse(connectionString);
+
+        await Assert.That(options.Gossip.ReadPreference).IsEqualTo(NodeReadPreference.Follower);
+    }
+
+    [Test]
+    public async ValueTask parses_certificate_credentials_with_key_password() {
+        var connectionString = "kurrentdb://localhost?userCertFile=/certs/client.crt&userKeyFile=/certs/client.key&userKeyPassword=changeit";
+
+        var options = KurrentClientOptions.Parse(connectionString);
+
+        await Assert.That(options.Security.Authentication.IsFileCertificateCredentials).IsTrue();
+
+        var credentials = options.Security.Authentication.AsFileCertificateCredentials;
+        await Assert.That(credentials.CertificatePath).IsEqualTo("/certs/client.crt");
+        await Assert.That(credentials.KeyPath).IsEqualTo("/certs/client.key");
+        await Assert.That(credentials.Password).IsEqualTo("changeit");
     }
 
     [Test]
@@ -553,7 +620,7 @@ public class KurrentClientOptionsTests {
                 MaxDiscoverAttempts = 20,
                 DiscoveryInterval   = TimeSpan.FromMilliseconds(300),
                 Timeout             = TimeSpan.FromSeconds(15),
-                ReadPreference      = NodePreference.Leader
+                ReadPreference      = NodeReadPreference.Leader
             },
             Resilience = new KurrentClientResilienceOptions {
                 KeepAliveInterval = TimeSpan.FromMinutes(2),

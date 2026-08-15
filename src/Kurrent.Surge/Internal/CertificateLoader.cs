@@ -51,8 +51,11 @@ static class CertificateLoader {
         if (IsNullOrEmpty(keyPath))
             return X509CertificateLoader.LoadCertificateFromFile(certPath);
 
+        // CreateFromEncryptedPemFile takes (certPath, password, keyPath) — password second,
+        // unlike CreateFromPemFile's (certPath, keyPath). Swapping them compiles because
+        // string converts implicitly to ReadOnlySpan<char>.
         return IsNullOrEmpty(password)
             ? X509Certificate2.CreateFromPemFile(certPath, keyPath)
-            : X509Certificate2.CreateFromEncryptedPemFile(certPath, keyPath, password);
+            : X509Certificate2.CreateFromEncryptedPemFile(certPath, password, keyPath);
     }
 }

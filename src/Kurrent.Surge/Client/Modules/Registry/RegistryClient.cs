@@ -4,7 +4,7 @@ namespace Kurrent.Surge.Client.Registry;
 
 public partial class RegistryClient : ClientModuleBase, IRegistryClient {
     internal RegistryClient(KurrentClient client) : base(client) =>
-        ServiceClient = new(client.LegacyCallInvoker);
+        ServiceClient = new(client.CallInvoker);
 
     SchemaRegistryServiceClient ServiceClient { get; }
 }

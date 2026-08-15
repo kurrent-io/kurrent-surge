@@ -8,7 +8,7 @@ namespace Kurrent.Surge.Client.Schema.Serialization.MessagePack;
 /// MessagePack payload codec backed by Nerdbank.MessagePack. A configured
 /// <see cref="ITypeShapeProvider"/> is required — there is no reflection fallback.
 /// </summary>
-public sealed class MessagePackSchemaCodec(MessagePackSchemaSerializerOptions options) : ISchemaCodec {
+public sealed class MessagePackSchemaCodec(NerdbankMessagePackSchemaSerializerOptions options) : ISchemaCodec {
     MessagePackSerializer Serializer        { get; } = options.MessagePackSerializer;
     ITypeShapeProvider    TypeShapeProvider { get; } = options.TypeShapeProvider;
 

@@ -8,7 +8,7 @@ public class MessagePackSchemaCodecTests {
     static readonly Faker Faker = new();
 
     static MessagePackSchemaCodec NewCodec() =>
-        new(new MessagePackSchemaSerializerOptions { TypeShapeProvider = MessageWitness.GeneratedTypeShapeProvider });
+        new(new NerdbankMessagePackSchemaSerializerOptions { TypeShapeProvider = MessageWitness.GeneratedTypeShapeProvider });
 
     [Test]
     public async ValueTask round_trips_message() {

@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using Bogus;
 using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Schema.Serialization;
@@ -25,24 +27,23 @@ public class RecordPipelineTests {
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
     // Self-composed, equivalent to the fixture client's own defaults — the pipeline-composition
-    // seam on KurrentClient is gone, so tests build their own resolver/registrations/codecs
+    // seam on KurrentClient is gone, so tests build their own resolver/schema/codecs
     // instead of borrowing the client's. This is pipeline semantics under test, not composition.
     static readonly List<MessageCatalog> Catalogs =
         MessageCatalogDiscovery.GetCatalogs().Where(catalog => catalog.Types.Contains(typeof(RaceCar))).ToList();
 
     static readonly MessageResolver Resolver = MessageResolver.From(Catalogs);
 
-    static readonly IReadOnlyDictionary<SchemaDataFormat, SchemaRegistrationOptions> Registrations =
-        Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
+    static readonly KurrentClientSchemaOptions Schema = KurrentClientSchemaOptions.Disabled;
 
     static readonly SchemaCodecProvider Codecs = new([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
 
-    CatalogValidationInterceptor CreateValidation(SchemaRegistryPolicy policy, ISchemaGovernance? governance = null) {
+    SchemaGovernance CreateGovernance(SchemaRegistryPolicy policy) {
         var resolved = policy
-            .Resolve(Registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .Resolve(Schema, null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
-        return new CatalogValidationInterceptor(governance ?? SchemaGovernance.Create(Fixture.Client), Catalogs, resolved);
+        return SchemaGovernance.Create(Fixture.Client, Catalogs, resolved);
     }
 
     // The frame invariants shared by every catalog-record write case: no minted id, the
@@ -61,16 +62,11 @@ public class RecordPipelineTests {
 
     [Test]
     public async ValueTask governed_write_cancellation_abandons_a_pending_catalog_validation(CancellationToken ct) {
-        // Arrange — a validation that never completes: the caller's token must abandon the
-        // wait instead of blocking until the client lifetime ends. The client-level seam
-        // cannot host this proof: options.Interceptors joins the gRPC chain only, while the
-        // pipeline awaits the client's own ctor-constructed interceptor.
+        // Arrange — a catalog registration that never completes: the caller's token must
+        // abandon the wait instead of blocking until the client lifetime ends.
         var streams = new StreamsClient(Fixture.Client);
 
-        var pending = new CatalogValidationInterceptor(() =>
-            new TaskCompletionSource<IReadOnlyDictionary<(Type MessageType, SchemaDataFormat Format), RecordSchemaInfo>>().Task);
-
-        var pipeline = WriteRecordPipeline.Create(Resolver, streams.RegistryPolicy, Registrations, Codecs, pending);
+        var pipeline = WriteRecordPipeline.Create(Resolver, streams.RegistryPolicy, Schema, Codecs, new PendingGovernance());
 
         var record = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"validation-cancel-{TestId.New()}");
 
@@ -88,7 +84,7 @@ public class RecordPipelineTests {
         var streams  = new StreamsClient(Fixture.Client);
         var policy   = streams.RegistryPolicy;
         var pipeline = WriteRecordPipeline.Create(
-            Resolver, policy, Registrations, Codecs,CreateValidation(policy));
+            Resolver, policy, Schema, Codecs, CreateGovernance(policy));
 
         var metadataValue = Faker.Random.AlphaNumeric(12);
 
@@ -113,7 +109,7 @@ public class RecordPipelineTests {
         var streams  = new StreamsClient(Fixture.Client);
         var policy   = streams.RegistryPolicy;
         var pipeline = WriteRecordPipeline.Create(
-            Resolver, policy, Registrations, Codecs,CreateValidation(policy));
+            Resolver, policy, Schema, Codecs, CreateGovernance(policy));
 
         var schemaNameOverride = $"parity-override-{TestId.New()}";
 
@@ -135,7 +131,7 @@ public class RecordPipelineTests {
         var streams  = new StreamsClient(Fixture.Client);
         var policy   = streams.RegistryPolicy;
         var pipeline = WriteRecordPipeline.Create(
-            Resolver, policy, Registrations, Codecs,CreateValidation(policy));
+            Resolver, policy, Schema, Codecs, CreateGovernance(policy));
 
         var payload    = Faker.Random.Bytes(64);
         var schemaName = $"raw-bytes-{TestId.New()}";
@@ -172,7 +168,7 @@ public class RecordPipelineTests {
             .ToListAsync(ct);
 
         var pipeline = ReadRecordPipeline.Create(
-            Resolver, policy, Registrations, Codecs,SchemaGovernance.Create(Fixture.Client));
+            Resolver, policy, Schema, Codecs, CreateGovernance(policy));
 
         // Act
         var outcome = await pipeline.Execute(raw[0], ct);
@@ -209,7 +205,7 @@ public class RecordPipelineTests {
             .ToListAsync(ct);
 
         var pipeline = ReadRecordPipeline.Create(
-            Resolver, policy, Registrations, Codecs,SchemaGovernance.Create(Fixture.Client));
+            Resolver, policy, Schema, Codecs, CreateGovernance(policy));
 
         // Act
         var outcome = await pipeline.Execute(raw[0], ct);
@@ -226,7 +222,7 @@ public class RecordPipelineTests {
         var streams  = new StreamsClient(Fixture.Client);
         var policy   = streams.RegistryPolicy;
         var pipeline = WriteRecordPipeline.Create(
-            Resolver, policy, Registrations, Codecs,CreateValidation(policy));
+            Resolver, policy, Schema, Codecs, CreateGovernance(policy));
 
         var record   = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"governed-wire-{TestId.New()}");
         var contract = await pipeline.Execute(record, ct);
@@ -257,12 +253,10 @@ public class RecordPipelineTests {
         // what the server returns.
         var streams    = new StreamsClient(Fixture.Client);
         var policy     = streams.RegistryPolicy;
-        var governance = SchemaGovernance.Create(Fixture.Client);
+        var governance = CreateGovernance(policy);
 
-        var write = WriteRecordPipeline.Create(
-            Resolver, policy, Registrations, Codecs,CreateValidation(policy, governance));
-        var read = ReadRecordPipeline.Create(
-            Resolver, policy, Registrations, Codecs,governance);
+        var write = WriteRecordPipeline.Create(Resolver, policy, Schema, Codecs, governance);
+        var read  = ReadRecordPipeline.Create(Resolver, policy, Schema, Codecs, governance);
 
         var stream   = $"governed-roundtrip-{TestId.New()}";
         var expected = Enumerable.Range(0, 100).Select(_ => RaceCar.Generate()).ToList();
@@ -289,5 +283,18 @@ public class RecordPipelineTests {
             await Assert.That(outcome).IsEqualTo(DecodeOutcome.Decoded);
             await Assert.That(records[i].Value).IsEquivalentTo(expected[i]);
         }
+    }
+
+    // A catalog registration that never completes; the govern step's wait must be abandonable.
+    sealed class PendingGovernance : ISchemaGovernance {
+        public Task<CatalogSchemaMap> CatalogRegistration { get; } = new TaskCompletionSource<CatalogSchemaMap>().Task;
+
+        public void StartCatalogRegistration() { }
+
+        public ValueTask<SchemaVersionId> EnsureRegistered(SchemaName schema, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) =>
+            throw new UnreachableException();
+
+        public ValueTask<SchemaVersionId> EnsureCompatible(RecordSchemaInfo schemaInfo, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) =>
+            throw new UnreachableException();
     }
 }

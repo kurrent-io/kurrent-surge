@@ -117,9 +117,9 @@ public class TransactionalProjectionTests {
             opts.ClientProvider     = DuckDB.ConnectionProvider;
 
             opts.Connection(Fixture.ConnectionString, client => {
-                client.LoggerFactory      = Fixture.LoggerFactory;
-                client.Schema.PreValidate = false;
-                client.Resilience         = KurrentClientResilienceOptions.NoResilience;
+                client.LoggerFactory         = Fixture.LoggerFactory;
+                client.Schema.ValidationMode = SchemaValidationMode.Disabled;
+                client.Resilience            = KurrentClientResilienceOptions.NoResilience;
 
                 // CountingProjection only dispatches decoded records. The ArcadeRacer contracts are
                 // discovered but not always-active, so without this every record is skipped — which

@@ -34,6 +34,7 @@ record KurrentConnectionString {
     internal const string KeepAliveTimeout     = nameof(KeepAliveTimeout);
     internal const string UserCertFile         = nameof(UserCertFile);
     internal const string UserKeyFile          = nameof(UserKeyFile);
+    internal const string UserKeyPassword      = nameof(UserKeyPassword);
 
     const string DefaultDirectScheme    = "kurrentdb";
     const string DefaultDiscoveryScheme = "kurrentdb+discover";

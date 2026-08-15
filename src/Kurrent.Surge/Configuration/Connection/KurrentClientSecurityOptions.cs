@@ -68,10 +68,11 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
     /// <param name="clientCertPath">Path to client certificate file.</param>
     /// <param name="clientKeyPath">Path to client private key file.</param>
     /// <param name="rootCaPath">Optional path to root CA certificate.</param>
-    public static KurrentClientSecurityOptions MutualTls(string clientCertPath, string clientKeyPath, string? rootCaPath = null) =>
+    /// <param name="password">Optional password for an encrypted client private key or PFX file.</param>
+    public static KurrentClientSecurityOptions MutualTls(string clientCertPath, string clientKeyPath, string? rootCaPath = null, string? password = null) =>
         new() {
             Transport      = rootCaPath is not null ? TransportSecurity.Certificate(rootCaPath) : TransportSecurity.Standard,
-            Authentication = new FileCertificateCredentials(clientCertPath, clientKeyPath)
+            Authentication = new FileCertificateCredentials(clientCertPath, clientKeyPath, password)
         };
 
     /// <summary>
@@ -103,6 +104,16 @@ public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurit
                 RuleFor(options => options.Transport.IsEnabled)
                     .Equal(true)
                     .WithMessage("Using basic authentication without TLS is not secure.")
+                    .WithSeverity(RuleSeverity.Warning);
+            });
+
+            // Certificate-based (mTLS) auth is a TLS-level mechanism: with transport security
+            // disabled, the client certificate is built but never presented — SslOptions is
+            // only consulted once a TLS handshake actually happens.
+            When(options => options.Authentication.IsCertificateBased, () => {
+                RuleFor(options => options.Transport.IsEnabled)
+                    .Equal(true)
+                    .WithMessage("Certificate-based authentication requires TLS — the client certificate is never presented on an insecure connection.")
                     .WithSeverity(RuleSeverity.Warning);
             });
 

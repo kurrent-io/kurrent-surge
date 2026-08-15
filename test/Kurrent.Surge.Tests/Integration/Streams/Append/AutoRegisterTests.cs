@@ -45,8 +45,8 @@ public class AutoRegisterTests {
         opts => {
             opts.LoggerFactory = fixture.LoggerFactory;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
+            opts.Schema = KurrentClientSchemaOptions.AutoRegister;
             opts.Messages.UseCatalog(NewIsolatedCatalog(nameStrategy));
-            opts.Messages.Json = new() { SchemaRegistration = SchemaRegistrationOptions.AutoRegister };
         };
 
     [Test]
@@ -112,7 +112,7 @@ public class AutoRegisterTests {
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
             // No catalogs at all: nothing is opted in and nothing is mapped, so every append must
             // fail to resolve a schema name — the exact behavior under test.
-            opts.Messages.Json = new() { SchemaRegistration = SchemaRegistrationOptions.ManualMap };
+            opts.Schema = KurrentClientSchemaOptions.Disabled;
         });
 
         var data = await Fixture.TestData.GenerateRecord(ct);

@@ -16,9 +16,7 @@ Log.Logger = new LoggerConfiguration()
 
 await using var client = KurrentClient.Create(
     "kurrentdb://admin:changeit@localhost:2113?tls=false",
-    opts => opts.Messages.Json = new() {
-        SchemaRegistration = SchemaRegistrationOptions.AutoRegister
-    });
+    opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister);
 
 var stream    = $"sensors-{Guid.NewGuid():N}";
 var ingestion = new IngestionService(client);

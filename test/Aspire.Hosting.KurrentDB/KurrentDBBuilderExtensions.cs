@@ -141,6 +141,8 @@ public static class KurrentDBBuilderExtensions {
 
     #endregion // Builder Extensions
 
+    const int ClusterClientPortBase = 21131;
+
     static IResourceBuilder<KurrentDBResource> AddNode(
         this IResourceBuilder<KurrentDBServerResource> serverBuilder,
         int nodeIndex,
@@ -151,30 +153,43 @@ public static class KurrentDBBuilderExtensions {
 
         var isReplica = nodeIndex >= settings.Topology.Nodes;
         var nodeName  = isReplica ? $"{server.Name}-ro{nodeIndex + 1:00}" : $"{server.Name}-{nodeIndex + 1:00}";
-        var priority  = settings.Topology.NodeConfigurations[nodeIndex].Priority;
+
+        // NodeConfigurations is sized by Nodes only; replicas sit past its end and never
+        // carry a priority — read-only replicas do not participate in elections.
+        var priority = isReplica ? 0 : settings.Topology.NodeConfigurations[nodeIndex].Priority;
         // var node =   new KurrentDBResource(nodeName, server, priority);
 
         var node = server.AddNode(nodeName, priority);
 
+        // Multi-node topologies use fixed host ports: the client-advertised port must be
+        // known when the container env is built, and the proxied-endpoint port reference
+        // resolves to the target port on persistent resources (Aspire 13.4), which every
+        // node would then share. Single-node keeps a dynamic port — its clients connect
+        // by connection string and never read gossip.
+        var clientPort = settings.Topology.TotalNodeCount > 1
+            ? ClusterClientPortBase + nodeIndex
+            : (int?)null;
+
         var builder = app
             .AddResource(node)
-            .WithHttpEndpoint(targetPort: KurrentDBServerResource.DefaultHttpPort)
+            .WithHttpEndpoint(port: clientPort, targetPort: KurrentDBServerResource.DefaultHttpPort)
             .WithImage(settings.Container.Image, settings.Container.Tag)
             .WithImageRegistry(settings.Container.Registry)
             .WithImagePullPolicy(ImagePullPolicy.Default)
             .WithEnvironment(async ctx => {
-                node.ConfigureEnvironment(ctx, settings);
+                node.ConfigureEnvironment(ctx, settings, clientPort);
 
                 // Fan out env vars set on the server builder via .WithEnvironment()
                 foreach (var annotation in server.Annotations.OfType<EnvironmentCallbackAnnotation>())
                     await annotation.Callback(ctx);
             })
             .WithLifetime(settings.Lifetime)
-            // Aspire 13.4 makes endpoints on persistent resources proxyless by default. We advertise the proxy host
-            // port to clients via KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS = PrimaryEndpoint.Property(Port), which
-            // only a proxied endpoint allocates — keep the endpoint proxied in both secure and insecure modes.
-            // See https://aspire.dev/get-started/aspire-sdk/ (inner-loop networking: proxyless endpoints).
-            .WithEndpoint("http", ep => ep.IsProxied = true);
+            // Persistent resources never get a proxy in Aspire 13.4 regardless of IsProxied, so a
+            // multi-node topology must bind its fixed client port straight through docker
+            // (proxyless) for the gossip-advertised port to have a real listener that survives
+            // app-host restarts. Single-node keeps the historical proxied setting: its clients
+            // resolve the docker-published port through the connection string after start.
+            .WithEndpoint("http", ep => ep.IsProxied = clientPort is null);
 
         if (server.TlsEnabled)
             builder
@@ -242,7 +257,8 @@ public static class KurrentDBBuilderExtensions {
                     .Nodes
                     .Select(r => r.Name)
                     .Distinct(StringComparer.Ordinal)
-                    .Prepend("localhost"));
+                    .Prepend("localhost")
+                    .Prepend("eventstoredb-node"));
 
             context.Args.Add(scriptPath);
             context.Args.Add("--output");
@@ -278,6 +294,11 @@ static class NodeConfiguration {
         ["KURRENTDB_INSECURE"]                       = "false",
         ["KURRENTDB_TRUSTED_ROOT_CERTIFICATES_PATH"] = "/etc/kurrentdb/certs/ca",
         ["KURRENTDB_CERTIFICATE_FILE"]               = "/etc/kurrentdb/certs/node/node.crt",
-        ["KURRENTDB_CERTIFICATE_PRIVATE_KEY_FILE"]   = "/etc/kurrentdb/certs/node/node.key"
+        ["KURRENTDB_CERTIFICATE_PRIVATE_KEY_FILE"]   = "/etc/kurrentdb/certs/node/node.key",
+        // The same node cert is shared across every node, so no per-node hostname can be a
+        // SAN. Multi-node peer validation instead matches this reserved name against the
+        // cert's SANs (server peer-cert matching is SAN-only when SANs exist, CN is ignored),
+        // which is why AddCertificateGenerator's DNS list must also carry it.
+        ["KURRENTDB_CERTIFICATE_RESERVED_NODE_COMMON_NAME"] = "eventstoredb-node"
     };
 }

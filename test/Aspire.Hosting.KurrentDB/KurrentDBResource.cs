@@ -32,7 +32,7 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
     public ReferenceExpression ConnectionStringExpression =>
         Parent.BuildConnectionString(this);
 
-    public void ConfigureEnvironment(EnvironmentCallbackContext ctx, KurrentDBSettings settings) {
+    public void ConfigureEnvironment(EnvironmentCallbackContext ctx, KurrentDBSettings settings, int? advertisedClientPort = null) {
         var variables = settings.TlsEnabled
             ? NodeConfiguration.Secure
             : NodeConfiguration.Insecure;
@@ -50,7 +50,14 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
         ctx.EnvironmentVariables["KURRENTDB_NODE_HOST_ADVERTISE_AS"]           = Name;
         ctx.EnvironmentVariables["KURRENTDB_REPLICATION_HOST_ADVERTISE_AS"]    = Name;
         ctx.EnvironmentVariables["KURRENTDB_ADVERTISE_HOST_TO_CLIENT_AS"]      = "localhost";
-        ctx.EnvironmentVariables["KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS"] = ReferenceExpression.Create($"{PrimaryEndpoint.Property(EndpointProperty.Port)}");
+        // A fixed port is advertised verbatim; the endpoint reference stays for dynamic
+        // single-node ports even though it resolves to the target port on persistent
+        // resources (Aspire 13.4) — single-node clients never read gossip, so the value
+        // is inert there.
+        if (advertisedClientPort is { } port)
+            ctx.EnvironmentVariables["KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS"] = port.ToString();
+        else
+            ctx.EnvironmentVariables["KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS"] = ReferenceExpression.Create($"{PrimaryEndpoint.Property(EndpointProperty.Port)}");
         ctx.EnvironmentVariables["KURRENTDB_READ_ONLY_REPLICA"]                = IsReadOnlyReplica.ToString().ToLowerInvariant();
 
         if (Priority != 0)

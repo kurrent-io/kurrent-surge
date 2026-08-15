@@ -73,6 +73,33 @@ var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") 
 };
 ```
 
+### Encrypted private keys
+
+If the private key file is password protected, supply the password with `userKeyPassword` or the `password` argument. The same password also unlocks PFX bundles.
+
+::: tabs#auth-mtls-password
+
+@tab Connection string
+
+```csharp
+await using var client = KurrentClient.Create("kurrentdb://kurrentdb.internal:2113?userCertFile=/certs/client.crt&userKeyFile=/certs/client.key&userKeyPassword=changeit");
+```
+
+@tab Options
+
+```csharp
+var options = KurrentClientOptions.Parse("kurrentdb://kurrentdb.internal:2113") with {
+    Security = KurrentClientSecurityOptions.MutualTls(
+        "/certs/client.crt",
+        "/certs/client.key",
+        password: "changeit")
+};
+
+await using var client = KurrentClient.Create(options);
+```
+
+:::
+
 ## Trust a private certificate authority
 
 When the server presents a certificate signed by a CA that is not in the system trust store, point the client at the CA file or pass a certificate object.

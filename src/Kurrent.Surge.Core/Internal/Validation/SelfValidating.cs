@@ -137,6 +137,12 @@ public abstract record SelfValidating : ISelfValidating {
     /// The exception type and message are determined by the specific validation errors.
     /// </exception>
     public virtual void EnsureValid() => Validate().EnsureValid();
+
+    /// <summary>
+    /// Ensures the current object is valid, logging warning-severity problems to
+    /// <paramref name="logger"/> and throwing an exception if validation fails.
+    /// </summary>
+    public void EnsureValid(ILogger logger) => Validate().EnsureValid(logger);
 }
 
 /// <summary>
@@ -202,4 +208,10 @@ public abstract class SelfValidatingClass : ISelfValidating {
     /// The exception type and message are determined by the specific validation errors.
     /// </exception>
     public virtual void EnsureValid() => Validate().EnsureValid();
+
+    /// <summary>
+    /// Ensures the current object is valid, logging warning-severity problems to
+    /// <paramref name="logger"/> and throwing an exception if validation fails.
+    /// </summary>
+    public void EnsureValid(ILogger logger) => Validate().EnsureValid(logger);
 }

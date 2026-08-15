@@ -38,7 +38,7 @@
     <PackageReference Include="Grpc.AspNetCore.Server" />
     <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
     <PackageReference Include="Google.Protobuf" />
-    <Protobuf Include="Integration\Experimental\LoadBalancing\FakeCluster\fake_gossip.proto" GrpcServices="Both" />
+    <Protobuf Include="Integration\Client\LoadBalancing\FakeCluster\fake_gossip.proto" GrpcServices="Both" />
   </ItemGroup>
 
   <ItemGroup>

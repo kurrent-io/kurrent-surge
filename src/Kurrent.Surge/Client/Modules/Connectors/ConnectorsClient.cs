@@ -5,8 +5,8 @@ namespace Kurrent.Surge.Client.Connectors;
 
 public partial class ConnectorsClient : ClientModuleBase, IConnectorsClient {
     internal ConnectorsClient(KurrentClient client) : base(client) {
-        CommandServiceClient = new(client.LegacyCallInvoker);
-        QueryServiceClient   = new(client.LegacyCallInvoker);
+        CommandServiceClient = new(client.CallInvoker);
+        QueryServiceClient   = new(client.CallInvoker);
     }
 
     ConnectorsCommandServiceClient CommandServiceClient { get; }

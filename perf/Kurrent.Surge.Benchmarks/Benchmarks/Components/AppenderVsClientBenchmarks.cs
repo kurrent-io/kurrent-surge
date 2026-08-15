@@ -44,7 +44,7 @@ public class AppenderVsClientBenchmarks {
 
         options.Connection(_fixture.ConnectionString, client => {
             client.LoggerFactory = _fixture.LoggerFactory;
-            client.Schema        = KurrentClientSchemaOptions.NoValidation;
+            client.Schema        = KurrentClientSchemaOptions.AutoRegister;
             client.Resilience    = KurrentClientResilienceOptions.NoResilience;
             // The appender builds its own client, so it must opt into the Testkit catalog like the
             // fixture client does — without it the wire schema name is empty and the server rejects

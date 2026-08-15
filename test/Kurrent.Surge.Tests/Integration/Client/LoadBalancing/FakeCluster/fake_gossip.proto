@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package event_store.client.gossip;
+
+option csharp_namespace = "Kurrent.Surge.Tests.Client.LoadBalancing.FakeCluster.Protocol";
+
+// Wire-compatible replica of proto/kurrentdb/protocol/v1/gossip.proto with server
+// codegen for the in-process fake cluster. The service path on the wire is
+// /event_store.client.gossip.Gossip/Read, identical to the real server. The C#
+// namespace is overridden so the generated messages do not collide with the client
+// stubs generated in Kurrent.Surge. Message names are not part of the gRPC wire
+// contract; only the package/service path and field numbers must match.
+
+service Gossip {
+  rpc Read(Empty) returns (ClusterInfo);
+}
+
+// Matches event_store.client.Empty from shared.proto: no fields.
+message Empty {}
+
+message ClusterInfo {
+  repeated MemberInfo members = 1;
+}
+
+message EndPoint {
+  string address = 1;
+  uint32 port    = 2;
+}
+
+// Matches event_store.client.UUID from shared.proto.
+message UUID {
+  message Structured {
+    int64 most_significant_bits  = 1;
+    int64 least_significant_bits = 2;
+  }
+
+  oneof value {
+    Structured structured = 1;
+    string     string     = 2;
+  }
+}
+
+message MemberInfo {
+  enum VNodeState {
+    Initializing       = 0;
+    DiscoverLeader     = 1;
+    Unknown            = 2;
+    PreReplica         = 3;
+    CatchingUp         = 4;
+    Clone              = 5;
+    Follower           = 6;
+    PreLeader          = 7;
+    Leader             = 8;
+    Manager            = 9;
+    ShuttingDown       = 10;
+    Shutdown           = 11;
+    ReadOnlyLeaderless = 12;
+    PreReadOnlyReplica = 13;
+    ReadOnlyReplica    = 14;
+    ResigningLeader    = 15;
+  }
+
+  UUID       instance_id    = 1;
+  int64      time_stamp     = 2;
+  VNodeState state          = 3;
+  bool       is_alive       = 4;
+  EndPoint   http_end_point = 5;
+}

@@ -2,11 +2,11 @@
 #pragma warning disable CS8509 // The switch expression does not handle all possible values of its input type (it is not exhaustive).
 
 using Grpc.Core;
-using Kurrent.Surge.Client.Legacy;
 using Kurrent.Surge.Schema;
 using KurrentDB.Protocol.V1.Streams;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams.Checkpoints;
+using Kurrent.Surge.Legacy;
 using static Kurrent.Surge.Client.Streams.StreamsClientMapping;
 
 namespace Kurrent.Surge.Client.Streams;

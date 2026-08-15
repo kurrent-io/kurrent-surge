@@ -58,8 +58,9 @@ public readonly partial record struct TransportSecurity : IVariant<NoTls, Standa
     /// Creates a transport security configuration using a custom CA certificate file.
     /// </summary>
     /// <param name="caPath">Path to the CA certificate file.</param>
+    /// <param name="password">Optional password for password-protected CA files.</param>
     /// <returns>A CertificateFileTls configuration with the specified CA certificate.</returns>
-    public static TransportSecurity Certificate(string caPath) => new FileCertificateTls(caPath);
+    public static TransportSecurity Certificate(string caPath, string? password = null) => new FileCertificateTls(caPath, password);
 
     /// <summary>
     /// Creates a transport security configuration using a custom CA certificate object.
@@ -179,14 +180,22 @@ public record FileCertificateTls {
     /// Creates a new CertificateFileTls instance with the specified CA path.
     /// </summary>
     /// <param name="caPath">Path to the certificate authority file.</param>
+    /// <param name="password">Optional password for password-protected CA files.</param>
     [SetsRequiredMembers]
-    public FileCertificateTls(string caPath) =>
-        CaPath = caPath.UnescapeDataStringIfNeeded();
+    public FileCertificateTls(string caPath, string? password = null) {
+        CaPath   = caPath.UnescapeDataStringIfNeeded();
+        Password = password;
+    }
 
     /// <summary>
     /// Path to the certificate authority file.
     /// </summary>
     public required string CaPath { get; set; }
+
+    /// <summary>
+    /// Optional password for password-protected CA files.
+    /// </summary>
+    public string? Password { get; set; }
 
     /// <summary>
     /// Whether to verify server certificates against the provided CA certificate.
@@ -206,7 +215,7 @@ public record FileCertificateTls {
     /// </summary>
     [field: AllowNull, MaybeNull]
     public X509Certificate2 Certificate =>
-        field ??= CertificateLoader.LoadCertificate(Path.GetFullPath(CaPath));
+        field ??= CertificateLoader.LoadCertificate(Path.GetFullPath(CaPath), password: Password);
 }
 
 /// <summary>

@@ -39,7 +39,8 @@ are not consumer-facing, so the minimum-supported TFM rule does not apply.
 When debugging CI or workflow issues, create a minimal throwaway workflow targeting just the failing step
 instead of running the full pipeline.
 
-`tools/` contains .NET 10 file-based apps (`.cs` files with `#:` directives). Restore once after cloning: `dotnet tool restore`.
+`tools/` contains .NET 10 file-based apps (`.cs` files with `#:` directives). Restore once after cloning:
+`dotnet tool restore`.
 
 | Method     | Example                                    | Notes                          |
 |------------|--------------------------------------------|--------------------------------|
@@ -74,7 +75,8 @@ Solution-level shared libraries — `Variant`, `Kurrent.Client.SourceGenerators`
 
 `Kurrent.Client` contains a `Legacy/` folder with V1 gRPC compatibility — not a separate package.
 
-Streams module split across 15+ partial class files. Naming convention documented in [Module Organization](.claude/context/project/module-organization.md).
+Streams module split across 15+ partial class files. Naming convention documented in
+[Module Organization](.claude/context/project/module-organization.md).
 
 Sum types use source-generated `IVariant` discriminated unions. Exception types decorated with
 `[KurrentOperationError]` get source-generated constructors.
@@ -95,9 +97,22 @@ Read these before working on related areas. Do not read all upfront.
 | [Kurrent.Client](.claude/context/project/client.md)                   | Before working on the client library                     |
 | [Builder Conventions](.claude/context/project/builder-conventions.md) | Before adding builders, factories, or fluent APIs        |
 | [Packaging](.claude/context/project/packaging.md)                     | Before adding project references to packable projects    |
-| [XML Documentation](.claude/context/project/xmldoc.md)                | Before writing or reviewing XML docs on public APIs      |
 | [Module Organization](.claude/context/project/module-organization.md) | Before adding files, models, or mappers to a module      |
 | [Docs Guidelines](.claude/context/project/docs-guidelines.md)         | Before writing or updating documentation                 |
+
+### XML documentation
+
+XML docs follow the devx standard bundled with the `devx-xmldoc-audit` skill: docs state current behavior
+only (never a changelog); public members get complete, terse docs with multiline summaries; `<remarks>` only
+for hazards and contracts; internal members documented only when non-obvious; cross-references
+actionable-only; `<example>` and `<seealso>` banned. Domain vocabulary lives in [CONTEXT.md](CONTEXT.md).
+
+Repo addenda for the audit:
+
+- Module client summaries read `Provides operations for [module] in KurrentDB.`
+- Never sweep `src/Kurrent.Client/` or `src/Kurrent.Streaming/` — on disk with no `.csproj`, untracked
+  leftovers.
+- Exemption: source-generator-emitted implicit conversion operators on `IVariant` types.
 
 ## Agent skills
 
@@ -106,23 +121,23 @@ Read these before working on related areas. Do not read all upfront.
 Issues live in **Linear** — DevEx team, `Kurrent SDK .NET` project, referenced as `DEV-XXXX` and operated
 through the Linear MCP. PRs are not a request surface.
 
-The full workflow lives in `.claude/context/project/issue-tracker-linear.md` and the `devx-linear-workflow`
-skill (MUST be consulted before any Linear operation). See `.agents/matt-pocock/issue-tracker.md`.
+Repo coordinates and label taxonomy live in `LINEAR.md` (repo root) — the contract read by the global
+`devx-linear-workflow` skill (MUST be consulted before any Linear operation). Background on the current
+rules is also written up in `.claude/context/project/issue-tracker-linear.md`.
 
 ### Triage labels
 
 The five canonical triage roles map onto Linear's native workflow states plus the classification labels in
 `devx-linear-workflow`; the role strings are not configured labels and issue status is never set manually.
-See `.agents/matt-pocock/triage-labels.md`.
 
 ### Domain docs
 
 - Single-context: `CONTEXT.md` at the repo root.
 - Existing reference docs under `.claude/context/project/`.
-- ADRs are not part of our doc workflow, but some skills under evaluation emit them — if one is ever created it goes in `.claude/context/docs/adr/`, reserved so those skills work.
+- ADRs are not part of our doc workflow, but some skills under evaluation emit them — if one is ever created
+  it goes in `.claude/context/docs/adr/`, reserved so those skills work.
 
-See `.agents/matt-pocock/domain.md`.
-
+<!-- markdownlint-disable MD025 MD013 -->
 <!-- jbcontext-instructions-start -->
 # Tools
 
@@ -130,6 +145,12 @@ See `.agents/matt-pocock/domain.md`.
 
 You have access to `jbcontext search` for searching the codebase semantically.
 Use the `/context-search` skill or run `jbcontext search "<query>"` to find code by meaning, not just keywords.
+
+### Query Tips
+
+- Be descriptive: "Where is a function that validates user email addresses" > "email"
+- Include context: "Find error handling middleware for HTTP requests with logging"
+- Specify what you're looking for: "React component that renders a modal dialog"
 
 ### When to use
 
@@ -150,3 +171,4 @@ Skip it — go straight to the right tool — when:
 - If you search again after finding a relevant area, narrow with `-p <path>`.
 
 <!-- jbcontext-instructions-end -->
+<!-- markdownlint-restore -->

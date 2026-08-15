@@ -2,8 +2,8 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
-using Kurrent.Surge.Client.Legacy;
 using Kurrent.Surge.Client.Streams.Checkpoints;
+using Kurrent.Surge.Legacy;
 using KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Surge.Client.Streams;
@@ -58,7 +58,7 @@ public partial class StreamsClient {
 
         // ── Connection phase ── throws directly to caller, no yield here
         try {
-            grpcSession = LegacyServiceClient.Read(request, cancellationToken: ct);
+            grpcSession = LegacyReadServiceClient.Read(request, cancellationToken: ct);
 
             await grpcSession.ResponseStream.MoveNext(ct).ConfigureAwait(false);
 

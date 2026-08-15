@@ -1,5 +1,4 @@
 using Kurrent.Validation;
-using KurrentDB.Client;
 
 namespace Kurrent.Surge.Client;
 
@@ -64,17 +63,17 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
     /// </summary>
     /// <remarks>
     /// This allows for tailoring read distribution based on use case requirements.
-    /// For example, use <see cref="NodePreference.Leader"/> for guaranteed consistency, or
-    /// <see cref="NodePreference.Follower"/> for scaling reads across the cluster.
+    /// For example, use <see cref="NodeReadPreference.Leader"/> for guaranteed consistency, or
+    /// <see cref="NodeReadPreference.Follower"/> for scaling reads across the cluster.
     /// The available options are:
     /// <list type="table">
-    ///   <item><description><see cref="NodePreference.Leader"/> - Always read from the cluster leader</description></item>
-    ///   <item><description><see cref="NodePreference.Follower"/> - Prefer reading from follower nodes</description></item>
-    ///   <item><description><see cref="NodePreference.Random"/> - Select any available node randomly</description></item>
-    ///   <item><description><see cref="NodePreference.ReadOnlyReplica"/> - Prefer read-only replica nodes</description></item>
+    ///   <item><description><see cref="NodeReadPreference.Leader"/> - Always read from the cluster leader</description></item>
+    ///   <item><description><see cref="NodeReadPreference.Follower"/> - Prefer reading from follower nodes</description></item>
+    ///   <item><description><see cref="NodeReadPreference.Random"/> - Select any available node randomly</description></item>
+    ///   <item><description><see cref="NodeReadPreference.ReadOnlyReplica"/> - Prefer read-only replica nodes</description></item>
     /// </list>
     /// </remarks>
-    public NodePreference ReadPreference { get; set; } = NodePreference.Random;
+    public NodeReadPreference ReadPreference { get; set; } = NodeReadPreference.Random;
 
     /// <summary>
     /// The default gossip configuration settings.
@@ -93,7 +92,7 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
         MaxDiscoverAttempts = 10,
         DiscoveryInterval   = TimeSpan.FromMilliseconds(100),
         Timeout             = TimeSpan.FromSeconds(5),
-        ReadPreference      = NodePreference.Random
+        ReadPreference      = NodeReadPreference.Random
     };
 
     public class Validator : Validator<Validator, KurrentClientGossipOptions> {

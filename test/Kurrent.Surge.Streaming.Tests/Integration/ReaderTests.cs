@@ -88,7 +88,7 @@ public class ReaderTests {
     KurrentClientOptions CreateClientOptions() =>
         KurrentClientOptions.Parse(Fixture.ConnectionString).With(opts => {
             opts.LoggerFactory = Fixture.LoggerFactory;
-            opts.Schema        = KurrentClientSchemaOptions.NoValidation;
+            opts.Schema        = KurrentClientSchemaOptions.AutoRegister;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
             opts.Messages.UseTestkitCatalog();
         });

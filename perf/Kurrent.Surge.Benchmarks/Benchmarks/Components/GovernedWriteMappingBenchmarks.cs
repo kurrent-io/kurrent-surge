@@ -44,7 +44,7 @@ public class GovernedWriteMappingBenchmarks {
 
         _client = KurrentClient.Create(_fixture.ConnectionString, opts => {
             opts.LoggerFactory = _fixture.LoggerFactory;
-            opts.Schema        = KurrentClientSchemaOptions.NoValidation;
+            opts.Schema        = KurrentClientSchemaOptions.AutoRegister;
             opts.Resilience    = KurrentClientResilienceOptions.NoResilience;
             opts.Messages.UseCatalog(catalog);
         });
@@ -54,22 +54,22 @@ public class GovernedWriteMappingBenchmarks {
         var policy = _streams.RegistryPolicy;
 
         // Self-composed, equivalent to the client's own defaults — the pipeline-composition seam
-        // on KurrentClient is gone, so the benchmark builds its own resolver/registrations/codecs
+        // on KurrentClient is gone, so the benchmark builds its own resolver/schema/codecs
         // instead of borrowing the client's. The resolver is scoped to the same standalone catalog
         // this client was constructed with.
         var resolver = MessageResolver.From(catalog);
 
-        var registrations = Enum.GetValues<SchemaDataFormat>().ToDictionary(format => format, _ => new SchemaRegistrationOptions());
+        var schema = KurrentClientSchemaOptions.Disabled;
 
         var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
 
         var resolved = policy
-            .Resolve(registrations[SchemaDataFormat.Json], null, SchemaDataFormat.Json)
+            .Resolve(schema, null, SchemaDataFormat.Json)
             .EnsureDataFormatCompliance(SchemaDataFormat.Json);
 
-        var validation = new CatalogValidationInterceptor(SchemaGovernance.Create(_client), [catalog], resolved);
+        var governance = SchemaGovernance.Create(_client, [catalog], resolved);
 
-        _governed = WriteRecordPipeline.Create(resolver, policy, registrations, codecs, validation);
+        _governed = WriteRecordPipeline.Create(resolver, policy, schema, codecs, governance);
 
         var request = NewAppendRequest();
 
