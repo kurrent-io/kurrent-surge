@@ -18,7 +18,7 @@ Read the two convention files for every review. Read the area docs only when the
 | Domain vocabulary | [CONTEXT.md](CONTEXT.md) | Naming new public concepts |
 | Module and file organization | [.claude/context/project/module-organization.md](.claude/context/project/module-organization.md) | New files, models, mappers |
 | Builders, factories, fluent APIs | [.claude/context/project/builder-conventions.md](.claude/context/project/builder-conventions.md) | Builder or options changes |
-| XML documentation | [.claude/context/project/xmldoc.md](.claude/context/project/xmldoc.md) | Public API doc changes |
+| XML documentation | devx standard bundled with the `devx-xmldoc-audit` skill; repo addenda in [AGENTS.md](AGENTS.md) | Public API doc changes |
 | Packaging and project references | [.claude/context/project/packaging.md](.claude/context/project/packaging.md) | csproj / reference changes |
 | Architecture boundaries | [.claude/context/project/architecture.md](.claude/context/project/architecture.md) | Structural or cross-module changes |
 | Client library specifics | [.claude/context/project/client.md](.claude/context/project/client.md) | `Kurrent.Client` changes |

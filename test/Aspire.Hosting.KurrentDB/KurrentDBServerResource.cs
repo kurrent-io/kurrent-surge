@@ -44,7 +44,9 @@ public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionS
 
     public ParameterResource LicenseKeyParameter { get; }
     
-    public string GossipSeeds => string.Join(", ", _nodes.Select(n => $"{n.Name}:{DefaultHttpPort}"));
+    // No space after the comma: the server splits the seed list on ',' verbatim, and a
+    // leading space makes the hostname unparseable (UriFormatException per peer).
+    public string GossipSeeds => string.Join(",", _nodes.Select(n => $"{n.Name}:{DefaultHttpPort}"));
 
     public KurrentDBResource AddNode(string nodeName, int priority = 0) {
         var node = new KurrentDBResource(nodeName, this, priority);
@@ -58,7 +60,13 @@ public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionS
 
     ReferenceExpression BuildConnectionString(IReadOnlyList<KurrentDBResource> nodes) {
         var builder = new ReferenceExpressionBuilder();
-        builder.Append($"kurrentdb://{UserNameParameter}:{PasswordParameter}@");
+
+        // The client parser rejects multiple hosts on the direct scheme; a multi-node
+        // topology must hand out a discovery connection string.
+        if (nodes.Count > 1)
+            builder.Append($"kurrentdb+discover://{UserNameParameter}:{PasswordParameter}@");
+        else
+            builder.Append($"kurrentdb://{UserNameParameter}:{PasswordParameter}@");
 
         for (var i = 0; i < nodes.Count; i++) {
             if (i > 0) builder.AppendLiteral(",");

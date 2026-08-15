@@ -1,71 +1,50 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Kurrent.Surge.Client;
+using Metadata = Grpc.Core.Metadata;
 
 namespace Kurrent.Grpc.Compression;
 
 /// <summary>
-/// A gRPC interceptor that applies compression to outgoing requests using the specified compression provider.
+/// Enforces the configured compression algorithm on every outgoing call, creating the
+/// metadata collection when the caller supplied none and overriding any mismatched
+/// algorithm already present. An explicit WithoutCompression ("identity") opt-out is
+/// left alone — it's the one recognized per-call bypass.
 /// </summary>
-class CompressionInterceptor : Interceptor {
-	const string CompressionRequestAlgorithmHeader = "grpc-internal-encoding-request";
+sealed class CompressionInterceptor(CompressionAlgorithm algorithm) : Interceptor {
+    // The entry is immutable and safely shared across calls: building it once removes a
+    // Metadata.Entry allocation from every gRPC call.
+    readonly Metadata.Entry _header = new(GrpcCompression.CompressionRequestAlgorithmHeader, algorithm.ToEncodingName());
 
-	/// <summary>
-	/// Initializes a new instance of the <see cref="CompressionInterceptor"/> class.
-	/// </summary>
-	/// <param name="compressionMethod">The name of the compression method to use.</param>
-	public CompressionInterceptor(string compressionMethod) {
-		if (string.IsNullOrEmpty(compressionMethod))
-			throw new ArgumentException("Compression method cannot be null or empty", nameof(compressionMethod));
+    public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
+        TRequest request, ClientInterceptorContext<TRequest, TResponse> context,
+        AsyncUnaryCallContinuation<TRequest, TResponse> continuation
+    ) => continuation(request, WithCompression(context));
 
-		CompressionMethod = compressionMethod;
-	}
+    public override AsyncClientStreamingCall<TRequest, TResponse> AsyncClientStreamingCall<TRequest, TResponse>(
+        ClientInterceptorContext<TRequest, TResponse> context,
+        AsyncClientStreamingCallContinuation<TRequest, TResponse> continuation
+    ) => continuation(WithCompression(context));
 
-	string CompressionMethod { get; }
+    public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(
+        TRequest request, ClientInterceptorContext<TRequest, TResponse> context,
+        AsyncServerStreamingCallContinuation<TRequest, TResponse> continuation
+    ) => continuation(request, WithCompression(context));
 
-	public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(
-		TRequest request,
-		ClientInterceptorContext<TRequest, TResponse> context,
-		AsyncUnaryCallContinuation<TRequest, TResponse> continuation
-	) {
-		ApplyCompression(context);
-		return continuation(request, context);
-	}
+    public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(
+        ClientInterceptorContext<TRequest, TResponse> context,
+        AsyncDuplexStreamingCallContinuation<TRequest, TResponse> continuation
+    ) => continuation(WithCompression(context));
 
-	public override AsyncClientStreamingCall<TRequest, TResponse> AsyncClientStreamingCall<TRequest, TResponse>(
-		ClientInterceptorContext<TRequest, TResponse> context,
-		AsyncClientStreamingCallContinuation<TRequest, TResponse> continuation
-	) {
-		ApplyCompression(context);
-		return continuation(context);
-	}
+    ClientInterceptorContext<TRequest, TResponse> WithCompression<TRequest, TResponse>(
+        in ClientInterceptorContext<TRequest, TResponse> context
+    ) where TRequest : class where TResponse : class {
+        var result = context.Options.Headers is not { } headers
+            ? new(context.Method, context.Host, context.Options.WithHeaders(headers = []))
+            : context;
 
-	public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(
-		TRequest request,
-		ClientInterceptorContext<TRequest, TResponse> context,
-		AsyncServerStreamingCallContinuation<TRequest, TResponse> continuation
-	) {
-		ApplyCompression(context);
-		return continuation(request, context);
-	}
+        headers.EnforceCompression(_header);
 
-	public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(
-		ClientInterceptorContext<TRequest, TResponse> context,
-		AsyncDuplexStreamingCallContinuation<TRequest, TResponse> continuation
-	) {
-		ApplyCompression(context);
-		return continuation(context);
-	}
-
-	void ApplyCompression<TRequest, TResponse>(ClientInterceptorContext<TRequest, TResponse> context)
-		where TRequest : class where TResponse : class {
-		if (context.Options.Headers is null)
-			return;
-
-		var hasCompressionHeader = context.Options.Headers.Any(m =>
-			string.Equals(m.Key, CompressionRequestAlgorithmHeader, StringComparison.OrdinalIgnoreCase)
-		);
-
-		if (!hasCompressionHeader)
-			context.Options.Headers.Add(CompressionRequestAlgorithmHeader, CompressionMethod);
-	}
+        return result;
+    }
 }

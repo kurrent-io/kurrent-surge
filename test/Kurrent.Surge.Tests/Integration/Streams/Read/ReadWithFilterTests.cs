@@ -237,16 +237,11 @@ public class ReadWithFilterTests {
         await Assert.That(exprFilter.ServerFilter).IsTypeOf<SchemaFilter>();
         await Assert.That(((SchemaFilter)exprFilter.ServerFilter).IndexName).IsEqualTo($"$idx-et-{expectedSchema}");
 
-        // Poll until the secondary index catches up (eventually consistent)
-        var records = new List<Record>();
-
-        for (var attempt = 0; attempt < 10 && records.Count == 0; attempt++) {
-            if (attempt > 0)
-                await Task.Delay(500, ct);
-
+        // Assert — poll until the secondary index catches up (eventually consistent)
+        await Assert.That(async () => {
             using var cancellator = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            records.Clear();
+            var records = new List<Record>();
 
             var options = new ReadRecordsOptions {
                 Start        = lastPosition.LogPosition,
@@ -261,13 +256,12 @@ public class ReadWithFilterTests {
                         await cancellator.CancelAsync();
                 }
             }
-        }
 
-        // Assert
-        await Assert.That(records.Count).IsGreaterThanOrEqualTo(1);
+            await Assert.That(records.Count).IsGreaterThanOrEqualTo(1);
 
-        foreach (var record in records)
-            await Assert.That(record.Schema.Schema).IsEqualTo(expectedSchema);
+            foreach (var record in records)
+                await Assert.That(record.Schema.Schema).IsEqualTo(expectedSchema);
+        }).EventuallyPasses(IndexCatchUp(ct));
     }
 
     [Test]

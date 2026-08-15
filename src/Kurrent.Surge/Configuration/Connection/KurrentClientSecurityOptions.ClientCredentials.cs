@@ -32,8 +32,8 @@ public readonly partial record struct ClientCredentials : IVariant<NoCredentials
     public static ClientCredentials Basic(string username, string? password) =>
         new BasicCredentials(username, password);
 
-    public static ClientCredentials Certificate(string certificatePath, string keyPath) =>
-        new FileCertificateCredentials(certificatePath, keyPath);
+    public static ClientCredentials Certificate(string certificatePath, string keyPath, string? password = null) =>
+        new FileCertificateCredentials(certificatePath, keyPath, password);
 
     public static ClientCredentials Certificate(X509Certificate2 certificate) =>
         new X509CertificateCredentials(certificate);
@@ -57,8 +57,9 @@ public record FileCertificateCredentials {
     /// </summary>
     /// <param name="certificatePath">Path to the client certificate file</param>
     /// <param name="keyPath">Path to the client private key file</param>
+    /// <param name="password">Optional password for encrypted private keys or PFX files</param>
     /// <exception cref="ArgumentException">Thrown when either path is null or empty</exception>
-    public FileCertificateCredentials(string certificatePath, string keyPath) {
+    public FileCertificateCredentials(string certificatePath, string keyPath, string? password = null) {
         if (string.IsNullOrWhiteSpace(certificatePath))
             throw new ArgumentException("Certificate path cannot be empty", nameof(certificatePath));
 
@@ -67,6 +68,7 @@ public record FileCertificateCredentials {
 
         CertificatePath = certificatePath.UnescapeDataStringIfNeeded();
         KeyPath         = keyPath.UnescapeDataStringIfNeeded();
+        Password        = password;
     }
 
     /// <summary>
@@ -90,13 +92,19 @@ public record FileCertificateCredentials {
     public string KeyPath { get; }
 
     /// <summary>
+    /// Optional password for encrypted private keys or PFX files.
+    /// </summary>
+    public string? Password { get; }
+
+    /// <summary>
     /// Client certificate for authentication.
     /// </summary>
     [field: AllowNull, MaybeNull]
     public X509Certificate2 Certificate =>
         field ??= CertificateLoader.LoadCertificate(
             Path.GetFullPath(CertificatePath),
-            Path.GetFullPath(KeyPath));
+            Path.GetFullPath(KeyPath),
+            Password);
 }
 
 /// <summary>

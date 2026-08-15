@@ -129,7 +129,7 @@ public static class KurrentClientServiceCollectionExtensions {
         // Container-registered catalogs join the client's selection; they compose with
         // (rather than replace) attribute-declared and auto-discovered catalogs.
         options.Messages.UseCatalog(sp.GetServices<MessageCatalog>());
-        options.Messages.UseSerializer(sp.GetServices<Func<ISchemaManager, ISchemaSerializer>>());
+        options.Messages.UseCodec(sp.GetServices<ISchemaCodec>());
 
         if (sp.GetService<ILoggerFactory>() is { } loggerFactory)
             options.LoggerFactory = loggerFactory;

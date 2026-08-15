@@ -43,7 +43,7 @@ public sealed class Queries : IAsyncDisposable {
         _serverAddress = $"{(tls ? "https" : "http")}://{uri.Host}:{uri.Port}";
 
         _client  = KurrentClient.Create(connectionString);
-        _decoder = new RecordDecoder(_client.SerializerProvider);
+        _decoder = _client.ReadPipeline;
     }
 
     /// <summary>

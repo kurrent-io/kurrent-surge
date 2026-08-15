@@ -3,7 +3,6 @@ using System.Net;
 using System.Text;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Validation;
-using KurrentDB.Client;
 using static System.StringComparer;
 using static System.TimeSpan;
 
@@ -139,7 +138,20 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// Controls how the client handles event schemas and versioning.
     /// </para>
     /// </remarks>
-    public KurrentClientSchemaOptions Schema { get; set; } = KurrentClientSchemaOptions.FullValidation;
+    public KurrentClientSchemaOptions Schema { get; set; } = KurrentClientSchemaOptions.Disabled;
+
+    /// <summary>
+    /// Tasks that run once, in order, when the client first establishes a connection.
+    /// </summary>
+    public KurrentClientInitializationOptions Initialization { get; set; } = new();
+
+    /// <summary>
+    /// Compression configuration for outgoing gRPC calls.
+    /// </summary>
+    /// <remarks>
+    /// Disabled by default. See <see cref="KurrentClientCompressionOptions"/>.
+    /// </remarks>
+    public KurrentClientCompressionOptions Compression { get; set; } = KurrentClientCompressionOptions.Default;
 
 	/// <summary>
 	/// Metadata decoder for processing event metadata.
@@ -264,6 +276,23 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
 
             RuleFor(options => options.Security)
                 .SetValidator(KurrentClientSecurityOptions.Validator.Instance);
+
+            RuleFor(options => options.Compression)
+                .SetValidator(KurrentClientCompressionOptions.Validator.Instance);
+
+            // Task names key logs and failure reports; a duplicate usually means the same
+            // task was registered twice and would silently run twice.
+            RuleFor(options => options.Initialization.Tasks)
+                .Must(tasks => tasks.Distinct().Count() == tasks.Count,
+                    "Initialization task names must be unique.")
+                .WithMessage(options => {
+                    var duplicates = options.Initialization.Tasks
+                        .GroupBy(registration => registration.Task.Name, StringComparer.Ordinal)
+                        .Where(group => group.Count() > 1)
+                        .Select(group => $"'{group.Key}'");
+
+                    return $"Duplicate initialization task names: {string.Join(", ", duplicates)}.";
+                });
         }
     }
 
@@ -352,7 +381,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
             parameters.Add($"connectionName={Uri.EscapeDataString(options.ConnectionName)}");
 
         // Gossip parameters
-        if (options.Gossip.ReadPreference != NodePreference.Random)
+        if (options.Gossip.ReadPreference != NodeReadPreference.Random)
             parameters.Add($"nodePreference={options.Gossip.ReadPreference.ToString().ToLowerInvariant()}");
 
         if (options.Gossip.MaxDiscoverAttempts != KurrentClientGossipOptions.Default.MaxDiscoverAttempts)
@@ -456,11 +485,12 @@ file static class Extensions {
                 }
 
                 ClientCredentials ConfigureAuthentication() {
-                    var userCertFile = GetParameterValue(source.Options, "UserCertFile", null);
-                    var userKeyFile  = GetParameterValue(source.Options, "UserKeyFile", null);
+                    var userCertFile    = GetParameterValue(source.Options, "UserCertFile", null);
+                    var userKeyFile     = GetParameterValue(source.Options, "UserKeyFile", null);
+                    var userKeyPassword = GetParameterValue(source.Options, "UserKeyPassword", null);
 
                     return !string.IsNullOrEmpty(userCertFile) && !string.IsNullOrEmpty(userKeyFile)
-                        ? ClientCredentials.Certificate(userCertFile, userKeyFile)
+                        ? ClientCredentials.Certificate(userCertFile, userKeyFile, userKeyPassword)
                         : source.UserInfo is not null
                             ? ClientCredentials.Basic(source.UserInfo.Value.User, source.UserInfo.Value.Password)
                             : ClientCredentials.None;
@@ -487,20 +517,32 @@ file static class Extensions {
                 var maxDiscoverAttempts = GetParameterValue(source.Options, "MaxDiscoverAttempts", 10);
                 var discoveryInterval   = GetParameterValue(source.Options, "DiscoveryInterval", 100);
                 var gossipTimeout       = GetParameterValue(source.Options, "GossipTimeout", 5000);
-                var nodePreference      = GetParameterValue(source.Options, "NodePreference", NodePreference.Random);
+
+                // ReadPreference is the name going forward across every SDK; NodePreference is
+                // the current cross-SDK spelling every client still documents and emits. Accept
+                // both, ReadPreference wins if a connection string somehow carries both.
+                var readPreference = GetParameterValue(
+                    source.Options, "ReadPreference",
+                    GetParameterValue(source.Options, "NodePreference", NodeReadPreference.Random));
 
                 return new() {
                     MaxDiscoverAttempts = maxDiscoverAttempts,
                     DiscoveryInterval   = FromMilliseconds(discoveryInterval),
                     Timeout             = FromMilliseconds(gossipTimeout),
-                    ReadPreference      = nodePreference
+                    ReadPreference      = readPreference
                 };
             }
         }
     }
 
-    static T GetParameterValue<T>(Dictionary<string, string> source, string key, T defaultValue) =>
-        !source.TryGetValue(key, out var strValue) ? defaultValue : (T)Convert.ChangeType(strValue, typeof(T));
+    static T GetParameterValue<T>(Dictionary<string, string> source, string key, T defaultValue) {
+        if (!source.TryGetValue(key, out var strValue))
+            return defaultValue;
+
+        return typeof(T).IsEnum
+            ? (T)Enum.Parse(typeof(T), strValue, ignoreCase: true)
+            : (T)Convert.ChangeType(strValue, typeof(T));
+    }
 
     static string? GetParameterValue(Dictionary<string, string> source, string key, string? defaultValue) =>
         !source.TryGetValue(key, out var value) ? defaultValue : value;

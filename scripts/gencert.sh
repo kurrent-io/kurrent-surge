@@ -198,6 +198,8 @@ mkdir -p "$CERTS_DIR"
 echo ">> Certs directory: ${CERTS_DIR}"
 [[ "$FORCE" == true ]] && echo ">> Force mode: regenerating all certificates."
 
+# macOS ships bash 3.2, where expanding an empty array under `set -u` is fatal
+# (fixed in bash 4.4). Every expansion site guards with ${force_flag[@]+...}.
 force_flag=()
 [[ "$FORCE" == true ]] && force_flag=(-force)
 
@@ -207,7 +209,7 @@ else
     echo ">> Generating CA certificate..."
     "$GENCERT_BIN" create-ca \
         -out "${CERTS_DIR}/ca" \
-        "${force_flag[@]}"
+        ${force_flag[@]+"${force_flag[@]}"}
 fi
 
 if [[ "$FORCE" != true && -f "${CERTS_DIR}/node/node.crt" && -f "${CERTS_DIR}/node/node.key" ]]; then
@@ -220,7 +222,7 @@ else
         -out "${CERTS_DIR}/node" \
         -ip-addresses 127.0.0.1 \
         -dns-names "$DNS_NAMES" \
-        "${force_flag[@]}"
+        ${force_flag[@]+"${force_flag[@]}"}
 fi
 
 for username in "${USER_CERTS[@]}"; do
@@ -234,7 +236,7 @@ for username in "${USER_CERTS[@]}"; do
             -ca-certificate "${CERTS_DIR}/ca/ca.crt" \
             -ca-key "${CERTS_DIR}/ca/ca.key" \
             -out "${CERTS_DIR}/user-${username}" \
-            "${force_flag[@]}"
+            ${force_flag[@]+"${force_flag[@]}"}
     fi
 done
 

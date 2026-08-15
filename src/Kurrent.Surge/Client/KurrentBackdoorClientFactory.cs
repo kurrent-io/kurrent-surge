@@ -1,8 +1,6 @@
 using System.Net;
-using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
-using Kurrent.Surge.Client.Legacy;
 using Kurrent.Http;
+using Kurrent.Surge.Client.LoadBalancing;
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
 
@@ -11,11 +9,11 @@ namespace Kurrent.Surge.Client;
 /// <summary>
 /// Factory for creating HTTP clients that communicate with the Kurrent backdoor service.
 /// By default, it will create a client that connects to the current target node of the
-/// <see cref="KurrentDBLegacyCallInvoker"/>.
+/// <see cref="ClusterChannel"/>.
 /// </summary>
 class KurrentBackdoorClientFactory : IDisposable {
-    public KurrentBackdoorClientFactory(KurrentDBLegacyCallInvoker invoker, KurrentClientOptions options) {
-        Invoker = invoker;
+    public KurrentBackdoorClientFactory(ClusterChannel channel, KurrentClientOptions options, ClientInitializer initializer) {
+        Channel = channel;
         Logger  = options.LoggerFactory.CreateLogger("KurrentBackdoorClient");
 
         if (options.Security.Transport.IsInsecure)
@@ -23,17 +21,19 @@ class KurrentBackdoorClientFactory : IDisposable {
 
         ParseTargetNodeUri = CreateTargetNodeUriParser(options.HttpUriScheme);
 
-        BackdoorHandler = new EnsureSuccessStatusHandler {
-            InnerHandler = new ResilienceHandler(CreateResiliencePipeline(options.Resilience, Logger)) {
-                InnerHandler = CreatePrimaryHandler(options.Security, options.Resilience, Logger)
+        BackdoorHandler = new FaultGateHttpHandler(initializer) {
+            InnerHandler = new EnsureSuccessStatusHandler {
+                InnerHandler = new ResilienceHandler(CreateResiliencePipeline(options.Resilience, Logger)) {
+                    InnerHandler = CreatePrimaryHandler(options.Security, options.Resilience, Logger)
+                }
             }
         };
     }
 
-    KurrentDBLegacyCallInvoker Invoker            { get; }
-    ILogger                    Logger             { get; }
-    HttpMessageHandler         BackdoorHandler    { get; }
-    Func<string, Uri>          ParseTargetNodeUri { get; }
+    ClusterChannel     Channel            { get; }
+    ILogger            Logger             { get; }
+    HttpMessageHandler BackdoorHandler    { get; }
+    Func<string, Uri>  ParseTargetNodeUri { get; }
 
     public HttpClient GetClient(Uri address) {
         return new(BackdoorHandler, disposeHandler: false) {
@@ -47,13 +47,13 @@ class KurrentBackdoorClientFactory : IDisposable {
     public HttpClient GetClient(string targetNode) => GetClient(ParseTargetNodeUri(targetNode));
 
     /// <summary>
-    /// Gets a new HTTP client that connects to the current target node of the <see cref="KurrentDBLegacyCallInvoker"/>.
+    /// Gets a new HTTP client that connects to the current target node of the <see cref="ClusterChannel"/>.
     /// </summary>
     /// <remarks>
     /// Always dispose the returned <see cref="HttpClient"/> after use to avoid resource leaks.
     /// </remarks>
     /// <returns></returns>
-    public HttpClient GetClient() => GetClient(Invoker.ChannelTarget);
+    public HttpClient GetClient() => GetClient(Channel.Target);
 
     public void Dispose() => BackdoorHandler.Dispose();
 
@@ -124,56 +124,5 @@ class KurrentBackdoorClientFactory : IDisposable {
             handler.SslOptions.RemoteCertificateValidationCallback = new RemoteCertificateValidator(caCertificate, logger);
 
         return handler;
-    }
-
-    /// <summary>
-    /// Validates the server's certificate against a custom CA certificate on SSL/TLS connections.
-    /// </summary>
-    /// <param name="CaCertificate">
-    /// The custom CA certificate used to validate the server's certificate.
-    /// This should be a valid X509Certificate2 object representing the CA that signed the server's certificate.
-    /// </param>
-    /// <param name="Logger">
-    /// The logger instance used to log errors and information during the validation process.
-    /// </param>
-    record RemoteCertificateValidator(X509Certificate2 CaCertificate, ILogger Logger) {
-        bool Callback(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors errors) {
-            if (errors != SslPolicyErrors.None)
-                Logger.LogError("SSL Policy Errors: {SslPolicyErrors}", errors);
-
-            if (certificate is null || chain is null) {
-                Logger.LogError("Certificate or chain is null. Ensure the certificate is properly loaded.");
-                return false;
-            }
-
-            // not sure if I need this check, so test test test...
-            if (certificate is not X509Certificate2 peerCertificate) {
-                try {
-                    peerCertificate = new(certificate);
-                }
-                catch (Exception ex) {
-                    Logger.LogError(
-                        ex,
-                        "Failed to convert certificate to X509Certificate2 format. " +
-                        "Ensure the certificate is in a valid format (e.g., PEM, CRT, CER)."
-                    );
-
-                    return false;
-                }
-            }
-
-            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-            chain.ChainPolicy.CustomTrustStore.Add(CaCertificate);
-
-            var chainIsValid = chain.Build(peerCertificate);
-
-            // not sure if I need this check, so test test test...
-            if (!chainIsValid)
-                Logger.LogError("X.509 Chain Status: {ChainStatusInformation}", chain.ChainStatus);
-
-            return chainIsValid;
-        }
-
-        public static implicit operator RemoteCertificateValidationCallback(RemoteCertificateValidator _) => _.Callback;
     }
 }

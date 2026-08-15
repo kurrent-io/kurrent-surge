@@ -6,9 +6,9 @@
 using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
-using Kurrent.Surge.Client.Legacy;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using Kurrent.Grpc;
+using Kurrent.Surge.Legacy;
 using KurrentDB.Protocol.V1.Streams;
 using static Kurrent.Surge.Client.Streams.StreamsClientMapping;
 using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
@@ -214,7 +214,7 @@ public partial class StreamsClient {
         ReadReq request, bool skipDecoding, bool throwOnUnresolved,
         RecordFilter filter, uint maxSearchWindow, [EnumeratorCancellation] CancellationToken ct
     ) {
-        var session = LegacyServiceClient.Read(request, cancellationToken: ct).All(TranslateError);
+        var session = LegacyReadServiceClient.Read(request, cancellationToken: ct).All(TranslateError);
 
         var sequencer = new SequenceGenerator();
 

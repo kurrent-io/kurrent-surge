@@ -586,7 +586,7 @@ public class AppenderTests {
             Fixture.ConnectionString,
             client => {
                 client.LoggerFactory = Fixture.LoggerFactory;
-                client.Schema        = KurrentClientSchemaOptions.NoValidation;
+                client.Schema        = KurrentClientSchemaOptions.AutoRegister;
                 client.Resilience    = KurrentClientResilienceOptions.NoResilience;
                 // The Appender builds its own client, so it must opt into the Testkit catalog (race
                 // contracts) just like the shared fixture client does — it is discovered but not

@@ -19,9 +19,7 @@ try {
 
     builder.Services.AddKurrent(kurrent => kurrent.Connection(
         "kurrentdb://admin:changeit@localhost:2113?tls=false",
-        opts => opts.Messages.Json = new JsonSchemaSerializerOptions {
-            SchemaRegistration = SchemaRegistrationOptions.AutoRegister
-        }));
+        opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister));
 
     builder.Services.AddSingleton(sp => sp.GetRequiredService<KurrentClient>().Registry);
 

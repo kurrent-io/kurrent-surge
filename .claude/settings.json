@@ -40,6 +40,16 @@
         "hooks": [
           {
             "type": "command",
+            "command": ".claude/hooks/worktree-links.sh",
+            "timeout": 10,
+            "statusMessage": "Linking shared state into worktree..."
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR\"/scripts/setup-remote.py",
             "timeout": 300,
             "statusMessage": "Setting up remote environment..."
@@ -107,11 +117,15 @@
   },
   "worktree": {
     "symlinkDirectories": [
-      "docs/node_modules"
+      "docs/node_modules",
+      ".claude/context",
+      ".claude/memory",
+      ".claude/skills",
+      ".claude/agents",
+      ".claude/rules",
+      ".agents"
     ],
     "baseRef": "head"
   },
-  "enabledPlugins": {
-    "motherduck-skills@motherduck-skills": true
-  }
+  "enabledPlugins": {}
 }

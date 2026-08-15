@@ -4,7 +4,7 @@ using MessagePack.Resolvers;
 namespace Kurrent.Surge.Client.Schema.Serialization.MessagePack;
 
 /// <summary>
-/// Options for <see cref="MessagePackSchemaSerializer"/>.
+/// Options for <see cref="MessagePackSchemaCodec"/>.
 /// </summary>
 /// <remarks>
 /// <para>

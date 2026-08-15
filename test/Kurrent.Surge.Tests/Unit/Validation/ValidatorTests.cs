@@ -1,4 +1,5 @@
 using Kurrent.Validation;
+using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Surge.Tests.Validation;
 
@@ -101,6 +102,12 @@ public class ValidatorTests {
     class NestedValidator : Validator<NestedValidator, Container> {
         public NestedValidator() {
             RuleFor(x => x.Person!).SetValidator(PersonValidator.Instance);
+        }
+    }
+
+    class NestedSeverityValidator : Validator<NestedSeverityValidator, Container> {
+        public NestedSeverityValidator() {
+            RuleFor(x => x.Person!).SetValidator(SeverityValidator.Instance);
         }
     }
 
@@ -534,6 +541,50 @@ public class ValidatorTests {
 
     #endregion
 
+    #region ->> EnsureValid (Logger) <<-
+
+    sealed class CapturingLogger : ILogger {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
+    }
+
+    [Test]
+    public async ValueTask ensure_valid_logs_warnings_without_throwing() {
+        // Arrange
+        var validator = new SeverityValidator();
+        var person    = new Person("Alice", 0); // Age=0 fails but is Warning
+        var logger    = new CapturingLogger();
+
+        // Act
+        validator.Validate(person).EnsureValid(logger);
+
+        // Assert
+        await Assert.That(logger.Entries).HasSingleItem();
+        await Assert.That(logger.Entries[0].Level).IsEqualTo(LogLevel.Warning);
+        await Assert.That(logger.Entries[0].Message).Contains("Age");
+    }
+
+    [Test]
+    public async ValueTask ensure_valid_with_logger_still_throws_on_errors() {
+        // Arrange
+        var validator = new SeverityValidator();
+        var person    = new Person("", 0); // Name empty is Error
+        var logger    = new CapturingLogger();
+        var result    = validator.Validate(person);
+
+        // Act + Assert — failure results carry errors only, so nothing is logged
+        await Assert.That(() => result.EnsureValid(logger)).Throws<ValidationException>();
+        await Assert.That(logger.Entries).IsEmpty();
+    }
+
+    #endregion
+
     #region ->> When (Conditional) <<-
 
     [Test]
@@ -638,6 +689,22 @@ public class ValidatorTests {
         // Assert
         await Assert.That(result.IsInvalid).IsTrue();
         await Assert.That(result.Problems[0].FieldName).IsEqualTo("Person.Name");
+    }
+
+    [Test]
+    public async ValueTask nested_validator_propagates_warnings_on_valid_result() {
+        // Arrange
+        var validator = new NestedSeverityValidator();
+        var container = new Container(new Person("Alice", 0), []); // Age=0 fails but is Warning
+
+        // Act
+        var result = validator.Validate(container);
+
+        // Assert
+        await Assert.That(result.IsValid).IsTrue();
+        await Assert.That(result.Problems).HasSingleItem();
+        await Assert.That(result.Problems[0].FieldName).IsEqualTo("Person.Age");
+        await Assert.That(result.Problems[0].Severity).IsEqualTo(RuleSeverity.Warning);
     }
 
     [Test]

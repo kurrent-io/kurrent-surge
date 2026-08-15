@@ -8,6 +8,10 @@
 
 ### Streaming pipeline
 
+**Stream**:
+A named, ordered sequence of records in KurrentDB, addressed by its stream name.
+_Avoid_: topic, queue.
+
 **Record**:
 One event read from a KurrentDB stream — a payload plus a position. The wire/storage unit.
 _Avoid_: event, message (those belong to the schema / catalog layer).
@@ -60,3 +64,9 @@ _Avoid_: offset-save, snapshot.
 A two-phase sink's opaque handle to in-flight work, persisted in the checkpoint and re-fed to the sink's
 commit on recovery. Only sinks that genuinely need 2PC produce one; idempotent and co-locating terminals do not.
 _Avoid_: commit token, transaction handle.
+
+### Client
+
+**Connection string**:
+The `kurrentdb://` string that configures a client connection.
+_Avoid_: URI, address (when referring to `kurrentdb://` strings).
