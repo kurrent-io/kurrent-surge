@@ -125,34 +125,34 @@ sealed class SchemaGovernance : ISchemaGovernance {
             return versions[^1];
 
         try {
-            var version    = await _registry.GetSchemaVersion(schema, ct).ConfigureAwait(false);
-            var descriptor = new SchemaVersionDescriptor(version.VersionId, version.VersionNumber);
-
-            if (Versions.TryAdd(messageType, [descriptor]))
-                TypeByVersion.TryAdd(descriptor.VersionId, messageType);
-
-            return descriptor;
+            var version = await _registry.GetSchemaVersion(schema, ct).ConfigureAwait(false);
+            return Cache(new(version.VersionId, version.VersionNumber));
         }
-        catch (Exception) when (!ct.IsCancellationRequested) {
-            // schema version not found, proceed to create
+        catch (SchemaNotFoundException) {
+            // Not registered yet — fall through and create it. Only absence lands here; every
+            // other failure propagates instead of being mistaken for an unregistered schema.
         }
 
         var definition = _exporter.Export(messageType, dataFormat);
 
         try {
-            var descriptor = await _registry.CreateSchema(schema, definition, dataFormat, ct).ConfigureAwait(false);
-
-            // edge case: the schema was created by another client between checking and creating
-            if (Versions.TryAdd(messageType, [descriptor])) {
-                TypeByVersion.TryAdd(descriptor.VersionId, messageType);
-                return descriptor;
-            }
-
-            return await TryRegister(schema, messageType, dataFormat, ct).ConfigureAwait(false);
+            return Cache(await _registry.CreateSchema(schema, definition, dataFormat, ct).ConfigureAwait(false));
         }
         catch (SchemaAlreadyExistsException) {
-            // edge case: the schema was created by another client between checking and creating
-            return await TryRegister(schema, messageType, dataFormat, ct).ConfigureAwait(false);
+            // The name is taken. Either another client registered this same type first — likely,
+            // since registry reads lag writes by a few hundred milliseconds — or the name maps to
+            // a different type. Compatibility separates the two: a mismatch is a real error, not
+            // a race.
+            return new(await EnsureCompatibleByName(schema, messageType, dataFormat, ct).ConfigureAwait(false), 0);
+        }
+
+        SchemaVersionDescriptor Cache(SchemaVersionDescriptor descriptor) {
+            if (!Versions.TryAdd(messageType, [descriptor]))
+                return Versions[messageType][^1];
+
+            TypeByVersion.TryAdd(descriptor.VersionId, messageType);
+
+            return descriptor;
         }
     }
 
