@@ -3,10 +3,11 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Codecs.Json;
 using Kurrent.Surge.Schema;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Kurrent.Surge.Client.Streams;
 
@@ -45,7 +46,7 @@ public abstract class MetadataDecoder : IMetadataDecoder {
         // [3] = {DebugViewDictionaryItem<string, JsonValue>} [$causedBy]=373c6630-d8fe-ff2c-16af-e286265e7e98
 
         var deserialized = JsonSerializer.Deserialize<Dictionary<string, JsonValue>>(
-            bytes.Span, Schema.Serialization.Json.KurrentJsonContext.Default.Options)!;
+            bytes.Span, KurrentJsonContext.Default.Options)!;
 
         return new Metadata()
             .With(SystemMetadataKeys.SchemaName, LinkSchemaName)

@@ -5,7 +5,7 @@ public class MessagePackSchemaCodecTests {
     static readonly Faker Faker = new();
 
     static MessagePackSchemaCodec NewCodec() =>
-        new(new MessagePackSchemaSerializerOptions { UserResolvers = [TestMessagesResolver.Instance] });
+        new(new MessagePackSchemaCodecOptions { UserResolvers = [TestMessagesResolver.Instance] });
 
     [Test]
     public async ValueTask round_trips_message() {

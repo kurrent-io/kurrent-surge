@@ -2,12 +2,11 @@ using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Google.Protobuf;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
-using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Schema.Serialization.Json;
-using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Codecs;
+using Kurrent.Surge.Codecs.Json;
+using Kurrent.Surge.Codecs.Protobuf;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using TUnit.Core.Interfaces;
@@ -51,8 +50,6 @@ public class GovernedWriteMappingBenchmarks {
 
         _streams = new StreamsClient(_client);
 
-        var policy = _streams.RegistryPolicy;
-
         // Self-composed, equivalent to the client's own defaults — the pipeline-composition seam
         // on KurrentClient is gone, so the benchmark builds its own resolver/schema/codecs
         // instead of borrowing the client's. The resolver is scoped to the same standalone catalog
@@ -63,13 +60,9 @@ public class GovernedWriteMappingBenchmarks {
 
         var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
 
-        var resolved = policy
-            .Resolve(schema, null, SchemaDataFormat.Json)
-            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
+        var governance = SchemaGovernance.Create(_client, [catalog], schema);
 
-        var governance = SchemaGovernance.Create(_client, [catalog], resolved);
-
-        _governed = WriteRecordPipeline.Create(resolver, policy, schema, codecs, governance);
+        _governed = WriteRecordPipeline.Create(resolver, codecs, governance);
 
         var request = NewAppendRequest();
 

@@ -1,4 +1,4 @@
-using JsonSerializer = Kurrent.Surge.Client.Schema.Serialization.Json.JsonSerializer;
+using JsonSerializer = Kurrent.Surge.Codecs.Json.JsonSerializer;
 
 namespace Kurrent.Surge.Client.Streams;
 

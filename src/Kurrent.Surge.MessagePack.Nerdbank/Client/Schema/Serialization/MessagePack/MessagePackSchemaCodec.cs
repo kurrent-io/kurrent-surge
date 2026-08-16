@@ -1,3 +1,4 @@
+using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema;
 using Nerdbank.MessagePack;
 using PolyType;
@@ -8,7 +9,7 @@ namespace Kurrent.Surge.Client.Schema.Serialization.MessagePack;
 /// MessagePack payload codec backed by Nerdbank.MessagePack. A configured
 /// <see cref="ITypeShapeProvider"/> is required — there is no reflection fallback.
 /// </summary>
-public sealed class MessagePackSchemaCodec(NerdbankMessagePackSchemaSerializerOptions options) : ISchemaCodec {
+public sealed class MessagePackSchemaCodec(NerdbankMessagePackSchemaCodecOptions options) : ISchemaCodec {
     MessagePackSerializer Serializer        { get; } = options.MessagePackSerializer;
     ITypeShapeProvider    TypeShapeProvider { get; } = options.TypeShapeProvider;
 

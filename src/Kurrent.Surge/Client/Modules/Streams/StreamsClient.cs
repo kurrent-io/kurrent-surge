@@ -12,9 +12,7 @@ public partial class StreamsClient : ClientModuleBase, IStreamsClient {
         LegacyServiceClient     = new(client.CallInvoker);
         LegacyReadServiceClient = new(client.ReadCallInvoker);
 
-        RegistryPolicy = client.RegistryPolicy;
-
-        // One pipeline per client: stateless, policy fixed at construction, so every mapped
+        // One pipeline per client: stateless, options fixed at construction, so every mapped
         // record shares it instead of allocating its own.
         RecordDecoder = client.ReadPipeline;
         WritePipeline = client.WritePipeline;
@@ -25,8 +23,6 @@ public partial class StreamsClient : ClientModuleBase, IStreamsClient {
     internal LegacyStreamsServiceClient LegacyServiceClient { get; }
 
     internal LegacyStreamsServiceClient LegacyReadServiceClient { get; }
-
-    internal SchemaRegistryPolicy RegistryPolicy { get; }
 
     internal IRecordDecoder RecordDecoder { get; }
 

@@ -4,7 +4,7 @@ using static Kurrent.Surge.Schema.Naming.SchemaNameOutputFormat;
 namespace Kurrent.Surge.Tests.SchemaRegistry.NameStrategies;
 
 public class SchemaNameStrategiesTests {
-	# region . happy path .
+	# region >> happy path <<
 
 	[Test]
 	[Arguments(SchemaNameOutputFormat.None, "Company.Logistics.Events.OrderShipped")]
@@ -32,7 +32,7 @@ public class SchemaNameStrategiesTests {
 
 	# endregion
 
-	#region . edge cases .
+	#region >> edge cases <<
 
 	[Test]
 	public async Task message_schema_name_strategy_generates_correct_name_with_nested_types() {

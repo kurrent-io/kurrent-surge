@@ -23,8 +23,8 @@ sealed class CatalogSchemaMap {
 	public sealed class Builder {
 		readonly Dictionary<(Type, SchemaDataFormat), RecordSchemaInfo> _entries = [];
 
-		public void Add(Type messageType, SchemaDataFormat format, RecordSchemaInfo info) =>
-			_entries[(messageType, format)] = info;
+		public void Add(Type messageType, RecordSchemaInfo info) =>
+			_entries[(messageType, info.DataFormat)] = info;
 
 		public CatalogSchemaMap Build() => new(_entries.ToFrozenDictionary());
 	}

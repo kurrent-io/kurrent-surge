@@ -7,6 +7,8 @@ using DuckDB.NET.Data;
 
 using Kurrent.Projectors.Transactional;
 using Kurrent.Quack;
+using Kurrent.Surge.Codecs.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Kurrent.Projectors.DuckDB;
 
@@ -15,7 +17,7 @@ public sealed class DuckDBDocumentStore(TimeProvider? time = null, JsonSerialize
     readonly TimeProvider _time = time ?? TimeProvider.System;
 
     readonly JsonSerializerOptions _json =
-        json ?? Surge.Client.Schema.Serialization.Json.JsonSchemaSerializerOptions.DefaultJsonSerializerOptions;
+        json ?? JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
     DuckDBProjectionTransaction? _transaction;
 

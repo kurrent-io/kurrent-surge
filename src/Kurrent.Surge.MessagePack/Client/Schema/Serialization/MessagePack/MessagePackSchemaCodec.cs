@@ -1,3 +1,4 @@
+using Kurrent.Surge.Codecs;
 using MessagePack;
 using Kurrent.Surge.Schema;
 
@@ -5,10 +6,10 @@ namespace Kurrent.Surge.Client.Schema.Serialization.MessagePack;
 
 /// <summary>
 /// MessagePack payload codec backed by the official MessagePack-CSharp library, restricted to
-/// source-generated resolvers — see <see cref="MessagePackSchemaSerializerOptions"/> for why.
+/// source-generated resolvers — see <see cref="MessagePackSchemaCodecOptions"/> for why.
 /// </summary>
-public sealed class MessagePackSchemaCodec(MessagePackSchemaSerializerOptions? options = null) : ISchemaCodec {
-    MessagePackSerializerOptions Options { get; } = (options ?? MessagePackSchemaSerializerOptions.Default).MessagePackSerializerOptions;
+public sealed class MessagePackSchemaCodec(MessagePackSchemaCodecOptions? options = null) : ISchemaCodec {
+    MessagePackSerializerOptions Options { get; } = (options ?? MessagePackSchemaCodecOptions.Default).MessagePackSerializerOptions;
 
     /// <inheritdoc />
     public SchemaDataFormat DataFormat => SchemaDataFormat.MessagePack;

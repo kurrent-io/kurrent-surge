@@ -1,6 +1,6 @@
-using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Schema.Serialization.Json;
-using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
+using Kurrent.Surge.Codecs;
+using Kurrent.Surge.Codecs.Json;
+using Kurrent.Surge.Codecs.Protobuf;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Surge.Schema.Naming;
 
@@ -21,12 +21,12 @@ public class KurrentClientMessageOptions {
     /// <summary>
     /// Configuration options for the JSON schema serializer.
     /// </summary>
-    public JsonSchemaSerializerOptions Json { get; set; } = JsonSchemaSerializerOptions.Default;
+    public JsonSchemaCodecOptions Json { get; set; } = JsonSchemaCodecOptions.Default;
 
     /// <summary>
     /// Configuration options for the Protobuf schema serializer.
     /// </summary>
-    public ProtobufSchemaSerializerOptions Protobuf { get; set; } = ProtobufSchemaSerializerOptions.Default;
+    public ProtobufSchemaCodecOptions Protobuf { get; set; } = ProtobufSchemaCodecOptions.Default;
 
     List<MessageCatalog> UsedCatalogs { get; } = [];
 

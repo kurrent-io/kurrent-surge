@@ -6,11 +6,6 @@ namespace Kurrent.Surge.Client;
 /// <summary>
 /// Defines schema settings for a KurrentDB client: registration, validation, and naming.
 /// </summary>
-/// <remarks>
-/// The server policy overrides these options when it requires or prohibits an operation.
-/// The client decides only what the server leaves optional. Server policy resolution is
-/// not implemented yet — no requirement is enforced.
-/// </remarks>
 [PublicAPI]
 public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOptions, KurrentClientSchemaOptions.Validator> {
 	/// <summary>

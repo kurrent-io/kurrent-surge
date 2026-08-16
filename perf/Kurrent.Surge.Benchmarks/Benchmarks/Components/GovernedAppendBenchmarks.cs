@@ -1,13 +1,11 @@
 using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
-using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Schema.Serialization.Json;
-using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Schema;
+using Kurrent.Surge.Codecs;
+using Kurrent.Surge.Codecs.Json;
+using Kurrent.Surge.Codecs.Protobuf;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
@@ -43,8 +41,6 @@ public class GovernedAppendBenchmarks {
 
         _streams = new StreamsClient(_fixture.Client);
 
-        var policy = _streams.RegistryPolicy;
-
         // Self-composed, equivalent to the fixture client's own defaults — the pipeline-
         // composition seam on KurrentClient is gone, so the benchmark builds its own
         // resolver/schema/codecs instead of borrowing the client's.
@@ -58,13 +54,9 @@ public class GovernedAppendBenchmarks {
 
         var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
 
-        var resolved = policy
-            .Resolve(schema, null, SchemaDataFormat.Json)
-            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
+        var governance = SchemaGovernance.Create(_fixture.Client, catalogs, schema);
 
-        var governance = SchemaGovernance.Create(_fixture.Client, catalogs, resolved);
-
-        _governed = WriteRecordPipeline.Create(resolver, policy, schema, codecs, governance);
+        _governed = WriteRecordPipeline.Create(resolver, codecs, governance);
 
         // Pre-built catalog records, one stream — both paths map the same instances per op.
         var stream = $"governed-append-bench-{RecordCount}";

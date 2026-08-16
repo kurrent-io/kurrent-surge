@@ -3,16 +3,14 @@ using Kurrent.Surge.Client.Admin;
 using Kurrent.Surge.Client.Indexes;
 using Kurrent.Surge.Client.Connectors;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
-using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Schema.Serialization.Json;
-using Kurrent.Surge.Client.Schema.Serialization.Protobuf;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.LoadBalancing;
-using Kurrent.Surge.Schema;
+using Kurrent.Surge.Codecs;
+using Kurrent.Surge.Codecs.Json;
+using Kurrent.Surge.Codecs.Protobuf;
 using Kurrent.Surge.Schema.Catalogs;
-using ProtobufMessages = Kurrent.Surge.Client.Schema.Serialization.Protobuf.ProtobufMessages;
+using ProtobufMessages = Kurrent.Surge.Codecs.Protobuf.ProtobufMessages;
 
 namespace Kurrent.Surge.Client;
 
@@ -22,11 +20,6 @@ public class KurrentClient : IKurrentClient {
 	    options.EnsureValid(options.LoggerFactory.CreateLogger<KurrentClient>());
 
 	    Options = options;
-
-        // Soon enough, the schema registry policy will be retrieved from the server during client
-        // initialization (defaults), and then on a per-stream basis during stream operations.
-        // For now, we can use a default policy that allows for all operations without enforcement.
-        RegistryPolicy = SchemaRegistryPolicy.NoRequirements;
 
         // The freeze: snapshot the message catalogs (system + default + explicit + auto-
         // discovered) into a read-only resolver. Catalog changes after this point never
@@ -38,17 +31,17 @@ public class KurrentClient : IKurrentClient {
         if (options.Messages.Protobuf.Context is not null)
             ProtobufMessages.System.Configure(options.Messages.Protobuf.Context);
 
-        // The gate tests the RESOLVED policy, never the raw dial: when server policy
-        // resolution goes live, a server-side Required overrides even a lax client dial,
-        // and this gate keeps working because resolution already carries the server's voice.
-        var resolvedPolicy = RegistryPolicy.Resolve(options.Schema, stream: null, SchemaDataFormat.Json);
-
         // Never throw-on-failure: the walk's failure travels its own channel — the result
         // task the govern steps await — so it surfaces at the first governed operation
-        // without bricking reads of raw or unmapped records. The task captures the concrete
-        // client because governance does not exist yet; it resolves at execution time.
-        InitializationTaskRegistration[] builtins = resolvedPolicy.SchemaRegistryRequired
-            ? [new(new CatalogRegistrationTask(this), ThrowOnFailure: false)]
+        // without bricking reads of raw or unmapped records. The task holds the concrete
+        // client as state because governance does not exist yet; reading the property at
+        // execution time is what starts the single-flight walk.
+        InitializationTaskRegistration[] builtins = options.Schema.SchemaRegistryRequired
+            ? [new(
+                new DelegateInitializationTask<KurrentClient>(
+                    "CatalogRegistration", this,
+                    static (_, client, _) => new ValueTask(client.Governance.CatalogRegistration)),
+                ThrowOnFailure: false)]
             : [];
 
         Initializer = new(
@@ -73,10 +66,10 @@ public class KurrentClient : IKurrentClient {
         // Modules capture the invoker at construction — registry and governance must
         // follow the channel wiring, or every client ctor throws on a null invoker.
         Registry   = new RegistryClient(this);
-        Governance = SchemaGovernance.Create(this, Catalogs, resolvedPolicy, Lifetime.Token);
+        Governance = SchemaGovernance.Create(this, Catalogs, options.Schema, Lifetime.Token);
 
-        WritePipeline = WriteRecordPipeline.Create(messageResolver, RegistryPolicy, options.Schema, codecs, Governance);
-        ReadPipeline  = ReadRecordPipeline.Create(messageResolver, RegistryPolicy, options.Schema, codecs, Governance);
+        WritePipeline = WriteRecordPipeline.Create(messageResolver, codecs, Governance);
+        ReadPipeline  = ReadRecordPipeline.Create(messageResolver, options.Schema, codecs, Governance);
 
         Streams    = new StreamsClient(this);
         Indexes    = new IndexesClient(this);
@@ -101,10 +94,9 @@ public class KurrentClient : IKurrentClient {
     internal CallInvoker                  ReadCallInvoker       { get; }
     internal KurrentBackdoorClientFactory BackdoorClientFactory { get; }
 
-    internal SchemaRegistryPolicy RegistryPolicy { get; }
-    internal ClientInitializer    Initializer    { get; }
-    internal WriteRecordPipeline  WritePipeline  { get; }
-    internal ReadRecordPipeline   ReadPipeline   { get; }
+    internal ClientInitializer   Initializer   { get; }
+    internal WriteRecordPipeline WritePipeline { get; }
+    internal ReadRecordPipeline  ReadPipeline  { get; }
 
     internal ISchemaGovernance Governance { get; }
 

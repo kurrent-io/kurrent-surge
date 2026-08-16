@@ -12,10 +12,10 @@ namespace Kurrent.Surge.Client.Schema.Serialization.MessagePack;
 public static class KurrentClientMessageOptionsExtensions {
     extension(KurrentClientMessageOptions options) {
         /// <summary>
-        /// No parameterless overload exists: <see cref="NerdbankMessagePackSchemaSerializerOptions.TypeShapeProvider"/>
+        /// No parameterless overload exists: <see cref="NerdbankMessagePackSchemaCodecOptions.TypeShapeProvider"/>
         /// is required, with no reflection-based default to fall back to.
         /// </summary>
-        public KurrentClientMessageOptions UseNerdbankMessagePack(NerdbankMessagePackSchemaSerializerOptions config) =>
+        public KurrentClientMessageOptions UseNerdbankMessagePack(NerdbankMessagePackSchemaCodecOptions config) =>
             options.UseCodec(new MessagePackSchemaCodec(config));
     }
 }

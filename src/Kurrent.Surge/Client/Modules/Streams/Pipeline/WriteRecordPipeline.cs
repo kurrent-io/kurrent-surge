@@ -1,7 +1,5 @@
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
-using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Schema;
+using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Validation;
 using Contracts = KurrentDB.Protocol.V2.Streams;
@@ -25,13 +23,11 @@ sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
     /// </summary>
     internal static WriteRecordPipeline Create(
         MessageResolver messages,
-        SchemaRegistryPolicy policy,
-        KurrentClientSchemaOptions schema,
         SchemaCodecProvider codecs,
         ISchemaGovernance governance
     ) =>
         new(new ClassifyWriteStep(messages)
-            .Then(new GovernWriteStep(governance, policy, schema)
+            .Then(new GovernWriteStep(governance)
                 .Then(new EncodeWriteStep(codecs))
                 .OnNamed())
             .Then(new FrameWriteStep()));

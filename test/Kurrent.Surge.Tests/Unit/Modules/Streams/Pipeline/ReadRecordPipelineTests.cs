@@ -1,11 +1,10 @@
 using System.Diagnostics;
 using System.Text;
 using Bogus;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
-using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
@@ -21,7 +20,6 @@ public class ReadRecordPipelineTests {
     static ReadRecordPipeline NewPipeline() =>
         ReadRecordPipeline.Create(
             MessageResolver.From(),
-            SchemaRegistryPolicy.NoRequirements,
             KurrentClientSchemaOptions.Disabled,
             new SchemaCodecProvider([]),
             new UnreachableGovernance());
@@ -74,7 +72,7 @@ public class ReadRecordPipelineTests {
 
         // Act & Assert
         await Assert.That(async () => await sut.Execute(record, CancellationToken.None))
-            .Throws<SchemaDeserializationFailedException>();
+            .Throws<SchemaCodecDecodingException>();
     }
 
     // Never reached: the LinkTo/Bytes guard in Execute short-circuits before governance runs.
@@ -83,12 +81,10 @@ public class ReadRecordPipelineTests {
     sealed class UnreachableGovernance : ISchemaGovernance {
         public Task<CatalogSchemaMap> CatalogRegistration { get; } = Task.FromResult(CatalogSchemaMap.Empty);
 
-        public void StartCatalogRegistration() { }
-
-        public ValueTask<SchemaVersionId> EnsureRegistered(SchemaName schema, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) =>
+        public ValueTask<SchemaVersionId> EnsureRegistered(SchemaName schema, Type messageType, CancellationToken ct) =>
             throw new UnreachableException();
 
-        public ValueTask<SchemaVersionId> EnsureCompatible(RecordSchemaInfo schemaInfo, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) =>
+        public ValueTask<SchemaVersionId> EnsureCompatible(RecordSchemaInfo schemaInfo, Type messageType, CancellationToken ct) =>
             throw new UnreachableException();
     }
 }

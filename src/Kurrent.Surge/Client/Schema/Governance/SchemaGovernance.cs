@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
@@ -11,59 +11,48 @@ namespace Kurrent.Surge.Client.Schema.Governance;
 /// <summary>
 /// The real <see cref="ISchemaGovernance"/>: registry RPC, registration race protocol,
 /// version caches, and the client's single-flight catalog registration owned directly.
-/// Registration and validation gate on Json because the server implements no other
-/// serializer yet.
 /// </summary>
 sealed class SchemaGovernance : ISchemaGovernance {
+    // The registry implements no serializer but Json, so catalog schemas register as Json
+    // definitions and nothing else.
+    const SchemaDataFormat RegistrationDataFormat = SchemaDataFormat.Json;
+
     SchemaGovernance(
-        RegistryClient registry, ISchemaExporter exporter, IReadOnlyList<MessageCatalog> catalogs,
-        ResolvedSchemaRegistryPolicy policy, CancellationToken lifetime
+        RegistryClient registry,
+        ISchemaExporter exporter,
+        IReadOnlyList<MessageCatalog> catalogs,
+        KurrentClientSchemaOptions options,
+        CancellationToken ct
     ) {
         _registry = registry;
         _exporter = exporter;
+        _options  = options;
 
-        _catalogRegistration = policy.SchemaRegistryRequired
-            ? new(() => EnsureCatalogRegistered(catalogs, policy, lifetime), LazyThreadSafetyMode.ExecutionAndPublication)
+        _catalogRegistration = options.SchemaRegistryRequired
+            ? new(() => EnsureCatalogRegistered(catalogs, ct), LazyThreadSafetyMode.ExecutionAndPublication)
             : new(static () => Task.FromResult(CatalogSchemaMap.Empty));
     }
 
-    readonly RegistryClient  _registry;
-    readonly ISchemaExporter _exporter;
+    readonly RegistryClient              _registry;
+    readonly ISchemaExporter             _exporter;
+    readonly KurrentClientSchemaOptions  _options;
 
     readonly Lazy<Task<CatalogSchemaMap>> _catalogRegistration;
 
-    ConcurrentDictionary<Type, List<SchemaVersionDescriptor>> Versions { get; } = new();
-
-    // Reverse index for the read path's version-id lookups — replaces the manager's linear
-    // scan over every cached type.
+    // Values are swapped, never mutated: readers index [^1] off a bare reference with no lock.
+    ConcurrentDictionary<Type, SchemaVersionDescriptor[]> Versions { get; } = new();
+    
     ConcurrentDictionary<SchemaVersionId, Type> TypeByVersion { get; } = new();
 
-    /// <summary>
-    /// Builds governance over a client's registry module and the default exporter, with the
-    /// catalog registration bound to the given catalogs, resolved policy, and lifetime.
-    /// </summary>
     public static SchemaGovernance Create(
         KurrentClient client, IReadOnlyList<MessageCatalog> catalogs,
-        ResolvedSchemaRegistryPolicy policy, CancellationToken lifetime = default
-    ) =>
-        new(new RegistryClient(client), NJsonSchemaExporter.Instance, catalogs, policy, lifetime);
+        KurrentClientSchemaOptions options, CancellationToken ct = default
+    ) => new(new RegistryClient(client), NJsonSchemaExporter.Instance, catalogs, options, ct);
 
     public Task<CatalogSchemaMap> CatalogRegistration =>
         _catalogRegistration.Value;
 
-    public void StartCatalogRegistration() =>
-        // A fault stays stored in the task for awaiters; touching the exception here keeps
-        // a never-awaited failure off the unobserved-exception path.
-        _ = CatalogRegistration.ContinueWith(
-            static t => _ = t.Exception,
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted,
-            TaskScheduler.Default
-        );
-
-    async Task<CatalogSchemaMap> EnsureCatalogRegistered(
-        IEnumerable<MessageCatalog> catalogs, ResolvedSchemaRegistryPolicy policy, CancellationToken ct
-    ) {
+    async Task<CatalogSchemaMap> EnsureCatalogRegistered(IEnumerable<MessageCatalog> catalogs, CancellationToken ct) {
         var results  = new CatalogSchemaMap.Builder();
         var failures = new List<CatalogRegistrationFailure>();
 
@@ -76,7 +65,7 @@ sealed class SchemaGovernance : ISchemaGovernance {
 
                 SchemaVersionId versionId;
                 try {
-                    versionId = await EnsureRegistered(entry.Key, entry.Value, policy, ct).ConfigureAwait(false);
+                    versionId = await EnsureRegistered(entry.Key, entry.Value, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) {
                     throw;
@@ -88,33 +77,32 @@ sealed class SchemaGovernance : ISchemaGovernance {
                     continue;
                 }
 
-                results.Add(entry.Value, policy.DataFormat, new RecordSchemaInfo {
+                results.Add(entry.Value, new() {
                     Schema     = entry.Key,
-                    DataFormat = policy.DataFormat,
+                    DataFormat = RegistrationDataFormat,
                     VersionId  = versionId
                 });
             }
         }
 
-        if (failures.Count > 0)
-            throw new CatalogRegistrationFailedException(failures);
-
-        return results.Build();
+        return failures.Count > 0 
+            ? throw new CatalogRegistrationFailedException(failures)
+            : results.Build();
     }
 
-    public async ValueTask<SchemaVersionId> EnsureRegistered(SchemaName schema, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
-        if (policy is { AutoRegisterSchemas: true, DataFormat: SchemaDataFormat.Json })
-            return (await TryRegister(schema, messageType, policy.DataFormat, ct).ConfigureAwait(false)).VersionId;
+    public async ValueTask<SchemaVersionId> EnsureRegistered(SchemaName schema, Type messageType, CancellationToken ct) {
+        if (_options.RegistrationMode is SchemaRegistrationMode.Auto)
+            return (await TryRegister(schema, messageType, RegistrationDataFormat, ct).ConfigureAwait(false)).VersionId;
 
-        if (policy is { ValidateSchemas: true, DataFormat: SchemaDataFormat.Json })
-            return await EnsureCompatibleByName(schema, messageType, policy.DataFormat, ct).ConfigureAwait(false);
+        if (_options.ValidationMode is SchemaValidationMode.Enabled)
+            return await EnsureCompatibleByName(schema, messageType, RegistrationDataFormat, ct).ConfigureAwait(false);
 
         return SchemaVersionId.Unset;
     }
 
-    public async ValueTask<SchemaVersionId> EnsureCompatible(RecordSchemaInfo schemaInfo, Type messageType, ResolvedSchemaRegistryPolicy policy, CancellationToken ct) {
+    public async ValueTask<SchemaVersionId> EnsureCompatible(RecordSchemaInfo schemaInfo, Type messageType, CancellationToken ct) {
         try {
-            if (!policy.ValidateSchemas)
+            if (_options.ValidationMode is not SchemaValidationMode.Enabled)
                 return SchemaVersionId.Unset;
 
             if (schemaInfo.HasSchemaId) {
@@ -127,8 +115,8 @@ sealed class SchemaGovernance : ISchemaGovernance {
             // Records appended without a version id: compatibility by name, id returned for backfill.
             return await EnsureCompatibleByName(schemaInfo.Schema, messageType, schemaInfo.DataFormat, ct).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not SchemaSerializationException) {
-            throw new SchemaDeserializationFailedException(schemaInfo.DataFormat, schemaInfo.Schema, ex);
+        catch (Exception ex) when (ex is not SchemaValidationException and not OperationCanceledException) {
+            throw new SchemaCodecDecodingException(schemaInfo.DataFormat, schemaInfo.Schema, ex);
         }
     }
 
@@ -182,10 +170,11 @@ sealed class SchemaGovernance : ISchemaGovernance {
             Versions.AddOrUpdate(
                 messageType,
                 static (_, state) => [state.Version, state.Last],
-                static (_, versions, state) => {
-                    versions.Insert(versions.Count - 1, state.Version);
-                    return versions;
-                },
+                // AddOrUpdate re-runs this delegate when its CAS loses, so the guard keeps a
+                // retry from appending the same version twice.
+                static (_, versions, state) => Array.Exists(versions, v => v.VersionId == state.Version.VersionId)
+                    ? versions
+                    : [.. versions[..^1], state.Version, versions[^1]],
                 (Last: new SchemaVersionDescriptor(lastVersionId, 0), Version: new SchemaVersionDescriptor(versionId, 0))
             );
 

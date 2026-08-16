@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Avro.IO;
 using Avro.Specific;
+using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Schema.Serialization.Avro;

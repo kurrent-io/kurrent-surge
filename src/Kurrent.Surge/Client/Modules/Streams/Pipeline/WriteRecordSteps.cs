@@ -1,12 +1,10 @@
 using System.Buffers;
-using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
-using Kurrent.Surge.Client.Schema.Serialization;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Variant;
 using Google.Protobuf;
+using Kurrent.Surge.Codecs;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
 namespace Kurrent.Surge.Client.Streams;
@@ -78,25 +76,16 @@ static class WriteResolutionSteps {
 /// <summary>
 /// THE governance step — the only one. Awaits the interceptor's single-flight registration
 /// (free once complete; a failed catalog registration rethrows here, at the first governed
-/// record), resolves the policy (folded in: it stays per-record because it will consult the
-/// server's settings when <c>SchemaRegistryPolicy.FromServerFeatures</c> goes live), and reads
-/// the version id from the registration results. No registry call exists on this path.
+/// record) and reads the version id from the registration results. No registry call exists
+/// on this path.
 /// </summary>
-sealed class GovernWriteStep(
-    ISchemaGovernance governance,
-    SchemaRegistryPolicy policy,
-    KurrentClientSchemaOptions schema
-) : IStep<NamedWrite, ResolvedWrite> {
+sealed class GovernWriteStep(ISchemaGovernance governance) : IStep<NamedWrite, ResolvedWrite> {
     public async ValueTask<ResolvedWrite> Execute(NamedWrite input, CancellationToken ct) {
         var source = input.Source;
 
         // WaitAsync abandons only this caller's wait — the single-flight registration keeps
         // running on the client lifetime token for every other caller.
         var registered = await governance.CatalogRegistration.WaitAsync(ct).ConfigureAwait(false);
-
-        policy
-            .Resolve(schema, source.Stream, source.DataFormat)
-            .EnsureDataFormatCompliance(source.DataFormat);
 
         var schemaInfo = registered.TryGet(source.Value.GetType(), source.DataFormat, out var info)
             ? info
@@ -112,17 +101,17 @@ sealed class GovernWriteStep(
 sealed class EncodeWriteStep(SchemaCodecProvider codecs) : IStep<ResolvedWrite, EncodedWrite> {
     public ValueTask<EncodedWrite> Execute(ResolvedWrite input, CancellationToken ct) {
         var source = input.Source;
+        
+        if (source.Value is null)
+            return new(new EncodedWrite(source, input.Schema, ReadOnlyMemory<byte>.Empty));
+
+        var codec = codecs.GetCodec(source.DataFormat);   // SchemaCodecNotFoundException propagates as itself
 
         try {
-            var payload = source.Value is null
-                ? ReadOnlyMemory<byte>.Empty
-                : codecs.GetCodec(source.DataFormat).Encode(source.Value);
-
-            return new(new EncodedWrite(source, input.Schema, payload));
+            return new(new EncodedWrite(source, input.Schema, codec.Encode(source.Value)));
         }
-        // Mirrors the serializer base's wrap so the governed chain keeps the same error contract.
-        catch (Exception ex) when (ex is not SchemaSerializationException) {
-            throw new SchemaSerializationFailedException(source.DataFormat, source.Value!.GetType(), ex);
+        catch (Exception ex) {
+            throw new SchemaCodecEncodingException(source.DataFormat, source.Value.GetType(), ex);
         }
     }
 }

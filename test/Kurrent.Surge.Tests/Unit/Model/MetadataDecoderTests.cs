@@ -6,7 +6,7 @@ using KurrentDB.Diagnostics.Tracing;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
-using JsonSerializer = Kurrent.Surge.Client.Schema.Serialization.Json.JsonSerializer;
+using JsonSerializer = Kurrent.Surge.Codecs.Json.JsonSerializer;
 
 namespace Kurrent.Surge.Tests.Model;
 

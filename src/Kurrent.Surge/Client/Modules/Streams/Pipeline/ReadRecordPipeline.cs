@@ -1,11 +1,10 @@
 using System.Text.Json.Nodes;
-using Kurrent.Surge.Client.Schema;
 using Kurrent.Surge.Client.Schema.Governance;
-using Kurrent.Surge.Client.Schema.Serialization;
-using Kurrent.Surge.Client.Schema.Serialization.Json;
+using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using JsonSerializer = System.Text.Json.JsonSerializer;
+using KurrentJsonContext = Kurrent.Surge.Codecs.Json.KurrentJsonContext;
 
 namespace Kurrent.Surge.Client.Streams;
 
@@ -25,13 +24,11 @@ sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
     /// </summary>
     internal static ReadRecordPipeline Create(
         MessageResolver messages,
-        SchemaRegistryPolicy policy,
         KurrentClientSchemaOptions schema,
         SchemaCodecProvider codecs,
         ISchemaGovernance governance
     ) =>
-        new(new ResolvePolicyReadStep(policy, schema)
-            .Then(new ResolveTypeReadStep(messages))
+        new(new ResolveTypeReadStep(messages, schema)
             .Then(new GovernReadStep(governance)
                 .Then(new DecodeReadStep(codecs))
                 .OnDecodable()));
@@ -65,8 +62,8 @@ sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
                 record.ValueType = linkTo.GetType();
                 return DecodeOutcome.Decoded;
             }
-            catch (Exception ex) when (ex is not SchemaSerializationException) {
-                throw new SchemaDeserializationFailedException(record.Schema.DataFormat, record.Schema.Schema, ex);
+            catch (Exception ex) when (ex is not SchemaCodecException) {
+                throw new SchemaCodecDecodingException(record.Schema.DataFormat, record.Schema.Schema, ex);
             }
         }
 

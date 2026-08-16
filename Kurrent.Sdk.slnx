@@ -59,7 +59,6 @@
   <Folder Name="/Extensions/">
     <Project Path="src/Kurrent.Surge.Avro/Kurrent.Surge.Avro.csproj" />
     <Project Path="src/Kurrent.Surge.Cli/Kurrent.Surge.Cli.csproj" />
-    <Project Path="src/Kurrent.Surge.Mcp/Kurrent.Surge.Mcp.csproj" />
     <Project Path="src/Kurrent.Surge.MessagePack.Nerdbank/Kurrent.Surge.MessagePack.Nerdbank.csproj" />
     <Project Path="src/Kurrent.Surge.MessagePack/Kurrent.Surge.MessagePack.csproj" />
     <Project Path="src/Kurrent.Surge.Schema.Catalogs.Generators/Kurrent.Surge.Schema.Catalogs.Generators.csproj" />
@@ -68,13 +67,14 @@
     <Project Path="src/Kurrent.Surge.Arrow/Kurrent.Surge.Arrow.csproj" />
     <Project Path="test/Kurrent.Surge.Avro.Tests/Kurrent.Surge.Avro.Tests.csproj" />
     <Project Path="test/Kurrent.Surge.Cli.Tests/Kurrent.Surge.Cli.Tests.csproj" />
-    <Project Path="test/Kurrent.Surge.Mcp.Tests/Kurrent.Surge.Mcp.Tests.csproj" />
     <Project Path="test/Kurrent.Surge.MessagePack.Nerdbank.Tests/Kurrent.Surge.MessagePack.Nerdbank.Tests.csproj" />
     <Project Path="test/Kurrent.Surge.MessagePack.Tests/Kurrent.Surge.MessagePack.Tests.csproj" />
     <Project Path="test/Kurrent.Surge.Schema.Catalogs.Tests.Samples/Kurrent.Surge.Schema.Catalogs.Tests.Samples.csproj" />
     <Project Path="test/Kurrent.Surge.Schema.Catalogs.Tests/Kurrent.Surge.Schema.Catalogs.Tests.csproj" />
+    <Project Path="src\Kurrent.Surge.AI.Mcp\Kurrent.Surge.AI.Mcp.csproj" />
     <Project Path="test/Kurrent.Surge.AI.HuggingFace.Tests/Kurrent.Surge.AI.HuggingFace.Tests.csproj" />
     <Project Path="test/Kurrent.Surge.Arrow.Tests/Kurrent.Surge.Arrow.Tests.csproj" />
+    <Project Path="test\Kurrent.Surge.AI.Mcp.Tests\Kurrent.Surge.AI.Mcp.Tests.csproj" />
   </Folder>
   <Folder Name="/Projectors/">
     <Project Path="src/Kurrent.Projectors.DuckDB/Kurrent.Projectors.DuckDB.csproj" />

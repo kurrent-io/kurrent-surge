@@ -11,7 +11,7 @@ namespace Kurrent.Surge.Client.Schema.Serialization.MessagePack;
 [PublicAPI]
 public static class KurrentClientMessageOptionsExtensions {
     extension(KurrentClientMessageOptions options) {
-        public KurrentClientMessageOptions UseMessagePack(MessagePackSchemaSerializerOptions? config = null) =>
+        public KurrentClientMessageOptions UseMessagePack(MessagePackSchemaCodecOptions? config = null) =>
             options.UseCodec(new MessagePackSchemaCodec(config));
     }
 }

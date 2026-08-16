@@ -144,13 +144,10 @@ public class CatalogRegistrationTests {
     }
 
     [Test]
-    public async ValueTask catalog_registration_is_empty_under_no_requirements_policy(CancellationToken ct) {
-        // Arrange — real governance, the live catalog entry for RaceCar, and today's live
-        // policy (NoRequirements): the registration completes empty without touching the
+    public async ValueTask catalog_registration_is_empty_when_schema_options_are_disabled(CancellationToken ct) {
+        // Arrange — real governance, the live catalog entry for RaceCar, and the default
+        // schema options (Disabled): the registration completes empty without touching the
         // registry, and steady-state governance stays pure lookup.
-        var streams = new StreamsClient(Fixture.Client);
-        var policy  = streams.RegistryPolicy;
-
         var raceCarType = typeof(Kurrent.Testkit.Datasets.ArcadeRacer.Model.RaceCar);
 
         var catalogs = MessageCatalogDiscovery.GetCatalogs()
@@ -159,11 +156,7 @@ public class CatalogRegistrationTests {
 
         var schemaName = MessageResolver.From(catalogs).ResolveSchemaName(raceCarType);
 
-        var resolved = policy
-            .Resolve(Schema, null, SchemaDataFormat.Json)
-            .EnsureDataFormatCompliance(SchemaDataFormat.Json);
-
-        var governance = SchemaGovernance.Create(Fixture.Client, catalogs, resolved);
+        var governance = SchemaGovernance.Create(Fixture.Client, catalogs, Schema);
 
         // Act
         var registered = await governance.CatalogRegistration;
@@ -172,7 +165,7 @@ public class CatalogRegistrationTests {
         // is pure lookup returning Unset.
         await Assert.That(registered.Count).IsEqualTo(0);
 
-        var versionId = await governance.EnsureRegistered(schemaName, raceCarType, resolved, ct);
+        var versionId = await governance.EnsureRegistered(schemaName, raceCarType, ct);
         await Assert.That(versionId).IsEqualTo(SchemaVersionId.Unset);
     }
 }

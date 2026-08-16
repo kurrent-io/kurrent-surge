@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Schema;
 using Kurrent.Surge.Tests.Fixtures;
 using NJsonSchema;
 using NJ = Kurrent.Surge.Tests.Fixtures.JsonNodeSchemaHelpers;

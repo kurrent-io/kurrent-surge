@@ -34,9 +34,7 @@ public sealed class SchemaService(RegistryClient registry, ILogger<SchemaService
     /// Dry-run a proposed change. Returns compatibility errors instead of throwing
     /// so callers can inspect what broke.
     /// </summary>
-    public async Task<CompatibilityResult> CheckCompatibility(
-        SchemaName schemaName, string proposedDefinition
-    ) {
+    public async Task<CompatibilityResult> CheckCompatibility(SchemaName schemaName, string proposedDefinition) {
         try {
             await registry.CheckSchemaCompatibility(
                 schemaName, proposedDefinition, SchemaDataFormat.Json);
@@ -63,12 +61,11 @@ public sealed class SchemaService(RegistryClient registry, ILogger<SchemaService
     public async Task<SchemaVersion> ResolveVersion(SchemaVersionId versionId) =>
         await registry.GetSchemaVersionById(versionId);
 
-    public async Task<IReadOnlyList<Schema>> Discover(string? prefix = null, string? team = null) {
-        return await registry.ListSchemas(r => {
-            if (prefix is not null) r.SchemaNamePrefix = prefix;
-            if (team is not null)   r.AddTag("team", team);
+    public async Task<IReadOnlyList<Schema>> Discover(string? prefix = null, string? team = null) =>
+        await registry.ListSchemas(r => {
+            if (prefix is { }) r.SchemaNamePrefix = prefix;
+            if (team is { })   r.AddTag("team", team);
         });
-    }
 
     public async Task Delete(SchemaName schemaName) {
         await registry.DeleteSchema(schemaName);
