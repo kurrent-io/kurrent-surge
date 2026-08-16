@@ -44,9 +44,12 @@ public sealed class KurrentDBServerResource : Resource, IResourceWithConnectionS
 
     public ParameterResource LicenseKeyParameter { get; }
     
+    // Read-only replicas are excluded: they never become cluster members and never vote, and the
+    // server documents the seed list as every other cluster node except read-only replicas.
     // No space after the comma: the server splits the seed list on ',' verbatim, and a
     // leading space makes the hostname unparseable (UriFormatException per peer).
-    public string GossipSeeds => string.Join(",", _nodes.Select(n => $"{n.Name}:{DefaultHttpPort}"));
+    public string GossipSeeds =>
+        string.Join(",", _nodes.Where(n => !n.IsReadOnlyReplica).Select(n => $"{n.Name}:{DefaultHttpPort}"));
 
     public KurrentDBResource AddNode(string nodeName, int priority = 0) {
         var node = new KurrentDBResource(nodeName, this, priority);

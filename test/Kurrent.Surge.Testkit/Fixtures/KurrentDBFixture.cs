@@ -16,9 +16,15 @@ namespace Kurrent.Surge.Testkit;
 public class KurrentDBFixture : AspireFixture {
     protected virtual string ResourceName => KurrentDBServerResource.DefaultResourceName;
 
+    /// <summary>
+    /// Time allowed for every resource to start and report healthy.
+    /// </summary>
+    protected virtual TimeSpan StartupTimeout => TimeSpan.FromSeconds(30);
+
     public KurrentDBFixture() {
         Options = Options with {
-            ShouldWaitForResource = r => r is KurrentDBResource
+            ShouldWaitForResource = r => r is KurrentDBResource,
+            StartupTimeout        = this.StartupTimeout
         };
 
         ConfigureBuilder = builder => {
@@ -177,14 +183,38 @@ public sealed class KurrentDBScavengeFixture : KurrentDBFixture {
 /// Three-node cluster + one replica with TLS enabled.
 /// </summary>
 public sealed class KurrentDBClusterFixture : KurrentDBFixture {
-    // Distinct resource name: the certs directory is keyed by it, and the cluster needs
-    // its own certificate set (SANs covering every node name) without touching the
-    // material the persistent single-node containers already loaded.
-    protected override string ResourceName => "kdb-cluster";
+    // Unique per run, and never persistent: the cluster test resigns the leader, so a reused
+    // cluster hands the next run a resigned leader and an already-registered catalog. The name
+    // also keys the certificate directory — the cluster needs its own set, with SANs covering
+    // every node name — and the derived host-port block, so both follow it automatically.
+    protected override string ResourceName { get; } = $"kdb-cluster-{Guid.NewGuid().ToString("N")[..8]}";
+
+    // A cold cluster is not usable until it elects a leader, and election runs well past the
+    // single-node default — observed still cycling views at 29s on an idle machine.
+    protected override TimeSpan StartupTimeout => TimeSpan.FromMinutes(3);
 
     protected override void ConfigureSettings(KurrentDBSettings settings) {
-        settings.Lifetime = ContainerLifetime.Persistent;
+        settings.Lifetime = ContainerLifetime.Session;
         settings.WithCluster(nodes: 3, replicas: 1);
+        settings.TlsEnabled = true;
+    }
+}
+
+/// <summary>
+/// Five-node cluster with two read-only replicas and TLS enabled. Quorum is three, so it
+/// tolerates two node failures — twice what the three-node fixture survives.
+/// </summary>
+public sealed class KurrentDBLargeClusterFixture : KurrentDBFixture {
+    // Same reasoning as the three-node cluster: unique per run, never persistent.
+    protected override string ResourceName { get; } = $"kdb-penta-{Guid.NewGuid().ToString("N")[..8]}";
+
+    // Seven containers, each generating TLS material and joining gossip before the cluster is
+    // usable, so it needs more headroom than the three-node fixture.
+    protected override TimeSpan StartupTimeout => TimeSpan.FromMinutes(5);
+
+    protected override void ConfigureSettings(KurrentDBSettings settings) {
+        settings.Lifetime = ContainerLifetime.Session;
+        settings.WithCluster(nodes: 5, replicas: 2);
         settings.TlsEnabled = true;
     }
 }

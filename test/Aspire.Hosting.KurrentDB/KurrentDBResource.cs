@@ -60,6 +60,19 @@ public sealed class KurrentDBResource : ContainerResource, IResourceWithConnecti
             ctx.EnvironmentVariables["KURRENTDB_ADVERTISE_NODE_PORT_TO_CLIENT_AS"] = ReferenceExpression.Create($"{PrimaryEndpoint.Property(EndpointProperty.Port)}");
         ctx.EnvironmentVariables["KURRENTDB_READ_ONLY_REPLICA"]                = IsReadOnlyReplica.ToString().ToLowerInvariant();
 
+        // Containers reach the election phase seconds apart, and at stock timings a node
+        // discovers a peer more slowly than it concludes an election (gossip interval 2000ms
+        // vs leader election timeout 1000ms). The first node up then elects itself and writes
+        // an epoch before its peers exist; a second node does the same, the epochs diverge on
+        // empty logs, and the leader logs "No common epoch found for replica" and never
+        // converges. Gossip faster than an election completes, and hold the election open long
+        // enough for a straggler to join.
+        if (settings.Topology.TotalNodeCount > 1) {
+            ctx.EnvironmentVariables["KURRENTDB_GOSSIP_INTERVAL_MS"]         = "500";
+            ctx.EnvironmentVariables["KURRENTDB_GOSSIP_TIMEOUT_MS"]          = "5000";
+            ctx.EnvironmentVariables["KURRENTDB_LEADER_ELECTION_TIMEOUT_MS"] = "3000";
+        }
+
         if (Priority != 0)
             ctx.EnvironmentVariables["KURRENTDB_NODE_PRIORITY"] = Priority.ToString();
 

@@ -37,9 +37,19 @@ sealed partial class KurrentDBHealthCheck(string resourceName, ResourceConnectio
                 .AnyAsync(cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            return hasRecords
-                ? HealthCheckResult.Healthy()
-                : throw new UnreachableException($"It is impossible for {resourceName} to not have records.");
+            if (!hasRecords)
+                throw new UnreachableException($"It is impossible for {resourceName} to not have records.");
+
+            // A node answers reads well before the schema registry can serve writes — on a cold
+            // multi-node cluster the registry's own streams do not exist yet, and a client that
+            // auto-registers its catalog on connect fails with an Internal error wrapping
+            // StreamNotFound. Listing schemas exercises the registry subsystem, so readiness
+            // means what a client actually needs rather than only that the log is reachable.
+            await client.Registry
+                .ListSchemas(ct: cancellationToken)
+                .ConfigureAwait(false);
+
+            return HealthCheckResult.Healthy();
         }
         catch (Exception ex) {
             return new(context.Registration.FailureStatus, exception: ex);
