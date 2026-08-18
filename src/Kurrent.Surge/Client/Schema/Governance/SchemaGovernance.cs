@@ -92,7 +92,7 @@ sealed class SchemaGovernance : ISchemaGovernance {
 
     public async ValueTask<SchemaVersionId> EnsureRegistered(SchemaName schema, Type messageType, CancellationToken ct) {
         if (_options.RegistrationMode is SchemaRegistrationMode.Auto)
-            return (await TryRegister(schema, messageType, RegistrationDataFormat, ct).ConfigureAwait(false)).VersionId;
+            return (await TryRegister(schema, messageType, ct).ConfigureAwait(false)).VersionId;
 
         if (_options.ValidationMode is SchemaValidationMode.Enabled)
             return await EnsureCompatibleByName(schema, messageType, RegistrationDataFormat, ct).ConfigureAwait(false);
@@ -101,26 +101,21 @@ sealed class SchemaGovernance : ISchemaGovernance {
     }
 
     public async ValueTask<SchemaVersionId> EnsureCompatible(RecordSchemaInfo schemaInfo, Type messageType, CancellationToken ct) {
-        try {
-            if (_options.ValidationMode is not SchemaValidationMode.Enabled)
-                return SchemaVersionId.Unset;
+        if (_options.ValidationMode is not SchemaValidationMode.Enabled)
+            return SchemaVersionId.Unset;
 
-            if (schemaInfo.HasSchemaId) {
-                await EnsureCompatibleByVersion(schemaInfo.VersionId, messageType, schemaInfo.DataFormat, ct).ConfigureAwait(false);
+        if (schemaInfo.HasSchemaId) {
+            await EnsureCompatibleByVersion(schemaInfo.VersionId, messageType, schemaInfo.DataFormat, ct).ConfigureAwait(false);
 
-                // The record already carries its version id — nothing to backfill.
-                return SchemaVersionId.Unset;
-            }
-
-            // Records appended without a version id: compatibility by name, id returned for backfill.
-            return await EnsureCompatibleByName(schemaInfo.Schema, messageType, schemaInfo.DataFormat, ct).ConfigureAwait(false);
+            // The record already carries its version id — nothing to backfill.
+            return SchemaVersionId.Unset;
         }
-        catch (Exception ex) when (ex is not SchemaValidationException and not OperationCanceledException) {
-            throw new SchemaCodecDecodingException(schemaInfo.DataFormat, schemaInfo.Schema, ex);
-        }
+
+        // Records appended without a version id: compatibility by name, id returned for backfill.
+        return await EnsureCompatibleByName(schemaInfo.Schema, messageType, schemaInfo.DataFormat, ct).ConfigureAwait(false);
     }
 
-    async ValueTask<SchemaVersionDescriptor> TryRegister(SchemaName schema, Type messageType, SchemaDataFormat dataFormat, CancellationToken ct) {
+    async ValueTask<SchemaVersionDescriptor> TryRegister(SchemaName schema, Type messageType, CancellationToken ct) {
         if (Versions.TryGetValue(messageType, out var versions))
             return versions[^1];
 
@@ -133,17 +128,17 @@ sealed class SchemaGovernance : ISchemaGovernance {
             // other failure propagates instead of being mistaken for an unregistered schema.
         }
 
-        var definition = _exporter.Export(messageType, dataFormat);
+        var definition = _exporter.Export(messageType, RegistrationDataFormat);
 
         try {
-            return Cache(await _registry.CreateSchema(schema, definition, dataFormat, ct).ConfigureAwait(false));
+            return Cache(await _registry.CreateSchema(schema, definition, RegistrationDataFormat, ct).ConfigureAwait(false));
         }
         catch (SchemaAlreadyExistsException) {
             // The name is taken. Either another client registered this same type first — likely,
             // since registry reads lag writes by a few hundred milliseconds — or the name maps to
             // a different type. Compatibility separates the two: a mismatch is a real error, not
             // a race.
-            return new(await EnsureCompatibleByName(schema, messageType, dataFormat, ct).ConfigureAwait(false), 0);
+            return new(await EnsureCompatibleByName(schema, messageType, RegistrationDataFormat, ct).ConfigureAwait(false), 0);
         }
 
         SchemaVersionDescriptor Cache(SchemaVersionDescriptor descriptor) {

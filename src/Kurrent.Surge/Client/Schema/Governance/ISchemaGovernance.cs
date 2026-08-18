@@ -6,10 +6,9 @@ using Kurrent.Surge.Schema.Catalogs;
 namespace Kurrent.Surge.Client.Schema.Governance;
 
 /// <summary>
-/// Schema registry governance as a standalone service: the effectful half of today's
-/// <c>SchemaManager</c>, with catalog resolution evicted to pipeline steps. Both methods
-/// receive already-resolved inputs and short-circuit synchronously when the client's
-/// schema options require nothing.
+/// Schema registry governance as a standalone service, with catalog resolution evicted to
+/// pipeline steps. Both methods receive already-resolved inputs and short-circuit
+/// synchronously when the client's schema options require nothing.
 /// </summary>
 interface ISchemaGovernance {
     /// <summary>

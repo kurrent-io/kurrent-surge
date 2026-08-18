@@ -36,8 +36,9 @@ public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOpt
 	};
 
 	/// <summary>
-	/// Registers the schemas of produced messages automatically and never validates.
-	/// Consuming stays tolerant: records with unknown schemas pass through reads undecoded.
+	/// Registers every schema in the client's message catalogs at initialization and never
+	/// validates. Consuming stays tolerant: records with unknown schemas pass through reads
+	/// undecoded.
 	/// </summary>
 	public static KurrentClientSchemaOptions AutoRegister => new() {
 		RegistrationMode = SchemaRegistrationMode.Auto,
@@ -61,12 +62,13 @@ public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOpt
 /// </summary>
 public enum SchemaRegistrationMode {
 	/// <summary>
-	/// Automatically register schemas when they are first encountered.
+	/// Register every schema in the client's message catalogs when the client initializes.
+	/// Types outside a catalog are never registered.
 	/// </summary>
 	Auto,
 
 	/// <summary>
-	/// Do not register schemas automatically - schemas must be pre-registered.
+	/// Never register. Schemas must already exist in the registry.
 	/// </summary>
 	Manual
 }
