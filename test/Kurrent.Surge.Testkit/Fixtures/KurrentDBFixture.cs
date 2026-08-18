@@ -180,13 +180,25 @@ public sealed class KurrentDBScavengeFixture : KurrentDBFixture {
 }
 
 /// <summary>
-/// Three-node cluster + one replica with TLS enabled.
+/// Three-node cluster with no read-only replicas and TLS enabled. Every member is
+/// election-eligible, so gossip reports exactly one leader and two followers.
+/// </summary>
+public sealed class KurrentDBClusterNoReplicasFixture : KurrentDBFixture {
+    protected override string ResourceName { get; } = $"kdb-cluster-{Guid.NewGuid().ToString("N")[..8]}";
+
+    protected override TimeSpan StartupTimeout => TimeSpan.FromMinutes(3);
+
+    protected override void ConfigureSettings(KurrentDBSettings settings) {
+        settings.Lifetime = ContainerLifetime.Session;
+        settings.WithCluster(nodes: 3, replicas: 0);
+        settings.TlsEnabled = true;
+    }
+}
+
+/// <summary>
+/// Three-node cluster with one replica with TLS enabled.
 /// </summary>
 public sealed class KurrentDBClusterFixture : KurrentDBFixture {
-    // Unique per run, and never persistent: the cluster test resigns the leader, so a reused
-    // cluster hands the next run a resigned leader and an already-registered catalog. The name
-    // also keys the certificate directory — the cluster needs its own set, with SANs covering
-    // every node name — and the derived host-port block, so both follow it automatically.
     protected override string ResourceName { get; } = $"kdb-cluster-{Guid.NewGuid().ToString("N")[..8]}";
 
     // A cold cluster is not usable until it elects a leader, and election runs well past the
@@ -205,11 +217,8 @@ public sealed class KurrentDBClusterFixture : KurrentDBFixture {
 /// tolerates two node failures — twice what the three-node fixture survives.
 /// </summary>
 public sealed class KurrentDBLargeClusterFixture : KurrentDBFixture {
-    // Same reasoning as the three-node cluster: unique per run, never persistent.
-    protected override string ResourceName { get; } = $"kdb-penta-{Guid.NewGuid().ToString("N")[..8]}";
-
-    // Seven containers, each generating TLS material and joining gossip before the cluster is
-    // usable, so it needs more headroom than the three-node fixture.
+    protected override string ResourceName { get; } = $"kdb-cluster-{Guid.NewGuid().ToString("N")[..8]}";
+    
     protected override TimeSpan StartupTimeout => TimeSpan.FromMinutes(5);
 
     protected override void ConfigureSettings(KurrentDBSettings settings) {
