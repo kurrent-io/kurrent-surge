@@ -25,7 +25,7 @@
     <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
-    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="Microsoft.Extensions.Resilience" />
     <PackageReference Include="kurrent.quack" />
   </ItemGroup>
 

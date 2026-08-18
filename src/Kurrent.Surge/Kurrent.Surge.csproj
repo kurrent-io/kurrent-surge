@@ -55,7 +55,7 @@
     <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
 <!--    <PackageReference Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization" />-->
-<!--    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />-->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
   </ItemGroup>
 
