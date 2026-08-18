@@ -98,7 +98,7 @@ static class TypeResolutionSteps {
 sealed class DecodeReadStep(SchemaCodecProvider codecs) : IStep<DecodableRead, DecodeOutcome> {
     public ValueTask<DecodeOutcome> Execute(DecodableRead input, CancellationToken ct) {
         var record = input.Source;
-
+        
         var codec = codecs.GetCodec(record.Schema.DataFormat);
 
         try {

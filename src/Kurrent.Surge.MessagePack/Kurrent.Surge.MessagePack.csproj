@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Kurrent.Surge.MessagePack</PackageId>
+    <PackageId>Kurrent.Surge.Codecs.MessagePack</PackageId>
     <IsPackable>true</IsPackable>
     <Title>Kurrent Surge MessagePack Serializer</Title>
     <Product>Kurrent Surge MessagePack Serializer</Product>
