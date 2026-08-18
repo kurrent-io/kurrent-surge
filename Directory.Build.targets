@@ -40,7 +40,7 @@
 
     Analyzer: wires into the Roslyn pipeline at evaluation time (must be early).
     Vendor/Bundle: types flow transitively during build — PrivateAssets is NOT
-    set here. It's set pack-time-only by _SuppressFlaggedDepsFromNuspec so
+    set here. It's set by the _SuppressFlaggedDeps-gated group below so
     bundled/vendored types remain available to downstream ProjectReference
     consumers while still being excluded from the nuspec.
   -->
@@ -56,13 +56,17 @@
   </ItemGroup>
 
   <!--
-    Pack-time only: suppress Vendor/Bundle references from the nuspec dependency list.
-    _IsPacking is set by the .NET SDK (7+) when dotnet pack is invoked.
+    Suppress Vendor/Bundle references from the nuspec dependency list.
     Evaluation-time so PrivateAssets is visible to the NuGet dependency walker.
-    Normal builds (dotnet build/run/test) never see _IsPacking=true, so types
-    flow transitively to downstream ProjectReference consumers.
+
+    Gated on _SuppressFlaggedDeps, which ONLY _RestoreForPack below passes, never the CLI.
+    It must not be gated on _IsPacking: the SDK sets that as a GLOBAL property, so it flows
+    into every referenced project. Packing a downstream project (dotnet pack Kurrent.Surge)
+    would then restore Kurrent.Surge.Core with its bundled edge private, write
+    PrivateAssets="all" into the DOWNSTREAM project's assets file, and strip the bundled
+    types from a compilation that needs them (CS0234 on Kurrent.Variant).
   -->
-  <ItemGroup Condition="'$(_IsPacking)' == 'true'">
+  <ItemGroup Condition="'$(_SuppressFlaggedDeps)' == 'true'">
     <PackageReference Update="@(PackageReference->WithMetadataValue('Vendor', 'true'))"
                       PrivateAssets="all" />
     <ProjectReference Update="@(ProjectReference->WithMetadataValue('Bundle', 'true'))"
@@ -75,7 +79,8 @@
     NuGet's PackTask reads project-to-project dependencies straight from project.assets.json
     (RestoreMetadata.TargetFrameworks[].ProjectReferences[].PrivateAssets) and omits a dependency
     only when PrivateAssets there is "all". That field is written at RESTORE time from the
-    PrivateAssets metadata above — which is only set when restore runs under _IsPacking. A pack
+    PrivateAssets metadata above — which is only set when restore runs under
+    _SuppressFlaggedDeps. A pack
     that reuses a build-time restore graph (a no-restore pack, or a no-build pack that skips the
     writing restore, as CI and release do) therefore reads PrivateAssets="None" and leaks the
     bundled project into the nuspec as a phantom dependency (NU1101 on the consumer).
@@ -83,9 +88,11 @@
     The PrivateAssets metadata is NOT exposed to PackTask through any MSBuild item it consumes
     (@(_ProjectReferencesWithVersions) only carries version overrides), and the on-disk assets
     file cannot be patched between restore and PackTask. So the only invocation-independent fix is
-    to force a pack-context restore here: re-run Restore under _IsPacking so the assets file carries
-    PrivateAssets="all" before PackTask reads it. RestoreForce defeats the "up-to-date" skip when a
-    prior non-pack restore already wrote the graph.
+    to force a pack-context restore here: re-run Restore under _SuppressFlaggedDeps so the assets
+    file carries PrivateAssets="all" before PackTask reads it. RestoreForce defeats the
+    "up-to-date" skip when a prior non-pack restore already wrote the graph. Running
+    BeforeTargets="GenerateNuspec" puts this after Build, so the rewritten graph cannot reach
+    the compilation that already happened.
 
     This only runs while packing (_IsPacking=true) and only when there is something to suppress, so
     it adds nothing to build/test/run — whose restore graph keeps PrivateAssets="None" and lets the
@@ -98,7 +105,7 @@
                       '@(PackageReference->WithMetadataValue('Vendor', 'true'))' != '')">
     <MSBuild Projects="$(MSBuildProjectFullPath)"
              Targets="Restore"
-             Properties="_IsPacking=true;RestoreForce=true;Configuration=$(Configuration)" />
+             Properties="_SuppressFlaggedDeps=true;RestoreForce=true;Configuration=$(Configuration)" />
   </Target>
 
   <!--
