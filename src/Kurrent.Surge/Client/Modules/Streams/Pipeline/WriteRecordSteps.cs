@@ -40,7 +40,10 @@ readonly record struct EncodedWrite(AppendRecord Source, RecordSchemaInfo Schema
 sealed class ClassifyWriteStep(MessageResolver messages) : IStep<AppendRecord, WriteResolution> {
     public ValueTask<WriteResolution> Execute(AppendRecord input, CancellationToken ct) =>
         new(input.DataFormat == SchemaDataFormat.Bytes
-            ? (WriteResolution)new EncodedWrite(input, new RecordSchemaInfo { DataFormat = SchemaDataFormat.Bytes }, UnwrapBytes(input.Value))
+            ? (WriteResolution)new EncodedWrite(
+                input,
+                new RecordSchemaInfo { Schema = SchemaName.From(input.SchemaName!), DataFormat = SchemaDataFormat.Bytes },
+                UnwrapBytes(input.Value))
             : (WriteResolution)new NamedWrite(input, messages.ResolveSchemaName(input.Value.GetType())));
 
     static ReadOnlyMemory<byte> UnwrapBytes(object? value) =>
@@ -87,7 +90,7 @@ sealed class GovernWriteStep(ISchemaGovernance governance) : IStep<NamedWrite, R
         // running on the client lifetime token for every other caller.
         var registered = await governance.CatalogRegistration.WaitAsync(ct).ConfigureAwait(false);
 
-        var schemaInfo = registered.TryGet(source.Value.GetType(), source.DataFormat, out var info)
+        var schemaInfo = registered.TryGet(source.Value!.GetType(), source.DataFormat, out var info)
             ? info
             : new RecordSchemaInfo { Schema = input.Schema, DataFormat = source.DataFormat };
 
@@ -101,17 +104,14 @@ sealed class GovernWriteStep(ISchemaGovernance governance) : IStep<NamedWrite, R
 sealed class EncodeWriteStep(SchemaCodecProvider codecs) : IStep<ResolvedWrite, EncodedWrite> {
     public ValueTask<EncodedWrite> Execute(ResolvedWrite input, CancellationToken ct) {
         var source = input.Source;
-        
-        if (source.Value is null)
-            return new(new EncodedWrite(source, input.Schema, ReadOnlyMemory<byte>.Empty));
 
-        var codec = codecs.GetCodec(source.DataFormat);   // SchemaCodecNotFoundException propagates as itself
+        var codec = codecs.GetCodec(source.DataFormat);
 
         try {
             return new(new EncodedWrite(source, input.Schema, codec.Encode(source.Value)));
         }
         catch (Exception ex) {
-            throw new SchemaCodecEncodingException(source.DataFormat, source.Value.GetType(), ex);
+            throw new SchemaCodecEncodingException(source.DataFormat, source.Value!.GetType(), ex);
         }
     }
 }
@@ -131,7 +131,7 @@ sealed class FrameWriteStep : IStep<EncodedWrite, Contracts.AppendRecord> {
             RecordId = source.RecordId.ToGuidString(),
             Data     = UnsafeByteOperations.UnsafeWrap(input.Payload),
             Schema   = new Contracts.SchemaInfo {
-                Name   = source.SchemaName ?? input.Schema.Schema,
+                Name   = input.Schema.Schema,
                 Format = (Contracts.SchemaFormat)input.Schema.DataFormat
             },
             Stream   = source.Stream

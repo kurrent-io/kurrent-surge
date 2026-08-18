@@ -117,14 +117,14 @@ public class AutoRegisterTests {
 
         var data = await Fixture.TestData.GenerateRecord(ct);
 
+        var expectedMessageType = data.Records.First().Value!.GetType();
+
         // Act
-        // The append-record mapper wraps the serializer's exception in an ArgumentException
-        // ("Failed to map AppendRecord for stream ..."), so the registration error surfaces as the inner.
-        var ex = await Assert.ThrowsAsync<ArgumentException>(
+        var ex = await Assert.ThrowsAsync<SchemaNameNotMappedException>(
             async () => await client.Streams.AppendStream(data.Stream, data.Records, ct));
 
         // Assert
-        await Assert.That(ex?.InnerException).IsTypeOf<SchemaNameNotMappedException>();
+        await Assert.That(ex?.MessageType).IsEqualTo(expectedMessageType);
     }
 
     [Test]

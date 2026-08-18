@@ -15,9 +15,9 @@ namespace Kurrent.Surge.Client.Streams;
 /// orchestration in <see cref="Execute"/> — they decide whether the chain runs at all.
 /// </summary>
 sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
-    ReadRecordPipeline(IStep<Record, DecodeOutcome> pipeline) => Pipeline = pipeline;
+    ReadRecordPipeline(IStep<Record, DecodeOutcome> pipeline) => _pipeline = pipeline;
 
-    public IStep<Record, DecodeOutcome> Pipeline { get; init; }
+    readonly IStep<Record, DecodeOutcome> _pipeline;
 
     /// <summary>
     /// Wires the canonical chain from client-composed parts.
@@ -67,6 +67,6 @@ sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
             }
         }
 
-        return await Pipeline.Execute(record, ct).ConfigureAwait(false);
+        return await _pipeline.Execute(record, ct).ConfigureAwait(false);
     }
 }

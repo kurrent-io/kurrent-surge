@@ -18,6 +18,7 @@ public class ClassifyWriteStepTests {
         var record = AppendRecord.Create(value, r => {
             r.Stream     = "classify-write-step-tests";
             r.DataFormat = SchemaDataFormat.Bytes;
+            r.SchemaName = "classify-write-step-schema";
         });
 
         var resolution = await sut.Execute(record, CancellationToken.None);

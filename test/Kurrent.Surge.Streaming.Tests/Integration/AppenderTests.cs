@@ -500,9 +500,9 @@ public class AppenderTests {
     #region ->> Failure <<-
 
     [Test]
-    public async ValueTask rejected_batch_fails_callbacks_and_the_lane_survives(CancellationToken ct) {
-        // Arrange — a raw-bytes record carries an empty wire schema name, which the server rejects;
-        // the follow-up record is valid and must flow through the same lane afterwards.
+    public async ValueTask rejected_record_throws_to_the_caller_and_the_lane_survives(CancellationToken ct) {
+        // Arrange — a raw-bytes record with no schema name fails validation on the caller's
+        // thread, so it never reaches a lane; the follow-up record must still flow through.
         var stream = $"appender-rejected-{TestId.New()}";
 
         var invalid = AppendRecord.Create(Faker.Random.Bytes(8), r => {
@@ -516,22 +516,15 @@ public class AppenderTests {
             opts.LingerTimeout = TimeSpan.FromMilliseconds(1);
         }));
 
-        AppendResult? rejected = null;
+        var callbackFired = false;
 
-        var rejectedSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        // Act — the rejected batch must fail its callback, and FlushAsync must return instead of hanging
-        await appender.Append(invalid, result => {
-            rejected = result;
-            rejectedSignal.TrySetResult();
-        }, ct);
+        // Act & Assert — rejected before enqueue, so the callback is never armed
+        await Assert.That(async () => await appender.Append(invalid, _ => callbackFired = true, ct))
+            .Throws<ValidationException>();
 
         await appender.FlushAsync(ct);
-        await rejectedSignal.Task.WaitAsync(ct);
 
-        // Assert — the failure surfaced instead of being swallowed
-        await Assert.That(rejected!.IsSuccess).IsFalse();
-        await Assert.That(rejected.Error).IsNotNull();
+        await Assert.That(callbackFired).IsFalse();
 
         // Act — the lane is still alive: a valid record appends and acknowledges through it
         var ack = await appender.AppendAsync(valid, ct);

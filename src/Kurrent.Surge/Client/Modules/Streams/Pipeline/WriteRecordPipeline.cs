@@ -14,9 +14,9 @@ namespace Kurrent.Surge.Client.Streams;
 /// chain runs at all.
 /// </summary>
 sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
-    WriteRecordPipeline(IStep<AppendRecord, Contracts.AppendRecord> pipeline) => Pipeline = pipeline;
+    WriteRecordPipeline(IStep<AppendRecord, Contracts.AppendRecord> pipeline) => _pipeline = pipeline;
 
-    public IStep<AppendRecord, Contracts.AppendRecord> Pipeline { get; init; }
+    readonly IStep<AppendRecord, Contracts.AppendRecord> _pipeline;
 
     /// <summary>
     /// Wires the canonical chain from client-composed parts.
@@ -33,16 +33,8 @@ sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
             .Then(new FrameWriteStep()));
 
     public async ValueTask<Contracts.AppendRecord> Execute(AppendRecord record, CancellationToken ct) {
-        try {
-            record.EnsureValid();
+        record.EnsureValid();
 
-            return await Pipeline.Execute(record, ct).ConfigureAwait(false);
-        }
-        // Validation speaks for itself, cancellation must surface as cancellation, and a
-        // failed catalog walk surfaces bare so both pipelines share one exception contract —
-        // the wrap preserves the mapping contract for the rest.
-        catch (Exception ex) when (ex is not ValidationException and not OperationCanceledException and not CatalogRegistrationFailedException) {
-            throw new ArgumentException($"Failed to map AppendRecord for stream '{record.Stream}'", ex);
-        }
+        return await _pipeline.Execute(record, ct).ConfigureAwait(false);
     }
 }

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics;
 
 namespace Kurrent;
@@ -21,7 +22,8 @@ static class SystemTypes {
             type == typeof(byte[]) ||
             type == typeof(ReadOnlyMemory<byte>) ||
             type == typeof(Memory<byte>) ||
-            type == typeof(ArraySegment<byte>);
+            type == typeof(ArraySegment<byte>) ||
+            type == typeof(ReadOnlySequence<byte>);
 
         /// <summary>
         /// Checks if the specified type is the placeholder type representing a missing type.

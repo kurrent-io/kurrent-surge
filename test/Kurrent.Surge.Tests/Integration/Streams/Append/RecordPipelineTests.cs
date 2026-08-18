@@ -11,6 +11,7 @@ using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 using Contracts = KurrentDB.Protocol.V2.Streams;
+using ValidationException = Kurrent.Validation.ValidationException;
 
 namespace Kurrent.Surge.Tests.Streams;
 
@@ -92,22 +93,20 @@ public class RecordPipelineTests {
     }
 
     [Test]
-    public async ValueTask governed_write_honors_an_explicit_schema_name_override_for_catalog_records(CancellationToken ct) {
-        // Arrange
+    public async ValueTask governed_write_rejects_a_schema_name_on_a_catalog_record(CancellationToken ct) {
+        // Arrange — the name belongs to raw payloads. A catalog record takes the catalog's name,
+        // so accepting one here would frame a name and a schema id describing different schemas.
         var pipeline = WriteRecordPipeline.Create(Resolver, Codecs, CreateGovernance());
-
-        var schemaNameOverride = $"parity-override-{TestId.New()}";
 
         var record = AppendRecord.Create(RaceCar.Generate(), r => {
             r.Stream     = $"governed-parity-{TestId.New()}";
-            r.SchemaName = schemaNameOverride;
+            r.SchemaName = $"parity-override-{TestId.New()}";
         });
 
-        // Act
-        var actual = await pipeline.Execute(record, ct);
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ValidationException>(async () => await pipeline.Execute(record, ct));
 
-        // Assert — the explicit override wins over the catalog-resolved name.
-        await AssertCatalogRecordFrame(actual, record, schemaNameOverride);
+        await Assert.That(ex?.Errors).Contains(p => p.FieldName == nameof(AppendRecord.SchemaName));
     }
 
     [Test]

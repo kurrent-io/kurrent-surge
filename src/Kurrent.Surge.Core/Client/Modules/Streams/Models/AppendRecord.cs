@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Surge.Schema;
 using Kurrent.Validation;
@@ -29,6 +30,53 @@ public record AppendRecord : SelfValidating {
     /// </summary>
     public static AppendRecord Create(object value, Action<AppendRecord> configure) {
         var record = new AppendRecord { Value = value };
+        configure(record);
+        return record;
+    }
+
+    /// <summary>
+    /// Creates a raw-payload record carrying <paramref name="value"/> under
+    /// <paramref name="schemaName"/>. The format is <see cref="SchemaDataFormat.Bytes"/>, which
+    /// bypasses catalog resolution, so the name is supplied here instead of resolved from a type.
+    /// An empty payload is a valid raw record.
+    /// </summary>
+    public static AppendRecord Create(ReadOnlyMemory<byte> value, SchemaName schemaName) =>
+        new() {
+            Value      = value,
+            DataFormat = SchemaDataFormat.Bytes,
+            SchemaName = schemaName
+        };
+
+    /// <summary>
+    /// Creates a raw-payload record carrying <paramref name="value"/> under
+    /// <paramref name="schemaName"/>, then applies <paramref name="configure"/> to set the
+    /// stream, metadata, or any other field.
+    /// </summary>
+    public static AppendRecord Create(ReadOnlyMemory<byte> value, SchemaName schemaName, Action<AppendRecord> configure) {
+        var record = Create(value, schemaName);
+        configure(record);
+        return record;
+    }
+
+    /// <summary>
+    /// Creates a raw-payload record carrying <paramref name="value"/> under
+    /// <paramref name="schemaName"/>. A multi-segment sequence is copied when the payload is
+    /// framed; a single-segment one is not.
+    /// </summary>
+    public static AppendRecord Create(ReadOnlySequence<byte> value, SchemaName schemaName) =>
+        new() {
+            Value      = value,
+            DataFormat = SchemaDataFormat.Bytes,
+            SchemaName = schemaName
+        };
+
+    /// <summary>
+    /// Creates a raw-payload record carrying <paramref name="value"/> under
+    /// <paramref name="schemaName"/>, then applies <paramref name="configure"/> to set the
+    /// stream, metadata, or any other field.
+    /// </summary>
+    public static AppendRecord Create(ReadOnlySequence<byte> value, SchemaName schemaName, Action<AppendRecord> configure) {
+        var record = Create(value, schemaName);
         configure(record);
         return record;
     }
@@ -68,11 +116,11 @@ public record AppendRecord : SelfValidating {
     } = SchemaDataFormat.Json;
 
     /// <summary>
-    /// Optional schema name for the record. When set, it overrides the name resolved from the
-    /// value's type through the message catalog. Raw payloads have no type mapping to resolve a
-    /// name from, and the server rejects an empty one — they need this set explicitly.
+    /// The schema name for a raw payload. A <see cref="SchemaDataFormat.Bytes"/> record bypasses
+    /// catalog resolution and has no type to resolve a name from, so it carries its name here.
+    /// Every other format takes its name from the message catalog.
     /// </summary>
-    public string? SchemaName {
+    internal string? SchemaName {
         get;
         set {
             field = value;
@@ -108,8 +156,11 @@ public record AppendRecord : SelfValidating {
         if (RecordId == RecordId.None)
             (problems ??= []).Add(ValidationProblem.CreateForField(nameof(RecordId), "Record ID cannot be empty.", RecordId));
 
-        if (Value is null)
-            (problems ??= []).Add(ValidationProblem.CreateForField(nameof(Value), "Record value cannot be null."));
+        if (Value is null && DataFormat != SchemaDataFormat.Bytes)
+            (problems ??= []).Add(
+                ValidationProblem.CreateForField(
+                    nameof(Value),
+                    "Record value cannot be null unless the schema format is 'Bytes'."));
 
         if (DataFormat == SchemaDataFormat.Unspecified)
             (problems ??= []).Add(ValidationProblem.CreateForField(nameof(DataFormat), "Schema format cannot be Unspecified.", DataFormat));
@@ -119,6 +170,20 @@ public record AppendRecord : SelfValidating {
                 ValidationProblem.CreateForField(
                     nameof(DataFormat),
                     "Schema format must be 'Bytes' when the value is a byte array.", DataFormat));
+
+        // Bytes bypasses catalog resolution, so nothing else can supply a name and the
+        // server rejects an empty one.
+        if (DataFormat == SchemaDataFormat.Bytes && string.IsNullOrWhiteSpace(SchemaName))
+            (problems ??= []).Add(
+                ValidationProblem.CreateForField(
+                    nameof(SchemaName),
+                    "Schema name is required when the schema format is 'Bytes'.", SchemaName));
+
+        if (SchemaName is not null && DataFormat != SchemaDataFormat.Bytes)
+            (problems ??= []).Add(
+                ValidationProblem.CreateForField(
+                    nameof(SchemaName),
+                    "Schema name applies only to the 'Bytes' format; every other format takes its name from the message catalog.", SchemaName));
 
         return problems is not null
             ? ValidationResult.Failure(ErrorCode.FromType<AppendRecord>(), [.. problems])
