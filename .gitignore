@@ -569,3 +569,6 @@ benchmark-*.html
 skills-lock.json
 .impeccable.md
 .playwright-mcp
+
+# Source-generator output — emitted on every build, never committed
+**/generated/
