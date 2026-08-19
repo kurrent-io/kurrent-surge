@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Kurrent.Surge.Codecs.Avro</PackageId>
+    <IsPackable>true</IsPackable>
+    <Title>Kurrent Surge Avro Codec</Title>
+    <Product>Kurrent Surge Avro Codec</Product>
+    <Description>Avro codec for Kurrent Surge, built on the official Apache.Avro library. Message types are generated from .avsc schema files. Not compatible with Native AOT or trimming.</Description>
+    <PackageTags>kurrent kurrentdb surge avro serialization schema</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Public dependency: Kurrent.Surge.Codecs.Avro.nupkg depends on Kurrent.Surge.Core.nupkg, which
+         declares ISchemaCodec — the pure, dependency-free codec surface this package plugs into. -->
+    <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Apache.Avro" />
+    <!-- Generates ISpecificRecord classes from .avsc/.avpr/.avdl AdditionalFiles at compile time; flows to
+         consumers via PrivateAssets="none" so installing only Kurrent.Surge.Codecs.Avro is enough — see
+         .claude/context/project/packaging.md, Analyzer flow. -->
+    <PackageReference Include="AvroSourceGenerator" PrivateAssets="none" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+</Project>

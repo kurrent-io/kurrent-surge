@@ -223,7 +223,7 @@
 //         while (reader.Read()) {
 //             var document = JsonSerializer.Deserialize<Counter>(
 //                 reader.GetString(1),
-//                 Surge.Client.Schema.Serialization.Json.JsonSchemaSerializerOptions.DefaultJsonSerializerOptions)!;
+//                 Surge.Codecs.Json.JsonSchemaCodecOptions.DefaultJsonSerializerOptions)!;
 // 
 //             rows.Add((reader.GetString(0), document));
 //         }

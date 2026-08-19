@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "TestInvoiceLine",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    { "name": "Description", "type": "string" },
+    { "name": "UnitPrice", "type": "double" },
+    { "name": "Quantity", "type": "int" }
+  ]
+}

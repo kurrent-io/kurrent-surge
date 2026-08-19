@@ -4,9 +4,9 @@ using Kurrent.Surge.Codecs.Json;
 using Kurrent.Surge.Codecs.Protobuf;
 using Kurrent.Testkit.Datasets.ArcadeRacer;
 
-namespace Kurrent.Surge.Tests.Schema.Serialization;
+namespace Kurrent.Surge.Tests.Codecs;
 
-[Category("SerDe")]
+[Category("Codecs")]
 public class SchemaCodecTests {
 	[ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
 	public required BogusFaker Faker { get; [UsedImplicitly] init; }

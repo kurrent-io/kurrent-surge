@@ -1,7 +1,7 @@
 using Google.Protobuf.WellKnownTypes;
 using Kurrent.Surge.Codecs.Protobuf;
 
-namespace Kurrent.Surge.Tests.Schema.Serialization.Protobuf;
+namespace Kurrent.Surge.Tests.Codecs.Protobuf;
 
 public class ProtobufMessagesTests {
 	[After(Test)]

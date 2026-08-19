@@ -2,14 +2,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Kurrent.Surge.Codecs.Json;
-using Kurrent.Surge.Tests.Schema.Serialization.Fixtures;
+using Kurrent.Surge.Tests.Codecs.Fixtures;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 using NodaTime;
 using KurrentJsonContext = Kurrent.Surge.Codecs.Json.KurrentJsonContext;
 
-namespace Kurrent.Surge.Tests.Schema.Serialization.Json;
+namespace Kurrent.Surge.Tests.Codecs.Json;
 
-[Category("SerDe")]
+[Category("Codecs")]
 public class JsonSchemaCodecOptionsTests {
     [Test]
     public async Task default_options_has_camel_case_naming_policy() {

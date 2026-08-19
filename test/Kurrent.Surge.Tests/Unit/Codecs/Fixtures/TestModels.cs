@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
 
-namespace Kurrent.Surge.Tests.Schema.Serialization.Fixtures;
+namespace Kurrent.Surge.Tests.Codecs.Fixtures;
 
 [JsonSerializable(typeof(LapCompleted))]
 [JsonSerializable(typeof(OvertakePerformed))]

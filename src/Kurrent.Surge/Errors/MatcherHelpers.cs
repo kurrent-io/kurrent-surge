@@ -22,6 +22,9 @@ static class MatcherHelpers {
     public static OperationExceptionParser OnStatusCode(StatusCode statusCode, Func<Exception> build) =>
         (status, _) => (StatusCode)status.Code == statusCode ? build() : null;
 
+    public static OperationExceptionParser OnStatus(Predicate<Status> predicate, Func<Exception> build) =>
+        (status, _) => predicate(status) ? build() : null;
+    
     // Last resort for a module that sends neither ErrorInfo nor a typed detail — only a status message.
     // The raw message shapes matched are documented at the call site.
     public static OperationExceptionParser OnMessage(string contains, Func<Exception> build) =>

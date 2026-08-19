@@ -44,6 +44,21 @@ static class RegistryExceptionMatchers {
 }
 
 static class SchemaAlreadyExistsMatcher {
+    // A create that loses a race reports the registry stream's optimistic concurrency failure
+    // instead of AlreadyExists:
+    //
+    //   Status(Code="FailedPrecondition", Detail="Stream '$registry/schemas/<name>' revision was 0
+    //          but request expected -1")
+    //
+    // FailedPrecondition on its own is too broad — it also carries schema deletion — so the
+    // revision wording is what separates a lost create from the rest.
+    //
+    // Drop the second clause once the server classifies a lost create as AlreadyExists.
+    static bool IsSchemaTaken(Status status) =>
+        (StatusCode)status.Code == StatusCode.AlreadyExists
+     || ((StatusCode)status.Code == StatusCode.FailedPrecondition
+      && status.Message.Contains("revision was", StringComparison.Ordinal));
+
     extension(SchemaAlreadyExistsException) {
         public static SchemaAlreadyExistsException? Match(Status status, ErrorInfo? errorInfo) =>
             OnReason(status, errorInfo, SchemaAlreadyExistsException.Code, (d, m, i) => new SchemaAlreadyExistsException(d, m, i) {
@@ -51,7 +66,7 @@ static class SchemaAlreadyExistsMatcher {
             });
 
         public static OperationExceptionParser Match(SchemaName schema) =>
-            OnStatusCode(StatusCode.AlreadyExists, () => new SchemaAlreadyExistsException(schema));
+            OnStatus(IsSchemaTaken, () => new SchemaAlreadyExistsException(schema));
     }
 }
 

@@ -65,8 +65,8 @@ Kurrent.Client              ← gRPC client (streams, registry, connectors, admi
 ```
 
 **Current disk state differs**: the actual packable projects today are named `Kurrent.Surge`/`Kurrent.Surge.Core`
-plus opt-in add-ons (`Kurrent.Surge.Cli`, `Kurrent.Surge.Mcp`, `Kurrent.Surge.MessagePack`,
-`Kurrent.Surge.MessagePack.Nerdbank`, `Kurrent.Surge.Avro`, `Kurrent.Surge.Schema.Catalogs`) — verify the live
+plus opt-in add-ons (`Kurrent.Surge.Cli`, `Kurrent.Surge.AI.Mcp`, `Kurrent.Surge.Codecs.MessagePack`,
+`Kurrent.Surge.Codecs.NerdbankMessagePack`, `Kurrent.Surge.Codecs.Avro`, `Kurrent.Surge.Schema.Catalogs`) — verify the live
 list with `grep -l "IsPackable>true" src/*/*.csproj` before assuming either naming. `src/Kurrent.Client/` and
 `src/Kurrent.Streaming/` exist on disk with no `.csproj` — untracked leftovers, not real projects.
 

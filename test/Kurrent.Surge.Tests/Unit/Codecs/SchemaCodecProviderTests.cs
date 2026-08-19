@@ -1,9 +1,9 @@
 using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema;
 
-namespace Kurrent.Surge.Tests.Schema.Serialization;
+namespace Kurrent.Surge.Tests.Codecs;
 
-[Category("SerDe")]
+[Category("Codecs")]
 public class SchemaCodecProviderTests {
 	[Test]
 	public async ValueTask supports_and_resolves_registered_formats() {

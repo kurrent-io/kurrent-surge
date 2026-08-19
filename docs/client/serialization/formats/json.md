@@ -39,7 +39,7 @@ The JSON serializer ships with these settings:
 | TimeSpan converters           | ISO-8601 (nullable and non-nullable)             |
 | NodaTime                      | TZDB via `NodaTime.Serialization.SystemTextJson` |
 
-These settings are baked in. `JsonSchemaSerializerOptions` exposes two knobs:
+These settings are baked in. `JsonSchemaCodecOptions` exposes two knobs:
 
 - `UserJsonContexts`: source-generated `JsonSerializerContext` instances for AOT (see [AOT](#aot)).
 - `UseProtobufFormatter`: formats protobuf messages with the canonical protobuf JSON encoding. Defaults to on.
@@ -57,7 +57,7 @@ public partial class OrdersJsonContext : JsonSerializerContext;
 
 await using var client = KurrentClient.Create(
     "kurrentdb://localhost:2113",
-    opts => opts.Messages.Json = JsonSchemaSerializerOptions.Default with {
+    opts => opts.Messages.Json = JsonSchemaCodecOptions.Default with {
         UserJsonContexts = [OrdersJsonContext.Default]
     });
 ```

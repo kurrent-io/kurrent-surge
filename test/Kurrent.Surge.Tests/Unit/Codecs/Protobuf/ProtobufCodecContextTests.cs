@@ -1,9 +1,9 @@
 using Google.Protobuf.WellKnownTypes;
 using Kurrent.Surge.Codecs.Protobuf;
 
-namespace Kurrent.Surge.Tests.Schema.Serialization.Protobuf;
+namespace Kurrent.Surge.Tests.Codecs.Protobuf;
 
-[Category("SerDe")]
+[Category("Codecs")]
 public class ProtobufCodecContextTests {
 	[After(Test)]
 	public void cleanup() => ProtobufMessages.System.ClearCache();
