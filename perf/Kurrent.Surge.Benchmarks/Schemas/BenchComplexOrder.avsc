@@ -1,0 +1,30 @@
+{
+  "type": "record",
+  "name": "BenchComplexOrder",
+  "namespace": "Benchmarks.Avro",
+  "fields": [
+    { "name": "OrderId", "type": "string" },
+    { "name": "Customer", "type": {
+        "type": "record",
+        "name": "Customer",
+        "fields": [
+          { "name": "Name", "type": "string" },
+          { "name": "Age", "type": "int" }
+        ] } },
+    { "name": "Lines", "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "OrderLine",
+          "fields": [
+            { "name": "Sku", "type": "string" },
+            { "name": "Quantity", "type": "int" }
+          ] } } },
+    { "name": "Counters", "type": { "type": "map", "values": "long" } },
+    { "name": "Status", "type": {
+        "type": "enum",
+        "name": "OrderStatus",
+        "symbols": ["Pending", "Shipped", "Cancelled"] } },
+    { "name": "Note", "type": ["null", "string"] }
+  ]
+}

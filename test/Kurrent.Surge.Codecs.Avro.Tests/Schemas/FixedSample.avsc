@@ -1,0 +1,29 @@
+{
+  "type": "record",
+  "name": "FixedSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    {
+      "name": "Checksum",
+      "type": {
+        "type": "fixed",
+        "name": "Md5",
+        "size": 16
+      }
+    },
+    {
+      "name": "Salt",
+      "type": {
+        "type": "fixed",
+        "name": "Salt4",
+        "size": 4
+      },
+      "default": "\u00de\u00ad\u00be\u00ef"
+    },
+    {
+      "name": "Label",
+      "type": "string",
+      "default": "unnamed"
+    }
+  ]
+}

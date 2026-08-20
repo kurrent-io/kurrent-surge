@@ -1,0 +1,8 @@
+{
+  "type": "record",
+  "name": "BytesSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    { "name": "Payload", "type": "bytes" }
+  ]
+}

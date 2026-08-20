@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "LocalTimestampSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    { "name": "LocalMs", "type": { "type": "long", "logicalType": "local-timestamp-millis" } },
+    { "name": "LocalUs", "type": { "type": "long", "logicalType": "local-timestamp-micros" } }
+  ]
+}

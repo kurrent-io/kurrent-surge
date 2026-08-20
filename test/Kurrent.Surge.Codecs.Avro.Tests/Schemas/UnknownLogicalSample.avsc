@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "UnknownLogicalSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    { "name": "Nanos", "type": { "type": "long", "logicalType": "local-timestamp-nanos" } },
+    { "name": "Invented", "type": { "type": "string", "logicalType": "varchar", "maxLength": 65 } }
+  ]
+}

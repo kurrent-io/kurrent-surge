@@ -58,6 +58,7 @@
   </Folder>
   <Folder Name="/Extensions/">
     <Project Path="src/Kurrent.Surge.Cli/Kurrent.Surge.Cli.csproj" />
+    <Project Path="src/Kurrent.Surge.Codecs.Avro.Generators/Kurrent.Surge.Codecs.Avro.Generators.csproj" />
     <Project Path="src/Kurrent.Surge.Schema.Catalogs.Generators/Kurrent.Surge.Schema.Catalogs.Generators.csproj" />
     <Project Path="src/Kurrent.Surge.Schema.Catalogs/Kurrent.Surge.Schema.Catalogs.csproj" />
     <Project Path="src/Kurrent.Surge.AI.HuggingFace/Kurrent.Surge.AI.HuggingFace.csproj" />
@@ -72,6 +73,7 @@
     <Project Path="test/Kurrent.Surge.AI.HuggingFace.Tests/Kurrent.Surge.AI.HuggingFace.Tests.csproj" />
     <Project Path="test/Kurrent.Surge.Arrow.Tests/Kurrent.Surge.Arrow.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.AI.Mcp.Tests\Kurrent.Surge.AI.Mcp.Tests.csproj" />
+    <Project Path="test\Kurrent.Surge.Codecs.Avro.AotProbe\Kurrent.Surge.Codecs.Avro.AotProbe.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.Tests\Kurrent.Surge.Codecs.Avro.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.MessagePack.Tests\Kurrent.Surge.Codecs.MessagePack.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.NerdbankMessagePack.Tests\Kurrent.Surge.Codecs.NerdbankMessagePack.Tests.csproj" />
@@ -83,6 +85,7 @@
   <Project Path="src/Kurrent.Surge.SourceGenerators/Kurrent.Surge.SourceGenerators.csproj" />
   <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />
   <Project Path="src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+  <Project Path="test/Kurrent.Surge.Codecs.Avro.Generators.Tests/Kurrent.Surge.Codecs.Avro.Generators.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.SourceGenerators.Tests/Kurrent.Surge.SourceGenerators.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Streaming.Tests/Kurrent.Surge.Streaming.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Tests/Kurrent.Surge.Tests.csproj" />

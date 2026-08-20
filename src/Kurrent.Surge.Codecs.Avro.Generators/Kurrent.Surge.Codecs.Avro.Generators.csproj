@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- Ships to consumers inside the Kurrent.Surge.Codecs.Avro package (analyzers/dotnet/cs) so
+         Avro codecs are generated in THEIR compilations. Packing is orchestrated by
+         Kurrent.Surge.Codecs.Avro.csproj; this project is not independently packable. -->
+    <IsPackable>false</IsPackable>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+  </PropertyGroup>
+
+  <!-- Helper code is compiled straight into this generator assembly — no separate
+       Kurrent.CodeAnalysis.dll for the analyzer host to load (works in Rider too). -->
+  <Import Project="..\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.Sources.props" />
+</Project>

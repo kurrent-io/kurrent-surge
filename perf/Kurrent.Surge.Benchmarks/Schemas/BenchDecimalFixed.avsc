@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "BenchDecimalFixed",
+  "namespace": "Benchmarks.Avro",
+  "fields": [
+    { "name": "Amount", "type": {
+        "type": "fixed", "name": "BenchMoney", "size": 8,
+        "logicalType": "decimal", "precision": 12, "scale": 2 } }
+  ]
+}

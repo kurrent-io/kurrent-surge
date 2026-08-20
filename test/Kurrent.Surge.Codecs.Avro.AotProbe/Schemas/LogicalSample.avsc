@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "LogicalSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.AotProbe.Messages",
+  "fields": [
+    { "name": "Id",        "type": { "type": "string", "logicalType": "uuid" } },
+    { "name": "Amount",    "type": { "type": "bytes",  "logicalType": "decimal", "precision": 12, "scale": 2 } },
+    { "name": "Day",       "type": { "type": "int",    "logicalType": "date" } },
+    { "name": "TimeMs",    "type": { "type": "int",    "logicalType": "time-millis" } },
+    { "name": "StampMs",   "type": { "type": "long",   "logicalType": "timestamp-millis" } },
+    { "name": "StampUs",   "type": { "type": "long",   "logicalType": "timestamp-micros" } }
+  ]
+}

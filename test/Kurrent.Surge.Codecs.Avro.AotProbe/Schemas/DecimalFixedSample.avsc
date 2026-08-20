@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "DecimalFixedSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.AotProbe.Messages",
+  "fields": [
+    { "name": "Amount", "type": {
+        "type": "fixed", "name": "Money", "size": 8,
+        "logicalType": "decimal", "precision": 12, "scale": 2 } },
+    { "name": "Nanos", "type": { "type": "long", "logicalType": "timestamp-nanos" } },
+    { "name": "Invented", "type": { "type": "string", "logicalType": "varchar", "maxLength": 65 } }
+  ]
+}

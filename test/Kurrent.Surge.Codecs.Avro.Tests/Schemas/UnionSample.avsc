@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "UnionSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    { "name": "ThreeWay", "type": ["string", "int", "boolean"] },
+    { "name": "NullableThreeWay", "type": ["null", "string", "int"] },
+    { "name": "RecordUnion", "type": [
+        { "type": "record", "name": "Cat", "fields": [ { "name": "Lives", "type": "int" } ] },
+        { "type": "record", "name": "Dog", "fields": [ { "name": "Bark", "type": "string" } ] }
+      ] }
+  ]
+}

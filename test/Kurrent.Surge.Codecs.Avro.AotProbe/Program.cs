@@ -1,0 +1,165 @@
+using Kurrent.Surge.Codecs.Avro;
+using Kurrent.Surge.Codecs.Avro.AotProbe.Messages;
+
+// Published with PublishAot and run as a process. It is the only check that proves the generated codec
+// works under Native AOT: the analyzers can be satisfied by code that still fails at runtime, and the
+// failure this probe was written for — Activator.CreateInstance on a generated record — was invisible
+// until the binary ran.
+
+var codec = new AvroSchemaCodec();
+
+// Flat record — the original probe case.
+var flat         = new OrderPlaced { OrderId = "ORD-1", Amount = 42.5 };
+var flatBytes    = codec.Encode(flat);
+var flatRestored = (OrderPlaced)codec.Decode(flatBytes, typeof(OrderPlaced));
+
+var flatOk = flatRestored.OrderId == flat.OrderId && flatRestored.Amount == flat.Amount;
+
+Console.WriteLine($"FLAT      registered={AvroCodecRegistry.IsRegistered(typeof(OrderPlaced))} " +
+                  $"bytes={flatBytes.Length} roundtrip={(flatOk ? "OK" : "MISMATCH")}");
+
+// Nested record + array + map + enum + nullable union.
+var complex = new ComplexOrder {
+    OrderId  = "ORD-2",
+    Customer = new Customer { Name = "Ripley", Age = 32 },
+    Lines    = [
+        new OrderLine { Sku = "SKU-A", Quantity = 2 },
+        new OrderLine { Sku = "SKU-B", Quantity = 7 }
+    ],
+    Counters = new Dictionary<string, long> { ["hypersleep"] = 57L, ["decks"] = 3L },
+    Status   = OrderStatus.Shipped,
+    Note     = "handle with care"
+};
+
+var complexBytes    = codec.Encode(complex);
+var complexRestored = (ComplexOrder)codec.Decode(complexBytes, typeof(ComplexOrder));
+
+var complexOk =
+    complexRestored.OrderId           == complex.OrderId           &&
+    complexRestored.Customer.Name     == complex.Customer.Name     &&
+    complexRestored.Customer.Age      == complex.Customer.Age      &&
+    complexRestored.Lines.Count       == complex.Lines.Count       &&
+    complexRestored.Lines[0].Sku      == complex.Lines[0].Sku      &&
+    complexRestored.Lines[1].Quantity == complex.Lines[1].Quantity &&
+    complexRestored.Counters["hypersleep"] == 57L                  &&
+    complexRestored.Counters["decks"]      == 3L                   &&
+    complexRestored.Status            == complex.Status            &&
+    complexRestored.Note              == complex.Note;
+
+Console.WriteLine($"COMPLEX   registered={AvroCodecRegistry.IsRegistered(typeof(ComplexOrder))} " +
+                  $"bytes={complexBytes.Length} roundtrip={(complexOk ? "OK" : "MISMATCH")}");
+Console.WriteLine($"          nested={complexRestored.Customer.Name}/{complexRestored.Customer.Age} " +
+                  $"array={complexRestored.Lines.Count} map={complexRestored.Counters.Count} " +
+                  $"enum={complexRestored.Status} union={complexRestored.Note ?? "<null>"}");
+
+// A null in the union branch must also survive.
+var withoutNote  = complex with { Note = null };
+var nullBytes    = codec.Encode(withoutNote);
+var nullRestored = (ComplexOrder)codec.Decode(nullBytes, typeof(ComplexOrder));
+
+var nullOk = nullRestored.Note is null;
+
+Console.WriteLine($"NULLUNION bytes={nullBytes.Length} note={nullRestored.Note ?? "<null>"} {(nullOk ? "OK" : "MISMATCH")}");
+
+// Multi-branch unions: mixed primitives, nullable multi-branch, and an all-record variant.
+var unions = new UnionSample {
+    ThreeWay         = 42,
+    NullableThreeWay = "text",
+    RecordUnion      = new Dog { Bark = "woof" }
+};
+
+var unionBytes    = codec.Encode(unions);
+var unionRestored = (UnionSample)codec.Decode(unionBytes, typeof(UnionSample));
+
+var unionOk =
+    (int)unionRestored.ThreeWay             == 42     &&
+    (string?)unionRestored.NullableThreeWay == "text" &&
+    unionRestored.RecordUnion is Dog { Bark: "woof" };
+
+Console.WriteLine($"UNIONS    registered={AvroCodecRegistry.IsRegistered(typeof(UnionSample))} " +
+                  $"bytes={unionBytes.Length} roundtrip={(unionOk ? "OK" : "MISMATCH")}");
+Console.WriteLine($"          threeway={unionRestored.ThreeWay} nullable={unionRestored.NullableThreeWay ?? "<null>"} " +
+                  $"variant={unionRestored.RecordUnion.GetType().Name}");
+
+// The null branch of a multi-branch union must also survive.
+var unionsNull         = unions with { NullableThreeWay = null, RecordUnion = new Cat { Lives = 9 } };
+var unionsNullRestored = (UnionSample)codec.Decode(codec.Encode(unionsNull), typeof(UnionSample));
+
+var unionNullOk = unionsNullRestored.NullableThreeWay is null && unionsNullRestored.RecordUnion is Cat { Lives: 9 };
+
+Console.WriteLine($"UNIONNULL nullable={unionsNullRestored.NullableThreeWay ?? "<null>"} " +
+                  $"variant={unionsNullRestored.RecordUnion.GetType().Name} {(unionNullOk ? "OK" : "MISMATCH")}");
+
+// Logical types.
+//
+// Wire parity against Apache's SpecificDatumWriter is asserted in Kurrent.Surge.Codecs.Avro.Tests, not
+// here, and deliberately so: that writer is constructed from ISpecificRecord.Schema, and reading Schema
+// makes Avro.Schema.Parse reachable, which drags Newtonsoft.Json into this binary. This probe measures
+// what a consumer who never reads Schema actually links, so it must not read it either.
+var logical = new LogicalSample {
+    Id      = Guid.Parse("6f9619ff-8b86-d011-b42d-00c04fc964ff"),
+    Amount  = new Avro.AvroDecimal(decimal.Parse("1234.56")),
+    Day     = new DateTime(2026, 8, 19, 0, 0, 0, DateTimeKind.Utc),
+    TimeMs  = TimeSpan.FromMilliseconds(3_723_000),
+    StampMs = new DateTime(2026, 8, 19, 12, 34, 56, DateTimeKind.Utc),
+    StampUs = new DateTime(2026, 8, 19, 12, 34, 56, DateTimeKind.Utc)
+};
+
+var logicalBytes    = codec.Encode(logical);
+var logicalRestored = (LogicalSample)codec.Decode(logicalBytes, typeof(LogicalSample));
+
+var logicalOk =
+    logicalRestored.Id      == logical.Id      &&
+    logicalRestored.Amount  == logical.Amount  &&
+    logicalRestored.Day     == logical.Day     &&
+    logicalRestored.TimeMs  == logical.TimeMs  &&
+    logicalRestored.StampMs == logical.StampMs &&
+    logicalRestored.StampUs == logical.StampUs;
+
+Console.WriteLine($"LOGICAL   registered={AvroCodecRegistry.IsRegistered(typeof(LogicalSample))} " +
+                  $"bytes={logicalBytes.Length} roundtrip={(logicalOk ? "OK" : "MISMATCH")}");
+Console.WriteLine($"          uuid={logicalRestored.Id} decimal={logicalRestored.Amount} date={logicalRestored.Day:yyyy-MM-dd} " +
+                  $"time={logicalRestored.TimeMs} stampMs={logicalRestored.StampMs:HH:mm:ss} stampUs={logicalRestored.StampUs:HH:mm:ss}");
+
+// Local timestamps decode through ToLocalTime, which needs timezone data. This binary publishes with
+// InvariantGlobalization, so whether that data survives into a native build is a question only a native
+// run answers.
+var localMoment = new DateTime(2026, 8, 19, 12, 34, 56, DateTimeKind.Unspecified);
+var local       = new LocalTimestampSample { LocalMs = localMoment, LocalUs = localMoment };
+
+var localBytes    = codec.Encode(local);
+var localRestored = (LocalTimestampSample)codec.Decode(localBytes, typeof(LocalTimestampSample));
+
+var localOk = localRestored.LocalMs == local.LocalMs && localRestored.LocalUs == local.LocalUs;
+
+Console.WriteLine($"LOCALTIME registered={AvroCodecRegistry.IsRegistered(typeof(LocalTimestampSample))} " +
+                  $"bytes={localBytes.Length} roundtrip={(localOk ? "OK" : "MISMATCH")}");
+Console.WriteLine($"          zone={TimeZoneInfo.Local.Id} ms={localRestored.LocalMs:yyyy-MM-dd HH:mm:ss} " +
+                  $"kind={localRestored.LocalMs.Kind} us={localRestored.LocalUs:HH:mm:ss}");
+
+// A decimal backed by a fixed, and two logical types nothing implements. The first exercises BigInteger
+// sign extension; the second pair must degrade to their underlying primitives.
+var decimals = new DecimalFixedSample {
+    Amount   = new Avro.AvroDecimal(decimal.Parse("-1234.56", System.Globalization.CultureInfo.InvariantCulture)),
+    Nanos    = new NanoInstant(1_700_000_000_123_456_789L),
+    Invented = "erased"
+};
+
+var decimalBytes    = codec.Encode(decimals);
+var decimalRestored = (DecimalFixedSample)codec.Decode(decimalBytes, typeof(DecimalFixedSample));
+
+var decimalOk =
+    decimalRestored.Amount   == decimals.Amount &&
+    decimalRestored.Nanos    == decimals.Nanos  &&
+    decimalRestored.Invented == decimals.Invented;
+
+Console.WriteLine($"DECFIXED  registered={AvroCodecRegistry.IsRegistered(typeof(DecimalFixedSample))} " +
+                  $"bytes={decimalBytes.Length} roundtrip={(decimalOk ? "OK" : "MISMATCH")}");
+Console.WriteLine($"          decimal={decimalRestored.Amount} nanos={decimalRestored.Nanos} " +
+                  $"erased={decimalRestored.Invented}");
+
+var allOk = flatOk && complexOk && nullOk && unionOk && unionNullOk && logicalOk && localOk && decimalOk;
+
+Console.WriteLine(allOk ? "RESULT: ALL PASSED" : "RESULT: FAILED");
+
+return allOk ? 0 : 1;

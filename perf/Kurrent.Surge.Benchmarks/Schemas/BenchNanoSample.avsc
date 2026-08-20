@@ -1,0 +1,8 @@
+{
+  "type": "record",
+  "name": "BenchNanoSample",
+  "namespace": "Benchmarks.Avro",
+  "fields": [
+    { "name": "Precise", "type": { "type": "long", "logicalType": "timestamp-nanos" } }
+  ]
+}

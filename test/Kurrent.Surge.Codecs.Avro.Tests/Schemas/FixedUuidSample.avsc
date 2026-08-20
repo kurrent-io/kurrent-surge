@@ -1,0 +1,8 @@
+{
+  "type": "record",
+  "name": "FixedUuidSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    { "name": "Id", "type": { "type": "fixed", "name": "UuidBytes", "size": 16, "logicalType": "uuid" } }
+  ]
+}

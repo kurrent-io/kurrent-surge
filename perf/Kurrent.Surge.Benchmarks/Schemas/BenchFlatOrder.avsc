@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "BenchFlatOrder",
+  "namespace": "Benchmarks.Avro",
+  "fields": [
+    { "name": "OrderId", "type": "string" },
+    { "name": "Sku", "type": "string" },
+    { "name": "Quantity", "type": "int" }
+  ]
+}

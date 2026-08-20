@@ -5,8 +5,14 @@
     <IsPackable>true</IsPackable>
     <Title>Kurrent Surge Avro Codec</Title>
     <Product>Kurrent Surge Avro Codec</Product>
-    <Description>Avro codec for Kurrent Surge, built on the official Apache.Avro library. Message types are generated from .avsc schema files. Not compatible with Native AOT or trimming.</Description>
-    <PackageTags>kurrent kurrentdb surge avro serialization schema</PackageTags>
+    <Description>Avro codec for Kurrent Surge, built on the official Apache.Avro library. Message types and their encode/decode code are generated from .avsc schema files at compile time. Native AOT and trim safe.</Description>
+    <PackageTags>kurrent kurrentdb surge avro serialization schema aot</PackageTags>
+  </PropertyGroup>
+
+  <!-- AOT/Trimming Support -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,10 +23,10 @@
 
   <ItemGroup>
     <PackageReference Include="Apache.Avro" />
-    <!-- Generates ISpecificRecord classes from .avsc/.avpr/.avdl AdditionalFiles at compile time; flows to
-         consumers via PrivateAssets="none" so installing only Kurrent.Surge.Codecs.Avro is enough — see
-         .claude/context/project/packaging.md, Analyzer flow. -->
-    <PackageReference Include="AvroSourceGenerator" PrivateAssets="none" ExcludeAssets="runtime" />
+    <!-- Emits the message types and the AOT-safe encode/decode code for each .avsc AdditionalFile.
+         Referenced directly rather than added to @(PackedAnalyzerProject) — that list is shared, so
+         adding it there would ship this generator inside every other packed package too. -->
+    <ProjectReference Include="..\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" PackedAnalyzer="true" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,8 @@
+{
+  "type": "record",
+  "name": "BenchUuidFixed",
+  "namespace": "Benchmarks.Avro",
+  "fields": [
+    { "name": "Id", "type": { "type": "fixed", "name": "BenchUuidBytes", "size": 16, "logicalType": "uuid" } }
+  ]
+}

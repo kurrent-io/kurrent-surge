@@ -1,0 +1,8 @@
+{
+  "type": "record",
+  "name": "NanoSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    { "name": "Precise", "type": { "type": "long", "logicalType": "timestamp-nanos" } }
+  ]
+}

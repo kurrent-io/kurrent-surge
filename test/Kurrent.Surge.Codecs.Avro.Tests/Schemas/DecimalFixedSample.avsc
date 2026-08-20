@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "DecimalFixedSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    { "name": "Amount", "type": {
+        "type": "fixed", "name": "Money", "size": 8,
+        "logicalType": "decimal", "precision": 12, "scale": 2 } }
+  ]
+}
