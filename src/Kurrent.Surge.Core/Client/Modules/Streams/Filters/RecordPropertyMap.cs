@@ -49,10 +49,12 @@ public static class RecordPropertyMap {
     );
 
     static object? ResolveData(Record record, string? key) {
-        if (key is null) return null;
-
         var node = record.DecodedValueAsJson;
         if (node is null) return null;
+
+        // A null key means the column itself was referenced — `data IS NULL`, not `data->>'city'`.
+        // The answer is the whole document, matching what the server's `data` column holds.
+        if (key is null) return node.ToJsonString();
 
         // navigate dot-separated path: "address.city" → node["address"]?["city"]
         foreach (var segment in key.Split('.'))
@@ -64,8 +66,11 @@ public static class RecordPropertyMap {
         };
     }
 
-    static object? ResolveMetadata(Record record, string? key) =>
-        key is not null && record.Metadata.TryGetValue<object>(key, out var value)
-            ? value
-            : null;
+    static object? ResolveMetadata(Record record, string? key) {
+        // The bag always exists — Record.Metadata defaults to empty — so a bare `metadata`
+        // reference is never SQL NULL. It corresponds to a `{}` column, not a missing one.
+        if (key is null) return record.Metadata;
+
+        return record.Metadata.TryGetValue<object>(key, out var value) ? value : null;
+    }
 }

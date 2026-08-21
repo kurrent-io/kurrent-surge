@@ -141,11 +141,25 @@ public sealed class ExpressionFilterFormatException(ExpressionFilterParseError e
 [PublicAPI]
 public interface IFilterExpression {
     /// <summary>
-    /// Evaluates whether the specified record matches this filter expression.
+    /// Evaluates the expression under SQL three-valued logic: <c>true</c>, <c>false</c>, or
+    /// <c>null</c> for UNKNOWN. A predicate over a property that resolves to nothing is UNKNOWN
+    /// rather than false, so it survives a surrounding <c>NOT</c> instead of flipping — matching what
+    /// the server does with the same expression.
+    /// <para>
+    /// The lifted <c>&amp;</c>, <c>|</c> and <c>!</c> operators on <see cref="Nullable{Boolean}"/>
+    /// already implement SQL's truth tables, so conjunction and negation need no special handling.
+    /// </para>
+    /// </summary>
+    /// <param name="record">The record to evaluate.</param>
+    bool? Evaluate(Record record);
+
+    /// <summary>
+    /// Evaluates whether the specified record matches this filter expression. Only a predicate that
+    /// resolves to true matches; UNKNOWN does not, exactly as a SQL WHERE clause treats it.
     /// </summary>
     /// <param name="record">The record to evaluate.</param>
     /// <returns><c>true</c> if the record matches; otherwise, <c>false</c>.</returns>
-    bool IsMatch(Record record);
+    bool IsMatch(Record record) => Evaluate(record) == true;
 
     /// <summary>
     /// Returns <c>true</c> if the expression tree contains any predicate that accesses the
@@ -910,50 +924,32 @@ public sealed class ComparisonExpression(PropertyAccess property, ComparisonOper
     public FilterValue        Value    => value;
 
     /// <inheritdoc/>
-    public bool IsMatch(Record record) {
-        // fast path: category equality via span comparison — no substring allocation
-        if (property.PropertyName is "category" or "rec.category"
-            && value is StringFilterValue strVal
-            && op is ComparisonOperator.Equal or ComparisonOperator.NotEqual) {
-            var stream   = record.Stream.Value;
-            var idx      = stream.IndexOf('-');
-            var category = idx < 0 ? stream.AsSpan() : stream.AsSpan(0, idx);
-            var match    = category.Equals(strVal.Value, StringComparison.OrdinalIgnoreCase);
-            return op == ComparisonOperator.Equal ? match : !match;
-        }
-
+    public bool? Evaluate(Record record) {
         // fast path: numeric comparison without boxing
-        if (value is NumberFilterValue numValue && ExpressionFilterResolver.Find(property, record).TryGetDecimal(out var numLeft)) {
-            var cmp = numLeft.CompareTo(numValue.Value);
-            return op switch {
-                ComparisonOperator.Equal              => cmp == 0,
-                ComparisonOperator.NotEqual           => cmp != 0,
-                ComparisonOperator.GreaterThan        => cmp > 0,
-                ComparisonOperator.LessThan           => cmp < 0,
-                ComparisonOperator.GreaterThanOrEqual => cmp >= 0,
-                ComparisonOperator.LessThanOrEqual    => cmp <= 0,
-                _                                     => false
-            };
-        }
+        if (value is NumberFilterValue numValue && ExpressionFilterResolver.Find(property, record).TryGetDecimal(out var numLeft))
+            return Apply(numLeft.CompareTo(numValue.Value));
 
         // general path
         var left  = ExpressionFilterResolver.Resolve(property, record);
         var right = value.GetValue();
 
-        if (left is null || right is null) return false;
+        // Either side absent makes the comparison UNKNOWN — which is why `x = NULL` never matches
+        // and IS NULL exists at all.
+        if (left is null || right is null) return null;
 
-        var cmpGeneral = ValueComparer.Compare(left, right);
+        return Apply(ValueComparer.Compare(left, right));
+    }
 
-        return op switch {
-            ComparisonOperator.Equal              => cmpGeneral == 0,
-            ComparisonOperator.NotEqual           => cmpGeneral != 0,
-            ComparisonOperator.GreaterThan        => cmpGeneral > 0,
-            ComparisonOperator.LessThan           => cmpGeneral < 0,
-            ComparisonOperator.GreaterThanOrEqual => cmpGeneral >= 0,
-            ComparisonOperator.LessThanOrEqual    => cmpGeneral <= 0,
+    bool Apply(int comparison) =>
+        op switch {
+            ComparisonOperator.Equal              => comparison == 0,
+            ComparisonOperator.NotEqual           => comparison != 0,
+            ComparisonOperator.GreaterThan        => comparison > 0,
+            ComparisonOperator.LessThan           => comparison < 0,
+            ComparisonOperator.GreaterThanOrEqual => comparison >= 0,
+            ComparisonOperator.LessThanOrEqual    => comparison <= 0,
             _                                     => false
         };
-    }
 }
 
 /// <summary>
@@ -965,7 +961,12 @@ public sealed class AndExpression(IFilterExpression left, IFilterExpression righ
     public IFilterExpression Right => right;
 
     /// <inheritdoc/>
-    public bool IsMatch(Record record) => left.IsMatch(record) && right.IsMatch(record);
+    public bool? Evaluate(Record record) {
+        // FALSE AND anything is FALSE, so the right side stays unevaluated — the one short circuit
+        // three-valued logic still allows.
+        var result = left.Evaluate(record);
+        return result == false ? false : result & right.Evaluate(record);
+    }
 }
 
 /// <summary>
@@ -977,7 +978,11 @@ public sealed class OrExpression(IFilterExpression left, IFilterExpression right
     public IFilterExpression Left  => left;
     public IFilterExpression Right => right;
 
-    public bool IsMatch(Record record) => left.IsMatch(record) || right.IsMatch(record);
+    public bool? Evaluate(Record record) {
+        // TRUE OR anything is TRUE.
+        var result = left.Evaluate(record);
+        return result == true ? true : result | right.Evaluate(record);
+    }
 }
 
 /// <summary>
@@ -986,7 +991,7 @@ public sealed class OrExpression(IFilterExpression left, IFilterExpression right
 file sealed class NotExpression(IFilterExpression inner) : IFilterExpression {
     public IFilterExpression Inner => inner;
 
-    public bool IsMatch(Record record) => !inner.IsMatch(record);
+    public bool? Evaluate(Record record) => !inner.Evaluate(record);
 }
 
 /// <summary>
@@ -1018,10 +1023,10 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
     public bool           Negated         => negated;
 
     /// <inheritdoc/>
-    public bool IsMatch(Record record) {
+    public bool? Evaluate(Record record) {
         var value = ExpressionFilterResolver.Resolve(property, record);
-       
-        if (value is null) return false;
+
+        if (value is null) return null;
 
         var str = value as string ?? value.ToString() ?? "";
         
@@ -1110,7 +1115,8 @@ public sealed class LikeExpression(PropertyAccess property, string pattern, bool
 file sealed class IsNullExpression(PropertyAccess property, bool negated) : IFilterExpression {
     public PropertyAccess Property => property;
 
-    public bool IsMatch(Record record) {
+    // The only predicate that is never UNKNOWN — answering that question is what it is for.
+    public bool? Evaluate(Record record) {
         var isNull = ExpressionFilterResolver.Resolve(property, record) is null;
         return negated ? !isNull : isNull;
     }
@@ -1129,9 +1135,9 @@ public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterVa
     public bool                       Negated  => negated;
 
     /// <inheritdoc/>
-    public bool IsMatch(Record record) {
+    public bool? Evaluate(Record record) {
         var propValue = ExpressionFilterResolver.Resolve(property, record);
-        if (propValue is null) return false;
+        if (propValue is null) return null;
 
         // fast path: all-string set with O(1) lookup
         if (_stringSet is not null && propValue is string strValue) {
@@ -1141,14 +1147,28 @@ public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterVa
 
         // general path: linear scan with cross-type comparison
         var foundGeneral = false;
+        var hasNulls     = false;
+
         for (var i = 0; i < values.Count; i++) {
-            if (ValueComparer.Compare(propValue, values[i].GetValue()) == 0) {
+            var candidate = values[i].GetValue();
+
+            if (candidate is null) {
+                hasNulls = true;
+                continue;
+            }
+
+            if (ValueComparer.Compare(propValue, candidate) == 0) {
                 foundGeneral = true;
                 break;
             }
         }
 
-        return negated ? !foundGeneral : foundGeneral;
+        // A match is decisive either way. Without one, a NULL in the list leaves the answer UNKNOWN:
+        // the value might have equalled the thing the NULL stands for.
+        if (foundGeneral) return !negated;
+        if (hasNulls)     return null;
+
+        return negated;
     }
 
     static FrozenSet<string>? BuildStringSet(IReadOnlyList<FilterValue> values) {
@@ -1157,11 +1177,11 @@ public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterVa
                 return null;
         }
 
-        var set = new HashSet<string>(values.Count, StringComparer.OrdinalIgnoreCase);
+        var set = new HashSet<string>(values.Count, StringComparer.Ordinal);
         for (var i = 0; i < values.Count; i++)
             set.Add(((StringFilterValue)values[i]).Value);
 
-        return set.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+        return set.ToFrozenSet(StringComparer.Ordinal);
     }
 }
 
@@ -1172,7 +1192,7 @@ public sealed class InExpression(PropertyAccess property, IReadOnlyList<FilterVa
 /// </summary>
 public sealed record IndexExpression(string IndexName) : IFilterExpression {
     /// <inheritdoc/>
-    public bool IsMatch(Record record) => true;
+    public bool? Evaluate(Record record) => true;
 }
 
 /// <summary>
@@ -1181,7 +1201,7 @@ public sealed record IndexExpression(string IndexName) : IFilterExpression {
 file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, FilterValue upper, bool negated) : IFilterExpression {
     public PropertyAccess Property => property;
 
-    public bool IsMatch(Record record) {
+    public bool? Evaluate(Record record) {
         // fast path: numeric range without boxing
         if (lower is NumberFilterValue lo && upper is NumberFilterValue hi
             && ExpressionFilterResolver.Find(property, record).TryGetDecimal(out var numValue)) {
@@ -1190,11 +1210,15 @@ file sealed class BetweenExpression(PropertyAccess property, FilterValue lower, 
         }
 
         // general path
-        var value = ExpressionFilterResolver.Resolve(property, record);
-        if (value is null) return false;
+        var value      = ExpressionFilterResolver.Resolve(property, record);
+        var lowerValue = lower.GetValue();
+        var upperValue = upper.GetValue();
 
-        var inRangeGeneral = ValueComparer.Compare(value, lower.GetValue()) >= 0 &&
-                             ValueComparer.Compare(value, upper.GetValue()) <= 0;
+        // BETWEEN is `x >= a AND x <= b`, so a missing operand anywhere makes the whole range UNKNOWN.
+        if (value is null || lowerValue is null || upperValue is null) return null;
+
+        var inRangeGeneral = ValueComparer.Compare(value, lowerValue) >= 0 &&
+                             ValueComparer.Compare(value, upperValue) <= 0;
 
         return negated ? !inRangeGeneral : inRangeGeneral;
     }
@@ -1227,7 +1251,7 @@ file static class ValueComparer {
         if (right is null) return 1;
 
         if (left is string ls && right is string rs)
-            return string.Compare(ls, rs, StringComparison.OrdinalIgnoreCase);
+            return string.CompareOrdinal(ls, rs);
 
         if (TryGetNumeric(left, out var ln) && TryGetNumeric(right, out var rn))
             return ln.CompareTo(rn);
@@ -1238,7 +1262,7 @@ file static class ValueComparer {
         if (left is bool lb && right is bool rb)
             return lb.CompareTo(rb);
 
-        return string.Compare(left.ToString(), right.ToString(), StringComparison.OrdinalIgnoreCase);
+        return string.CompareOrdinal(left.ToString(), right.ToString());
     }
 
     static bool TryGetNumeric(object value, out decimal result) {
@@ -1313,21 +1337,35 @@ static class FilterExpressionInspector {
             _                      => false
         };
 
-    static bool IsDataProperty(PropertyAccess property) =>
-        property.PropertyName.Equals("data", StringComparison.OrdinalIgnoreCase)
-        || property.PropertyName.StartsWith("data.", StringComparison.OrdinalIgnoreCase);
+    static bool IsDataProperty(PropertyAccess property) {
+        var name = ExpressionFilterResolver.StripRecordPrefix(property.PropertyName);
+
+        return name.Equals("data", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("data.", StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 /// <summary>
 /// Resolves <see cref="PropertyAccess"/> values against <see cref="Record"/> instances
-/// using <see cref="RecordPropertyMap.Default"/>, with <c>field_</c> prefix trimming
-/// for WebUI backward compatibility.
+/// using <see cref="RecordPropertyMap.Default"/>, with <c>rec.</c> and <c>field_</c> prefix
+/// trimming for WebUI backward compatibility.
 /// </summary>
 file static class ExpressionFilterResolver {
-    const string FieldPrefix = "field_";
+    const string FieldPrefix  = "field_";
+    const string RecordPrefix = "rec.";
+
+    /// <summary>
+    /// Strips the optional <c>rec.</c> column qualifier. The map registers bare column names,
+    /// so a qualified path must be reduced before lookup or it resolves to nothing.
+    /// </summary>
+    public static string StripRecordPrefix(string propertyName) =>
+        propertyName.StartsWith(RecordPrefix, StringComparison.OrdinalIgnoreCase)
+            ? propertyName[RecordPrefix.Length..]
+            : propertyName;
 
     public static PropertyResult<Record> Find(PropertyAccess property, Record record) =>
-        RecordPropertyMap.Default.Find(property.PropertyName, property.Key, record, trimPrefix: FieldPrefix);
+        RecordPropertyMap.Default.Find(
+            StripRecordPrefix(property.PropertyName), property.Key, record, trimPrefix: FieldPrefix);
 
     public static object? Resolve(PropertyAccess property, Record record) =>
         Find(property, record).Value;

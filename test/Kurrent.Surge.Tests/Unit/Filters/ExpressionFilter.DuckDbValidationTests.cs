@@ -1,4 +1,5 @@
 using DuckDB.NET.Data;
+using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Tests.Filters;
 
@@ -41,7 +42,8 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     }
 
     async Task ValidateExpressions(string category, string[] expressions) {
-        var failures = new List<string>();
+        var duckDbFailures = new List<string>();
+        var parserFailures = new List<string>();
 
         foreach (var expression in expressions) {
             try {
@@ -50,11 +52,17 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
                 await Task.Run(() => cmd.ExecuteNonQuery());
             }
             catch (Exception ex) {
-                failures.Add($"[{category}] {expression}: {ex.Message}");
+                duckDbFailures.Add($"[{category}] {expression}: {ex.Message}");
             }
+
+            // The suite exists to prove our surface is a subset of DuckDB's. Checking only DuckDB
+            // proves the strings are valid SQL, not that our parser accepts them — both must pass.
+            if (!ExpressionFilterParser.TryParse(expression, out _, out var error))
+                parserFailures.Add($"[{category}] {expression}: {error.ErrorMessage}");
         }
 
-        await Assert.That(failures).IsEmpty();
+        await Assert.That(duckDbFailures).IsEmpty();
+        await Assert.That(parserFailures).IsEmpty();
     }
 
     #region . Scalar Columns .

@@ -1,4 +1,7 @@
+using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Schema;
+using Kurrent.Surge.Schema.Naming;
 
 namespace Kurrent.Surge.Tests.Filters;
 
@@ -21,11 +24,16 @@ public class ExpressionFilterTests {
     }
 
     [Test]
-    public async Task evaluates_stream_equality_case_insensitive() {
+    public async Task rejects_stream_equality_differing_only_by_case() {
+        // Arrange
         var filter = Parse("stream = 'ORDERS'");
         var record = _faker.With("orders");
 
-        await Assert.That(filter.IsMatch(record)).IsTrue();
+        // Act
+        var matched = filter.IsMatch(record);
+
+        // Assert
+        await Assert.That(matched).IsFalse();
     }
 
     [Test]
@@ -303,14 +311,6 @@ public class ExpressionFilterTests {
     }
 
     [Test]
-    public async Task evaluates_in_case_insensitive() {
-        var filter   = Parse("stream IN ('ORDERS', 'PAYMENTS')");
-        var matching = _faker.With("orders");
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-    }
-
-    [Test]
     public async Task evaluates_not_in_expression() {
         var filter      = Parse("schema_name NOT IN ('SystemEvent', 'HeartbeatEvent')");
         var matching    = _faker.With(schemaName: "OrderCreated");
@@ -527,10 +527,136 @@ public class ExpressionFilterTests {
 
     #endregion
 
+    #region Three-Valued Logic
+
+    [Test]
+    public async Task does_not_match_when_a_negated_predicate_reads_a_missing_property() {
+        // Arrange — the property resolves to nothing, so the predicate is UNKNOWN, and UNKNOWN
+        // survives the NOT rather than flipping to true the way false would
+        var filter = Parse("NOT (properties['missing'] = 'anything')");
+        var record = _faker.With(metadata: new Metadata().With("region", "us-east"));
+
+        // Act
+        var matched = filter.IsMatch(record);
+
+        // Assert
+        await Assert.That(matched).IsFalse();
+    }
+
+    [Test]
+    public async Task does_not_match_when_a_negated_compound_contains_a_missing_property() {
+        // Arrange
+        var filter = Parse("NOT (properties['missing'] = 'anything' AND stream = 'orders-99')");
+        var record = _faker.With("orders-99", metadata: new Metadata().With("region", "us-east"));
+
+        // Act
+        var matched = filter.IsMatch(record);
+
+        // Assert
+        await Assert.That(matched).IsFalse();
+    }
+
+    [Test]
+    public async Task does_not_match_when_compared_against_a_null_literal() {
+        // Arrange — `x = NULL` is UNKNOWN in SQL, which is why IS NULL exists
+        var equals    = Parse("stream = NULL");
+        var notEquals = Parse("stream != NULL");
+        var negated   = Parse("NOT (stream = NULL)");
+        var record    = _faker.With("orders-99");
+
+        // Act & Assert
+        await Assert.That(equals.IsMatch(record)).IsFalse();
+        await Assert.That(notEquals.IsMatch(record)).IsFalse();
+        await Assert.That(negated.IsMatch(record)).IsFalse();
+    }
+
+    [Test]
+    public async Task still_matches_when_a_negated_predicate_reads_a_present_property() {
+        // Arrange — the resolvable case must keep flipping, or the fix would break plain negation
+        var filter      = Parse("NOT (properties['region'] = 'eu-west')");
+        var matching    = _faker.With(metadata: new Metadata().With("region", "us-east"));
+        var nonMatching = _faker.With(metadata: new Metadata().With("region", "eu-west"));
+
+        // Act & Assert
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
+    #region Case Sensitivity
+
+    [Test]
+    public async Task rejects_in_set_value_differing_only_by_case() {
+        // Arrange
+        var filter = Parse("stream IN ('ORDERS', 'PAYMENTS')");
+        var record = _faker.With("orders");
+
+        // Act
+        var matched = filter.IsMatch(record);
+
+        // Assert
+        await Assert.That(matched).IsFalse();
+    }
+
+    [Test]
+    public async Task rejects_category_equality_differing_only_by_case() {
+        // Arrange
+        var filter = Parse("category = 'ORDERS'");
+        var record = _faker.With("orders-99");
+
+        // Act
+        var matched = filter.IsMatch(record);
+
+        // Assert
+        await Assert.That(matched).IsFalse();
+    }
+
+    [Test]
+    public async Task rejects_schema_name_equality_differing_only_by_case() {
+        // Arrange
+        var filter = Parse("schema_name = 'ORDERPLACED'");
+        var record = _faker.With(schemaName: "OrderPlaced");
+
+        // Act
+        var matched = filter.IsMatch(record);
+
+        // Assert
+        await Assert.That(matched).IsFalse();
+    }
+
+    [Test]
+    public async Task rejects_metadata_value_differing_only_by_case() {
+        // Arrange
+        var filter = Parse("properties['region'] = 'US-EAST'");
+        var record = _faker.With(metadata: new Metadata().With("region", "us-east"));
+
+        // Act
+        var matched = filter.IsMatch(record);
+
+        // Assert
+        await Assert.That(matched).IsFalse();
+    }
+
+    [Test]
+    public async Task matches_ilike_pattern_differing_only_by_case() {
+        // Arrange — ILIKE stays case-insensitive by definition; equality does not
+        var filter = Parse("stream ILIKE 'ORDERS%'");
+        var record = _faker.With("orders-99");
+
+        // Act
+        var matched = filter.IsMatch(record);
+
+        // Assert
+        await Assert.That(matched).IsTrue();
+    }
+
+    #endregion
+
     #region Column Aliases
 
     [Test]
-    public async Task evaluates_event_type_alias() {
+    public async Task evaluates_schema_name_column() {
         var filter      = Parse("schema_name = 'OrderPlaced'");
         var matching    = _faker.With(schemaName: "OrderPlaced");
         var nonMatching = _faker.With(schemaName: "OrderShipped");
@@ -540,7 +666,7 @@ public class ExpressionFilterTests {
     }
 
     [Test]
-    public async Task evaluates_event_number_alias() {
+    public async Task evaluates_revision_alias() {
         var filter      = Parse("revision > 5");
         var matching    = _faker.With(streamRevision: 10);
         var nonMatching = _faker.With(streamRevision: 3);
@@ -600,7 +726,7 @@ public class ExpressionFilterTests {
     }
 
     [Test]
-    public async Task evaluates_stream_name_alias() {
+    public async Task evaluates_stream_column() {
         var filter      = Parse("stream = 'orders-99'");
         var matching    = _faker.With("orders-99");
         var nonMatching = _faker.With("payments-1");
@@ -675,6 +801,179 @@ public class ExpressionFilterTests {
 
         await Assert.That(filter.IsMatch(matching)).IsTrue();
         await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
+    #region Record Prefix Stripping
+
+    [Test]
+    public async Task evaluates_rec_prefixed_stream() {
+        // Arrange
+        var filter      = Parse("rec.stream = 'orders-99'");
+        var matching    = _faker.With("orders-99");
+        var nonMatching = _faker.With("payments-1");
+
+        // Act & Assert
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_prefixed_category() {
+        // Arrange
+        var filter      = Parse("rec.category = 'orders'");
+        var matching    = _faker.With("orders-abc123");
+        var nonMatching = _faker.With("payments-1");
+
+        // Act & Assert
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_prefixed_schema_name() {
+        // Arrange
+        var filter      = Parse("rec.schema_name = 'OrderPlaced'");
+        var matching    = _faker.With(schemaName: "OrderPlaced");
+        var nonMatching = _faker.With(schemaName: "OrderShipped");
+
+        // Act & Assert
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_rec_prefixed_metadata_key() {
+        // Arrange
+        var filter      = Parse("rec.properties['region'] = 'us-east'");
+        var matching    = _faker.With(metadata: new Metadata().With("region", "us-east"));
+        var nonMatching = _faker.With(metadata: new Metadata().With("region", "eu-west"));
+
+        // Act & Assert
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    #endregion
+
+    #region Data Payload Access
+
+    [Test]
+    public async Task evaluates_data_scalar_field() {
+        // Arrange
+        var filter      = Parse("data.amount > 100");
+        var matching    = RecordWithPayload("""{"amount":150}""");
+        var nonMatching = RecordWithPayload("""{"amount":50}""");
+
+        // Act & Assert
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_data_nested_field() {
+        // Arrange
+        var filter      = Parse("data.address.city = 'lisbon'");
+        var matching    = RecordWithPayload("""{"address":{"city":"lisbon"}}""");
+        var nonMatching = RecordWithPayload("""{"address":{"city":"porto"}}""");
+
+        // Act & Assert
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task evaluates_data_arrow_key_access() {
+        // Arrange
+        var filter      = Parse("data->>'status' = 'shipped'");
+        var matching    = RecordWithPayload("""{"status":"shipped"}""");
+        var nonMatching = RecordWithPayload("""{"status":"pending"}""");
+
+        // Act & Assert
+        await Assert.That(filter.IsMatch(matching)).IsTrue();
+        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    }
+
+    [Test]
+    public async Task does_not_match_data_field_when_record_is_not_decoded() {
+        // Arrange — the default decoder projects no JSON, so every data predicate is unresolvable
+        var filter = Parse("data.amount > 100");
+        var record = _faker.With("orders-1");
+
+        // Act
+        var matched = filter.IsMatch(record);
+
+        // Assert
+        await Assert.That(matched).IsFalse();
+    }
+
+    [Test]
+    public async Task reports_data_as_present_when_the_record_carries_a_payload() {
+        // Arrange
+        var isNull    = Parse("data IS NULL");
+        var isNotNull = Parse("data IS NOT NULL");
+        var record    = RecordWithPayload("""{"amount":150}""");
+
+        // Act & Assert
+        await Assert.That(isNull.IsMatch(record)).IsFalse();
+        await Assert.That(isNotNull.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task reports_data_as_absent_when_the_record_is_not_decoded() {
+        // Arrange
+        var isNull    = Parse("data IS NULL");
+        var isNotNull = Parse("data IS NOT NULL");
+        var record    = _faker.With("orders-1");
+
+        // Act & Assert
+        await Assert.That(isNull.IsMatch(record)).IsTrue();
+        await Assert.That(isNotNull.IsMatch(record)).IsFalse();
+    }
+
+    [Test]
+    public async Task reports_metadata_as_present_even_when_the_bag_is_empty() {
+        // Arrange — the bag always exists, so the column is '{}', never SQL NULL
+        var isNull    = Parse("metadata IS NULL");
+        var isNotNull = Parse("properties IS NOT NULL");
+        var record    = _faker.With("orders-1", metadata: new Metadata());
+
+        // Act & Assert
+        await Assert.That(isNull.IsMatch(record)).IsFalse();
+        await Assert.That(isNotNull.IsMatch(record)).IsTrue();
+    }
+
+    [Test]
+    public async Task reports_queries_data_for_data_predicates_only() {
+        // Arrange
+        var touchesData = Parse("data.amount > 100");
+        var touchesMeta = Parse("properties['region'] = 'us-east'");
+
+        // Act & Assert
+        await Assert.That(touchesData.QueriesData).IsTrue();
+        await Assert.That(touchesMeta.QueriesData).IsFalse();
+    }
+
+    static Record RecordWithPayload(string json) =>
+        new(new StubJsonDecoder(json)) {
+            Id        = RecordId.New(),
+            Position  = new RecordPosition {
+                LogPosition    = LogPosition.From(1),
+                StreamPosition = new StreamPosition(StreamName.From("orders-1"), Revision.From(1))
+            },
+            Timestamp = DateTime.UtcNow,
+            Schema    = new RecordSchemaInfo {
+                Schema     = SchemaName.From("OrderPlaced"),
+                DataFormat = SchemaDataFormat.Json
+            }
+        };
+
+    sealed class StubJsonDecoder(string json) : IRecordDecoder {
+        public ValueTask<DecodeOutcome> TryDecode(Record record, CancellationToken ct) =>
+            ValueTask.FromResult(DecodeOutcome.Decoded);
+
+        public JsonNode? ProjectToJson(Record record) => JsonNode.Parse(json);
     }
 
     #endregion
