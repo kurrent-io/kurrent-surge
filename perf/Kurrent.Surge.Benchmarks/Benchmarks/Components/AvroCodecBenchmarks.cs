@@ -20,8 +20,12 @@ namespace Benchmarks;
 /// <see cref="AvroSchemaCodec"/> does per message; hoisting it into setup would measure a call pattern
 /// the SDK never uses. Apache's reader/writer pair is hoisted, since it caches per type in the real
 /// Apache path too.
+///
+/// The encode margin is not the codec alone: <see cref="AvroSchemaCodec"/> writes through a reused
+/// per-thread buffer and the Apache arm allocates one per call, which is real but priced separately in
+/// <see cref="AvroEncodeBufferBenchmarks"/>.
 /// </remarks>
-[MemoryDiagnoser(displayGenColumns: false), Config(typeof(ComponentBenchmarkConfig))]
+[MemoryDiagnoser(displayGenColumns: false), Config(typeof(CodecBenchmarkConfig))]
 [BenchmarkCategory("Codecs")]
 public class AvroCodecBenchmarks {
     AvroSchemaCodec _codec = null!;
@@ -91,7 +95,7 @@ public class AvroCodecBenchmarks {
     [Benchmark, BenchmarkCategory("EncodeFlat")]
     public int EncodeFlat_Apache() => EncodeWithApache(_flat, _flatApacheWriter).Length;
 
-    [Benchmark, BenchmarkCategory("DecodeFlat")]
+    [Benchmark(Baseline = true), BenchmarkCategory("DecodeFlat")]
     public object DecodeFlat_Generated() => _codec.Decode(_flatWire, typeof(BenchFlatOrder));
 
     [Benchmark, BenchmarkCategory("DecodeFlat")]
@@ -101,13 +105,13 @@ public class AvroCodecBenchmarks {
 
     #region ->> Nested record, array, map, enum, union <<-
 
-    [Benchmark, BenchmarkCategory("EncodeComplex")]
+    [Benchmark(Baseline = true), BenchmarkCategory("EncodeComplex")]
     public int EncodeComplex_Generated() => _codec.Encode(_complex).Length;
 
     [Benchmark, BenchmarkCategory("EncodeComplex")]
     public int EncodeComplex_Apache() => EncodeWithApache(_complex, _complexApacheWriter).Length;
 
-    [Benchmark, BenchmarkCategory("DecodeComplex")]
+    [Benchmark(Baseline = true), BenchmarkCategory("DecodeComplex")]
     public object DecodeComplex_Generated() => _codec.Decode(_complexWire, typeof(BenchComplexOrder));
 
     [Benchmark, BenchmarkCategory("DecodeComplex")]

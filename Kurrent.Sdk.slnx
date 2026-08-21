@@ -74,6 +74,7 @@
     <Project Path="test/Kurrent.Surge.Arrow.Tests/Kurrent.Surge.Arrow.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.AI.Mcp.Tests\Kurrent.Surge.AI.Mcp.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.AotProbe\Kurrent.Surge.Codecs.Avro.AotProbe.csproj" />
+    <Project Path="test\Kurrent.Surge.Codecs.Avro.NodaTime.Tests\Kurrent.Surge.Codecs.Avro.NodaTime.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.Tests\Kurrent.Surge.Codecs.Avro.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.MessagePack.Tests\Kurrent.Surge.Codecs.MessagePack.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.NerdbankMessagePack.Tests\Kurrent.Surge.Codecs.NerdbankMessagePack.Tests.csproj" />

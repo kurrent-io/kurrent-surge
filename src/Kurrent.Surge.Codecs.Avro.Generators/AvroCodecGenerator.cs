@@ -73,31 +73,50 @@ public sealed class AvroCodecGenerator : IIncrementalGenerator {
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    /// <remarks>
+    /// An error rather than a warning: the surviving type comes from one schema while the other schema's
+    /// codec was emitted against its own declaration, so the compilation fails anyway. Failing here names
+    /// the cause; failing later surfaces as a missing member inside generated code.
+    /// </remarks>
     static readonly DiagnosticDescriptor DuplicateType = new(
         id: "KAVRO003",
-        title: "Two Avro schemas declare the same type",
-        messageFormat: "'{0}' declares '{1}', which another schema also declares; only the first declaration is generated",
+        title: "Two Avro schemas declare the same type differently",
+        messageFormat: "'{0}' declares '{1}', which another schema declares differently; a type may have only one definition",
+        category: "Kurrent.Avro",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    static readonly DiagnosticDescriptor InvalidOption = new(
+        id: "KAVRO004",
+        title: "Avro generator option has an unrecognised value",
+        messageFormat: "'{0}' is not a recognised value; expected one of: {1}",
         category: "Kurrent.Avro",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
+        // Projected to an equatable struct before it reaches the pipeline. AnalyzerConfigOptionsProvider
+        // compares by reference, so combining it directly would miss the cache on every keystroke.
+        var options = context.AnalyzerConfigOptionsProvider
+            .Select(static (provider, _) => AvroGeneratorOptions.From(provider.GlobalOptions));
+
         // Each schema is parsed and emitted exactly once. The pipeline value is the emitted TEXT rather
         // than the parsed model: strings are equatable, the model is not, so this is what lets the
         // incremental cache work at all.
         var emissions = context.AdditionalTextsProvider
             .Where(static text => text.Path.EndsWith(SchemaExtension, StringComparison.OrdinalIgnoreCase))
-            .Select(static (text, cancellationToken) => Build(text, cancellationToken))
+            .Combine(options)
+            .Select(static (pair, cancellationToken) => Build(pair.Left, pair.Right, cancellationToken))
             .WithTrackingName(TrackingNames.Schemas);
 
         // A single collected output action, because a type declared in one schema and referenced from
         // another must be emitted once. Per-file output would emit it twice and break the compilation.
         context.RegisterSourceOutput(
-            emissions.Collect().WithTrackingName(TrackingNames.Output),
-            static (context, emissions) => Emit(context, emissions));
+            emissions.Collect().Combine(options).WithTrackingName(TrackingNames.Output),
+            static (context, pair) => Emit(context, pair.Left, pair.Right));
     }
 
-    static SchemaEmission Build(AdditionalText text, CancellationToken cancellationToken) {
+    static SchemaEmission Build(AdditionalText text, AvroGeneratorOptions options, CancellationToken cancellationToken) {
         var sourceText = text.GetText(cancellationToken);
         var content    = sourceText?.ToString() ?? "";
 
@@ -109,11 +128,11 @@ public sealed class AvroCodecGenerator : IIncrementalGenerator {
 
         return new SchemaEmission(
             SchemaPath:           text.Path,
-            CodecSource:          new AvroCodecEmitter(document).Emit(root),
+            CodecSource:          new AvroCodecEmitter(document, options).Emit(root),
             RootTypeName:         AvroNaming.QualifiedTypeName(root),
             CodecClassName:       AvroCodecEmitter.CodecClassName(root),
             NeedsUuidLogicalType: document.NamedTypes.Values.OfType<AvroFixed>().Any(f => f.Logical is AvroLogicalKind.Uuid),
-            Types:                new EquatableArray<TypeEmission>(new AvroTypeEmitter(document).Emit().ToArray()),
+            Types:                new EquatableArray<TypeEmission>(new AvroTypeEmitter(document, options).Emit().ToArray()),
             Diagnostics:          EquatableArray<SchemaDiagnostic>.Empty);
     }
 
@@ -135,7 +154,15 @@ public sealed class AvroCodecGenerator : IIncrementalGenerator {
         return new SchemaDiagnostic(id, detail, text.Path, offset, position.Line, position.Character);
     }
 
-    static void Emit(SourceProductionContext context, ImmutableArray<SchemaEmission> emissions) {
+    static void Emit(SourceProductionContext context, ImmutableArray<SchemaEmission> emissions, AvroGeneratorOptions options) {
+        foreach (var invalid in options.Invalid) {
+            // Packed as "property=value|allowed, allowed" by AvroGeneratorOptions.Read, so the message
+            // can name both what was set and what would have been accepted.
+            var parts = invalid.Split('|');
+
+            context.ReportDiagnostic(Microsoft.CodeAnalysis.Diagnostic.Create(InvalidOption, Location.None, parts[0], parts[1]));
+        }
+
         foreach (var emission in emissions)
         foreach (var diagnostic in emission.Diagnostics)
             context.ReportDiagnostic(diagnostic.ToDiagnostic(diagnostic.Id == "KAVRO001" ? InvalidSchema : UnsupportedSchema));

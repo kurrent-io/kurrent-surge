@@ -23,14 +23,14 @@ public class AvroSchemaCodecTests {
     }
 
     [Test]
-    public async ValueTask encode_non_specific_record_throws() {
-        // Arrange — TestNonSpecificRecord does not implement ISpecificRecord, so
-        // EnsureValueIsAvroRecord must reject it. The codec must fail loud, never silently
-        // treat a plain POCO as an Avro record.
+    public async ValueTask encode_a_type_with_no_generated_codec_throws() {
+        // Arrange — the registry lookup is the validation. A type with no generated codec must fail
+        // loud, never be silently treated as an Avro record. Testing for ISpecificRecord first said
+        // less than this does: a type can implement that interface and still have no codec.
         var sut     = new AvroSchemaCodec();
         var message = new TestNonSpecificRecord(Faker.Lorem.Word());
 
         // Act & Assert
-        await Assert.That(() => sut.Encode(message)).Throws<InvalidOperationException>();
+        await Assert.That(() => sut.Encode(message)).Throws<AvroCodecNotGeneratedException>();
     }
 }

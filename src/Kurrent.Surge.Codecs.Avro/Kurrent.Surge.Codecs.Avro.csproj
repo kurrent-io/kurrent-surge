@@ -22,7 +22,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- NuGet imports build/{PackageId}.props into the consumer's build automatically, which is what
+         makes the KurrentAvro* properties visible to the generator. -->
+    <None Include="build\**" Pack="true" PackagePath="build" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Apache.Avro" />
+    <!-- Public dependency: NanoInstantExtensions exposes NodaTime.Instant, and the NodaTime time model
+         emits its types into the consumer's generated code. It reaches here transitively through
+         Kurrent.Surge.Core today, but a public surface must not rest on someone else's dependency. -->
+    <PackageReference Include="NodaTime" />
     <!-- Emits the message types and the AOT-safe encode/decode code for each .avsc AdditionalFile.
          Referenced directly rather than added to @(PackedAnalyzerProject) — that list is shared, so
          adding it there would ship this generator inside every other packed package too. -->

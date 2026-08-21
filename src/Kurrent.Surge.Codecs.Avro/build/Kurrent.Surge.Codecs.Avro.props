@@ -1,0 +1,22 @@
+<Project>
+
+  <!--
+    Makes these MSBuild properties readable by the Avro codec generator through
+    AnalyzerConfigOptionsProvider. A consumer sets them in its own .csproj or Directory.Build.props:
+
+      <PropertyGroup>
+        <KurrentAvroAccessModifier>internal</KurrentAvroAccessModifier>
+        <KurrentAvroXmlDocs>On</KurrentAvroXmlDocs>
+        <KurrentAvroNanosecondTimestamps>NanoInstant</KurrentAvroNanosecondTimestamps>
+        <KurrentAvroTimeModel>NodaTime</KurrentAvroTimeModel>
+      </PropertyGroup>
+  -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="KurrentAvroAccessModifier" />
+    <CompilerVisibleProperty Include="KurrentAvroXmlDocs" />
+    <CompilerVisibleProperty Include="KurrentAvroNanosecondTimestamps" />
+    <CompilerVisibleProperty Include="KurrentAvroTimeModel" />
+    <CompilerVisibleProperty Include="KurrentAvroApacheInterop" />
+  </ItemGroup>
+
+</Project>

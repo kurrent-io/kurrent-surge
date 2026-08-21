@@ -1,8 +1,6 @@
-using System.Collections.Immutable;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Text;
+using static Kurrent.Surge.Codecs.Avro.Generators.Tests.Unit.AvroGeneratorHarness;
 
 namespace Kurrent.Surge.Codecs.Avro.Generators.Tests.Unit;
 
@@ -16,33 +14,6 @@ namespace Kurrent.Surge.Codecs.Avro.Generators.Tests.Unit;
 /// </remarks>
 [Category("Codecs")]
 public class AvroTypeGeneratorTests {
-    /// <summary>An .avsc supplied to the generator without touching disk.</summary>
-    sealed class InMemorySchema(string path, string content) : AdditionalText {
-        public override string Path { get; } = path;
-
-        public override SourceText GetText(CancellationToken cancellationToken = default) =>
-            SourceText.From(content);
-    }
-
-    static GeneratorDriverRunResult Run(params (string Path, string Content)[] schemas) {
-        var compilation = CSharpCompilation.Create(
-            "AvroCompilation",
-            [],
-            [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var texts = schemas
-            .Select(s => (AdditionalText)new InMemorySchema(s.Path, s.Content))
-            .ToImmutableArray();
-
-        return CSharpGeneratorDriver
-            .Create([new AvroCodecGenerator().AsSourceGenerator()], texts)
-            .RunGenerators(compilation)
-            .GetRunResult();
-    }
-
-    static string SourceOf(GeneratorDriverRunResult result) =>
-        string.Join("\n", result.GeneratedTrees.Select(t => t.ToString()));
 
     [Test]
     public async ValueTask emits_specific_record_for_a_record_schema() {
@@ -61,15 +32,25 @@ public class AvroTypeGeneratorTests {
             """;
 
         // Act
-        var source = SourceOf(Run(("/schemas/Order.avsc", schema)));
+        var interop = SourceOf(RunWithApacheInterop(("/schemas/Order.avsc", schema)));
+        var plain   = SourceOf(Run(("/schemas/Order.avsc", schema)));
 
-        // Assert — the declaration, the interface, and both members Apache's readers and writers call.
-        await Assert.That(source).Contains("namespace Acme.Messages;");
-        await Assert.That(source).Contains("public sealed partial record Order : global::Avro.Specific.ISpecificRecord");
-        await Assert.That(source).Contains("public required string OrderId { get; set; }");
-        await Assert.That(source).Contains("public required int Quantity { get; set; }");
-        await Assert.That(source).Contains("object? global::Avro.Specific.ISpecificRecord.Get(int fieldPos)");
-        await Assert.That(source).Contains("void global::Avro.Specific.ISpecificRecord.Put(int fieldPos, object? fieldValue)");
+        // Assert — with interop on, the interface and both members Apache's readers and writers call.
+        await Assert.That(interop).Contains("public sealed partial record Order : global::Avro.Specific.ISpecificRecord");
+        await Assert.That(interop).Contains("object? global::Avro.Specific.ISpecificRecord.Get(int fieldPos)");
+        await Assert.That(interop).Contains("void global::Avro.Specific.ISpecificRecord.Put(int fieldPos, object? fieldValue)");
+
+        // Assert — by default none of it is emitted. Avro's contract is the bytes, and a consumer who
+        // never hands a type to Apache should not carry the surface Apache needs.
+        await Assert.That(plain).Contains("public sealed partial record Order");
+        await Assert.That(plain).DoesNotContain("ISpecificRecord");
+
+        // Assert — the properties are the same either way.
+        foreach (var source in (string[])[interop, plain]) {
+            await Assert.That(source).Contains("namespace Acme.Messages;");
+            await Assert.That(source).Contains("public required string OrderId { get; set; }");
+            await Assert.That(source).Contains("public required int Quantity { get; set; }");
+        }
     }
 
     [Test]
@@ -95,8 +76,8 @@ public class AvroTypeGeneratorTests {
 
         // Assert — every branch implements the interface, and the field is typed as it.
         await Assert.That(source).Contains("public partial interface ISightingSubjectVariant;");
-        await Assert.That(source).Contains("record Cat : global::Avro.Specific.ISpecificRecord, global::Acme.Messages.ISightingSubjectVariant");
-        await Assert.That(source).Contains("record Dog : global::Avro.Specific.ISpecificRecord, global::Acme.Messages.ISightingSubjectVariant");
+        await Assert.That(source).Contains("record Cat : global::Acme.Messages.ISightingSubjectVariant");
+        await Assert.That(source).Contains("record Dog : global::Acme.Messages.ISightingSubjectVariant");
         await Assert.That(source).Contains("public required global::Acme.Messages.ISightingSubjectVariant Subject { get; set; }");
     }
 
@@ -128,9 +109,9 @@ public class AvroTypeGeneratorTests {
         await Assert.That(source).Contains("public partial interface IReportPrimaryVariant;");
         await Assert.That(source).Contains("public partial interface IReportSecondaryVariant;");
         await Assert.That(source).Contains(
-            "record Cat : global::Avro.Specific.ISpecificRecord, global::Acme.Messages.IReportPrimaryVariant, global::Acme.Messages.IReportSecondaryVariant");
+            "record Cat : global::Acme.Messages.IReportPrimaryVariant, global::Acme.Messages.IReportSecondaryVariant");
         await Assert.That(source).Contains(
-            "record Dog : global::Avro.Specific.ISpecificRecord, global::Acme.Messages.IReportPrimaryVariant, global::Acme.Messages.IReportSecondaryVariant");
+            "record Dog : global::Acme.Messages.IReportPrimaryVariant, global::Acme.Messages.IReportSecondaryVariant");
     }
 
     [Test]
@@ -317,7 +298,7 @@ public class AvroTypeGeneratorTests {
         var source = SourceOf(Run(("/schemas/Invoice.avsc", schema)));
 
         // Assert
-        await Assert.That(source).Contains("public required global::Avro.AvroDecimal Total { get; set; }");
+        await Assert.That(source).Contains("public required global::Kurrent.Surge.Codecs.Avro.AvroDecimal Total { get; set; }");
         await Assert.That(source).DoesNotContain("class Money");
         await Assert.That(source).Contains("WriteDecimalFixed(value.Total, encoder, 2, 8);");
         await Assert.That(source).Contains("ReadDecimalFixed(decoder, 2, 8)");
@@ -438,11 +419,20 @@ public class AvroTypeGeneratorTests {
 
         var source = SourceOf(Run(("/schemas/Order.avsc", schema)));
 
-        // Assert — declared without an initialiser, and parsed only from inside the accessor.
-        await Assert.That(source).Contains("static global::Avro.Schema? s_schema;");
-        await Assert.That(source).Contains("ISpecificRecord.Schema => s_schema ??= global::Avro.Schema.Parse(SchemaJson);");
-        await Assert.That(Regex.Matches(source, @"Avro\.Schema\.Parse").Count).IsEqualTo(1);
-        await Assert.That(source).DoesNotContain("s_schema = global::Avro.Schema.Parse(SchemaJson);\n");
+        // Assert — by default there is no schema text on the type at all, so nothing can reach
+        // Avro.Schema.Parse even by accident. The AOT probe proves the consequence empirically: zero
+        // Newtonsoft symbols in the native binary.
+        await Assert.That(source).DoesNotContain("Avro.Schema.Parse");
+        await Assert.That(source).DoesNotContain("SchemaJson");
+
+        // Assert — with interop on the schema is still there, but declared without an initialiser and
+        // parsed only from inside the accessor. A static field with an initialiser gives the type a
+        // static constructor, which roots the parse whether or not anything reads it.
+        var interop = SourceOf(RunWithApacheInterop(("/schemas/Order.avsc", schema)));
+
+        await Assert.That(interop).Contains("static global::Avro.Schema? s_schema;");
+        await Assert.That(interop).Contains("ISpecificRecord.Schema => s_schema ??= global::Avro.Schema.Parse(SchemaJson);");
+        await Assert.That(Regex.Matches(interop, @"Avro\.Schema\.Parse").Count).IsEqualTo(1);
     }
 
     [Test]
@@ -475,8 +465,10 @@ public class AvroTypeGeneratorTests {
         // Assert
         var diagnostic = result.Diagnostics.Single();
 
+        // An error, not a warning: the surviving type comes from one schema while the other schema's
+        // codec was emitted against its own declaration, so the compilation fails either way.
         await Assert.That(diagnostic.Id).IsEqualTo("KAVRO003");
-        await Assert.That(diagnostic.Severity).IsEqualTo(DiagnosticSeverity.Warning);
+        await Assert.That(diagnostic.Severity).IsEqualTo(DiagnosticSeverity.Error);
         await Assert.That(Regex.Matches(SourceOf(result), "partial record Order").Count).IsEqualTo(1);
     }
 
@@ -542,10 +534,10 @@ public class AvroTypeGeneratorTests {
         // Act
         var source = SourceOf(Run(("/schemas/Shipment.avsc", schema)));
 
-        // Assert — a symbol that is a C# keyword is escaped, and a fixed derives from Apache's base type.
+        // Assert — a symbol that is a C# keyword is escaped, and a fixed derives from our own base type.
         await Assert.That(source).Contains("public enum Status");
         await Assert.That(source).Contains("@default,");
-        await Assert.That(source).Contains("public sealed partial class Md5 : global::Avro.Specific.SpecificFixed");
+        await Assert.That(source).Contains("public sealed partial class Md5 : global::Kurrent.Surge.Codecs.Avro.AvroFixedValue");
         await Assert.That(source).Contains("public Md5() : base(16) { }");
     }
 
@@ -569,8 +561,8 @@ public class AvroTypeGeneratorTests {
             }
             """;
 
-        // Act
-        var source = SourceOf(Run(("/schemas/Order.avsc", schema)));
+        // Act — schema text is only emitted when Apache needs to read it.
+        var source = SourceOf(RunWithApacheInterop(("/schemas/Order.avsc", schema)));
 
         // Assert
         await Assert.That(source).Contains("""const string SchemaJson = @"{""namespace"": ""Acme.Messages"", ""type"": ""record"",""");

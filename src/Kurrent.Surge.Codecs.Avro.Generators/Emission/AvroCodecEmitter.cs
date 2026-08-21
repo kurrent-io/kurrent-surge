@@ -8,20 +8,24 @@ namespace Kurrent.Surge.Codecs.Avro.Generators.Emission;
 /// Emits straight-line encode/decode methods for an Avro schema.
 /// </summary>
 /// <remarks>
-/// The emitted code drives Apache.Avro's <c>Encoder</c>/<c>Decoder</c> byte primitives directly and never
-/// touches <c>SpecificDatumReader</c>/<c>SpecificDatumWriter</c>. Those walk the schema at runtime through
-/// <c>Avro.Specific.ObjectCreator</c>, which resolves types via <c>Type.GetType(string)</c> and
-/// <c>MakeGenericType</c> — IL3050, unavailable under Native AOT. Every type this emitter needs is written
-/// into the generated source instead, so nothing is resolved at runtime.
+/// The emitted code drives <c>AvroBinaryEncoder</c>/<c>AvroBinaryDecoder</c> — our own primitives — and
+/// never touches Apache's <c>SpecificDatumReader</c>/<c>SpecificDatumWriter</c>. Those walk the schema at
+/// runtime through <c>Avro.Specific.ObjectCreator</c>, which resolves types via
+/// <c>Type.GetType(string)</c> and <c>MakeGenericType</c> — IL3050, unavailable under Native AOT. Every
+/// type this emitter needs is written into the generated source instead, so nothing is resolved at
+/// runtime.
 /// </remarks>
-sealed class AvroCodecEmitter(AvroSchemaDocument document) {
+sealed class AvroCodecEmitter(AvroSchemaDocument document, AvroGeneratorOptions options) {
     readonly CodeWriter                     _writer   = new();
-    readonly AvroTypeMap                    _types    = new(document);
+    readonly AvroTypeMap                    _types    = new(document, options);
     readonly Dictionary<string, AvroRecord> _records  = [];
     readonly HashSet<AvroLogicalKind>       _logicals = [];
 
     /// <summary>Tracked apart from <see cref="_logicals"/>: a fixed-backed decimal needs its own helpers.</summary>
     bool _decimalFixed;
+
+    /// <summary>Likewise for a fixed-backed duration, which only the NodaTime model can carry.</summary>
+    bool _duration;
 
     /// <summary>Nesting depth, so a collection inside a collection does not reuse a loop variable name.</summary>
     int _depth;
@@ -36,10 +40,10 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
         using (_writer.Block($"internal static class {CodecClassName(root)}")) {
             _writer.Lines(
                 $"""
-                 public static void Encode({TypeName(root)} value, global::Avro.IO.Encoder encoder) =>
+                 public static void Encode({TypeName(root)} value, global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryEncoder encoder) =>
                      {EncodeMethodName(root)}(value, encoder);
 
-                 public static {TypeName(root)} Decode(global::Avro.IO.Decoder decoder) =>
+                 public static {TypeName(root)} Decode(global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryDecoder decoder) =>
                      {DecodeMethodName(root)}(decoder);
                  """);
 
@@ -62,13 +66,17 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
     /// </remarks>
     void EmitLogicalTypeSupport(HashSet<AvroLogicalKind> logicals) {
         if (Needs(
-            AvroLogicalKind.Date,
             AvroLogicalKind.TimestampMillis,
             AvroLogicalKind.TimestampMicros,
             AvroLogicalKind.LocalTimestampMillis,
             AvroLogicalKind.LocalTimestampMicros)) {
             _writer.Line();
             _writer.Lines(Templates.UnixEpoch);
+        }
+
+        if (Needs(AvroLogicalKind.Date)) {
+            _writer.Line();
+            _writer.Lines(Templates.UnixEpochDay);
         }
 
         if (Needs(AvroLogicalKind.TimeMicros, AvroLogicalKind.TimestampMicros, AvroLogicalKind.LocalTimestampMicros)) {
@@ -78,16 +86,38 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
 
         if (Needs(AvroLogicalKind.Decimal)) {
             _writer.Line();
-            _writer.Lines(Templates.DecimalConverters);
+            _writer.Lines(Decimals(Templates.DecimalConverters));
         }
 
         if (_decimalFixed) {
             _writer.Line();
-            _writer.Lines(Templates.DecimalFixedConverters);
+            _writer.Lines(Decimals(Templates.DecimalFixedConverters));
+        }
+
+        if (_duration) {
+            _writer.Line();
+            _writer.Lines(Templates.DurationConverters);
+        }
+
+        if (Needs(AvroLogicalKind.TimestampNanos) && options.EmitsRichNanoseconds && options.UsesNodaTime) {
+            _writer.Line();
+            _writer.Lines(Templates.NanosecondInstantConverters);
         }
 
         bool Needs(params AvroLogicalKind[] kinds) => kinds.Any(logicals.Contains);
     }
+
+    /// <summary>
+    /// Points the decimal helpers at whichever <c>AvroDecimal</c> the generated properties use.
+    /// </summary>
+    /// <remarks>
+    /// Substituted rather than interpolated: the templates are raw string literals full of braces from
+    /// their own interpolated messages, and making them format strings would mean escaping every one.
+    /// </remarks>
+    string Decimals(string template) =>
+        options.EmitsApacheInterop
+            ? template
+            : template.Replace("global::Avro.AvroDecimal", "global::Kurrent.Surge.Codecs.Avro.AvroDecimal");
 
     #region ->> Record traversal <<-
 
@@ -101,6 +131,10 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
 
             case AvroFixed { Logical: AvroLogicalKind.Decimal }:
                 _decimalFixed = true;
+                break;
+
+            case AvroFixed { Logical: AvroLogicalKind.Duration } when options.UsesNodaTime:
+                _duration = true;
                 break;
 
             case AvroRecord record when !_records.ContainsKey(record.FullName):
@@ -125,7 +159,7 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
     #region ->> Encoding <<-
 
     void EmitRecordEncoder(AvroRecord record) {
-        using (_writer.Block($"static void {EncodeMethodName(record)}({TypeName(record)} value, global::Avro.IO.Encoder encoder)")) {
+        using (_writer.Block($"static void {EncodeMethodName(record)}({TypeName(record)} value, global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryEncoder encoder)")) {
             foreach (var field in record.Fields)
                 EmitEncode(field.Type, $"value.{AvroNaming.Identifier(field.Name)}", new FieldSite(record, field.Name));
         }
@@ -149,17 +183,13 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
                 _writer.Line($"WriteDecimalFixed({expression}, encoder, {@decimal.Scale}, {@decimal.Size});");
                 break;
 
-            // RFC 4122 order. Guid.ToByteArray() without the flag is little-endian across the first
-            // three fields and would byte-swap every value on the wire. Written through the shared
-            // scratch buffer, since WriteFixed takes no span and would otherwise force an array per field.
-            case AvroFixed { Logical: AvroLogicalKind.Uuid } uuid: {
-                var buffer = $"uuid{_depth}";
-
-                _writer.Line($"var {buffer} = global::Kurrent.Surge.Codecs.Avro.AvroBuffers.Rent({uuid.Size});");
-                _writer.Line($"{expression}.TryWriteBytes({buffer}, bigEndian: true, out _);");
-                _writer.Line($"encoder.WriteFixed({buffer}, 0, {uuid.Size});");
+            case AvroFixed { Logical: AvroLogicalKind.Duration } when options.UsesNodaTime:
+                _writer.Line($"WriteDuration({expression}, encoder);");
                 break;
-            }
+
+            case AvroFixed { Logical: AvroLogicalKind.Uuid }:
+                _writer.Line($"encoder.WriteUuid({expression});");
+                break;
 
             case AvroFixed:
                 _writer.Line($"encoder.WriteFixed({expression}.Value);");
@@ -271,20 +301,63 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
     /// (<c>Util/Date.cs</c>, <c>Uuid.cs</c>, <c>Timestamp*.cs</c>, <c>Decimal.cs</c>) so the bytes match
     /// what <c>SpecificDatumWriter</c> would have produced.
     /// </remarks>
-    string PrimitiveWrite(AvroPrimitive primitive, string expression) => primitive.Logical switch {
+    /// <summary>
+    /// Rewrites a NodaTime-typed expression as the BCL type the wire arithmetic is written against.
+    /// </summary>
+    /// <remarks>
+    /// Both models therefore run byte-identical conversion code, which is what makes the time model a
+    /// choice of surface type rather than a second encoding to keep in step with Apache.
+    /// </remarks>
+    string ToBcl(AvroLogicalKind logical, string expression) => !options.UsesNodaTime ? expression : logical switch {
+        AvroLogicalKind.Date => $"{expression}.ToDateOnly()",
+        AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros => $"{expression}.ToTimeOnly()",
+        AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros => $"{expression}.ToDateTimeOffset()",
+        AvroLogicalKind.LocalTimestampMillis or AvroLogicalKind.LocalTimestampMicros =>
+            $"{expression}.ToDateTimeUnspecified()",
+        _ => expression
+    };
+
+    string FromBcl(AvroLogicalKind logical, string read) => !options.UsesNodaTime ? read : logical switch {
+        AvroLogicalKind.Date => $"global::NodaTime.LocalDate.FromDateOnly({read})",
+        AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros => $"global::NodaTime.LocalTime.FromTimeOnly({read})",
+        AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros =>
+            $"global::NodaTime.Instant.FromDateTimeOffset({read})",
+        AvroLogicalKind.LocalTimestampMillis or AvroLogicalKind.LocalTimestampMicros =>
+            $"global::NodaTime.LocalDateTime.FromDateTime({read})",
+        _ => read
+    };
+
+    string PrimitiveWrite(AvroPrimitive primitive, string raw) => Write(primitive, ToBcl(primitive.Logical, raw));
+
+    string Write(AvroPrimitive primitive, string expression) => primitive.Logical switch {
         AvroLogicalKind.Uuid            => $"encoder.WriteString({expression}.ToString());",
-        AvroLogicalKind.Date            => $"encoder.WriteInt(({expression}.Date - UnixEpoch).Days);",
-        AvroLogicalKind.TimeMillis      => $"encoder.WriteInt((int){expression}.TotalMilliseconds);",
+        AvroLogicalKind.Date            => $"encoder.WriteInt({expression}.DayNumber - UnixEpochDay);",
+        AvroLogicalKind.TimeMillis      => $"encoder.WriteInt((int){expression}.ToTimeSpan().TotalMilliseconds);",
         AvroLogicalKind.TimeMicros      => $"encoder.WriteLong({expression}.Ticks / TicksPerMicrosecond);",
         AvroLogicalKind.Decimal         => $"WriteDecimal({expression}, encoder, {primitive.Scale});",
-        AvroLogicalKind.TimestampNanos  => $"encoder.WriteLong({expression}.TotalNanoseconds);",
 
-        // The local variants write exactly what the absolute ones write. Only the read differs, so a
-        // shared arm here is Apache's own arithmetic, not a simplification of it.
-        AvroLogicalKind.TimestampMillis or AvroLogicalKind.LocalTimestampMillis =>
+        AvroLogicalKind.TimestampNanos when options.EmitsRichNanoseconds && options.UsesNodaTime =>
+            $"encoder.WriteLong(ToUnixNanoseconds({expression}));",
+
+        AvroLogicalKind.TimestampNanos when options.EmitsRichNanoseconds =>
+            $"encoder.WriteLong({expression}.TotalNanoseconds);",
+
+        AvroLogicalKind.TimestampNanos => $"encoder.WriteLong({expression});",
+
+        // UtcDateTime rather than ToUnixTimeMilliseconds: the two disagree by one millisecond at
+        // DateTime.MaxValue, and the subtraction is Apache's own arithmetic.
+        AvroLogicalKind.TimestampMillis =>
+            $"encoder.WriteLong((long)({expression}.UtcDateTime - UnixEpoch).TotalMilliseconds);",
+
+        AvroLogicalKind.TimestampMicros =>
+            $"encoder.WriteLong(({expression}.UtcDateTime - UnixEpoch).Ticks / TicksPerMicrosecond);",
+
+        // The local variants write what the absolute ones write; only the read differs. They stay
+        // DateTime, so ToUniversalTime is still the conversion Apache applies.
+        AvroLogicalKind.LocalTimestampMillis =>
             $"encoder.WriteLong((long)({expression}.ToUniversalTime() - UnixEpoch).TotalMilliseconds);",
 
-        AvroLogicalKind.TimestampMicros or AvroLogicalKind.LocalTimestampMicros =>
+        AvroLogicalKind.LocalTimestampMicros =>
             $"encoder.WriteLong(({expression}.ToUniversalTime() - UnixEpoch).Ticks / TicksPerMicrosecond);",
 
         _ => primitive.Kind switch {
@@ -304,7 +377,7 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
     #region ->> Decoding <<-
 
     void EmitRecordDecoder(AvroRecord record) {
-        using (_writer.Block($"static {TypeName(record)} {DecodeMethodName(record)}(global::Avro.IO.Decoder decoder)")) {
+        using (_writer.Block($"static {TypeName(record)} {DecodeMethodName(record)}(global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryDecoder decoder)")) {
             var locals = new List<string>();
 
             foreach (var field in record.Fields) {
@@ -336,10 +409,12 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
                 _writer.Line($"var {local} = ReadDecimalFixed(decoder, {@decimal.Scale}, {@decimal.Size});");
                 break;
 
-            case AvroFixed { Logical: AvroLogicalKind.Uuid } uuid:
-                _writer.Line($"var {local}_bytes = global::Kurrent.Surge.Codecs.Avro.AvroBuffers.Rent({uuid.Size});");
-                _writer.Line($"decoder.ReadFixed({local}_bytes, 0, {uuid.Size});");
-                _writer.Line($"var {local} = new global::System.Guid({local}_bytes.AsSpan(0, {uuid.Size}), bigEndian: true);");
+            case AvroFixed { Logical: AvroLogicalKind.Duration } when options.UsesNodaTime:
+                _writer.Line($"var {local} = ReadDuration(decoder);");
+                break;
+
+            case AvroFixed { Logical: AvroLogicalKind.Uuid }:
+                _writer.Line($"var {local} = decoder.ReadUuid();");
                 break;
 
             case AvroFixed @fixed:
@@ -444,17 +519,32 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document) {
     /// (<c>LocalTimestampMillisecond.ConvertToLogicalValue</c>). Dropping it would make our decoder
     /// disagree with <c>SpecificDatumReader</c> on the same bytes.
     /// </remarks>
-    string PrimitiveRead(AvroPrimitive primitive) => primitive.Logical switch {
+    string PrimitiveRead(AvroPrimitive primitive) => FromBcl(primitive.Logical, Read(primitive));
+
+    string Read(AvroPrimitive primitive) => primitive.Logical switch {
         AvroLogicalKind.Uuid                 => "new global::System.Guid(decoder.ReadString())",
-        AvroLogicalKind.Date                 => "UnixEpoch.AddDays(decoder.ReadInt())",
-        AvroLogicalKind.TimeMillis           => "global::System.TimeSpan.FromMilliseconds(decoder.ReadInt())",
-        AvroLogicalKind.TimeMicros           => "global::System.TimeSpan.FromTicks(decoder.ReadLong() * TicksPerMicrosecond)",
-        AvroLogicalKind.TimestampMillis      => "UnixEpoch.AddMilliseconds(decoder.ReadLong())",
-        AvroLogicalKind.TimestampMicros      => "UnixEpoch.AddTicks(decoder.ReadLong() * TicksPerMicrosecond)",
+        AvroLogicalKind.Date                 => "global::System.DateOnly.FromDayNumber(UnixEpochDay + decoder.ReadInt())",
+        AvroLogicalKind.TimeMillis           => "global::System.TimeOnly.FromTimeSpan(global::System.TimeSpan.FromMilliseconds(decoder.ReadInt()))",
+        AvroLogicalKind.TimeMicros           => "global::System.TimeOnly.FromTimeSpan(global::System.TimeSpan.FromTicks(decoder.ReadLong() * TicksPerMicrosecond))",
         AvroLogicalKind.LocalTimestampMillis => "UnixEpoch.AddMilliseconds(decoder.ReadLong()).ToLocalTime()",
         AvroLogicalKind.LocalTimestampMicros => "UnixEpoch.AddTicks(decoder.ReadLong() * TicksPerMicrosecond).ToLocalTime()",
         AvroLogicalKind.Decimal              => $"ReadDecimal(decoder, {primitive.Scale})",
-        AvroLogicalKind.TimestampNanos       => "new global::Kurrent.Surge.Codecs.Avro.NanoInstant(decoder.ReadLong())",
+
+        // UnixEpoch is Kind=Utc, so the DateTimeOffset lands at offset zero. The wire carries no offset,
+        // so a value encoded at +05:00 decodes to the same instant expressed at zero.
+        AvroLogicalKind.TimestampMillis =>
+            "new global::System.DateTimeOffset(UnixEpoch.AddMilliseconds(decoder.ReadLong()))",
+
+        AvroLogicalKind.TimestampMicros =>
+            "new global::System.DateTimeOffset(UnixEpoch.AddTicks(decoder.ReadLong() * TicksPerMicrosecond))",
+
+        AvroLogicalKind.TimestampNanos when options.EmitsRichNanoseconds && options.UsesNodaTime =>
+            "FromUnixNanoseconds(decoder.ReadLong())",
+
+        AvroLogicalKind.TimestampNanos when options.EmitsRichNanoseconds =>
+            "new global::Kurrent.Surge.Codecs.Avro.NanoInstant(decoder.ReadLong())",
+
+        AvroLogicalKind.TimestampNanos => "decoder.ReadLong()",
 
         _ => primitive.Kind switch {
             AvroPrimitiveKind.Null    => "default(object?)",

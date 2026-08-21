@@ -20,12 +20,9 @@ namespace Kurrent.Surge.Codecs.Avro.Generators.Emission;
 /// static constructor, which roots <c>Avro.Schema.Parse</c>, which roots Newtonsoft.Json into every
 /// binary whether or not anything ever reads the schema.
 /// </para>
-/// <para>
-/// Naming and emission shape are derived from AvroSourceGenerator (MIT, Copyright (c) 2024 sadicangel).
-/// </para>
 /// </remarks>
-sealed class AvroTypeEmitter(AvroSchemaDocument document) {
-    readonly AvroTypeMap                      _types    = new(document);
+sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions options) {
+    readonly AvroTypeMap                      _types    = new(document, options);
     readonly List<FieldSite>                  _variants = [];
     readonly Dictionary<string, List<string>> _implements = [];
 
@@ -39,8 +36,7 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document) {
                 case AvroRecord record: emissions.Add(EmitRecord(record)); break;
                 case AvroEnum @enum:    emissions.Add(EmitEnum(@enum));    break;
 
-                // A decimal-annotated fixed surfaces as AvroDecimal, so nothing would reference the class.
-                case AvroFixed { Logical: AvroLogicalKind.None } @fixed: emissions.Add(EmitFixed(@fixed)); break;
+                case AvroFixed @fixed when NeedsFixedClass(@fixed): emissions.Add(EmitFixed(@fixed)); break;
             }
         }
 
@@ -48,6 +44,18 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document) {
 
         return emissions;
     }
+
+    /// <summary>Whether a field of this fixed is typed as the fixed class itself.</summary>
+    /// <remarks>
+    /// A <c>decimal</c> or <c>uuid</c> annotation replaces the class with its logical type, so nothing
+    /// would reference it. A <c>duration</c> replaces it only under a time model that can carry one —
+    /// otherwise the annotation is erased and the class is still the field's type.
+    /// </remarks>
+    bool NeedsFixedClass(AvroFixed @fixed) => @fixed.Logical switch {
+        AvroLogicalKind.None     => true,
+        AvroLogicalKind.Duration => !options.UsesNodaTime,
+        _                        => false
+    };
 
     #region ->> Variant discovery <<-
 
@@ -93,24 +101,35 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document) {
         var writer = Header(record);
         var name   = AvroNaming.TypeName(record);
 
-        var bases = new List<string> { "global::Avro.Specific.ISpecificRecord" };
+        var bases = new List<string>();
+
+        if (options.EmitsApacheInterop) bases.Add("global::Avro.Specific.ISpecificRecord");
 
         if (_implements.TryGetValue(record.FullName, out var interfaces)) bases.AddRange(interfaces);
 
         Documentation(writer, record.Doc);
         writer.Line(Templates.GeneratedCodeAttribute);
 
-        using (writer.Block($"public sealed partial record {name} : {string.Join(", ", bases)}")) {
+        var declaration = bases.Count == 0
+            ? $"{options.AccessModifierKeyword} sealed partial record {name}"
+            : $"{options.AccessModifierKeyword} sealed partial record {name} : {string.Join(", ", bases)}";
+
+        using (writer.Block(declaration)) {
             foreach (var field in record.Fields) EmitProperty(writer, record, field);
 
             writer.Line();
             EmitEquality(writer, record);
-            writer.Line();
-            EmitSchema(writer, record);
-            writer.Line();
-            EmitGet(writer, record);
-            writer.Line();
-            EmitPut(writer, record);
+
+            // Schema, Get and Put exist only for Apache's readers and writers. Without them the type
+            // carries no schema text, so nothing can root Avro.Schema.Parse and pull in Newtonsoft.
+            if (options.EmitsApacheInterop) {
+                writer.Line();
+                EmitSchema(writer, record);
+                writer.Line();
+                EmitGet(writer, record);
+                writer.Line();
+                EmitPut(writer, record);
+            }
         }
 
         return new TypeEmission(record.FullName, writer.ToString());
@@ -217,46 +236,116 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document) {
 
     /// <summary>The value handed to Apache across <c>ISpecificRecord</c>.</summary>
     /// <remarks>
-    /// Apache does not model <c>timestamp-nanos</c>. It resolves the field to <c>UnknownLogicalType</c>
-    /// over a <c>long</c> and rejects anything that is not an <c>Int64</c>, so the richer property type
-    /// converts here rather than leaking across the interface. Everything else crosses unchanged.
+    /// Several logical types surface as a narrower CLR type than the one Apache works in — <c>DateOnly</c>
+    /// for <c>date</c>, <c>TimeOnly</c> for <c>time-*</c>, <c>DateTimeOffset</c> for an absolute
+    /// <c>timestamp</c>, and <c>NanoInstant</c> for <c>timestamp-nanos</c> when that is switched on.
+    /// Apache resolves each to <c>DateTime</c>, <c>TimeSpan</c> or <c>long</c> and rejects anything else,
+    /// so the conversion happens here and the richer type never crosses the interface. Everything else
+    /// crosses unchanged.
     /// </remarks>
     string InteropGet(AvroField field) {
-        var name = AvroNaming.Identifier(field.Name);
+        var name             = AvroNaming.Identifier(field.Name);
+        var (shape, logical) = InteropOf(field.Type);
 
-        return NanosecondBranch(field.Type) switch {
-            NanosecondShape.Direct   => $"{name}.TotalNanoseconds",
-            NanosecondShape.Nullable => $"{name}?.TotalNanoseconds",
-            _                        => name
+        if (shape is InteropShape.None) return name;
+
+        var access = shape is InteropShape.Nullable ? $"{name}?" : name;
+
+        if (options.UsesNodaTime) {
+            // Instant to nanoseconds is a subtraction, so it cannot ride the null-conditional the other
+            // conversions use; a nullable field spells the null check out.
+            if (logical is AvroLogicalKind.TimestampNanos) {
+                const string Epoch = "global::NodaTime.NodaConstants.UnixEpoch";
+
+                return shape is InteropShape.Nullable
+                    ? $"{name} is null ? (object?)null : ({name}.Value - {Epoch}).ToInt64Nanoseconds()"
+                    : $"({name} - {Epoch}).ToInt64Nanoseconds()";
+            }
+
+            return logical switch {
+                AvroLogicalKind.Date => $"{access}.ToDateOnly().ToDateTime(global::System.TimeOnly.MinValue)",
+                AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros => $"{access}.ToTimeOnly().ToTimeSpan()",
+                AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros => $"{access}.ToDateTimeUtc()",
+                _ => $"{access}.ToDateTimeUnspecified()"
+            };
+        }
+
+        return logical switch {
+            AvroLogicalKind.Date => $"{access}.ToDateTime(global::System.TimeOnly.MinValue)",
+            AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros => $"{access}.ToTimeSpan()",
+            AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros => $"{access}.UtcDateTime",
+            _ => $"{access}.TotalNanoseconds"
         };
     }
 
     string InteropPut(AvroField field, FieldSite site) {
-        const string Nano = "global::Kurrent.Surge.Codecs.Avro.NanoInstant";
-
-        switch (NanosecondBranch(field.Type)) {
-            case NanosecondShape.Direct:   return $"new {Nano}((long)fieldValue!)";
-            case NanosecondShape.Nullable: return $"fieldValue is null ? null : new {Nano}((long)fieldValue)";
-        }
+        var (shape, logical) = InteropOf(field.Type);
 
         // A boxed value cannot be unboxed straight to Nullable<T>, so a nullable field tests for null
         // first and casts to the branch type.
-        return _types.IsNullable(field.Type)
-            ? $"fieldValue is null ? null : ({_types.UnderlyingTypeOf(field.Type, site)})fieldValue"
-            : $"({_types.TypeOf(field.Type, site)})fieldValue!";
+        if (shape is InteropShape.None)
+            return _types.IsNullable(field.Type)
+                ? $"fieldValue is null ? null : ({_types.UnderlyingTypeOf(field.Type, site)})fieldValue"
+                : $"({_types.TypeOf(field.Type, site)})fieldValue!";
+
+        var suffix = shape is InteropShape.Nullable ? "" : "!";
+
+        var convert = options.UsesNodaTime
+            ? logical switch {
+                AvroLogicalKind.Date =>
+                    $"global::NodaTime.LocalDate.FromDateOnly(global::System.DateOnly.FromDateTime((global::System.DateTime)fieldValue{suffix}))",
+                AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros =>
+                    $"global::NodaTime.LocalTime.FromTimeOnly(global::System.TimeOnly.FromTimeSpan((global::System.TimeSpan)fieldValue{suffix}))",
+                AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros =>
+                    $"global::NodaTime.Instant.FromDateTimeUtc((global::System.DateTime)fieldValue{suffix})",
+                AvroLogicalKind.LocalTimestampMillis or AvroLogicalKind.LocalTimestampMicros =>
+                    $"global::NodaTime.LocalDateTime.FromDateTime((global::System.DateTime)fieldValue{suffix})",
+                _ =>
+                    $"global::NodaTime.NodaConstants.UnixEpoch + global::NodaTime.Duration.FromNanoseconds((long)fieldValue{suffix})"
+            }
+            : logical switch {
+                AvroLogicalKind.Date =>
+                    $"global::System.DateOnly.FromDateTime((global::System.DateTime)fieldValue{suffix})",
+                AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros =>
+                    $"global::System.TimeOnly.FromTimeSpan((global::System.TimeSpan)fieldValue{suffix})",
+                AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros =>
+                    $"new global::System.DateTimeOffset((global::System.DateTime)fieldValue{suffix})",
+                _ =>
+                    $"new global::Kurrent.Surge.Codecs.Avro.NanoInstant((long)fieldValue{suffix})"
+            };
+
+        return shape is InteropShape.Nullable ? $"fieldValue is null ? null : {convert}" : convert;
     }
 
-    enum NanosecondShape { None, Direct, Nullable }
+    enum InteropShape { None, Direct, Nullable }
 
-    NanosecondShape NanosecondBranch(AvroSchema schema) {
-        if (document.Resolve(schema) is AvroPrimitive { Logical: AvroLogicalKind.TimestampNanos })
-            return NanosecondShape.Direct;
+    (InteropShape Shape, AvroLogicalKind Logical) InteropOf(AvroSchema schema) {
+        var resolved = document.Resolve(schema);
 
-        return document.Resolve(schema) is AvroUnion { IsNullable: true } union
-            && document.Resolve(union.NullableBranch!) is AvroPrimitive { Logical: AvroLogicalKind.TimestampNanos }
-                ? NanosecondShape.Nullable
-                : NanosecondShape.None;
+        if (resolved is AvroPrimitive { Logical: var direct } && NeedsInterop(direct))
+            return (InteropShape.Direct, direct);
+
+        if (resolved is AvroUnion { IsNullable: true } union
+         && document.Resolve(union.NullableBranch!) is AvroPrimitive { Logical: var branch }
+         && NeedsInterop(branch))
+            return (InteropShape.Nullable, branch);
+
+        return (InteropShape.None, AvroLogicalKind.None);
     }
+
+    bool NeedsInterop(AvroLogicalKind kind) => kind switch {
+        AvroLogicalKind.Date
+            or AvroLogicalKind.TimeMillis      or AvroLogicalKind.TimeMicros
+            or AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros => true,
+
+        // DateTime is already what Apache expects; LocalDateTime is not.
+        AvroLogicalKind.LocalTimestampMillis or AvroLogicalKind.LocalTimestampMicros => options.UsesNodaTime,
+
+        // Erased to long, so the property already is what Apache expects.
+        AvroLogicalKind.TimestampNanos => options.EmitsRichNanoseconds,
+
+        _ => false
+    };
 
     void EmitPut(CodeWriter writer, AvroRecord record) {
         using (writer.Block("void global::Avro.Specific.ISpecificRecord.Put(int fieldPos, object? fieldValue)"))
@@ -282,7 +371,7 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document) {
         Documentation(writer, @enum.Doc);
         writer.Line(Templates.GeneratedCodeAttribute);
 
-        using (writer.Block($"public enum {AvroNaming.TypeName(@enum)}")) {
+        using (writer.Block($"{options.AccessModifierKeyword} enum {AvroNaming.TypeName(@enum)}")) {
             foreach (var symbol in @enum.Symbols) writer.Line($"{AvroNaming.Identifier(symbol)},");
         }
 
@@ -296,12 +385,19 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document) {
         Documentation(writer, @fixed.Doc);
         writer.Line(Templates.GeneratedCodeAttribute);
 
-        using (writer.Block($"public sealed partial class {name} : global::Avro.Specific.SpecificFixed")) {
+        var @base = options.EmitsApacheInterop
+            ? "global::Avro.Specific.SpecificFixed"
+            : "global::Kurrent.Surge.Codecs.Avro.AvroFixedValue";
+
+        using (writer.Block($"{options.AccessModifierKeyword} sealed partial class {name} : {@base}")) {
             writer.Line($"public {name}() : base({@fixed.Size}) {{ }}");
-            writer.Line();
-            writer.Line($"public int Size => {@fixed.Size};");
-            writer.Line();
-            EmitSchema(writer, @fixed);
+
+            if (options.EmitsApacheInterop) {
+                writer.Line();
+                writer.Line($"public int Size => {@fixed.Size};");
+                writer.Line();
+                EmitSchema(writer, @fixed);
+            }
         }
 
         return new TypeEmission(@fixed.FullName, writer.ToString());
@@ -321,11 +417,13 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document) {
             writer.Line();
         }
 
-        writer.Line("/// <summary>");
-        writer.Line($"/// One branch of the union declared by '{site.Field}' on '{site.Owner.FullName}'.");
-        writer.Line("/// </summary>");
+        if (options.EmitsXmlDocs) {
+            writer.Line("/// <summary>");
+            writer.Line($"/// One branch of the union declared by '{site.Field}' on '{site.Owner.FullName}'.");
+            writer.Line("/// </summary>");
+        }
         writer.Line(Templates.GeneratedCodeAttribute);
-        writer.Line($"public partial interface {name};");
+        writer.Line($"{options.AccessModifierKeyword} partial interface {name};");
 
         var fullName = site.Owner.Namespace.Length == 0 ? name : $"{site.Owner.Namespace}.{name}";
 
@@ -352,8 +450,8 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document) {
         return writer;
     }
 
-    static void Documentation(CodeWriter writer, string? doc) {
-        if (string.IsNullOrWhiteSpace(doc)) return;
+    void Documentation(CodeWriter writer, string? doc) {
+        if (!options.EmitsXmlDocs || string.IsNullOrWhiteSpace(doc)) return;
 
         writer.Line("/// <summary>");
 

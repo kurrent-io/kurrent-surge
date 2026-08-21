@@ -8,12 +8,20 @@
   <ItemGroup>
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- Snapshot testing: the full generated output is committed as .verified.txt and any change to it
+         shows up as a reviewable diff, rather than as whichever substrings someone thought to assert. -->
+    <PackageReference Include="Verify.TUnit" />
+    <PackageReference Include="Verify.SourceGenerators" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- The generator under test, referenced as a plain library so the CSharpGeneratorDriver harness
          can instantiate it directly. NOT wired as an analyzer here — these tests drive it by hand. -->
     <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" />
+    <!-- Not for the tests' own code — for the compilation they build. Generated output references
+         AvroBinaryEncoder, AvroDecimal and AvroFixedValue, so the runtime assembly has to be resolvable
+         or "does it compile" cannot be asked. -->
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro\Kurrent.Surge.Codecs.Avro.csproj" />
     <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 

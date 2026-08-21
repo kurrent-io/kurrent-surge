@@ -33,32 +33,112 @@ static class Templates {
     public const string UnixEpoch =
         "static readonly global::System.DateTime UnixEpoch = new global::System.DateTime(1970, 1, 1, 0, 0, 0, global::System.DateTimeKind.Utc);";
 
+    public const string UnixEpochDay =
+        "static readonly int UnixEpochDay = new global::System.DateOnly(1970, 1, 1).DayNumber;";
+
     public const string TicksPerMicrosecond =
         "const long TicksPerMicrosecond = global::System.TimeSpan.TicksPerMillisecond / 1000;";
 
     /// <remarks>
+    /// <c>Instant</c> is nanosecond-native, so the conversion is exact in both directions. The read
+    /// floors rather than truncating: a pre-epoch instant must keep a non-negative nano-of-second.
+    /// </remarks>
+    public const string NanosecondInstantConverters =
+        """
+        static long ToUnixNanoseconds(global::NodaTime.Instant value) {
+            var (seconds, nanoOfSecond) = value.ToUnixTimeSecondsAndNanoseconds();
+
+            return seconds * 1_000_000_000L + nanoOfSecond;
+        }
+
+        static global::NodaTime.Instant FromUnixNanoseconds(long value) {
+            var seconds = value / 1_000_000_000L;
+            var nanos   = value % 1_000_000_000L;
+
+            if (nanos < 0) {
+                seconds -= 1;
+                nanos   += 1_000_000_000L;
+            }
+
+            return global::NodaTime.Instant.FromUnixTimeSeconds(seconds).PlusNanoseconds(nanos);
+        }
+        """;
+
+    /// <remarks>
+    /// An Avro <c>duration</c> is three little-endian unsigned 32-bit values — months, days,
+    /// milliseconds — in a <c>fixed(12)</c>. See the Avro specification, "Duration".
+    /// <para>
+    /// <c>Period</c> is a superset: it also carries years, weeks, hours, minutes, seconds, ticks and
+    /// nanoseconds. The units that convert exactly are folded in; a sub-millisecond remainder or a
+    /// negative component is rejected rather than silently discarded, which is how
+    /// <c>WriteDecimal</c> already treats a scale it cannot represent.
+    /// </para>
+    /// </remarks>
+    public const string DurationConverters =
+        """
+        static void WriteDuration(global::NodaTime.Period value, global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryEncoder encoder) {
+            if (value.Ticks != 0 || value.Nanoseconds != 0) {
+                throw new global::System.ArgumentOutOfRangeException(
+                    nameof(value),
+                    "an Avro 'duration' resolves to milliseconds, and this period carries ticks or nanoseconds that cannot be encoded");
+            }
+
+            var months = value.Years * 12L + value.Months;
+            var days   = value.Weeks * 7L + value.Days;
+            var millis = ((value.Hours * 60L + value.Minutes) * 60L + value.Seconds) * 1000L + value.Milliseconds;
+
+            if (months < 0 || days < 0 || millis < 0) {
+                throw new global::System.ArgumentOutOfRangeException(
+                    nameof(value),
+                    "an Avro 'duration' is unsigned, and this period has a negative months, days or time component");
+            }
+
+            if (months > uint.MaxValue || days > uint.MaxValue || millis > uint.MaxValue) {
+                throw new global::System.ArgumentOutOfRangeException(
+                    nameof(value),
+                    "an Avro 'duration' stores each component as an unsigned 32-bit value, and this period exceeds it");
+            }
+
+            var span = encoder.WriteFixedSpan(12);
+
+            global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(span,       (uint)months);
+            global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(span[4..],  (uint)days);
+            global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(span[8..],  (uint)millis);
+        }
+
+        static global::NodaTime.Period ReadDuration(global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryDecoder decoder) {
+            var span = decoder.ReadFixedSpan(12);
+
+            return new global::NodaTime.PeriodBuilder {
+                Months       = (int)global::System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(span),
+                Days         = (int)global::System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(span[4..]),
+                Milliseconds = global::System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(span[8..])
+            }.Build();
+        }
+        """;
+
+    /// <remarks>
     /// Byte order and the scale check mirror <c>Avro.Util.Decimal.ConvertToBaseValue</c> exactly: Avro
-    /// stores the unscaled value big-endian, while <c>BigInteger</c> is little-endian.
+    /// stores the unscaled value big-endian, while <c>BigInteger</c> is little-endian by default. Both
+    /// directions ask <c>BigInteger</c> for big-endian order rather than reversing afterwards, so the
+    /// value is written straight into the payload and read straight out of it.
     /// </remarks>
     public const string DecimalConverters =
         """
-        static void WriteDecimal(global::Avro.AvroDecimal value, global::Avro.IO.Encoder encoder, int scale) {
+        static void WriteDecimal(global::Avro.AvroDecimal value, global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryEncoder encoder, int scale) {
             if (value.Scale != scale) {
                 throw new global::System.ArgumentOutOfRangeException(
                     nameof(value),
                     $"The decimal value has a scale of {value.Scale} which cannot be encoded against a logical 'decimal' with a scale of {scale}");
             }
 
-            var buffer = value.UnscaledValue.ToByteArray();
-            global::System.Array.Reverse(buffer);
-            encoder.WriteBytes(buffer);
+            var count = value.UnscaledValue.GetByteCount();
+
+            value.UnscaledValue.TryWriteBytes(encoder.WriteBytesSpan(count), out _, isUnsigned: false, isBigEndian: true);
         }
 
-        static global::Avro.AvroDecimal ReadDecimal(global::Avro.IO.Decoder decoder, int scale) {
-            var buffer = decoder.ReadBytes();
-            global::System.Array.Reverse(buffer);
-            return new global::Avro.AvroDecimal(new global::System.Numerics.BigInteger(buffer), scale);
-        }
+        static global::Avro.AvroDecimal ReadDecimal(global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryDecoder decoder, int scale) =>
+            new global::Avro.AvroDecimal(new global::System.Numerics.BigInteger(decoder.ReadBytesSpan(), isUnsigned: false, isBigEndian: true), scale);
         """;
 
     /// <remarks>
@@ -68,37 +148,28 @@ static class Templates {
     /// </remarks>
     public const string DecimalFixedConverters =
         """
-        static void WriteDecimalFixed(global::Avro.AvroDecimal value, global::Avro.IO.Encoder encoder, int scale, int size) {
+        static void WriteDecimalFixed(global::Avro.AvroDecimal value, global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryEncoder encoder, int scale, int size) {
             if (value.Scale != scale) {
                 throw new global::System.ArgumentOutOfRangeException(
                     nameof(value),
                     $"The decimal value has a scale of {value.Scale} which cannot be encoded against a logical 'decimal' with a scale of {scale}");
             }
 
-            var buffer = global::Kurrent.Surge.Codecs.Avro.AvroBuffers.Rent(size);
-            var padded = buffer.AsSpan(0, size);
+            var count = value.UnscaledValue.GetByteCount();
 
-            // TryWriteBytes lays the unscaled value down little-endian from index 0. Filling the tail with
-            // the sign byte and reversing once leaves it big-endian and right-aligned, which is the layout
-            // Avro.Util.Decimal.GetDecimalFixedByteArray produces with a second array.
-            if (!value.UnscaledValue.TryWriteBytes(padded, out var written)) {
+            if (count > size) {
                 throw new global::System.ArgumentOutOfRangeException(
                     nameof(value),
                     $"The decimal value does not fit a logical 'decimal' backed by a fixed of size {size}");
             }
 
-            padded[written..].Fill(value.UnscaledValue.Sign < 0 ? (byte)0xFF : (byte)0x00);
-            padded.Reverse();
+            var padded = encoder.WriteFixedSpan(size);
 
-            encoder.WriteFixed(buffer, 0, size);
+            padded[..(size - count)].Fill(value.UnscaledValue.Sign < 0 ? (byte)0xFF : (byte)0x00);
+            value.UnscaledValue.TryWriteBytes(padded[(size - count)..], out _, isUnsigned: false, isBigEndian: true);
         }
 
-        static global::Avro.AvroDecimal ReadDecimalFixed(global::Avro.IO.Decoder decoder, int scale, int size) {
-            var buffer = global::Kurrent.Surge.Codecs.Avro.AvroBuffers.Rent(size);
-            decoder.ReadFixed(buffer, 0, size);
-            var value = buffer.AsSpan(0, size);
-            value.Reverse();
-            return new global::Avro.AvroDecimal(new global::System.Numerics.BigInteger(value), scale);
-        }
+        static global::Avro.AvroDecimal ReadDecimalFixed(global::Kurrent.Surge.Codecs.Avro.Binary.AvroBinaryDecoder decoder, int scale, int size) =>
+            new global::Avro.AvroDecimal(new global::System.Numerics.BigInteger(decoder.ReadFixedSpan(size), isUnsigned: false, isBigEndian: true), scale);
         """;
 }

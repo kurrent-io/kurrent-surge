@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Avro.IO;
+using Kurrent.Surge.Codecs.Avro.Binary;
 
 namespace Kurrent.Surge.Codecs.Avro;
 
@@ -15,7 +15,7 @@ namespace Kurrent.Surge.Codecs.Avro;
 public static class AvroCodecRegistry {
     static readonly ConcurrentDictionary<Type, AvroCodecEntry> Entries = new();
 
-    public static void Register(Type messageType, Action<object, Encoder> encode, Func<Decoder, object> decode) =>
+    public static void Register(Type messageType, Action<object, AvroBinaryEncoder> encode, Func<AvroBinaryDecoder, object> decode) =>
         Entries[messageType] = new AvroCodecEntry(encode, decode);
 
     public static bool TryGet(Type messageType, out AvroCodecEntry entry) => Entries.TryGetValue(messageType, out entry);
@@ -26,4 +26,6 @@ public static class AvroCodecRegistry {
 /// <summary>
 /// The generated encode/decode pair for one Avro message type.
 /// </summary>
-public readonly record struct AvroCodecEntry(Action<object, Encoder> Encode, Func<Decoder, object> Decode);
+public readonly record struct AvroCodecEntry(
+    Action<object, AvroBinaryEncoder> Encode,
+    Func<AvroBinaryDecoder, object>   Decode);

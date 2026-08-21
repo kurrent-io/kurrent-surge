@@ -29,4 +29,19 @@
     <!-- .avsc is the only input format the generator reads today; see Kurrent.Surge.Codecs.Avro/README.md. -->
     <AdditionalFiles Include="Schemas/*.avsc" />
   </ItemGroup>
+
+  <!-- Opts into the richer timestamp-nanos type so its conversion across ISpecificRecord is covered by a
+       real round trip, and exercises the MSBuild-property path into the generator end to end. The Long
+       default is asserted at the generator level instead. A ProjectReference does not import the
+       package's build/*.props the way a NuGet consumer would, so the property is declared visible here. -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="KurrentAvroNanosecondTimestamps" />
+    <CompilerVisibleProperty Include="KurrentAvroApacheInterop" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <KurrentAvroNanosecondTimestamps>NanoInstant</KurrentAvroNanosecondTimestamps>
+    <!-- Apache is the parity oracle here, so generated types must carry the surface its writers need. -->
+    <KurrentAvroApacheInterop>On</KurrentAvroApacheInterop>
+  </PropertyGroup>
 </Project>

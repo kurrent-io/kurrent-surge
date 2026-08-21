@@ -92,15 +92,16 @@ Console.WriteLine($"UNIONNULL nullable={unionsNullRestored.NullableThreeWay ?? "
 
 // Logical types.
 //
-// Wire parity against Apache's SpecificDatumWriter is asserted in Kurrent.Surge.Codecs.Avro.Tests, not
-// here, and deliberately so: that writer is constructed from ISpecificRecord.Schema, and reading Schema
-// makes Avro.Schema.Parse reachable, which drags Newtonsoft.Json into this binary. This probe measures
-// what a consumer who never reads Schema actually links, so it must not read it either.
+// Wire parity against Apache's SpecificDatumWriter is asserted in Kurrent.Surge.Codecs.Avro.Tests, which
+// turns KurrentAvroApacheInterop on because that writer is constructed from ISpecificRecord.Schema. This
+// probe leaves it off, which is the default: the generated types carry no Schema property at all, so
+// nothing here can root Avro.Schema.Parse and pull Newtonsoft.Json into the binary. What this measures
+// is what an ordinary consumer links.
 var logical = new LogicalSample {
     Id      = Guid.Parse("6f9619ff-8b86-d011-b42d-00c04fc964ff"),
-    Amount  = new Avro.AvroDecimal(decimal.Parse("1234.56")),
-    Day     = new DateTime(2026, 8, 19, 0, 0, 0, DateTimeKind.Utc),
-    TimeMs  = TimeSpan.FromMilliseconds(3_723_000),
+    Amount  = new AvroDecimal(decimal.Parse("1234.56")),
+    Day     = new DateOnly(2026, 8, 19),
+    TimeMs  = TimeOnly.FromTimeSpan(TimeSpan.FromMilliseconds(3_723_000)),
     StampMs = new DateTime(2026, 8, 19, 12, 34, 56, DateTimeKind.Utc),
     StampUs = new DateTime(2026, 8, 19, 12, 34, 56, DateTimeKind.Utc)
 };
@@ -140,8 +141,10 @@ Console.WriteLine($"          zone={TimeZoneInfo.Local.Id} ms={localRestored.Loc
 // A decimal backed by a fixed, and two logical types nothing implements. The first exercises BigInteger
 // sign extension; the second pair must degrade to their underlying primitives.
 var decimals = new DecimalFixedSample {
-    Amount   = new Avro.AvroDecimal(decimal.Parse("-1234.56", System.Globalization.CultureInfo.InvariantCulture)),
-    Nanos    = new NanoInstant(1_700_000_000_123_456_789L),
+    Amount   = new AvroDecimal(decimal.Parse("-1234.56", System.Globalization.CultureInfo.InvariantCulture)),
+    // Left on the Long default: the codec tests and benchmarks opt into NanoInstant, so this is the one
+    // place the erased form is exercised end to end.
+    Nanos    = 1_700_000_000_123_456_789L,
     Invented = "erased"
 };
 

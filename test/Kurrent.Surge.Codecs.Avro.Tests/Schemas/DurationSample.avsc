@@ -1,0 +1,8 @@
+{
+  "type": "record",
+  "name": "DurationSample",
+  "namespace": "Kurrent.Surge.Codecs.Avro.Tests",
+  "fields": [
+    { "name": "Span", "type": { "type": "fixed", "name": "Span12", "size": 12, "logicalType": "duration" } }
+  ]
+}

@@ -201,8 +201,8 @@ public class AvroSchemaConstructTests {
         var expected = new LogicalSample {
             Id      = Faker.Random.Guid(),
             Amount  = new global::Avro.AvroDecimal(decimal.Round(Faker.Random.Decimal(1, 9999), 2)),
-            Day     = new DateTime(2026, 8, 19, 0, 0, 0, DateTimeKind.Utc),
-            TimeMs  = TimeSpan.FromMilliseconds(Faker.Random.Int(0, 86_399_000)),
+            Day     = new DateOnly(2026, 8, 19),
+            TimeMs  = TimeOnly.FromTimeSpan(TimeSpan.FromMilliseconds(Faker.Random.Int(0, 86_399_000))),
             StampMs = new DateTime(2026, 8, 19, 12, 34, 56, DateTimeKind.Utc),
             StampUs = new DateTime(2026, 8, 19, 12, 34, 56, DateTimeKind.Utc)
         };
@@ -226,8 +226,8 @@ public class AvroSchemaConstructTests {
         var expected = new LogicalSample {
             Id      = Faker.Random.Guid(),
             Amount  = new global::Avro.AvroDecimal(decimal.Round(Faker.Random.Decimal(1, 9999), 2)),
-            Day     = new DateTime(2026, 8, 19, 0, 0, 0, DateTimeKind.Utc),
-            TimeMs  = TimeSpan.FromMilliseconds(Faker.Random.Int(0, 86_399_000)),
+            Day     = new DateOnly(2026, 8, 19),
+            TimeMs  = TimeOnly.FromTimeSpan(TimeSpan.FromMilliseconds(Faker.Random.Int(0, 86_399_000))),
             StampMs = new DateTime(2026, 8, 19, 12, 34, 56, DateTimeKind.Utc),
             StampUs = new DateTime(2026, 8, 19, 12, 34, 56, DateTimeKind.Utc)
         };
@@ -256,8 +256,8 @@ public class AvroSchemaConstructTests {
         var expected = new LogicalSample {
             Id      = Faker.Random.Guid(),
             Amount  = new global::Avro.AvroDecimal(decimal.Round(Faker.Random.Decimal(1, 9999), 2)),
-            Day     = moment.Date,
-            TimeMs  = moment.TimeOfDay,
+            Day     = DateOnly.FromDateTime(moment),
+            TimeMs  = TimeOnly.FromTimeSpan(moment.TimeOfDay),
             StampMs = moment,
             StampUs = moment
         };

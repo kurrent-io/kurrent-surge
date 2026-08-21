@@ -31,7 +31,14 @@ enum AvroLogicalKind {
     /// Apache does not model this one — it resolves to <c>UnknownLogicalType</c> over a <c>long</c>, so
     /// the value crossing <c>ISpecificRecord.Get</c> stays a <c>long</c> and only the property is richer.
     /// </remarks>
-    TimestampNanos
+    TimestampNanos,
+
+    /// <remarks>
+    /// Months, days and milliseconds as three little-endian unsigned 32-bit values in a <c>fixed(12)</c>.
+    /// Modelled only under the NodaTime time model, where <c>Period</c> can carry all three; the BCL has
+    /// no type for it, so it is erased to the fixed otherwise. Apache models it in neither case.
+    /// </remarks>
+    Duration
 }
 
 abstract record AvroSchema;

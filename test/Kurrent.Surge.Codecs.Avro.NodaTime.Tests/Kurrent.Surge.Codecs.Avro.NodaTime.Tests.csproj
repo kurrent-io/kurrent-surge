@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The second compilation of the same schemas. KurrentAvroTimeModel is fixed when the generator runs,
+    so one assembly cannot hold both models — this project exists to round-trip the NodaTime one against
+    Apache, which Kurrent.Surge.Codecs.Avro.Tests does for the BCL model. It is a configuration variant,
+    not a test category.
+  -->
+  <ItemGroup>
+    <CompilerVisibleProperty Include="KurrentAvroTimeModel" />
+    <CompilerVisibleProperty Include="KurrentAvroNanosecondTimestamps" />
+    <CompilerVisibleProperty Include="KurrentAvroApacheInterop" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <KurrentAvroTimeModel>NodaTime</KurrentAvroTimeModel>
+    <KurrentAvroNanosecondTimestamps>NanoInstant</KurrentAvroNanosecondTimestamps>
+    <!-- Apache is the parity oracle here, so generated types must carry the surface its writers need. -->
+    <KurrentAvroApacheInterop>On</KurrentAvroApacheInterop>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro\Kurrent.Surge.Codecs.Avro.csproj" />
+    <!-- Analyzers are not transitive through a ProjectReference; a NuGet consumer gets the generator
+         from analyzers/dotnet/cs instead. -->
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit" />
+    <Using Include="Bogus" />
+    <Using Include="Avro" />
+    <Using Include="Avro.Specific" />
+    <Using Include="NodaTime" />
+    <Using Include="Kurrent.Testkit" />
+    <Using Include="Kurrent.Testkit.TUnit" />
+    <Using Include="Kurrent.Testkit.TUnit.Assertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Linked, not copied. One set of schemas feeds both models, so the two projects cannot drift. -->
+    <AdditionalFiles Include="..\Kurrent.Surge.Codecs.Avro.Tests\Schemas\*.avsc" />
+  </ItemGroup>
+
+</Project>

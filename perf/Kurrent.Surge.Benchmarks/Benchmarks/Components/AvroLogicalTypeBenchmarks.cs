@@ -19,7 +19,7 @@ namespace Benchmarks;
 /// backed by a fixed — its conversion yields a GenericFixed and SpecificDatumWriter.WriteFixed rejects
 /// anything else — so there is nothing to compare against on that path.
 /// </remarks>
-[MemoryDiagnoser(displayGenColumns: false), Config(typeof(ComponentBenchmarkConfig))]
+[MemoryDiagnoser(displayGenColumns: false), Config(typeof(CodecBenchmarkConfig))]
 [BenchmarkCategory("Codecs")]
 public class AvroLogicalTypeBenchmarks {
     AvroSchemaCodec _codec = null!;
@@ -48,8 +48,8 @@ public class AvroLogicalTypeBenchmarks {
         _logical = new BenchLogicalSample {
             Id      = Guid.Parse("6f9619ff-8b86-d011-b42d-00c04fc964ff"),
             Amount  = new global::Avro.AvroDecimal(decimal.Parse("1234.56", CultureInfo.InvariantCulture)),
-            Day     = moment.Date,
-            TimeMs  = moment.TimeOfDay,
+            Day     = DateOnly.FromDateTime(moment),
+            TimeMs  = TimeOnly.FromTimeSpan(moment.TimeOfDay),
             StampMs = moment,
             StampUs = moment
         };
@@ -96,7 +96,7 @@ public class AvroLogicalTypeBenchmarks {
     [Benchmark, BenchmarkCategory("EncodeLogical")]
     public int EncodeLogical_Apache() => EncodeWithApache(_logical, _logicalWriter).Length;
 
-    [Benchmark, BenchmarkCategory("DecodeLogical")]
+    [Benchmark(Baseline = true), BenchmarkCategory("DecodeLogical")]
     public object DecodeLogical_Generated() => _codec.Decode(_logicalWire, typeof(BenchLogicalSample));
 
     [Benchmark, BenchmarkCategory("DecodeLogical")]
@@ -106,13 +106,13 @@ public class AvroLogicalTypeBenchmarks {
 
     #region ->> Nanosecond timestamps <<-
 
-    [Benchmark, BenchmarkCategory("EncodeNano")]
+    [Benchmark(Baseline = true), BenchmarkCategory("EncodeNano")]
     public int EncodeNano_Generated() => _codec.Encode(_nano).Length;
 
     [Benchmark, BenchmarkCategory("EncodeNano")]
     public int EncodeNano_Apache() => EncodeWithApache(_nano, _nanoWriter).Length;
 
-    [Benchmark, BenchmarkCategory("DecodeNano")]
+    [Benchmark(Baseline = true), BenchmarkCategory("DecodeNano")]
     public object DecodeNano_Generated() => _codec.Decode(_nanoWire, typeof(BenchNanoSample));
 
     [Benchmark, BenchmarkCategory("DecodeNano")]
@@ -122,16 +122,20 @@ public class AvroLogicalTypeBenchmarks {
 
     #region ->> Fixed-backed logical types <<-
 
-    [Benchmark, BenchmarkCategory("FixedLogical")]
+    // No baseline in either group, and encode is kept apart from decode. There is no Apache arm to
+    // compare against here, and a decimal against a uuid is not a comparison either — these are
+    // absolute numbers, so a ratio column would only invite one to be read.
+
+    [Benchmark, BenchmarkCategory("EncodeFixedLogical")]
     public int EncodeDecimalFixed_Generated() => _codec.Encode(_decimal).Length;
 
-    [Benchmark, BenchmarkCategory("FixedLogical")]
-    public object DecodeDecimalFixed_Generated() => _codec.Decode(_decimalWire, typeof(BenchDecimalFixed));
-
-    [Benchmark, BenchmarkCategory("FixedLogical")]
+    [Benchmark, BenchmarkCategory("EncodeFixedLogical")]
     public int EncodeUuidFixed_Generated() => _codec.Encode(_uuid).Length;
 
-    [Benchmark, BenchmarkCategory("FixedLogical")]
+    [Benchmark, BenchmarkCategory("DecodeFixedLogical")]
+    public object DecodeDecimalFixed_Generated() => _codec.Decode(_decimalWire, typeof(BenchDecimalFixed));
+
+    [Benchmark, BenchmarkCategory("DecodeFixedLogical")]
     public object DecodeUuidFixed_Generated() => _codec.Decode(_uuidWire, typeof(BenchUuidFixed));
 
     #endregion // Fixed-backed logical types
