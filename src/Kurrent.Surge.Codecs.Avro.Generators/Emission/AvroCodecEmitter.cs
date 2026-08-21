@@ -30,6 +30,15 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document, AvroGeneratorOptions 
     /// <summary>Nesting depth, so a collection inside a collection does not reuse a loop variable name.</summary>
     int _depth;
 
+    /// <summary>
+    /// Counts map sites across the whole codec, so their local functions do not collide.
+    /// </summary>
+    /// <remarks>
+    /// Depth is not enough. Two sibling maps sit at the same depth and their loop variables are scoped
+    /// to their own blocks, but a local function is scoped to the whole method and would redeclare.
+    /// </remarks>
+    int _mapSites;
+
     /// <param name="root">The record the caller has already verified as the schema root.</param>
     public string Emit(AvroRecord root) {
         CollectRecords(root);
@@ -219,20 +228,41 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document, AvroGeneratorOptions 
             }
 
             case AvroMap map: {
-                var pair = $"pair{_depth}";
+                var index = _mapSites++;
+                var pair  = $"pair{index}";
+                var entry = $"entry{index}";
+                var typed = $"map{index}";
+                var write = $"WriteMapItem{index}";
+
+                var keyValue = $"global::System.Collections.Generic.KeyValuePair<string, {_types.TypeOf(map.Values, site)}>";
 
                 _depth++;
 
-                _writer.Line("encoder.WriteMapStart();");
-                _writer.Line($"encoder.SetItemCount({expression}.Count);");
-
-                using (_writer.Block($"foreach (var {pair} in {expression})")) {
+                // The item body is a local function so the two loops below share it. Inlining it into
+                // both would square the emitted code with every level of map nesting. A local function
+                // that is never converted to a delegate captures by ref struct, so this allocates nothing.
+                using (_writer.Block($"void {write}({keyValue} {pair})")) {
                     _writer.Line("encoder.StartItem();");
                     _writer.Line($"encoder.WriteString({pair}.Key);");
                     EmitEncode(map.Values, $"{pair}.Value", site);
                 }
 
                 _depth--;
+
+                _writer.Line();
+                _writer.Line("encoder.WriteMapStart();");
+                _writer.Line($"encoder.SetItemCount({expression}.Count);");
+
+                // foreach over IReadOnlyDictionary reaches the interface enumerator, which boxes
+                // Dictionary's struct one on every encode. The decoder builds a Dictionary and a
+                // collection initialiser produces one, so this test is the path that is actually taken.
+                using (_writer.Block($"if ({expression} is {_types.ConcreteTypeOf(map, site)} {typed})")) {
+                    _writer.Line($"foreach (var {entry} in {typed}) {write}({entry});");
+                }
+
+                using (_writer.Block("else")) {
+                    _writer.Line($"foreach (var {entry} in {expression}) {write}({entry});");
+                }
 
                 _writer.Line("encoder.WriteMapEnd();");
                 break;

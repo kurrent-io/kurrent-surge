@@ -22,9 +22,6 @@ namespace Kurrent.Surge.Codecs.Avro.Binary;
 /// </remarks>
 [PublicAPI]
 public sealed class AvroBinaryDecoder(ReadOnlyMemory<byte> data) {
-    /// <summary>Beyond this a value is rented rather than stack-allocated.</summary>
-    const int StackLimit = 256;
-
     int _position;
 
     /// <summary>How many bytes have been consumed.</summary>
@@ -88,30 +85,12 @@ public sealed class AvroBinaryDecoder(ReadOnlyMemory<byte> data) {
     /// <summary>Bytes are a length followed by that many bytes of data.</summary>
     public byte[] ReadBytes() => Take(ReadLength()).ToArray();
 
-    /// <summary>
-    /// Reads a byte string into <paramref name="destination"/> and returns how many bytes it holds.
-    /// </summary>
-    /// <remarks>
-    /// The allocating overload exists because a <c>bytes</c> field's property really is a
-    /// <c>byte[]</c>. This one is for a caller that only needs to look at the value — a decimal, for
-    /// instance — and would otherwise allocate an array per field per message.
-    /// </remarks>
-    /// <exception cref="ArgumentException">The value does not fit in <paramref name="destination"/>.</exception>
-    public int ReadBytes(Span<byte> destination) {
-        var value = Take(ReadLength());
-
-        if (value.Length > destination.Length)
-            throw new ArgumentException($"The payload holds {value.Length} bytes, which does not fit the {destination.Length}-byte destination", nameof(destination));
-
-        value.CopyTo(destination);
-
-        return value.Length;
-    }
-
     /// <summary>Reads a byte string and returns it without copying.</summary>
     /// <remarks>
-    /// For a caller that reads the value rather than keeping it — a decimal's unscaled magnitude, for
-    /// instance. The span points into the payload and is valid for as long as the payload is.
+    /// The allocating overload exists because a <c>bytes</c> field's property really is a
+    /// <c>byte[]</c>. This one is for a caller that reads the value rather than keeping it — a
+    /// decimal's unscaled magnitude, for instance — and would otherwise allocate an array per field per
+    /// message. The span points into the payload and is valid for as long as the payload is.
     /// </remarks>
     public ReadOnlySpan<byte> ReadBytesSpan() => Take(ReadLength());
 
