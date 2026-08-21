@@ -23,3 +23,22 @@ public sealed class AvroCodecNotGeneratedException : KurrentException {
 
     public Type? MessageType { get; init; }
 }
+
+/// <summary>
+/// Thrown when a JSON Schema document cannot be expressed as an Avro schema.
+/// </summary>
+/// <remarks>
+/// Carries the JSON Pointer of the offending node. A contradiction — an <c>x-avro</c> key that disagrees
+/// with the standard keyword beside it — throws rather than resolving in favour of either, because a
+/// silent preference decodes payloads wrongly instead of failing.
+/// </remarks>
+[PublicAPI]
+public sealed class AvroJsonSchemaException : KurrentException {
+    public static ErrorCode Code { get; } = ErrorCode.From("AVRO_JSON_SCHEMA_INVALID");
+
+    public AvroJsonSchemaException(string pointer, string message) : base(Code, $"{pointer}: {message}") =>
+        Pointer = pointer;
+
+    /// <summary>The JSON Pointer of the node that could not be converted.</summary>
+    public string Pointer { get; }
+}

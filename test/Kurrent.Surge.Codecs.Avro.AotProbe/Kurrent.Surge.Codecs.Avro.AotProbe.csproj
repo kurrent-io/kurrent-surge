@@ -18,6 +18,9 @@
 
   <ItemGroup>
     <AdditionalFiles Include="Schemas/*.avsc" />
+    <!-- Also copied out, because AvroJsonWriter is driven by schema text at run time rather than by a
+         generated type, and the probe has to hand it the real schema rather than a literal that can drift. -->
+    <None Include="Schemas/*.avsc" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

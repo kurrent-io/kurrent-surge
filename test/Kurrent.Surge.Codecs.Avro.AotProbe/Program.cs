@@ -161,7 +161,38 @@ Console.WriteLine($"DECFIXED  registered={AvroCodecRegistry.IsRegistered(typeof(
 Console.WriteLine($"          decimal={decimalRestored.Amount} nanos={decimalRestored.Nanos} " +
                   $"erased={decimalRestored.Invented}");
 
-var allOk = flatOk && complexOk && nullOk && unionOk && unionNullOk && logicalOk && localOk && decimalOk;
+// Schema-driven transcode. Unlike every case above it reads no generated type, so it is the one that
+// proves the runtime schema parser links and runs natively — the trimmer drops AvroJsonWriter entirely
+// unless something calls it, which is exactly how it stayed unproven until this case existed.
+var jsonSchema = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Schemas", "ComplexOrder.avsc"));
+var json       = new AvroJsonWriter(jsonSchema).Write(complexBytes);
+
+var jsonOk =
+    json.Contains("\"Ripley\"")           &&
+    json.Contains("\"Shipped\"")          &&
+    json.Contains("\"hypersleep\"")       &&
+    json.Contains("\"handle with care\"");
+
+Console.WriteLine($"AVROJSON  chars={json.Length} transcode={(jsonOk ? "OK" : "MISMATCH")}");
+Console.WriteLine($"          {json}");
+
+// Schema conversion, both directions. It reads no generated type either, and it drives JsonNode rather
+// than Utf8JsonWriter — a path where the trim analyser is satisfied by code that still needs runtime code
+// generation, so the linked binary is the only thing that settles it. The fixpoint is the assertion:
+// exporting a reimported schema must reproduce the document it came from.
+var surge     = AvroJsonSchema.Export(jsonSchema, new AvroJsonSchemaOptions { Canonical = true });
+var reimport  = AvroJsonSchema.Import(surge);
+var refixed   = AvroJsonSchema.Export(reimport, new AvroJsonSchemaOptions { Canonical = true });
+
+var schemaOk =
+    surge.Contains("\"$schema\"")                    &&
+    surge.Contains("\"x-avro\"")                     &&
+    reimport.Contains("\"type\": \"record\"")        &&
+    refixed == surge;
+
+Console.WriteLine($"AVROSCHEM chars={surge.Length} roundtrip={(schemaOk ? "OK" : "MISMATCH")}");
+
+var allOk = flatOk && complexOk && nullOk && unionOk && unionNullOk && logicalOk && localOk && decimalOk && jsonOk && schemaOk;
 
 Console.WriteLine(allOk ? "RESULT: ALL PASSED" : "RESULT: FAILED");
 

@@ -340,6 +340,122 @@ that declare such a schema**. An assembly without one pays nothing.
 The codec writes the bytes in RFC 4122 order. `Guid.ToByteArray()` without an argument is little-endian across the first
 three fields and would swap every value, so the generated code passes `bigEndian: true` in both directions.
 
+## Schema conversion
+
+`AvroJsonSchema` converts an Avro schema to a [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/schema)
+document, and converts that document back to the same Avro schema. Both directions are total, so the JSON Schema is a
+form of your schema rather than a view of it.
+
+Use it to publish a schema to a registry, to validate a payload with any JSON Schema validator, or to embed the schema
+in an OpenAPI 3.1 document. No CLR type is involved. The input is schema text and the output is schema text.
+
+```csharp
+using Kurrent.Surge.Codecs.Avro;
+
+var avsc = File.ReadAllText("Schemas/OrderPlaced.avsc");
+
+string   jsonSchema = AvroJsonSchema.Export(avsc);
+JsonNode asNode     = AvroJsonSchema.ExportAsJsonNode(avsc);
+
+string backToAvro = AvroJsonSchema.Import(jsonSchema);   // equals avsc
+```
+
+### What it emits
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/Acme.Orders.OrderPlaced",
+  "$defs": {
+    "Acme.Orders.OrderPlaced": {
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string", "x-avro": { "ordinal": 0 } },
+        "total": {
+          "type": "string",
+          "pattern": "^-?\\d{1,10}(\\.\\d{2})?$",
+          "x-avro": { "type": "bytes", "logicalType": "decimal", "precision": 12, "ordinal": 1 }
+        },
+        "placedAt": {
+          "type": "string", "format": "date-time", "pattern": "^\\d{4}-…",
+          "x-avro": { "logicalType": "timestamp-micros", "ordinal": 2 }
+        },
+        "note": {
+          "oneOf": [
+            { "type": "null",   "x-avro": { "branch": 0 } },
+            { "type": "string", "x-avro": { "branch": 1 } }
+          ],
+          "default": null,
+          "x-avro": { "ordinal": 3 }
+        }
+      },
+      "required": ["orderId", "total", "placedAt"],
+      "additionalProperties": false
+    }
+  }
+}
+```
+
+Every named type becomes a `$defs` entry keyed by its fullname. A recursive record needs this, because you cannot inline
+a type that contains itself.
+
+Every union becomes `oneOf`, including the nullable `["null", X]` form. The shorter `{"type": [X, "null"]}` form is a
+set rather than a list, so it cannot say which branch `null` was. That branch number is the tag on the wire.
+
+`required` holds the fields with no declared default. Every field is present on the Avro wire, but a field with a
+default is legitimately absent from a JSON document.
+
+### The `x-avro` annotation
+
+JSON Schema cannot express nine Avro facts. Each one goes in an `x-avro` object on the node it belongs to, and nothing
+else does. A fact that a standard keyword already carries is never written twice.
+
+| Key | On | What it recovers |
+|-------------|--------------------------|-----------------------------------------------------------------|
+| `type` | any node | `float` from `double`, and `fixed` from `bytes` |
+| `logicalType` | annotated nodes | the five logical types that share `format: date-time`, and any unknown one |
+| `ordinal` | record fields | field position, which is what the Avro wire is ordered by |
+| `branch` | union branches | the branch number, which is the union tag |
+| `size` | `fixed` | the byte count. Base64 encodes 16, 17 and 18 bytes to 24 characters alike |
+| `precision` | `decimal` | total digits. The pattern pins the scale, so `scale` needs no key |
+| `aliases` | fields and named types | no keyword exists |
+| `order` | fields | no keyword exists. Written only when it is not `ascending` |
+| `props` | any node | your own attributes, which Avro permits and requires preserved |
+
+JSON Schema 2020-12 ignores keywords it does not know. Strip every `x-avro` and a validator reaches the same verdict, so
+the annotation is safe to hand to a tool that has never heard of Avro.
+
+Each annotation is paired with an assertion. In 2020-12 `format` is disabled by default and `contentEncoding` is
+explicitly not an assertion, so a `pattern`, a `minLength` or a `minimum` does the real checking beside it.
+
+### Options
+
+```csharp
+AvroJsonSchema.Export(avsc, new AvroJsonSchemaOptions { Canonical = true });
+```
+
+| Option | Default | Effect |
+|------------------|---------|--------------------------------------------------------------------------------|
+| `Annotations` | `true` | Off writes a portable document that no longer converts back |
+| `Canonical` | `false` | Sorts object keys and `$defs`, so two identical schemas export byte for byte alike |
+| `DeclareDialect` | `true` | Off omits `$schema`, for embedding the result in a larger document |
+
+`Canonical` never sorts array items. `oneOf` order is the union tag and `enum` order is the symbol number, so sorting
+either would change what the schema means.
+
+### Limits
+
+`Import` accepts a hand-written JSON Schema with no `x-avro` at all, and infers what it can: `number` becomes `double`,
+`integer` becomes `long` unless the maximum fits an int32, and `date-time` becomes `timestamp-millis`. An inferred
+import gives you a valid Avro schema. Only an annotated document gives you back the one you started from.
+
+A record, an enum or a fixed must live in `$defs`. Avro needs a name for each, and an inline JSON Schema object has
+none.
+
+The exported document describes the value, not the Avro JSON encoding. `AvroJsonWriter` writes a `date` as a day count
+and tags a union branch by name, exactly as the Avro specification requires, so its output does not validate against
+this document. The two are different projections of one schema.
+
 ## What this package does not support
 
 ### Other schema file formats
@@ -359,8 +475,11 @@ the schema text a generated type exposes, so an Apache-based reader still sees t
 
 ### Generic mode
 
-There is no `GenericRecord` path. Every message needs a static CLR type, and that is what keeps the codec free of
-runtime type resolution, and therefore AOT-safe.
+There is no `GenericRecord` path. Every message the codec encodes or decodes needs a static CLR type, and that is what
+keeps the codec free of runtime type resolution, and therefore AOT-safe.
+
+Two paths do read a schema at run time, and neither needs a CLR type: `AvroJsonWriter` rewrites a payload as JSON, and
+`AvroJsonSchema` converts the schema itself. Both take schema text and give you back text.
 
 ### Logical types nobody implements in .NET
 

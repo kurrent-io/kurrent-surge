@@ -28,6 +28,23 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The AvroJsonSchema round-trip gate compares parsed schema models, and the model and its parser are
+         internal. Comparing exported text instead would mean resolving inherited namespaces in the test
+         project — a second reading of the Avro specification, which is what linking the parser avoids. -->
+    <InternalsVisibleTo Include="Kurrent.Surge.Codecs.Avro.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The schema model and its parser are shared with the generator rather than reimplemented.
+         AvroJsonWriter reads a schema at run time, the generator reads the same schema at compile time,
+         and a second parser would be a second reading of the Avro specification to keep in step. These
+         files depend on nothing but the BCL, so they compile here as they do under netstandard2.0. -->
+    <Compile Include="..\Kurrent.Surge.Codecs.Avro.Generators\Json\JsonValue.cs" Link="Schema\JsonValue.cs" />
+    <Compile Include="..\Kurrent.Surge.Codecs.Avro.Generators\Model\AvroSchema.cs" Link="Schema\AvroSchema.cs" />
+    <Compile Include="..\Kurrent.Surge.Codecs.Avro.Generators\Model\AvroSchemaParser.cs" Link="Schema\AvroSchemaParser.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Apache.Avro" />
     <!-- Public dependency: NanoInstantExtensions exposes NodaTime.Instant, and the NodaTime time model
          emits its types into the consumer's generated code. It reaches here transitively through

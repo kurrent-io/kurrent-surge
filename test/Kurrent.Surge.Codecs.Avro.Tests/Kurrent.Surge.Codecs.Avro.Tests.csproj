@@ -28,6 +28,20 @@
   <ItemGroup>
     <!-- .avsc is the only input format the generator reads today; see Kurrent.Surge.Codecs.Avro/README.md. -->
     <AdditionalFiles Include="Schemas/*.avsc" />
+    <!-- AvroJsonWriter takes schema JSON, and the .avsc is the only source of a specification-valid one:
+         Apache's LogicalSchema.ToString() nests the base under 'type' when that base is a named type,
+         which nothing outside Apache.Avro for C# can parse. See AvroJsonWriterTests. -->
+    <None Update="Schemas/*.avsc" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The AvroJsonSchema round trip runs over every .avsc in the repository, so the schemas the other
+         two projects own are copied in beside this project's own. Copied, not added as AdditionalFiles:
+         the generator would otherwise emit a second message type for a schema another project declares,
+         and ComplexOrder.avsc exists in both. Sub-folders are preserved for the same reason. -->
+    <None Include="..\Kurrent.Surge.Codecs.Avro.AotProbe\Schemas\*.avsc" Link="Corpus\AotProbe\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\perf\Kurrent.Surge.Benchmarks\Schemas\*.avsc" Link="Corpus\Benchmarks\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Corpus\*.avsc" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Opts into the richer timestamp-nanos type so its conversion across ISpecificRecord is covered by a

@@ -1,0 +1,21 @@
+{
+  "type": "record",
+  "name": "AnnotationCoverage",
+  "namespace": "kurrent.surge.codecs.avro.tests.corpus",
+  "doc": "Exercises every x-avro key. The minimality gate deletes a key that no schema needs, so a key with no evidence in the corpus would be deleted for want of a case rather than for being redundant.",
+  "aliases": ["LegacyAnnotationCoverage"],
+  "sourceSystem": "muthur",
+  "fields": [
+    { "name": "id", "type": "string", "aliases": ["identifier"], "order": "descending" },
+    { "name": "ratio", "type": "float" },
+    { "name": "amount", "type": { "type": "bytes", "logicalType": "decimal", "precision": 9, "scale": 4 } },
+    { "name": "checksum", "type": { "type": "fixed", "name": "Checksum", "size": 17 }, "default": "ÿþABCDEFGHIJKLMNO" },
+    { "name": "status", "type": { "type": "enum", "name": "Status", "symbols": ["Unknown", "Active", "Sealed"], "default": "Unknown", "aliases": ["State"] } },
+    { "name": "observedAt", "type": { "type": "long", "logicalType": "timestamp-micros" } },
+    { "name": "recordedAt", "type": { "type": "long", "logicalType": "local-timestamp-micros" } },
+    { "name": "span", "type": { "type": "fixed", "name": "Span", "size": 12, "logicalType": "duration" } },
+    { "name": "tag", "type": { "type": "string", "logicalType": "varchar", "maxLength": 32 } },
+    { "name": "payload", "type": ["null", "bytes", "string"], "default": null },
+    { "name": "note", "type": ["string", "null"], "default": "unset" }
+  ]
+}
