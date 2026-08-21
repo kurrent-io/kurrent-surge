@@ -86,7 +86,7 @@ public class NodaTimeModelTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -197,7 +197,7 @@ public class NodaTimeModelTests {
         var actual = new AvroSchemaCodec().Encode(value).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(expected);
+        await Assert.That(actual).IsDeepEquivalentTo(expected);
     }
 
     [Test]

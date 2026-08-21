@@ -77,7 +77,7 @@ public class AvroBinaryPrimitiveTests {
         var apache = Apache(e => e.WriteLong(value));
 
         // Assert
-        await Assert.That(ours).IsEquivalentTo(apache);
+        await Assert.That(ours).IsDeepEquivalentTo(apache);
     }
 
     [Test]
@@ -150,7 +150,7 @@ public class AvroBinaryPrimitiveTests {
         });
 
         // Assert
-        await Assert.That(ours).IsEquivalentTo(apache);
+        await Assert.That(ours).IsDeepEquivalentTo(apache);
     }
 
     [Test]
@@ -178,7 +178,7 @@ public class AvroBinaryPrimitiveTests {
         await Assert.That(decoder.ReadFloat()).IsEqualTo(single);
         await Assert.That(decoder.ReadDouble()).IsEqualTo(@double);
         await Assert.That(decoder.ReadString()).IsEqualTo(text);
-        await Assert.That(decoder.ReadBytes()).IsEquivalentTo(bytes);
+        await Assert.That(decoder.ReadBytes()).IsDeepEquivalentTo(bytes);
     }
 
     [Test]
@@ -192,7 +192,7 @@ public class AvroBinaryPrimitiveTests {
         var apache = Apache(e => e.WriteString(Text));
 
         // Assert
-        await Assert.That(ours).IsEquivalentTo(apache);
+        await Assert.That(ours).IsDeepEquivalentTo(apache);
         await Assert.That(ReadOurs(ours, d => d.ReadString())).IsEqualTo(Text);
     }
 
@@ -205,7 +205,7 @@ public class AvroBinaryPrimitiveTests {
         var ours = Ours(e => e.WriteString(text));
 
         // Assert
-        await Assert.That(ours).IsEquivalentTo(Apache(e => e.WriteString(text)));
+        await Assert.That(ours).IsDeepEquivalentTo(Apache(e => e.WriteString(text)));
         await Assert.That(ReadOurs(ours, d => d.ReadString())).IsEqualTo(text);
     }
 
@@ -244,7 +244,7 @@ public class AvroBinaryPrimitiveTests {
         });
 
         // Assert
-        await Assert.That(ours).IsEquivalentTo(apache);
+        await Assert.That(ours).IsDeepEquivalentTo(apache);
     }
 
     [Test]
@@ -259,7 +259,7 @@ public class AvroBinaryPrimitiveTests {
         });
 
         // Act & Assert
-        await Assert.That(ours).IsEquivalentTo(Apache(e => {
+        await Assert.That(ours).IsDeepEquivalentTo(Apache(e => {
             e.WriteArrayStart();
             e.SetItemCount(0);
             e.WriteArrayEnd();

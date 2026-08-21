@@ -132,8 +132,8 @@ public class AvroSchemaConstructTests {
 
         // Assert
         await Assert.That(actual.Customer.Name).IsEqualTo(expected.Customer.Name);
-        await Assert.That(actual.Lines.Select(x => x.Sku)).IsEquivalentTo(expected.Lines.Select(x => x.Sku));
-        await Assert.That(actual.Counters).IsEquivalentTo(expected.Counters);
+        await Assert.That(actual.Lines.Select(x => x.Sku)).IsDeepEquivalentTo(expected.Lines.Select(x => x.Sku));
+        await Assert.That(actual.Counters).IsDeepEquivalentTo(expected.Counters);
         await Assert.That(actual.Status).IsEqualTo(expected.Status);
         await Assert.That(actual.Note).IsEqualTo(expected.Note);
     }
@@ -150,7 +150,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -238,7 +238,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -268,7 +268,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -281,7 +281,7 @@ public class AvroSchemaConstructTests {
         var actual = (FixedSample)sut.Decode(sut.Encode(expected), typeof(FixedSample));
 
         // Assert
-        await Assert.That(actual.Checksum.Value).IsEquivalentTo(expected.Checksum.Value);
+        await Assert.That(actual.Checksum.Value).IsDeepEquivalentTo(expected.Checksum.Value);
     }
 
     [Test]
@@ -294,7 +294,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -320,7 +320,7 @@ public class AvroSchemaConstructTests {
         var actual = new FixedSample { Checksum = new Md5 { Value = Faker.Random.Bytes(16) } };
 
         // Assert
-        await Assert.That(actual.Salt.Value).IsEquivalentTo(expected);
+        await Assert.That(actual.Salt.Value).IsDeepEquivalentTo(expected);
     }
 
     [Test]
@@ -353,7 +353,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -400,7 +400,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -450,7 +450,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -483,7 +483,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -511,7 +511,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]
@@ -530,7 +530,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(new FixedUuidSample { Id = id }).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(expected);
+        await Assert.That(actual).IsDeepEquivalentTo(expected);
     }
 
     [Test]
@@ -550,7 +550,7 @@ public class AvroSchemaConstructTests {
         var actual = new AvroSchemaCodec().Encode(expected).ToArray();
 
         // Assert
-        await Assert.That(actual).IsEquivalentTo(wire);
+        await Assert.That(actual).IsDeepEquivalentTo(wire);
     }
 
     [Test]

@@ -41,7 +41,8 @@ public class AvroCodecGenerationTests {
         var registered = expected.Where(AvroCodecRegistry.IsRegistered).ToArray();
 
         // Assert
-        await Assert.That(registered).IsEquivalentTo(expected);
+        // Registration order is an implementation detail; the registered set is what matters.
+        await Assert.That(registered).IsDeepEquivalentTo(expected, cfg => cfg.IgnoringCollectionOrder());
     }
 
     [Test]
@@ -54,7 +55,7 @@ public class AvroCodecGenerationTests {
         var actualWire = new AvroSchemaCodec().Encode(order).ToArray();
 
         // Assert
-        await Assert.That(actualWire).IsEquivalentTo(expectedWire);
+        await Assert.That(actualWire).IsDeepEquivalentTo(expectedWire);
     }
 
     [Test]
