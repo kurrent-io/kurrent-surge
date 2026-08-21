@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge.RecordFilters\Kurrent.Surge.RecordFilters.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+    <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="TUnit" />
+    <Using Include="Bogus" />
+    <Using Include="Kurrent.Testkit.TUnit" />
+    <Using Include="Kurrent.Surge.RecordFilters" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="DuckDB.NET.Data.Full" />
+  </ItemGroup>
+</Project>
