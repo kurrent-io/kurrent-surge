@@ -57,25 +57,119 @@ static class ObjectGraphComparer {
             }
         }
 
-        var (actualType, expectedType) = GetTypesToCompare(actual, expected, path, config);
-
-        if (TryCustomCompare(actual, expected, actualType, config, path))
+        if (TryCustomCompare(actual, expected, actual.GetType(), config, path))
             return;
 
-        if (config.ShouldCompareByValue(actualType)) {
+        if (config.ShouldCompareByValue(actual.GetType())) {
             if (!actual.Equals(expected))
                 Throw(actual, expected, path);
             return;
         }
 
-        if (actualType == typeof(string))
-            CompareStrings((string)actual, (string)expected, path, config);
-        else if (typeof(IEnumerable).IsAssignableFrom(actualType))
-            CompareEnumerables((IEnumerable)actual, (IEnumerable)expected, path, previousComparisons, config, depth);
-        else if (actualType.IsValueType)
+        if (actual is string actualText && expected is string expectedText) {
+            CompareStrings(actualText, expectedText, path, config);
+            return;
+        }
+
+        // Shape decides how a collection is compared, never its concrete type. A List<T>, a T[], an
+        // ImmutableArray<T> and a FrozenSet<T> holding the same elements are equivalent, and so are two
+        // dictionaries from different implementations. Only the contents are the assertion, so the type
+        // check below is reached by everything except a collection.
+        if (IsDictionary(actual.GetType()) && IsDictionary(expected.GetType())) {
+            CompareDictionaries(ReadEntries(actual), ReadEntries(expected), path, previousComparisons, config, depth);
+            return;
+        }
+
+        // A string is a sequence of characters, and comparing one to a char collection is far more likely
+        // to be a mistake than an intent, so it keeps the type check rather than matching element by
+        // element.
+        if (actual is not string && expected is not string
+         && actual is IEnumerable actualItems && expected is IEnumerable expectedItems) {
+            CompareEnumerables(actualItems, expectedItems, path, previousComparisons, config, depth);
+            return;
+        }
+
+        var (actualType, expectedType) = GetTypesToCompare(actual, expected, path, config);
+
+        if (actualType.IsValueType)
             CompareValueTypes((ValueType)actual, (ValueType)expected, path, config);
         else
             CompareReferenceTypes(actual, expected, actualType, expectedType, path, previousComparisons, config, depth);
+    }
+
+    /// <summary>Every dictionary shape, whatever the implementation.</summary>
+    /// <remarks>
+    /// The interfaces are tested rather than the element type, so a <c>List&lt;KeyValuePair&lt;K,V&gt;&gt;</c>
+    /// stays an ordered sequence. <c>IReadOnlyDictionary</c> is included because
+    /// <c>FrozenDictionary</c> and the immutable dictionaries reach it without the non-generic
+    /// <c>IDictionary</c>.
+    /// </remarks>
+    static bool IsDictionary(Type type) =>
+        typeof(IDictionary).IsAssignableFrom(type)
+     || type.GetInterfaces().Any(contract => contract.IsGenericType
+         && contract.GetGenericTypeDefinition() is var definition
+         && (definition == typeof(IDictionary<,>) || definition == typeof(IReadOnlyDictionary<,>)));
+
+    static List<KeyValuePair<object, object?>> ReadEntries(object value) {
+        var entries = new List<KeyValuePair<object, object?>>();
+
+        if (value is IDictionary dictionary) {
+            foreach (DictionaryEntry entry in dictionary)
+                entries.Add(new KeyValuePair<object, object?>(entry.Key, entry.Value));
+
+            return entries;
+        }
+
+        // Reached by the read-only dictionaries, which enumerate as KeyValuePair<,> without exposing the
+        // non-generic interface. The pair is a closed generic per key/value pair, so it is read by name.
+        foreach (var item in (IEnumerable)value) {
+            if (item is null) continue;
+
+            var pair = item.GetType();
+            var key  = pair.GetProperty("Key")?.GetValue(item);
+
+            if (key is not null)
+                entries.Add(new KeyValuePair<object, object?>(key, pair.GetProperty("Value")?.GetValue(item)));
+        }
+
+        return entries;
+    }
+
+    /// <remarks>
+    /// A dictionary has no order, so entries match by key by default. An explicit strict-ordering request
+    /// switches to entry-by-entry comparison, which is the only way to put a dictionary's own iteration
+    /// order under test.
+    /// </remarks>
+    static void CompareDictionaries(
+        List<KeyValuePair<object, object?>> actual, List<KeyValuePair<object, object?>> expected,
+        IEnumerable<string> path, IDictionary<object, IList<object?>> previousComparisons,
+        EquivalencyConfiguration config, int depth
+    ) {
+        if (actual.Count != expected.Count)
+            Throw(actual.Count, expected.Count, path.Concat(["Count"]));
+
+        if (!config.ShouldMatchDictionaryByKey(path)) {
+            for (var index = 0; index < expected.Count; index++) {
+                var entryPath = path.Concat([$"Entry [{index}]"]).ToList();
+
+                CompareObjects(actual[index].Key, expected[index].Key, entryPath, previousComparisons, config, depth);
+                CompareObjects(actual[index].Value, expected[index].Value, entryPath, previousComparisons, config, depth);
+            }
+
+            return;
+        }
+
+        foreach (var entry in expected) {
+            var index = actual.FindIndex(candidate => Equals(candidate.Key, entry.Key));
+
+            if (index < 0)
+                Throw("<no entry>", $"an entry keyed '{entry.Key}'", path.Concat([$"[{entry.Key}]"]));
+
+            CompareObjects(
+                actual[index].Value, entry.Value, path.Concat([$"[{entry.Key}]"]).ToList(),
+                previousComparisons, config, depth
+            );
+        }
     }
 
     static bool TryCustomCompare(

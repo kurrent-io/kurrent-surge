@@ -101,21 +101,46 @@ public class EquivalencyConfiguration {
         return this;
     }
 
+    /// <summary>
+    /// Compares every sequence as a set, so element order stops mattering.
+    /// </summary>
+    /// <remarks>
+    /// Affects sequences only. A dictionary already matches by key, so this asks for nothing new there.
+    /// <see cref="WithStrictOrdering"/> overrides it, and a per-path setting overrides both.
+    /// </remarks>
     public EquivalencyConfiguration IgnoringCollectionOrder() {
         IgnoreCollectionOrder = true;
         return this;
     }
 
+    /// <summary>
+    /// Requires order everywhere: sequences compare element by element, and dictionaries compare entry by
+    /// entry rather than by key.
+    /// </summary>
+    /// <remarks>
+    /// A sequence is ordered by default, so on a sequence this changes nothing unless
+    /// <see cref="IgnoringCollectionOrder"/> is also set, which it then overrides. What it does change is
+    /// dictionaries, where it is the only way to make iteration order the thing under test.
+    /// </remarks>
     public EquivalencyConfiguration WithStrictOrdering() {
         StrictOrdering = true;
         return this;
     }
 
+    /// <summary>
+    /// Requires order for one member, whatever the global setting is.
+    /// </summary>
+    /// <param name="path">The member name, as it appears in the object graph.</param>
+    /// <remarks>Beats both global flags, and beats <see cref="WithoutStrictOrderingFor"/> for the same path.</remarks>
     public EquivalencyConfiguration WithStrictOrderingFor(string path) {
         _strictOrderingPaths.Add(path);
         return this;
     }
 
+    /// <summary>
+    /// Drops the order requirement for one member, whatever the global setting is.
+    /// </summary>
+    /// <param name="path">The member name, as it appears in the object graph.</param>
     public EquivalencyConfiguration WithoutStrictOrderingFor(string path) {
         _unorderedPaths.Add(path);
         return this;
@@ -157,27 +182,47 @@ public class EquivalencyConfiguration {
         return this;
     }
 
+    /// <summary>
+    /// Whether a sequence's elements are compared as a set rather than in order.
+    /// </summary>
+    /// <remarks>
+    /// Order matters by default. Four settings feed this one answer, and the first match wins:
+    /// <see cref="WithStrictOrderingFor"/>, then <see cref="WithoutStrictOrderingFor"/>, then
+    /// <see cref="WithStrictOrdering"/>, then <see cref="IgnoringCollectionOrder"/>.
+    /// </remarks>
     internal bool ShouldIgnoreOrder(IEnumerable<string> path) {
-        var memberName = path.LastOrDefault();
-        if (memberName != null) {
-            var cleanName    = memberName;
-            var bracketIndex = cleanName.IndexOf(" [", StringComparison.Ordinal);
-            if (bracketIndex >= 0)
-                cleanName = cleanName[..bracketIndex];
-
-            // Path-specific overrides take precedence
-            if (_strictOrderingPaths.Contains(cleanName))
-                return false;
-
-            if (_unorderedPaths.Contains(cleanName))
-                return true;
+        if (MemberName(path) is { } memberName) {
+            if (_strictOrderingPaths.Contains(memberName)) return false;
+            if (_unorderedPaths.Contains(memberName)) return true;
         }
 
-        // Fall back to global flags
-        if (StrictOrdering)
-            return false;
+        return !StrictOrdering && IgnoreCollectionOrder;
+    }
 
-        return IgnoreCollectionOrder;
+    /// <summary>
+    /// Whether a dictionary's entries are matched by key rather than by position.
+    /// </summary>
+    /// <remarks>
+    /// A mapping has no order, so key matching is the default here and <see cref="IgnoringCollectionOrder"/>
+    /// asks for something already true. Only an explicit strict-ordering request switches to positional
+    /// comparison, for the rare case where a dictionary's own iteration order is the thing under test.
+    /// </remarks>
+    internal bool ShouldMatchDictionaryByKey(IEnumerable<string> path) {
+        if (MemberName(path) is { } memberName) {
+            if (_strictOrderingPaths.Contains(memberName)) return false;
+            if (_unorderedPaths.Contains(memberName)) return true;
+        }
+
+        return !StrictOrdering;
+    }
+
+    /// <summary>The member name a path ends at, with the type annotation removed.</summary>
+    static string? MemberName(IEnumerable<string> path) {
+        if (path.LastOrDefault() is not { } name) return null;
+
+        var annotation = name.IndexOf(" [", StringComparison.Ordinal);
+
+        return annotation >= 0 ? name[..annotation] : name;
     }
 
     internal bool ShouldCompareByValue(Type   type)       =>
