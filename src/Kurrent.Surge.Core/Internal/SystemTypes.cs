@@ -33,5 +33,17 @@ static class SystemTypes {
         /// </returns>
         [DebuggerStepThrough]
         public bool IsMissing() => type == MissingType;
+        
+        public string GetFriendlyTypeName() {
+            if (!type.IsGenericType)
+                return type.FullName!;
+
+            var genericTypeName = type.GetGenericTypeDefinition().FullName;
+            genericTypeName = genericTypeName?[..genericTypeName.IndexOf('`')];
+
+            var genericArgs = string.Join(",", type.GetGenericArguments().Select(GetFriendlyTypeName));
+
+            return $"{genericTypeName}<{genericArgs}>";
+        }
     }
 }

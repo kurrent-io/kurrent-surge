@@ -6,10 +6,6 @@ using System.Collections.ObjectModel;
 
 namespace Kurrent.Testkit.Tests;
 
-/// <summary>
-/// Equivalency is decided by shape, not by the concrete collection type. A sequence is compared to a
-/// sequence and a dictionary to a dictionary, whichever implementation each side happens to be.
-/// </summary>
 [Category("Testing")]
 public class ObjectGraphCollectionShapeTests {
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
@@ -45,10 +41,6 @@ public class ObjectGraphCollectionShapeTests {
         await Assert.That(words).IsDeepEquivalentTo(new ReadOnlyCollection<string>(words));
     }
 
-    /// <remarks>
-    /// The case that found this: a Select over a List is a different iterator type than a Select over an
-    /// IList, and comparing the two used to fail on the iterator type before reaching an element.
-    /// </remarks>
     [Test]
     public async ValueTask linq_projections_over_different_collection_types_pass() {
         var words = new List<string> { Faker.Lorem.Word(), Faker.Lorem.Word() };
@@ -91,10 +83,6 @@ public class ObjectGraphCollectionShapeTests {
         await Assert.That(action).ThrowsException();
     }
 
-    /// <remarks>
-    /// A list of pairs is a sequence, not a mapping, so it keeps positional comparison. Only the dictionary
-    /// interfaces switch to key matching.
-    /// </remarks>
     [Test]
     public async ValueTask a_list_of_key_value_pairs_keeps_its_order() {
         var expected = new List<KeyValuePair<string, int>> { new("a", 1), new("b", 2) };
@@ -130,7 +118,6 @@ public class ObjectGraphCollectionShapeTests {
         await Assert.That(entries).IsDeepEquivalentTo(new SortedDictionary<string, int>(entries));
     }
 
-    /// <remarks>A dictionary has no order, so insertion order must not decide the outcome.</remarks>
     [Test]
     public async ValueTask dictionary_entries_are_matched_by_key_not_position() {
         var expected = new Dictionary<string, int> { ["alpha"] = 1, ["bravo"] = 2, ["charlie"] = 3 };
@@ -173,10 +160,6 @@ public class ObjectGraphCollectionShapeTests {
 
     #region ->> Guards <<-
 
-    /// <remarks>
-    /// A string is a sequence of characters, so shape alone would match it to a char collection. Comparing
-    /// the two is far more likely to be a mistake than an intent, so it stays a failure.
-    /// </remarks>
     [Test]
     public async ValueTask a_string_and_a_character_collection_fail() {
         var action = async () => await Assert.That("abc").IsDeepEquivalentTo(new[] { 'a', 'b', 'c' });
@@ -195,7 +178,6 @@ public class ObjectGraphCollectionShapeTests {
 
     #region ->> Ordering options <<-
 
-    /// <remarks>A dictionary already matches by key, so this asks for something already true.</remarks>
     [Test]
     public async ValueTask ignoring_collection_order_changes_nothing_for_a_dictionary() {
         var expected = new Dictionary<string, int> { ["alpha"] = 1, ["bravo"] = 2 };
@@ -204,7 +186,6 @@ public class ObjectGraphCollectionShapeTests {
         await Assert.That(actual).IsDeepEquivalentTo(expected, cfg => cfg.IgnoringCollectionOrder());
     }
 
-    /// <remarks>The only way to put a dictionary's own iteration order under test.</remarks>
     [Test]
     public async ValueTask strict_ordering_compares_dictionary_entries_by_position() {
         var expected = new Dictionary<string, int> { ["alpha"] = 1, ["bravo"] = 2 };
@@ -241,10 +222,6 @@ public class ObjectGraphCollectionShapeTests {
         );
     }
 
-    /// <remarks>
-    /// A sequence is ordered by default, so strict ordering only shows its hand once
-    /// <c>IgnoringCollectionOrder</c> is also set and it has something to override.
-    /// </remarks>
     [Test]
     public async ValueTask strict_ordering_overrides_ignoring_collection_order_for_sequences() {
         int[] numbers = [1, 2, 3];
