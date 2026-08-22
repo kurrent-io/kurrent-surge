@@ -21,8 +21,22 @@ namespace Kurrent.Surge.Codecs.Avro;
 /// </remarks>
 [PublicAPI]
 public static partial class AvroJsonSchema {
-    /// <summary>The dialect every exported document declares.</summary>
-    public const string Dialect = "https://json-schema.org/draft/2020-12/schema";
+    /// <summary>The draft 4 dialect, declared by default.</summary>
+    public const string Draft04Dialect = "http://json-schema.org/draft-04/schema#";
+
+    /// <summary>The draft 2020-12 dialect.</summary>
+    public const string Draft202012Dialect = "https://json-schema.org/draft/2020-12/schema";
+
+    internal static string DialectOf(JsonSchemaDialect dialect) =>
+        dialect is JsonSchemaDialect.Draft202012 ? Draft202012Dialect : Draft04Dialect;
+
+    /// <summary>Where a draft hoists its named types.</summary>
+    /// <remarks>
+    /// A <c>$ref</c> is a JSON Pointer, so either name resolves under either draft. They are kept apart
+    /// anyway: a document declares one draft and reads entirely as that draft, or it reads as neither.
+    /// </remarks>
+    internal static string ContainerOf(JsonSchemaDialect dialect) =>
+        dialect is JsonSchemaDialect.Draft202012 ? "$defs" : "definitions";
 
     /// <summary>Converts Avro schema JSON to a JSON Schema 2020-12 document.</summary>
     /// <param name="avroSchema">The Avro schema, as JSON text.</param>

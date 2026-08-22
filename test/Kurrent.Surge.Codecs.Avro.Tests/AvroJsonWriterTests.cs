@@ -72,7 +72,8 @@ public class AvroJsonWriterTests {
     static string PropertyOrder(string json) =>
         string.Join(",", JsonNode.Parse(json)!.AsObject().Select(property => property.Key));
 
-    static ComplexOrder NewComplexOrder(string? note) => new() {
+    /// <remarks>Shared with the schema-converter tests rather than copied a third time.</remarks>
+    internal static ComplexOrder NewComplexOrder(string? note) => new() {
         OrderId  = Faker.Random.Guid().ToString(),
         Customer = new Customer { Name = Faker.Name.FullName(), Age = Faker.Random.Int(18, 90) },
         Lines    = [

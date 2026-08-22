@@ -23,8 +23,20 @@ public sealed class AvroJsonSchemaOptions {
     /// <summary>
     /// Declares <c>$schema</c> at the root.
     /// </summary>
-    /// <remarks>Off for embedding the result inside a larger document.</remarks>
+    /// <remarks>
+    /// Off for embedding the result inside a larger document, which declares the draft itself. It does not
+    /// change the vocabulary or where named types are hoisted — <see cref="Dialect"/> owns both.
+    /// </remarks>
     public bool DeclareDialect { get; init; } = true;
+
+    /// <summary>
+    /// The JSON Schema draft the document targets.
+    /// </summary>
+    /// <remarks>
+    /// One draft, top to bottom. Declaring one draft while emitting another's keywords produces a document
+    /// that no validator reads the way it was written.
+    /// </remarks>
+    public JsonSchemaDialect Dialect { get; init; } = JsonSchemaDialect.Draft04;
 
     internal static AvroJsonSchemaOptions Default { get; } = new();
 }

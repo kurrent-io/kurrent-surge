@@ -13,12 +13,11 @@ public static partial class AvroJsonSchema {
 
         // The model resolves namespaces, logical kinds and named references; the raw tree carries the
         // attributes the model does not keep — precision, aliases, order, custom props — and the logical
-        // types it deliberately erases. Export reads both, so the parser's erasure policy costs no fidelity.
+        // types it deliberately erases. Export reads both, so the parser's erasure costs no fidelity.
         if (!JsonParser.TryParse(avroSchema, out var raw, out var error, out var offset))
             throw new ArgumentException($"The Avro schema could not be parsed at offset {offset}: {error}", nameof(avroSchema));
 
-        var exporter = new Exporter(document, options);
-        var exported = exporter.Run(raw);
+        var exported = new Exporter(document, options).Run(raw);
 
         return options.Canonical ? Canonical(exported)! : exported;
     }
@@ -35,25 +34,41 @@ public static partial class AvroJsonSchema {
     };
 
     sealed class Exporter(AvroSchemaDocument document, AvroJsonSchemaOptions options) {
-        readonly Dictionary<string, JsonObject> _defs  = [];
-        readonly List<string>                   _order = [];
+        readonly Dictionary<string, JsonObject> _defs      = [];
+        readonly List<string>                   _order     = [];
+        readonly string                         _container = ContainerOf(options.Dialect);
+
+        string? _rootName;
 
         public JsonObject Run(AvroJsonValue raw) {
             var result = new JsonObject();
 
-            if (options.DeclareDialect) result["$schema"] = Dialect;
+            if (options.DeclareDialect) result["$schema"] = DialectOf(options.Dialect);
 
-            Fill(document.Root, raw, result);
+            // Under draft 4 the root type is written here rather than hoisted, so a reference back to it is
+            // '#' rather than a pointer into the container. Both forms are legal in every draft, and this
+            // one works around a defect in NJsonSchema, which the schema registry validates with: its
+            // resolver cannot follow a root $ref whose target references itself, which every recursive
+            // record does. Scoped to draft 4 because that is the dialect that consumer reads; 2020-12 keeps
+            // the canonical hoisted shape.
+            if (document.Root is IAvroNamed named && options.Dialect is JsonSchemaDialect.Draft04) {
+                _rootName       = named.FullName;
+                result["title"] = named.FullName;
+
+                Body(named, raw is { Kind: AvroJsonKind.Object } ? raw : named.Declaration, result);
+            }
+            else {
+                Fill(document.Root, raw, result);
+            }
 
             if (_order.Count == 0) return result;
 
             var defs  = new JsonObject();
             var names = options.Canonical ? _order.OrderBy(name => name, StringComparer.Ordinal) : _order.AsEnumerable();
 
-            foreach (var name in names)
-                defs[name] = _defs[name];
+            foreach (var name in names) defs[name] = _defs[name];
 
-            result["$defs"] = defs;
+            result[_container] = defs;
 
             return result;
         }
@@ -90,273 +105,224 @@ public static partial class AvroJsonSchema {
                     return;
 
                 case AvroMap map:
+                    // No propertyNames: a JSON object's keys are strings by definition, so asserting it
+                    // asserts nothing, and the keyword is not in draft 4 at all.
                     target["type"]                 = "object";
                     target["additionalProperties"] = Node(map.Values, raw?["values"]);
-                    target["propertyNames"]        = new JsonObject { ["type"] = "string" };
                     Annotate(target, Props(raw, MapKeys));
                     return;
 
                 case AvroUnion union:
-                    var branches = new JsonArray();
+                    FillUnion(union, raw, target);
+                    return;
+            }
 
-                    for (var index = 0; index < union.Branches.Count; index++) {
-                        var branch = Node(union.Branches[index], raw is { Kind: AvroJsonKind.Array } ? raw.Items[index] : null);
+            void Define(IAvroNamed named, AvroJsonValue? raw) {
+                // Reserved before the body is built: a self-referencing record reaches this name again while
+                // its own fields are still being walked, and must find a $ref rather than recurse forever.
+                // The root type is never hoisted — it is written at the root and referenced as '#'.
+                if (named.FullName == _rootName || _defs.ContainsKey(named.FullName)) return;
 
-                        Annotate(branch, new JsonObject { ["branch"] = index });
+                var definition = new JsonObject();
 
-                        // JsonArray.Add<T> is generic and carries RequiresDynamicCode. The JsonNode
-                        // overload is the AOT-safe one, and only an explicit type picks it.
-                        branches.Add((JsonNode)branch);
+                _defs[named.FullName] = definition;
+                _order.Add(named.FullName);
+
+                Body(named, raw is { Kind: AvroJsonKind.Object } ? raw : named.Declaration, definition);
+            }
+
+            // A logical type does not change the Avro JSON encoding: the value is written as its base type,
+            // so a date is a day count and a timestamp is a long. The base type is what the schema asserts and
+            // the annotation is what names the logical type.
+            void FillPrimitive(AvroPrimitive primitive, AvroJsonValue? raw, JsonObject target) {
+                var annotation = new JsonObject();
+
+                switch (primitive.Kind) {
+                    case AvroPrimitiveKind.Null:
+                        target["type"] = "null";
+                        break;
+
+                    case AvroPrimitiveKind.Boolean:
+                        target["type"] = "boolean";
+                        break;
+
+                    case AvroPrimitiveKind.Int:
+                        target["type"]    = "integer";
+                        target["minimum"] = int.MinValue;
+                        target["maximum"] = int.MaxValue;
+                        break;
+
+                    case AvroPrimitiveKind.Long:
+                        target["type"]    = "integer";
+                        target["minimum"] = long.MinValue;
+                        target["maximum"] = long.MaxValue;
+                        break;
+
+                    // JSON Schema has one numeric type, so double is the documented default and only float is
+                    // marked. Marking both would state the default twice.
+                    case AvroPrimitiveKind.Float:
+                        target["type"]     = "number";
+                        annotation["type"] = "float";
+                        break;
+
+                    case AvroPrimitiveKind.Double:
+                        target["type"] = "number";
+                        break;
+
+                    case AvroPrimitiveKind.Bytes:
+                        target["type"]     = "string";
+                        target["pattern"]  = ByteStringPattern;
+                        annotation["type"] = "bytes";
+                        break;
+
+                    case AvroPrimitiveKind.String:
+                        target["type"] = "string";
+                        break;
+                }
+
+                Logical(raw, primitive, annotation);
+                Annotate(target, Merge(annotation, Props(raw, PrimitiveKeys)));
+            }
+
+            // The Avro JSON encoding writes the null branch bare and wraps every other branch in an object
+            // keyed by the branch's type name, so that is what the schema describes. Describing the branch
+            // values directly would produce a schema that rejects the payload the transcoder emits.
+            void FillUnion(AvroUnion union, AvroJsonValue? raw, JsonObject target) {
+                var branches = new JsonArray();
+
+                for (var index = 0; index < union.Branches.Count; index++) {
+                    var branch    = union.Branches[index];
+                    var branchRaw = raw is { Kind: AvroJsonKind.Array } ? raw.Items[index] : null;
+                    var wrapper   = new JsonObject();
+
+                    if (document.Resolve(branch) is AvroPrimitive { Kind: AvroPrimitiveKind.Null }) {
+                        wrapper["type"] = "null";
+                    }
+                    else {
+                        var tag = AvroJsonWriter.BranchName(branch);
+
+                        wrapper["type"]                 = "object";
+                        wrapper["properties"]           = new JsonObject { [tag] = Node(branch, branchRaw) };
+                        wrapper["required"]             = new JsonArray((JsonNode)tag);
+                        wrapper["additionalProperties"] = false;
                     }
 
-                    target["oneOf"] = branches;
-                    return;
+                    Annotate(wrapper, new JsonObject { ["branch"] = index });
+
+                    // JsonArray.Add<T> is generic and carries RequiresDynamicCode. The JsonNode overload is
+                    // the AOT-safe one, and only an explicit type picks it.
+                    branches.Add((JsonNode)wrapper);
+                }
+
+                target["oneOf"] = branches;
             }
         }
 
-        void Define(IAvroNamed named, AvroJsonValue? raw) {
-            // Reserved before the body is built: a self-referencing record reaches this name again while
-            // its own fields are still being walked, and must find a $ref rather than recurse forever.
-            if (_defs.ContainsKey(named.FullName)) return;
-
-            var definition = new JsonObject();
-
-            _defs[named.FullName] = definition;
-            _order.Add(named.FullName);
-
-            var declaration = raw is { Kind: AvroJsonKind.Object } ? raw : named.Declaration;
-
+        void Body(IAvroNamed named, AvroJsonValue? declaration, JsonObject target) {
             switch (named) {
-                case AvroRecord record: FillRecord(record, declaration, definition); break;
-                case AvroEnum @enum:    FillEnum(@enum, declaration, definition);    break;
-                case AvroFixed @fixed:  FillFixed(@fixed, declaration, definition);  break;
+                case AvroRecord record: FillRecord(record, declaration, target); break;
+                case AvroEnum @enum:    FillEnum(@enum, declaration, target);    break;
+                case AvroFixed @fixed:  FillFixed(@fixed, declaration, target);  break;
+            }
+
+            void FillRecord(AvroRecord record, AvroJsonValue? raw, JsonObject target) {
+                var properties = new JsonObject();
+                var required   = new JsonArray();
+                var fields     = raw?["fields"];
+
+                for (var index = 0; index < record.Fields.Count; index++) {
+                    var field    = record.Fields[index];
+                    var fieldRaw = fields is { Kind: AvroJsonKind.Array } && index < fields.Items.Count ? fields.Items[index] : null;
+
+                    properties[field.Name] = Property(field, fieldRaw, index);
+
+                    // Every field is present on the Avro wire, but a field with a default is legitimately
+                    // absent from a JSON document.
+                    if (field.Default is null) required.Add((JsonNode)field.Name);
+                }
+
+                target["type"]       = "object";
+                target["properties"] = properties;
+
+                // Draft 4 requires a non-empty array, so an all-defaulted record omits the keyword entirely.
+                if (required.Count > 0) target["required"] = required;
+
+                target["additionalProperties"] = false;
+
+                Describe(target, record.Doc);
+                Annotate(target, Merge(Aliases(raw), Props(raw, RecordKeys)));
+
+                JsonObject Property(AvroField field, AvroJsonValue? raw, int ordinal) {
+                    var property = Node(field.Type, raw?["type"]);
+
+                    Describe(property, field.Doc);
+
+                    // Carried verbatim. Under the Avro JSON encoding the two representations are the same one,
+                    // so a bytes default stays the byte string Avro wrote and needs no conversion either way.
+                    if (field.Default is not null) property["default"] = ToJsonNode(field.Default);
+
+                    var annotation = new JsonObject { ["ordinal"] = ordinal };
+
+                    if (raw?.TextOf("order") is { } order && order != "ascending") annotation["order"] = order;
+
+                    Annotate(property, Merge(annotation, Aliases(raw), Props(raw, FieldKeys)));
+
+                    return property;
+                }
+            }
+
+            void FillEnum(AvroEnum @enum, AvroJsonValue? raw, JsonObject target) {
+                var symbols = new JsonArray();
+
+                foreach (var symbol in @enum.Symbols) symbols.Add((JsonNode)symbol);
+
+                target["type"] = "string";
+                target["enum"] = symbols;
+
+                Describe(target, @enum.Doc);
+
+                // An enum's own default is a symbol, so the standard keyword carries it whole.
+                if (raw?["default"] is { } @default) target["default"] = ToJsonNode(@default);
+
+                Annotate(target, Merge(Aliases(raw), Props(raw, EnumKeys)));
+            }
+
+            void FillFixed(AvroFixed @fixed, AvroJsonValue? raw, JsonObject target) {
+                // No size key: maxLength recovers the byte count exactly, because the encoding is one character
+                // per byte. Base64 would have been three-to-one and unrecoverable; this is not, and the
+                // minimality gate deleted the key that used to state it a second time.
+                var annotation = new JsonObject { ["type"] = "fixed" };
+                target["type"]      = "string";
+                target["minLength"] = @fixed.Size;
+                target["maxLength"] = @fixed.Size;
+                target["pattern"]   = ByteStringPattern;
+
+                Logical(raw, @fixed, annotation);
+                Describe(target, @fixed.Doc);
+                Annotate(target, Merge(annotation, Aliases(raw), Props(raw, FixedKeys)));
             }
         }
 
         #endregion // Nodes
 
-        #region ->> Named types <<-
+        #region ->> Primitives <<-
 
-        void FillRecord(AvroRecord record, AvroJsonValue? raw, JsonObject target) {
-            var properties = new JsonObject();
-            var required   = new JsonArray();
-            var fields     = raw?["fields"];
+        /// <remarks>
+        /// With no <c>format</c> to infer from, every logical type is named in the annotation, and a
+        /// decimal carries both its precision and its scale because no emitted keyword pins either.
+        /// </remarks>
+        static void Logical(AvroJsonValue? raw, AvroSchema baseSchema, JsonObject annotation) {
+            if (LogicalOf(raw, baseSchema) is not { } logical) return;
 
-            for (var index = 0; index < record.Fields.Count; index++) {
-                var field    = record.Fields[index];
-                var fieldRaw = fields is { Kind: AvroJsonKind.Array } && index < fields.Items.Count ? fields.Items[index] : null;
+            annotation["logicalType"] = logical;
 
-                properties[field.Name] = Property(field, fieldRaw, index);
+            if (logical != "decimal") return;
 
-                // Every field is present on the Avro wire, but a field with a default is legitimately
-                // absent from a JSON document.
-                if (field.Default is null) required.Add((JsonNode)field.Name);
-            }
-
-            target["type"]       = "object";
-            target["properties"] = properties;
-
-            if (required.Count > 0) target["required"] = required;
-
-            target["additionalProperties"] = false;
-
-            Describe(target, record.Doc);
-            Annotate(target, Merge(Aliases(raw), Props(raw, RecordKeys)));
+            if (Integer(raw, "precision") is { } precision) annotation["precision"] = precision;
+            if (Integer(raw, "scale") is { } scale) annotation["scale"] = scale;
         }
 
-        JsonObject Property(AvroField field, AvroJsonValue? raw, int ordinal) {
-            var property = Node(field.Type, raw?["type"]);
-
-            Describe(property, field.Doc);
-
-            // The standard keyword carries the default on its own: bytes and fixed are the only types whose
-            // two representations differ, and base64 converts back to the byte string mechanically. The
-            // minimality gate deleted the annotation key that used to state it a second time.
-            if (field.Default is not null)
-                property["default"] = ToJsonSchemaDefault(field.Default, document.Resolve(field.Type));
-
-            var annotation = new JsonObject { ["ordinal"] = ordinal };
-
-            if (raw?.TextOf("order") is { } order && order != "ascending") annotation["order"] = order;
-
-            Annotate(property, Merge(annotation, Aliases(raw), Props(raw, FieldKeys)));
-
-            return property;
-        }
-
-        void FillEnum(AvroEnum @enum, AvroJsonValue? raw, JsonObject target) {
-            var symbols = new JsonArray();
-
-            foreach (var symbol in @enum.Symbols) symbols.Add((JsonNode)symbol);
-
-            target["type"] = "string";
-            target["enum"] = symbols;
-
-            Describe(target, @enum.Doc);
-
-            var annotation = new JsonObject();
-
-            // An enum's own default is a symbol, so the standard keyword carries it whole.
-            if (raw?["default"] is { } @default) target["default"] = ToJsonNode(@default);
-
-            Annotate(target, Merge(annotation, Aliases(raw), Props(raw, EnumKeys)));
-        }
-
-        void FillFixed(AvroFixed @fixed, AvroJsonValue? raw, JsonObject target) {
-            var annotation = new JsonObject { ["type"] = "fixed", ["size"] = @fixed.Size };
-            var logical    = LogicalOf(raw, @fixed);
-
-            switch (logical) {
-                case "decimal":
-                    FillDecimal(raw, target, annotation);
-                    break;
-
-                case "uuid":
-                    target["type"]    = "string";
-                    target["format"]  = "uuid";
-                    target["pattern"] = UuidPattern;
-                    break;
-
-                case "duration":
-                    target["type"]            = "string";
-                    target["format"]          = "duration";
-                    target["pattern"]         = DurationPattern;
-                    annotation["logicalType"] = logical;
-                    break;
-
-                default:
-                    // The encoded length is exact, and it is all that is exact: base64 maps three byte
-                    // sizes onto every length, so 16, 17 and 18 all pin to 24 and the size cannot come
-                    // back out of it. That is what x-avro.size is for.
-                    target["type"]            = "string";
-                    target["contentEncoding"] = "base64";
-                    target["minLength"]       = Base64Length(@fixed.Size);
-                    target["maxLength"]       = Base64Length(@fixed.Size);
-                    target["pattern"]         = Base64Pattern;
-
-                    if (logical is not null) annotation["logicalType"] = logical;
-
-                    break;
-            }
-
-            Describe(target, @fixed.Doc);
-            Annotate(target, Merge(annotation, Aliases(raw), Props(raw, FixedKeys)));
-        }
-
-        #endregion // Named types
-
-        #region ->> Primitives and logical types <<-
-
-        void FillPrimitive(AvroPrimitive primitive, AvroJsonValue? raw, JsonObject target) {
-            var annotation = new JsonObject();
-            var logical    = LogicalOf(raw, primitive);
-
-            switch (logical) {
-                case "decimal":
-                    annotation["type"] = "bytes";
-                    FillDecimal(raw, target, annotation);
-                    break;
-
-                case "uuid":
-                    target["type"]    = "string";
-                    target["format"]  = "uuid";
-                    target["pattern"] = UuidPattern;
-                    break;
-
-                case "date":
-                    target["type"]    = "string";
-                    target["format"]  = "date";
-                    target["pattern"] = DatePattern;
-                    break;
-
-                case "time-millis" or "time-micros":
-                    target["type"]            = "string";
-                    target["format"]          = "time";
-                    target["pattern"]         = TimePattern;
-                    annotation["logicalType"] = logical;
-                    break;
-
-                case "timestamp-millis" or "timestamp-micros" or "timestamp-nanos"
-                  or "local-timestamp-millis" or "local-timestamp-micros" or "local-timestamp-nanos":
-                    target["type"]            = "string";
-                    target["format"]          = "date-time";
-                    target["pattern"]         = DateTimePattern;
-                    annotation["logicalType"] = logical;
-                    break;
-
-                default:
-                    FillBase(primitive.Kind, target, annotation);
-
-                    // Unknown and custom logical types are carried rather than dropped: the Avro
-                    // specification says an implementation that does not recognise one must ignore it.
-                    if (logical is not null) annotation["logicalType"] = logical;
-
-                    break;
-            }
-
-            Annotate(target, Merge(annotation, Props(raw, PrimitiveKeys)));
-        }
-
-        static void FillBase(AvroPrimitiveKind kind, JsonObject target, JsonObject annotation) {
-            switch (kind) {
-                case AvroPrimitiveKind.Null:
-                    target["type"] = "null";
-                    break;
-
-                case AvroPrimitiveKind.Boolean:
-                    target["type"] = "boolean";
-                    break;
-
-                case AvroPrimitiveKind.Int:
-                    target["type"]    = "integer";
-                    target["minimum"] = int.MinValue;
-                    target["maximum"] = int.MaxValue;
-                    break;
-
-                case AvroPrimitiveKind.Long:
-                    target["type"]    = "integer";
-                    target["minimum"] = long.MinValue;
-                    target["maximum"] = long.MaxValue;
-                    break;
-
-                // JSON Schema has one numeric type, so double is the documented default and only float
-                // is marked. Marking both would state the default twice.
-                case AvroPrimitiveKind.Float:
-                    target["type"]     = "number";
-                    annotation["type"] = "float";
-                    break;
-
-                case AvroPrimitiveKind.Double:
-                    target["type"] = "number";
-                    break;
-
-                case AvroPrimitiveKind.Bytes:
-                    target["type"]            = "string";
-                    target["contentEncoding"] = "base64";
-                    target["pattern"]         = Base64Pattern;
-                    break;
-
-                case AvroPrimitiveKind.String:
-                    target["type"] = "string";
-                    break;
-            }
-        }
-
-        static void FillDecimal(AvroJsonValue? raw, JsonObject target, JsonObject annotation) {
-            var precision = Integer(raw, "precision");
-            var scale     = Integer(raw, "scale") ?? 0;
-
-            target["type"]    = "string";
-            target["pattern"] = DecimalPattern(precision, scale);
-
-            annotation["logicalType"] = "decimal";
-
-            // The pattern pins the scale, so Import reads it back out of the regex and no key is needed.
-            // Nothing bounds total digits, which is why precision is.
-            if (precision is not null) annotation["precision"] = precision;
-        }
-
-        #endregion // Primitives and logical types
+        #endregion // Primitives
 
         #region ->> Annotation assembly <<-
 
@@ -418,46 +384,11 @@ public static partial class AvroJsonSchema {
 
         #endregion // Annotation assembly
 
-        /// <summary>Rewrites an Avro default in the JSON Schema representation of the same value.</summary>
-        /// <remarks>The two differ wherever a <c>bytes</c> or a <c>fixed</c> is reached.</remarks>
-        JsonNode? ToJsonSchemaDefault(AvroJsonValue value, AvroSchema schema) {
-            switch (document.Resolve(schema)) {
-                // An Avro union default is a value of the union's first branch.
-                case AvroUnion union when union.Branches.Count > 0:
-                    return ToJsonSchemaDefault(value, union.Branches[0]);
-
-                case AvroPrimitive { Kind: AvroPrimitiveKind.Bytes } or AvroFixed when value.Kind is AvroJsonKind.String:
-                    return ToBase64(value.Text);
-
-                case AvroRecord record when value.Kind is AvroJsonKind.Object: {
-                    var members = new JsonObject();
-
-                    foreach (var field in record.Fields)
-                        if (value[field.Name] is { } member)
-                            members[field.Name] = ToJsonSchemaDefault(member, field.Type);
-
-                    return members;
-                }
-
-                case AvroArray array when value.Kind is AvroJsonKind.Array:
-                    return new JsonArray(value.Items.Select(item => ToJsonSchemaDefault(item, array.Items)).ToArray());
-
-                case AvroMap map when value.Kind is AvroJsonKind.Object: {
-                    var entries = new JsonObject();
-
-                    foreach (var (key, item) in value.Members.OrderBy(member => member.Key, StringComparer.Ordinal))
-                        entries[key] = ToJsonSchemaDefault(item, map.Values);
-
-                    return entries;
-                }
-
-                default:
-                    return ToJsonNode(value);
-            }
-        }
-
         // RFC 6901: '~' escapes to '~0' and '/' to '~1', and '~' must be replaced first. An Avro fullname
-        // can contain neither, so this only guards a hand-edited $defs key.
-        static string Pointer(string fullName) => $"#/$defs/{fullName.Replace("~", "~0").Replace("/", "~1")}";
+        // can contain neither, so this only guards a hand-edited container key.
+        string Pointer(string fullName) =>
+            fullName == _rootName
+                ? "#"
+                : $"#/{_container}/{fullName.Replace("~", "~0").Replace("/", "~1")}";
     }
 }

@@ -1,0 +1,7 @@
+{
+  "type": "record",
+  "name": "Heartbeat",
+  "namespace": "kurrent.surge.codecs.avro.tests.corpus",
+  "doc": "A record with no fields. It exports as properties {} plus additionalProperties false, which is what distinguishes it from a map, whose additionalProperties is a schema.",
+  "fields": []
+}

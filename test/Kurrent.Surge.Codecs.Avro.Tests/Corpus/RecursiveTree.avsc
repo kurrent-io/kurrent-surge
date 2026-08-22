@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "TreeNode",
+  "namespace": "kurrent.surge.codecs.avro.tests.corpus",
+  "doc": "A self-referencing record that also reuses a named type, so the reentrancy guard in both directions is reached. Every name here is written unqualified, which exercises namespace inheritance as well.",
+  "fields": [
+    { "name": "label", "type": "string" },
+    { "name": "left", "type": ["null", "TreeNode"], "default": null },
+    { "name": "right", "type": ["null", "TreeNode"], "default": null },
+    { "name": "tag", "type": { "type": "enum", "name": "Tag", "symbols": ["Leaf", "Branch"] } },
+    { "name": "altTag", "type": "Tag" }
+  ]
+}

@@ -187,8 +187,12 @@ public sealed class AvroJsonWriter {
     }
 
     /// <summary>The name a union branch is tagged with.</summary>
-    /// <remarks>A named type is tagged with its fullname; everything else with its Avro type name.</remarks>
-    static string BranchName(AvroSchema branch) => branch switch {
+    /// <remarks>
+    /// A named type is tagged with its fullname; everything else with its Avro type name. Shared with
+    /// <see cref="AvroJsonSchema"/>, which describes the same wrapper it writes here — two readings of the
+    /// tagging rule would drift and the schema would stop matching the payload.
+    /// </remarks>
+    internal static string BranchName(AvroSchema branch) => branch switch {
         AvroNamedReference reference => reference.FullName,
         IAvroNamed named             => named.FullName,
         AvroArray                    => "array",

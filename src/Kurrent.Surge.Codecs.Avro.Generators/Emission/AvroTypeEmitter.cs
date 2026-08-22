@@ -22,8 +22,8 @@ namespace Kurrent.Surge.Codecs.Avro.Generators.Emission;
 /// </para>
 /// </remarks>
 sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions options) {
-    readonly AvroTypeMap                      _types    = new(document, options);
-    readonly List<FieldSite>                  _variants = [];
+    readonly AvroTypeMap                      _types      = new(document, options);
+    readonly List<FieldSite>                  _variants   = [];
     readonly Dictionary<string, List<string>> _implements = [];
 
     public IReadOnlyList<TypeEmission> Emit() {
@@ -34,7 +34,8 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
         foreach (var named in document.NamedTypes.Values) {
             switch (named) {
                 case AvroRecord record: emissions.Add(EmitRecord(record)); break;
-                case AvroEnum @enum:    emissions.Add(EmitEnum(@enum));    break;
+
+                case AvroEnum @enum: emissions.Add(EmitEnum(@enum)); break;
 
                 case AvroFixed @fixed when NeedsFixedClass(@fixed): emissions.Add(EmitFixed(@fixed)); break;
             }
@@ -51,11 +52,12 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
     /// would reference it. A <c>duration</c> replaces it only under a time model that can carry one —
     /// otherwise the annotation is erased and the class is still the field's type.
     /// </remarks>
-    bool NeedsFixedClass(AvroFixed @fixed) => @fixed.Logical switch {
-        AvroLogicalKind.None     => true,
-        AvroLogicalKind.Duration => !options.UsesNodaTime,
-        _                        => false
-    };
+    bool NeedsFixedClass(AvroFixed @fixed) =>
+        @fixed.Logical switch {
+            AvroLogicalKind.None     => true,
+            AvroLogicalKind.Duration => !options.UsesNodaTime,
+            _                        => false
+        };
 
     #region ->> Variant discovery <<-
 
@@ -67,12 +69,15 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
         void Walk(AvroSchema schema, FieldSite site) {
             switch (document.Resolve(schema)) {
                 case AvroArray array: Walk(array.Items, site); break;
-                case AvroMap map:     Walk(map.Values, site);  break;
+
+                case AvroMap map: Walk(map.Values, site); break;
 
                 case AvroUnion union: {
-                    if (union.IsVariant(document.Resolve)) Register(union, site);
+                    if (union.IsVariant(document.Resolve))
+                        Register(union, site);
 
-                    foreach (var branch in union.Branches) Walk(branch, site);
+                    foreach (var branch in union.Branches)
+                        Walk(branch, site);
 
                     break;
                 }
@@ -88,7 +93,8 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
                 if (!_implements.TryGetValue(branch.FullName, out var interfaces))
                     _implements[branch.FullName] = interfaces = [];
 
-                if (!interfaces.Contains(name)) interfaces.Add(name);
+                if (!interfaces.Contains(name))
+                    interfaces.Add(name);
             }
         }
     }
@@ -103,9 +109,11 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
 
         var bases = new List<string>();
 
-        if (options.EmitsApacheInterop) bases.Add("global::Avro.Specific.ISpecificRecord");
+        if (options.EmitsApacheInterop)
+            bases.Add("global::Avro.Specific.ISpecificRecord");
 
-        if (_implements.TryGetValue(record.FullName, out var interfaces)) bases.AddRange(interfaces);
+        if (_implements.TryGetValue(record.FullName, out var interfaces))
+            bases.AddRange(interfaces);
 
         Documentation(writer, record.Doc);
         writer.Line(Templates.GeneratedCodeAttribute);
@@ -115,7 +123,8 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
             : $"{options.AccessModifierKeyword} sealed partial record {name} : {string.Join(", ", bases)}";
 
         using (writer.Block(declaration)) {
-            foreach (var field in record.Fields) EmitProperty(writer, record, field);
+            foreach (var field in record.Fields)
+                EmitProperty(writer, record, field);
 
             writer.Line();
             EmitEquality(writer, record);
@@ -172,8 +181,7 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
             if (record.Fields.Count == 0) {
                 writer.Line();
                 writer.Line("return true;");
-            }
-            else {
+            } else {
                 writer.Line();
 
                 for (var index = 0; index < record.Fields.Count; index++) {
@@ -244,10 +252,11 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
     /// crosses unchanged.
     /// </remarks>
     string InteropGet(AvroField field) {
-        var name             = AvroNaming.Identifier(field.Name);
+        var name = AvroNaming.Identifier(field.Name);
         var (shape, logical) = InteropOf(field.Type);
 
-        if (shape is InteropShape.None) return name;
+        if (shape is InteropShape.None)
+            return name;
 
         var access = shape is InteropShape.Nullable ? $"{name}?" : name;
 
@@ -263,18 +272,18 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
             }
 
             return logical switch {
-                AvroLogicalKind.Date => $"{access}.ToDateOnly().ToDateTime(global::System.TimeOnly.MinValue)",
-                AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros => $"{access}.ToTimeOnly().ToTimeSpan()",
+                AvroLogicalKind.Date                                               => $"{access}.ToDateOnly().ToDateTime(global::System.TimeOnly.MinValue)",
+                AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros           => $"{access}.ToTimeOnly().ToTimeSpan()",
                 AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros => $"{access}.ToDateTimeUtc()",
-                _ => $"{access}.ToDateTimeUnspecified()"
+                _                                                                  => $"{access}.ToDateTimeUnspecified()"
             };
         }
 
         return logical switch {
-            AvroLogicalKind.Date => $"{access}.ToDateTime(global::System.TimeOnly.MinValue)",
-            AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros => $"{access}.ToTimeSpan()",
+            AvroLogicalKind.Date                                               => $"{access}.ToDateTime(global::System.TimeOnly.MinValue)",
+            AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros           => $"{access}.ToTimeSpan()",
             AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros => $"{access}.UtcDateTime",
-            _ => $"{access}.TotalNanoseconds"
+            _                                                                  => $"{access}.TotalNanoseconds"
         };
     }
 
@@ -317,7 +326,11 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
         return shape is InteropShape.Nullable ? $"fieldValue is null ? null : {convert}" : convert;
     }
 
-    enum InteropShape { None, Direct, Nullable }
+    enum InteropShape {
+        None,
+        Direct,
+        Nullable
+    }
 
     (InteropShape Shape, AvroLogicalKind Logical) InteropOf(AvroSchema schema) {
         var resolved = document.Resolve(schema);
@@ -325,7 +338,7 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
         if (resolved is AvroPrimitive { Logical: var direct } && NeedsInterop(direct))
             return (InteropShape.Direct, direct);
 
-        if (resolved is AvroUnion { IsNullable: true } union
+        if (resolved is AvroUnion { IsNullable                                : true } union
          && document.Resolve(union.NullableBranch!) is AvroPrimitive { Logical: var branch }
          && NeedsInterop(branch))
             return (InteropShape.Nullable, branch);
@@ -333,19 +346,20 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
         return (InteropShape.None, AvroLogicalKind.None);
     }
 
-    bool NeedsInterop(AvroLogicalKind kind) => kind switch {
-        AvroLogicalKind.Date
-            or AvroLogicalKind.TimeMillis      or AvroLogicalKind.TimeMicros
-            or AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros => true,
+    bool NeedsInterop(AvroLogicalKind kind) =>
+        kind switch {
+            AvroLogicalKind.Date
+             or AvroLogicalKind.TimeMillis or AvroLogicalKind.TimeMicros
+             or AvroLogicalKind.TimestampMillis or AvroLogicalKind.TimestampMicros => true,
 
-        // DateTime is already what Apache expects; LocalDateTime is not.
-        AvroLogicalKind.LocalTimestampMillis or AvroLogicalKind.LocalTimestampMicros => options.UsesNodaTime,
+            // DateTime is already what Apache expects; LocalDateTime is not.
+            AvroLogicalKind.LocalTimestampMillis or AvroLogicalKind.LocalTimestampMicros => options.UsesNodaTime,
 
-        // Erased to long, so the property already is what Apache expects.
-        AvroLogicalKind.TimestampNanos => options.EmitsRichNanoseconds,
+            // Erased to long, so the property already is what Apache expects.
+            AvroLogicalKind.TimestampNanos => options.EmitsRichNanoseconds,
 
-        _ => false
-    };
+            _ => false
+        };
 
     void EmitPut(CodeWriter writer, AvroRecord record) {
         using (writer.Block("void global::Avro.Specific.ISpecificRecord.Put(int fieldPos, object? fieldValue)"))
@@ -372,7 +386,8 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
         writer.Line(Templates.GeneratedCodeAttribute);
 
         using (writer.Block($"{options.AccessModifierKeyword} enum {AvroNaming.TypeName(@enum)}")) {
-            foreach (var symbol in @enum.Symbols) writer.Line($"{AvroNaming.Identifier(symbol)},");
+            foreach (var symbol in @enum.Symbols)
+                writer.Line($"{AvroNaming.Identifier(symbol)},");
         }
 
         return new TypeEmission(@enum.FullName, writer.ToString());
@@ -422,6 +437,7 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
             writer.Line($"/// One branch of the union declared by '{site.Field}' on '{site.Owner.FullName}'.");
             writer.Line("/// </summary>");
         }
+
         writer.Line(Templates.GeneratedCodeAttribute);
         writer.Line($"{options.AccessModifierKeyword} partial interface {name};");
 
@@ -451,15 +467,18 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
     }
 
     void Documentation(CodeWriter writer, string? doc) {
-        if (!options.EmitsXmlDocs || string.IsNullOrWhiteSpace(doc)) return;
+        if (!options.EmitsXmlDocs || string.IsNullOrWhiteSpace(doc))
+            return;
 
         writer.Line("/// <summary>");
 
-        foreach (var line in doc!.Split('\n')) writer.Line($"/// {Escape(line.Trim('\r', ' '))}");
+        foreach (var line in doc!.Split('\n'))
+            writer.Line($"/// {Escape(line.Trim('\r', ' '))}");
 
         writer.Line("/// </summary>");
 
-        static string Escape(string text) => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+        static string Escape(string text) =>
+            text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
     }
 
     #endregion // Shared emission
@@ -499,29 +518,33 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
     /// Where two branches accept the same shape the earlier one wins, since the specification allows
     /// any matching element and offers no tie-break.
     /// </remarks>
-    static bool Accepts(AvroSchema schema, JsonValue value) => schema switch {
-        AvroPrimitive { Kind: AvroPrimitiveKind.Null }    => value.Kind is JsonKind.Null,
-        AvroPrimitive { Kind: AvroPrimitiveKind.Boolean } => value.Kind is JsonKind.Boolean,
+    static bool Accepts(AvroSchema schema, JsonValue value) =>
+        schema switch {
+            AvroPrimitive { Kind: AvroPrimitiveKind.Null }    => value.Kind is JsonKind.Null,
+            AvroPrimitive { Kind: AvroPrimitiveKind.Boolean } => value.Kind is JsonKind.Boolean,
 
-        AvroPrimitive { Kind: AvroPrimitiveKind.Int or AvroPrimitiveKind.Long
-                            or AvroPrimitiveKind.Float or AvroPrimitiveKind.Double } => value.Kind is JsonKind.Number,
+            AvroPrimitive {
+                Kind: AvroPrimitiveKind.Int or AvroPrimitiveKind.Long
+                                            or AvroPrimitiveKind.Float or AvroPrimitiveKind.Double
+            } => value.Kind is JsonKind.Number,
 
-        AvroPrimitive { Kind: AvroPrimitiveKind.Bytes or AvroPrimitiveKind.String } => value.Kind is JsonKind.String,
+            AvroPrimitive { Kind: AvroPrimitiveKind.Bytes or AvroPrimitiveKind.String } => value.Kind is JsonKind.String,
 
-        AvroEnum @enum => value.Kind is JsonKind.String && @enum.Symbols.Contains(value.Text),
-        AvroFixed      => value.Kind is JsonKind.String,
-        AvroRecord     => value.Kind is JsonKind.Object,
-        AvroArray      => value.Kind is JsonKind.Array,
-        AvroMap        => value.Kind is JsonKind.Object,
+            AvroEnum @enum => value.Kind is JsonKind.String && @enum.Symbols.Contains(value.Text),
+            AvroFixed      => value.Kind is JsonKind.String,
+            AvroRecord     => value.Kind is JsonKind.Object,
+            AvroArray      => value.Kind is JsonKind.Array,
+            AvroMap        => value.Kind is JsonKind.Object,
 
-        // A union cannot immediately contain another union, so a nested one is malformed either way.
-        _ => false
-    };
+            // A union cannot immediately contain another union, so a nested one is malformed either way.
+            _ => false
+        };
 
     static string? PrimitiveLiteral(JsonValue value, AvroPrimitive primitive) {
         // A logical type's CLR representation is a struct with no literal form, so the schema default
         // cannot be expressed as an initialiser.
-        if (primitive.Logical is not AvroLogicalKind.None) return null;
+        if (primitive.Logical is not AvroLogicalKind.None)
+            return null;
 
         return primitive.Kind switch {
             AvroPrimitiveKind.Null    => "null",
@@ -555,7 +578,8 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
             : null;
 
     string? ArrayLiteral(JsonValue value, AvroArray array, FieldSite site) {
-        if (value.Kind is not JsonKind.Array) return null;
+        if (value.Kind is not JsonKind.Array)
+            return null;
 
         var items = value.Items.Select(item => Literal(item, array.Items, site)).ToList();
 
@@ -565,9 +589,11 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
     }
 
     string? MapLiteral(JsonValue value, AvroMap map, FieldSite site) {
-        if (value.Kind is not JsonKind.Object) return null;
+        if (value.Kind is not JsonKind.Object)
+            return null;
 
-        var entries = value.Members
+        var entries = value
+            .Members
             .Select(member => (member.Key, Value: Literal(member.Value, map.Values, site)))
             .ToList();
 
@@ -577,16 +603,19 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
     }
 
     string? RecordLiteral(JsonValue value, AvroRecord record, FieldSite site) {
-        if (value.Kind is not JsonKind.Object) return null;
+        if (value.Kind is not JsonKind.Object)
+            return null;
 
         var assignments = new List<string>();
 
         foreach (var field in record.Fields) {
-            if (value[field.Name] is not { } member) return null;
+            if (value[field.Name] is not { } member)
+                return null;
 
             var literal = Literal(member, field.Type, new FieldSite(record, field.Name));
 
-            if (literal is null) return null;
+            if (literal is null)
+                return null;
 
             assignments.Add($"{AvroNaming.Identifier(field.Name)} = {literal}");
         }
@@ -608,17 +637,23 @@ sealed class AvroTypeEmitter(AvroSchemaDocument document, AvroGeneratorOptions o
 
         foreach (var character in text) {
             switch (character) {
-                case '"':  builder.Append("\\\""); break;
-                case '\\': builder.Append(@"\\");  break;
-                case '\n': builder.Append("\\n");  break;
-                case '\r': builder.Append("\\r");  break;
-                case '\t': builder.Append("\\t");  break;
+                case '"': builder.Append("\\\""); break;
+
+                case '\\': builder.Append(@"\\"); break;
+
+                case '\n': builder.Append("\\n"); break;
+
+                case '\r': builder.Append("\\r"); break;
+
+                case '\t': builder.Append("\\t"); break;
 
                 default:
-                    if (character < ' ') builder.Append($"\\u{(int)character:X4}");
-                    else builder.Append(character);
+                    if (character < ' ')
+                        builder.Append($"\\u{(int)character:X4}");
+                    else
+                        builder.Append(character);
 
-                    break;
+                break;
             }
         }
 
