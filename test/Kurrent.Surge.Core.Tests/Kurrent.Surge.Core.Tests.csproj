@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <ProbeProtoRoot>$(MSBuildProjectDirectory)/protos</ProbeProtoRoot>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+        <ProjectReference Include="..\Kurrent.Surge.Testkit\Kurrent.Surge.Testkit.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="Bogus" />
+        <Using Include="TUnit" />
+        <Using Include="Kurrent.Testkit.TUnit.Assertions" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf" />
+        <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
+        <PackageReference Include="TUnit" />
+    </ItemGroup>
+
+    <ItemGroup Label="Transcoder probe schema">
+        <!-- Compiled for the typed oracle, and copied out so the same text can drive the parser. -->
+        <Protobuf Include="$(ProbeProtoRoot)/transcoder_probe.proto" ProtoRoot="$(ProbeProtoRoot)" GrpcServices="None" />
+        <None Include="$(ProbeProtoRoot)/transcoder_probe.proto" CopyToOutputDirectory="PreserveNewest" LinkBase="protos" />
+    </ItemGroup>
+
+</Project>

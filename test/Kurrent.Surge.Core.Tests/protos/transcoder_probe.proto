@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package transcoder.probe;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/field_mask.proto";
+
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  PRIORITY_LOW         = 1;
+  PRIORITY_HIGH        = 2;
+}
+
+message Money {
+  string currency = 1;
+  int64  amount   = 2;
+}
+
+// Recursive on purpose: nesting depth is then a property of the payload rather than the schema,
+// which is what the depth guard has to defend against.
+message Node {
+  Node   child = 1;
+  string label = 2;
+}
+
+message Line {
+  string sku      = 1;
+  int32  quantity = 2;
+  Money  price    = 3;
+}
+
+message Order {
+  string              order_id   = 1;
+  repeated Line       lines      = 2;
+  map<string, string> tags       = 3;
+  map<int32, Money>   totals     = 4;
+  Priority            priority   = 5;
+  repeated int32      flags      = 6;
+  bytes               payload    = 7;
+  double              ratio      = 8;
+  float               score      = 9;
+  uint64              sequence   = 10;
+  sint32              delta      = 11;
+  fixed64             checksum   = 12;
+  bool                archived   = 13;
+  optional string     note       = 14;
+
+  oneof source {
+    string web    = 15;
+    string mobile = 16;
+  }
+
+  google.protobuf.Timestamp   created_at = 17;
+  google.protobuf.Duration    ttl        = 18;
+  google.protobuf.Struct      metadata   = 19;
+  google.protobuf.StringValue label      = 20;
+  google.protobuf.Int32Value  retries    = 21;
+  google.protobuf.Any         envelope   = 22;
+  google.protobuf.FieldMask   mask       = 23;
+}

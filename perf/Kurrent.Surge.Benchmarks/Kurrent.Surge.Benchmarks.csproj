@@ -22,6 +22,11 @@
     <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.MessagePack\Kurrent.Surge.Codecs.MessagePack.csproj" />
     <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.NerdbankMessagePack\Kurrent.Surge.Codecs.NerdbankMessagePack.csproj" />
+    <!-- The original transcoder is the correctness oracle and the perf baseline for the two
+         experimental writers, so it is measured in the same run rather than from memory. -->
+    <ProjectReference Include="..\..\src\ProtobufTranscoder\ProtobufTranscoder.csproj" />
+    <!-- Carries the probe schema and the protoc-generated types the typed ceiling is measured with. -->
+    <ProjectReference Include="..\..\test\Kurrent.Surge.Core.Tests\Kurrent.Surge.Core.Tests.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Surge.Tests\Kurrent.Surge.Tests.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Surge.Testkit\Kurrent.Surge.Testkit.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Testkit\Kurrent.Testkit.csproj" />

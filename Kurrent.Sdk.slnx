@@ -77,9 +77,11 @@
   </Folder>
   <Folder Name="/Extensions/Codecs/">
     <Project Path="src/Kurrent.Surge.Codecs.Avro.Generators/Kurrent.Surge.Codecs.Avro.Generators.csproj" />
+    <Project Path="src/ProtobufTranscoder/ProtobufTranscoder.csproj" />
     <Project Path="src\Kurrent.Surge.Codecs.Avro\Kurrent.Surge.Codecs.Avro.csproj" />
     <Project Path="src\Kurrent.Surge.Codecs.MessagePack\Kurrent.Surge.Codecs.MessagePack.csproj" />
     <Project Path="src\Kurrent.Surge.Codecs.NerdbankMessagePack\Kurrent.Surge.Codecs.NerdbankMessagePack.csproj" />
+    <Project Path="test/ProtobufTranscoder.Tests/ProtobufTranscoder.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.AotProbe\Kurrent.Surge.Codecs.Avro.AotProbe.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.NodaTime.Tests\Kurrent.Surge.Codecs.Avro.NodaTime.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.Tests\Kurrent.Surge.Codecs.Avro.Tests.csproj" />
@@ -94,6 +96,7 @@
   <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />
   <Project Path="src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
   <Project Path="test/Kurrent.Surge.Codecs.Avro.Generators.Tests/Kurrent.Surge.Codecs.Avro.Generators.Tests.csproj" />
+  <Project Path="test/Kurrent.Surge.Core.Tests/Kurrent.Surge.Core.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.SourceGenerators.Tests/Kurrent.Surge.SourceGenerators.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Streaming.Tests/Kurrent.Surge.Streaming.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Tests/Kurrent.Surge.Tests.csproj" />
