@@ -1,4 +1,5 @@
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.RecordFilters;
 
 namespace Kurrent.Surge.Tests.Filters;
 
@@ -219,33 +220,63 @@ public class ServerFilterExtractorTests {
 
     #endregion
 
-    #region Index Filter Extraction
+    #region Index Streams Named in an Expression
 
+    // An index stream named by value is an ordinary stream predicate. It reaches its index by prefix
+    // instead of a direct read, and the rest of the expression still runs client-side.
     [Test]
-    public async Task extracts_index_to_idx_user_stream() {
-        var expr   = ParseExpression("index = 'orders-by-country'");
-        var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
+    public async Task routes_a_user_index_named_in_a_stream_predicate() {
+        var expr = ParseExpression("stream = '$idx-user-orders-by-country' AND created_at > 0");
+
+        var (filter, requiresClientEvaluation) = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<UserIndexFilter>();
         await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-orders-by-country");
+        await Assert.That(requiresClientEvaluation).IsTrue();
     }
 
     [Test]
-    public async Task index_combined_with_schema_uses_index() {
-        var expr   = ParseExpression("index = 'orders-by-country' AND schema = 'OrderPlaced'");
-        var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
+    public async Task routes_a_category_index_named_in_a_stream_predicate() {
+        var expr = ParseExpression("stream = '$idx-ce-orders'");
 
-        await Assert.That(filter).IsTypeOf<UserIndexFilter>();
-        await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-orders-by-country");
-    }
-
-    [Test]
-    public async Task category_wins_over_index() {
-        var expr   = ParseExpression("category = 'orders' AND index = 'orders-by-country'");
-        var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
+        var (filter, requiresClientEvaluation) = ServerFilterExtractor.Extract(expr);
 
         await Assert.That(filter).IsTypeOf<CategoryFilter>();
         await Assert.That(((CategoryFilter)filter).IndexName).IsEqualTo("$idx-ce-orders");
+        await Assert.That(requiresClientEvaluation).IsFalse();
+    }
+
+    [Test]
+    public async Task routes_a_schema_index_named_in_a_stream_predicate() {
+        var expr = ParseExpression("stream = '$idx-et-OrderPlaced'");
+
+        var (filter, _) = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<SchemaFilter>();
+        await Assert.That(((SchemaFilter)filter).IndexName).IsEqualTo("$idx-et-OrderPlaced");
+    }
+
+    [Test]
+    public async Task reads_an_ordinary_stream_directly() {
+        var expr = ParseExpression("stream = 'orders-1'");
+
+        var (filter, _) = ServerFilterExtractor.Extract(expr);
+
+        await Assert.That(filter).IsTypeOf<StreamNameFilter>();
+    }
+
+    #endregion
+
+    #region Index Filter Extraction
+
+    // A user-defined index selects a whole index rather than constraining a column, so it has no
+    // expression form. RecordFilter.ByUserIndex reaches it, covered end to end by SubscribeLinqTests.
+    [Test]
+    public async Task refuses_index_as_a_column() {
+        var parsed = RecordFilterSchema.Default.TryParse("index = 'orders-by-country'", out _, out var error);
+
+        await Assert.That(parsed).IsFalse();
+        await Assert.That(error!.ErrorMessage).Contains("index");
     }
 
     #endregion
@@ -672,18 +703,9 @@ public class ServerFilterExtractorTests {
     #region Priority Chain
 
     [Test]
-    public async Task stream_wins_over_index() {
-        var expr   = ParseExpression("stream = 'orders-99' AND index = 'orders-by-country'");
-        var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
-
-        await Assert.That(filter).IsTypeOf<StreamFilter>();
-        await Assert.That(((StreamNameFilter)filter).TargetStream).IsEqualTo(StreamName.From("orders-99"));
-    }
-
-    [Test]
     public async Task full_priority_chain_uses_stream() {
-        // Expression with all 4 filter types — stream wins
-        var expr   = ParseExpression("stream = 'orders-99' AND category = 'orders' AND index = 'my-index' AND schema = 'OrderPlaced'");
+        // Expression with all 3 routable columns — stream wins
+        var expr   = ParseExpression("stream = 'orders-99' AND category = 'orders' AND schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
@@ -692,22 +714,12 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task priority_without_stream_uses_category() {
-        // No stream predicate — category wins over index and schema
-        var expr   = ParseExpression("category = 'orders' AND index = 'my-index' AND schema = 'OrderPlaced'");
+        // No stream predicate — category wins over schema
+        var expr   = ParseExpression("category = 'orders' AND schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         await Assert.That(filter).IsTypeOf<CategoryFilter>();
         await Assert.That(((CategoryFilter)filter).IndexName).IsEqualTo("$idx-ce-orders");
-    }
-
-    [Test]
-    public async Task priority_without_stream_or_category_uses_index() {
-        // No stream or category — index wins over schema
-        var expr   = ParseExpression("index = 'my-index' AND schema = 'OrderPlaced'");
-        var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
-
-        await Assert.That(filter).IsTypeOf<UserIndexFilter>();
-        await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-my-index");
     }
 
     #endregion
@@ -734,16 +746,6 @@ public class ServerFilterExtractorTests {
         await Assert.That(filter.Expression).IsEqualTo("OrderPlaced");
     }
 
-    [Test]
-    public async Task index_produces_idx_user_index_name() {
-        var expr   = ParseExpression("index = 'orders-by-country'");
-        var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
-
-        await Assert.That(filter).IsTypeOf<UserIndexFilter>();
-        await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-orders-by-country");
-        await Assert.That(filter.Expression).IsEqualTo("orders-by-country");
-    }
-
     #endregion
 
     #region NOT-Wrapped Compound Expressions
@@ -763,19 +765,6 @@ public class ServerFilterExtractorTests {
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         await Assert.That(filter).IsEqualTo(RecordFilter.None);
-    }
-
-    #endregion
-
-    #region Index with Client Predicates
-
-    [Test]
-    public async Task index_combined_with_client_predicates_uses_index() {
-        var expr   = ParseExpression("index = 'my-index' AND position > 100 AND timestamp >= '2024-01-01'");
-        var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
-
-        await Assert.That(filter).IsTypeOf<UserIndexFilter>();
-        await Assert.That(((UserIndexFilter)filter).IndexName).IsEqualTo("$idx-user-my-index");
     }
 
     #endregion
@@ -804,5 +793,5 @@ public class ServerFilterExtractorTests {
 
     #endregion
 
-    static IFilterExpression ParseExpression(string input) => ExpressionFilterParser.Parse(input);
+    static Filter<Record> ParseExpression(string input) => RecordFilterSchema.Default.Parse(input);
 }

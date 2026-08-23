@@ -137,12 +137,15 @@ public class FilterSmokeTests {
     }
 
     [Test]
-    public async ValueTask refuses_to_render_an_undeclared_column() {
+    public async ValueTask refuses_to_parse_an_undeclared_column() {
         // Arrange
-        var filter = OrderSchema.Default.Parse("nonexistent = 'x'");
+        var expression = "nonexistent = 'x'";
 
-        // Act & Assert — evaluation reports no match; rendering names the mistake
-        await Assert.That(filter.IsMatch(NewOrder())).IsFalse();
-        await Assert.That(() => filter.ToSql()).Throws<InvalidOperationException>();
+        // Act
+        var parsed = OrderSchema.Default.TryParse(expression, out _, out var error);
+
+        // Assert — a typo cannot read as an expression that simply matches nothing
+        await Assert.That(parsed).IsFalse();
+        await Assert.That(error!.ErrorMessage).Contains("nonexistent");
     }
 }

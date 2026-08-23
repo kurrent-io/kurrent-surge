@@ -92,7 +92,7 @@ public class CategoryFilterTests {
 
     [Test]
     public async ValueTask is_match_returns_true_for_record_in_same_category() {
-        var filter   = CategoryFilter.Parse("orders");
+        var filter   = CategoryFilter.Parse("Orders");
         var matching = _faker.With("Orders-D0332EB7480643E481BF3205296958FD");
 
         await Assert.That(filter.IsMatch(matching)).IsTrue();
@@ -106,25 +106,32 @@ public class CategoryFilterTests {
         await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
     }
 
-    public class CaseInsensitiveCases : TestCaseDataGenerator<string> {
+    // A category compares ordinally, matching how an expression compares `category = '...'`.
+    public class DifferentlyCasedCases : TestCaseDataGenerator<string> {
         protected override IEnumerable<TestCase<string>> Data() {
             yield return new("Orders-001",  DisplayName: "title case");
             yield return new("ORDERS-001",  DisplayName: "upper case");
-            yield return new("orders-001",  DisplayName: "lower case");
         }
     }
 
     [Test]
-    [CaseInsensitiveCases]
-    public async ValueTask is_match_is_case_insensitive(string stream) {
+    [DifferentlyCasedCases]
+    public async ValueTask is_match_is_case_sensitive(string stream) {
         var filter = CategoryFilter.Parse("orders");
 
-        await Assert.That(filter.IsMatch(_faker.With(stream))).IsTrue();
+        await Assert.That(filter.IsMatch(_faker.With(stream))).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask is_match_matches_an_identically_cased_category() {
+        var filter = CategoryFilter.Parse("orders");
+
+        await Assert.That(filter.IsMatch(_faker.With("orders-001"))).IsTrue();
     }
 
     [Test]
     public async ValueTask is_match_via_ce_prefix_matches_same_category() {
-        var filter   = CategoryFilter.Parse("$ce-orders");
+        var filter   = CategoryFilter.Parse("$ce-Orders");
         var matching = _faker.With("Orders-D0332EB7480643E481BF3205296958FD");
 
         await Assert.That(filter.IsMatch(matching)).IsTrue();
@@ -132,7 +139,7 @@ public class CategoryFilterTests {
 
     [Test]
     public async ValueTask is_match_via_idx_ce_prefix_matches_same_category() {
-        var filter   = CategoryFilter.Parse("$idx-ce-orders");
+        var filter   = CategoryFilter.Parse("$idx-ce-Orders");
         var matching = _faker.With("Orders-D0332EB7480643E481BF3205296958FD");
 
         await Assert.That(filter.IsMatch(matching)).IsTrue();

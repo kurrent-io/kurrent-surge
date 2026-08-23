@@ -174,7 +174,7 @@ public class ConfigurationTests {
 
     [Test]
     public async ValueTask with_expression_filter_sets_filter() {
-        var expression = "stream_id LIKE 'orders-%'";
+        var expression = "stream LIKE 'orders-%'";
 
         var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
             opts.Connection(TestConnectionString);
@@ -413,7 +413,7 @@ public class ConfigurationTests {
         var settings = new ProcessorOptions {
             ProcessorId    = "test-processor",
             MaxParallelism = 4,
-            Subscription   = new SubscriptionOptions { PartitionKeySelector = "stream_id" }
+            Subscription   = new SubscriptionOptions { PartitionKeySelector = "stream" }
         };
         settings.Connection(TestConnectionString);
 
@@ -626,7 +626,7 @@ public class ConfigurationTests {
                       "Interval": 15000
                     },
                     "Subscription": {
-                      "PartitionKeySelector": "stream_id"
+                      "PartitionKeySelector": "stream"
                     }
                   }
                 }
@@ -660,7 +660,7 @@ public class ConfigurationTests {
                     },
                     "subscription": {
                       "initialPosition": "Earliest",
-                      "partitionKeySelector": "stream_id"
+                      "partitionKeySelector": "stream"
                     }
                   }
                 }
@@ -721,7 +721,7 @@ public class ConfigurationTests {
                     "MaxParallelism": 8,
                     "Batching": { "MaxBatchSize": 2000 },
                     "Subscription": {
-                      "PartitionKeySelector": "stream_id"
+                      "PartitionKeySelector": "stream"
                     }
                   }
                 }
@@ -860,7 +860,7 @@ public class ConfigurationTests {
                     "MaxParallelism": 4,
                     "Batching": { "MaxBatchSize": 2000 },
                     "Subscription": {
-                      "PartitionKeySelector": "stream_id"
+                      "PartitionKeySelector": "stream"
                     }
                   }
                 }
@@ -888,7 +888,7 @@ public class ConfigurationTests {
                     "ProcessorId": "my-custom-id",
                     "MaxParallelism": 4,
                     "Subscription": {
-                      "PartitionKeySelector": "stream_id"
+                      "PartitionKeySelector": "stream"
                     }
                   }
                 }

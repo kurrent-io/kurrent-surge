@@ -25,7 +25,7 @@ public static class OrderSchema {
             .Scalar(o => o.Amount,                             "amount")
             .Scalar(o => o.CreatedAt.ToUnixTimeMilliseconds(), "created_at", "ts")
             .Map(ResolveTag,                                   "tags", "props", "properties")
-            .Json(ResolvePayload,                              "payload", "data")
+            .Json(o => o.Payload,                              "payload", "data")
             .Qualifier("order.")
             .TrimPrefix("field_")
     );
@@ -49,19 +49,5 @@ public static class OrderSchema {
         }
 
         return builder.Append('}').ToString();
-    }
-
-    static object? ResolvePayload(Order order, string? key) {
-        if (key is null) return order.Payload?.ToJsonString();
-
-        var node = order.Payload;
-
-        foreach (var segment in key.Split('.'))
-            node = node?[segment];
-
-        return node switch {
-            JsonValue value => value.ToString(),
-            _               => node?.ToJsonString()
-        };
     }
 }

@@ -1,3 +1,5 @@
+using Kurrent.Surge.RecordFilters;
+
 namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
@@ -5,16 +7,10 @@ namespace Kurrent.Surge.Client.Streams;
 /// </summary>
 [PublicAPI]
 public record ExpressionFilter : RecordFilter {
-    readonly IFilterExpression _parsedExpression;
+    readonly Filter<Record> _filter;
 
     /// <inheritdoc/>
     public override string Expression { get; init; }
-
-    /// <summary>
-    /// Returns <c>true</c> if the expression contains predicates that access the record's
-    /// JSON payload (<c>data</c> column). Used to validate that decoding is enabled.
-    /// </summary>
-    public bool QueriesData { get; }
 
     /// <summary>
     /// The server-side filter extracted from the expression for optimization.
@@ -28,21 +24,20 @@ public record ExpressionFilter : RecordFilter {
     /// The expression is analyzed to extract server-side and client-side components.
     /// </summary>
     /// <param name="expression">A SQL-like filter expression (e.g., "stream = 'orders' AND properties.amount > 100")</param>
+    /// <exception cref="FilterFormatException">The expression is not valid, or names a column no record carries.</exception>
     public ExpressionFilter(string expression) {
         ArgumentException.ThrowIfNullOrWhiteSpace(expression);
 
         Expression = expression;
 
-        _parsedExpression = ExpressionFilterParser.Parse(expression);
+        _filter = RecordFilterSchema.Default.Parse(expression);
 
-        QueriesData = _parsedExpression.QueriesData;
-
-        var extraction = ServerFilterExtractor.Extract(_parsedExpression);
+        var extraction = ServerFilterExtractor.Extract(_filter);
         ServerFilter             = extraction.ServerFilter;
         RequiresClientEvaluation = extraction.RequiresClientEvaluation;
     }
 
     /// <inheritdoc/>
     public override bool IsMatch(Record record) =>
-        _parsedExpression.IsMatch(record);
+        _filter.IsMatch(record);
 }

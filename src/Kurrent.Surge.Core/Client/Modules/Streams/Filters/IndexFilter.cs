@@ -36,7 +36,7 @@ public sealed partial record CategoryFilter : IndexFilter {
     public string CategoryName { get; private init; } = null!;
 
     public override bool IsMatch(Record record) =>
-        record.Category.Equals(CategoryName, OrdinalIgnoreCase);
+        record.Category.Equals(CategoryName, Ordinal);
 
     public static CategoryFilter Parse(string value) =>
         TryParse(value, out var filter, out var error)
@@ -90,7 +90,7 @@ public sealed partial record SchemaFilter : IndexFilter {
     public string SchemaName { get; private init; } = null!;
 
     public override bool IsMatch(Record record) =>
-        record.Schema.Schema.Value.Equals(SchemaName, OrdinalIgnoreCase);
+        record.Schema.Schema.Value.Equals(SchemaName, Ordinal);
 
     public static SchemaFilter Parse(string value) =>
         TryParse(value, out var filter, out var error)

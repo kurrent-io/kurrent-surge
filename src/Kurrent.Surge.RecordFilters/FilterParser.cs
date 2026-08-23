@@ -13,20 +13,8 @@ static class FilterParser {
         [NotNullWhen(false)] out FilterParseError? error
     ) {
         expression = null;
-        error      = null;
 
-        if (input.IsEmpty || input.IsWhiteSpace()) {
-            error = FilterParseError.EmptyInput();
-            return false;
-        }
-
-        var tokens = new FilterTokenizer(input).Tokenize();
-
-        var errorToken = tokens.FirstOrDefault(t => t.Type == TokenType.Error);
-        if (errorToken.Type == TokenType.Error) {
-            error = FilterParseError.SyntaxError(errorToken.Value, errorToken.Position);
-            return false;
-        }
+        if (!TryTokenize(input, out var tokens, out error)) return false;
 
         try {
             expression = new PrattParser(tokens).Parse();
@@ -36,6 +24,51 @@ static class FilterParser {
             error = FilterParseError.SyntaxError(ex.NearToken, ex.Position);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Parses a bare column reference — <c>stream</c>, <c>props['region']</c>, <c>data-&gt;&gt;'city'</c>,
+    /// or a dotted path — with no predicate around it.
+    /// </summary>
+    public static bool TryParsePath(
+        ReadOnlySpan<char> input,
+        out PropertyAccess property,
+        [NotNullWhen(false)] out FilterParseError? error
+    ) {
+        property = default;
+
+        if (!TryTokenize(input, out var tokens, out error)) return false;
+
+        try {
+            property = new PrattParser(tokens).ParsePath();
+            return true;
+        }
+        catch (ParseException ex) {
+            error = FilterParseError.SyntaxError(ex.NearToken, ex.Position);
+            return false;
+        }
+    }
+
+    static bool TryTokenize(
+        ReadOnlySpan<char> input,
+        [NotNullWhen(true)]  out List<Token> tokens,
+        [NotNullWhen(false)] out FilterParseError? error
+    ) {
+        tokens = [];
+        error  = null;
+
+        if (input.IsEmpty || input.IsWhiteSpace()) {
+            error = FilterParseError.EmptyInput();
+            return false;
+        }
+
+        tokens = new FilterTokenizer(input).Tokenize();
+
+        var errorToken = tokens.FirstOrDefault(t => t.Type == TokenType.Error);
+        if (errorToken.Type != TokenType.Error) return true;
+
+        error = FilterParseError.SyntaxError(errorToken.Value, errorToken.Position);
+        return false;
     }
 }
 
@@ -55,6 +88,14 @@ sealed class PrattParser(List<Token> tokens) {
         var result = ParseExpression(0);
 
         if (Peek().Type == TokenType.EndOfInput) return result;
+
+        throw Unexpected(Peek());
+    }
+
+    public PropertyAccess ParsePath() {
+        var property = ParsePropertyAccess();
+
+        if (Peek().Type == TokenType.EndOfInput) return property;
 
         throw Unexpected(Peek());
     }

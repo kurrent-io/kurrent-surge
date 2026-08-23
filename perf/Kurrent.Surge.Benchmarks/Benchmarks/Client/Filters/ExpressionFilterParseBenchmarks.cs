@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.RecordFilters;
 
 namespace Benchmarks;
 
@@ -9,7 +10,7 @@ public class ExpressionFilterParseBenchmarks {
     public string Expression { get; set; } = "";
 
     [Benchmark]
-    public IFilterExpression Parse() => ExpressionFilterParser.Parse(Expression);
+    public Filter<Record> Parse() => RecordFilterSchema.Default.Parse(Expression);
 
     public static IEnumerable<string> Expressions => [
         "stream = 'orders-123'",

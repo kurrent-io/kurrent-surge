@@ -40,5 +40,13 @@ public sealed class Filter<T> {
     /// </summary>
     public string ToSql() => DuckDbRenderer.Render(_expression, _schema);
 
+    /// <summary>
+    /// What this expression constrains a column to, for a caller that cannot hand the whole expression
+    /// to its store. Returns <see cref="FilterConstraint.None"/> when it says nothing usable.
+    /// </summary>
+    /// <param name="column">A declared column name or alias.</param>
+    public FilterConstraint ConstraintOn(string column) =>
+        ConstraintAnalyzer.Analyze(_expression, _schema, column);
+
     public override string ToString() => Expression;
 }

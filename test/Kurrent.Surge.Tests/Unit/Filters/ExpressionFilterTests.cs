@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.RecordFilters;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Naming;
 
@@ -9,7 +10,7 @@ namespace Kurrent.Surge.Tests.Filters;
 public class ExpressionFilterTests {
     readonly RecordFaker _faker = new();
 
-    static IFilterExpression Parse(string expression) => ExpressionFilterParser.Parse(expression);
+    static Filter<Record> Parse(string expression) => RecordFilterSchema.Default.Parse(expression);
 
     #region Comparison Operators
 
@@ -737,28 +738,6 @@ public class ExpressionFilterTests {
 
     #endregion
 
-    #region Index Virtual Column
-
-    [Test]
-    public async Task evaluates_index_always_true() {
-        var filter = Parse("index = 'orders-by-country'");
-        var record = _faker.With("anything-123");
-
-        await Assert.That(filter.IsMatch(record)).IsTrue();
-    }
-
-    [Test]
-    public async Task evaluates_index_combined_with_schema() {
-        var filter      = Parse("index = 'orders-by-country' AND schema = 'OrderPlaced'");
-        var matching    = _faker.With(schemaName: "OrderPlaced");
-        var nonMatching = _faker.With(schemaName: "OrderShipped");
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    #endregion
-
     #region Property Access via Dot-Path Fallback
 
     [Test]
@@ -944,17 +923,6 @@ public class ExpressionFilterTests {
         await Assert.That(isNotNull.IsMatch(record)).IsTrue();
     }
 
-    [Test]
-    public async Task reports_queries_data_for_data_predicates_only() {
-        // Arrange
-        var touchesData = Parse("data.amount > 100");
-        var touchesMeta = Parse("properties['region'] = 'us-east'");
-
-        // Act & Assert
-        await Assert.That(touchesData.QueriesData).IsTrue();
-        await Assert.That(touchesMeta.QueriesData).IsFalse();
-    }
-
     static Record RecordWithPayload(string json) =>
         new(new StubJsonDecoder(json)) {
             Id        = RecordId.New(),
@@ -974,40 +942,6 @@ public class ExpressionFilterTests {
             ValueTask.FromResult(DecodeOutcome.Decoded);
 
         public JsonNode? ProjectToJson(Record record) => JsonNode.Parse(json);
-    }
-
-    #endregion
-
-    #region Field Prefix Stripping
-
-    [Test]
-    public async Task evaluates_field_stream_alias() {
-        var filter      = Parse("field_stream = 'orders-99'");
-        var matching    = _faker.With("orders-99");
-        var nonMatching = _faker.With("payments-1");
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_field_category_alias() {
-        var filter      = Parse("field_category = 'orders'");
-        var matching    = _faker.With("orders-abc123");
-        var nonMatching = _faker.With("payments-1");
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_field_schema_alias() {
-        var filter      = Parse("field_schema = 'OrderPlaced'");
-        var matching    = _faker.With(schemaName: "OrderPlaced");
-        var nonMatching = _faker.With(schemaName: "OrderShipped");
-
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
     }
 
     #endregion

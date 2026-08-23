@@ -80,7 +80,13 @@ var request = new ReadRecordsRequest {
 };
 ```
 
-The expression is parsed at construction. The client analyzes the AST, pushes down stream and schema predicates the server can evaluate, and runs the rest client-side after decoding.
+The expression is parsed at construction. The client works out what the server can narrow — a stream, a category, or a schema — sends that, and evaluates the whole expression against each record that comes back.
+
+Naming an index stream is an ordinary stream predicate, so this reads through the index and filters the payload client-side:
+
+```csharp
+RecordFilter.ByExpression("stream = '$idx-user-orders-by-country' AND data.amount > 1000");
+```
 
 `RecordFilter.ByExpression` also takes the expression directly:
 
@@ -108,14 +114,32 @@ Expressions reference record properties by alias.
 | `schema_id` | `record.Schema.SchemaVersionId` |
 | `schema_format` | `record.Schema.SchemaFormat` |
 | `created_at`, `timestamp`, `ts` | `record.Timestamp` (Unix milliseconds) |
-| `data.<path>` | dot-separated path into the decoded JSON payload |
-| `metadata.<key>`, `properties.<key>`, `props.<key>` | keyed lookup into `record.Metadata` |
+| `data` | the decoded JSON payload |
+| `metadata`, `properties`, `props` | `record.Metadata` |
 
 ```csharp
 RecordFilter.ByExpression("category = 'order' AND data.amount > 100");
 RecordFilter.ByExpression("props.tenant = 'acme' AND ts > 1700000000000");
 RecordFilter.ByExpression("data.address.city = 'Berlin'");
 ```
+
+## Reaching into JSON
+
+`data` and the metadata aliases are documents. Reach a member five ways, all of which DuckDB accepts:
+
+| Written | Reads |
+|---|---|
+| `data.address.city` | descends two levels |
+| `data->>'$.address.city'` | descends, JSONPath |
+| `data->>'/address/city'` | descends, JSON Pointer |
+| `data->>'city'` | the member named `city` |
+| `data['city']` | the member named `city` |
+
+A key inside `->>` is a member name, not a path. `data->>'address.city'` reads a member literally called `address.city` and finds nothing unless one exists. Use `$.` or `/` to descend.
+
+JSONPath indexes arrays from zero: `data->>'$.tags[0]'`, or `data->>'/tags/0'`.
+
+Dot notation is client syntax. It reaches the server as `data->>'$.address.city'`, so it means the same thing on both sides.
 
 ## Filters on stream reads
 
@@ -159,14 +183,12 @@ For kind-specific details, match on the concrete type:
 | `StreamNameFilter` | `TargetStream` — the single stream the read routes to. |
 | `CategoryFilter` | `CategoryName` — the resolved category. |
 | `SchemaFilter` | `SchemaName` — the resolved schema (event type) name. |
-| `ExpressionFilter` | `QueriesData` — whether the expression reads the decoded payload. |
-| `StreamRegexFilter`, `UserIndexFilter`, `EmptyFilter` | no extra public members. |
+| `ExpressionFilter`, `StreamRegexFilter`, `UserIndexFilter`, `EmptyFilter` | no extra public members. |
 
 ```csharp
 switch (filter) {
     case StreamNameFilter s: Console.WriteLine($"Direct read on {s.TargetStream}"); break;
     case CategoryFilter c:   Console.WriteLine($"Category {c.CategoryName}");        break;
     case SchemaFilter sf:    Console.WriteLine($"Schema {sf.SchemaName}");           break;
-    case ExpressionFilter e: Console.WriteLine($"Queries payload: {e.QueriesData}"); break;
 }
 ```

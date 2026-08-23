@@ -56,7 +56,10 @@ public static class PartitionKeyExtractor {
         if (string.IsNullOrWhiteSpace(expression))
             return None;
 
-        return new PropertyPathExtractor(expression, PropertyAccess.Parse(expression));
+        if (!RecordFilterSchema.Default.TryBind(expression, out var read))
+            throw new ArgumentException($"Invalid property path: '{expression}'", nameof(expression));
+
+        return new PropertyPathExtractor(expression, read);
     }
 }
 
@@ -66,27 +69,11 @@ file sealed class NullExtractor : IPartitionKeyExtractor {
 }
 
 /// <summary>
-/// Resolves a <see cref="PropertyAccess"/> against <see cref="RecordPropertyMap.Default"/>
-/// and formats the result as a string suitable for consistent hashing.
+/// Reads a column bound once against <see cref="RecordFilterSchema.Default"/>. The schema declares
+/// each column's text form, so the key does not depend on the value's in-memory type.
 /// </summary>
-file sealed class PropertyPathExtractor(string expression, PropertyAccess property) : IPartitionKeyExtractor {
+file sealed class PropertyPathExtractor(string expression, Func<Record, string?> read) : IPartitionKeyExtractor {
     public string Expression => expression;
 
-    public string? Extract(Record record) {
-        ArgumentNullException.ThrowIfNull(record);
-
-        var value = RecordPropertyMap.Default.
-            Resolve(property.PropertyName, property.Key, record);
-        
-        return value switch {
-            null        => null,
-            string s    => s,
-            Guid g      => g.ToString("N"),
-            // Same key format as Guid — partition assignment must not depend on the id's
-            // in-memory type, and RecordId.ToString() is the ULID face, not a hash key.
-            RecordId id => id.ToGuid().ToString("N"),
-            DateTime dt => dt.ToString("O"),
-            _           => value.ToString()
-        };
-    }
+    public string? Extract(Record record) => read(record);
 }

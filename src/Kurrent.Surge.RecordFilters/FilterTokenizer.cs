@@ -245,12 +245,10 @@ internal sealed class FilterTokenizer(ReadOnlySpan<char> input) {
         sb.Append(_input.AsSpan(valueStart, _position - valueStart));
 
         while (!IsAtEnd && Current != '\'') {
-            if (Current == '\\' && _position + 1 < _input.Length) {
+            if (Current == '\\' && _position + 1 < _input.Length)
                 Advance();
-                sb.Append(Current);
-            }
-            else
-                sb.Append(Current);
+
+            sb.Append(Current);
 
             Advance();
         }

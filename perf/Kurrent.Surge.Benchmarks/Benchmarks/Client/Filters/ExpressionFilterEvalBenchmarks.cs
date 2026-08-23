@@ -1,13 +1,14 @@
 using BenchmarkDotNet.Attributes;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.RecordFilters;
 using Kurrent.Surge.Tests.Filters;
 
 namespace Benchmarks;
 
 [Config(typeof(BenchmarkConfig))]
 public class ExpressionFilterEvalBenchmarks {
-    IFilterExpression _filter = null!;
+    Filter<Record> _filter = null!;
     Record _record = null!;
 
     [ParamsSource(nameof(Scenarios))]
@@ -15,7 +16,7 @@ public class ExpressionFilterEvalBenchmarks {
 
     [GlobalSetup]
     public void Setup() {
-        _filter = ExpressionFilterParser.Parse(Scenario.Expression);
+        _filter = RecordFilterSchema.Default.Parse(Scenario.Expression);
         _record = Scenario.CreateRecord();
     }
 

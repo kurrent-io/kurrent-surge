@@ -99,20 +99,27 @@ public class SchemaFilterTests {
         await Assert.That(filter.IsMatch(record)).IsTrue();
     }
 
-    public class CaseInsensitiveSchemaCases : TestCaseDataGenerator<string> {
+    // A schema name compares ordinally, matching how an expression compares `schema = '...'`.
+    public class DifferentlyCasedSchemaCases : TestCaseDataGenerator<string> {
         protected override IEnumerable<TestCase<string>> Data() {
             yield return new("ordercreated", DisplayName: "lower case");
             yield return new("ORDERCREATED", DisplayName: "upper case");
-            yield return new("OrderCreated", DisplayName: "pascal case");
         }
     }
 
     [Test]
-    [CaseInsensitiveSchemaCases]
-    public async ValueTask is_match_is_case_insensitive(string schemaName) {
+    [DifferentlyCasedSchemaCases]
+    public async ValueTask is_match_is_case_sensitive(string schemaName) {
         var filter = SchemaFilter.Parse("OrderCreated");
 
-        await Assert.That(filter.IsMatch(_faker.With(schemaName: schemaName))).IsTrue();
+        await Assert.That(filter.IsMatch(_faker.With(schemaName: schemaName))).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask is_match_matches_an_identically_cased_schema_name() {
+        var filter = SchemaFilter.Parse("OrderCreated");
+
+        await Assert.That(filter.IsMatch(_faker.With(schemaName: "OrderCreated"))).IsTrue();
     }
 
     [Test]

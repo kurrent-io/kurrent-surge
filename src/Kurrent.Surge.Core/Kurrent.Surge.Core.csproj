@@ -30,6 +30,9 @@
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Kurrent.Surge.SourceGenerators\Kurrent.Surge.SourceGenerators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
+    <!-- The filter engine behind RecordFilter/ExpressionFilter. Bundled rather than referenced as a
+         package: it is not published on its own, so its assembly ships inside this one. -->
+    <ProjectReference Include="..\Kurrent.Surge.RecordFilters\Kurrent.Surge.RecordFilters.csproj" Bundle="true" />
     <!-- PrivateAssets="none": the filename triggers the in-repo packed-analyzer wiring in
          Directory.Build.targets so the message-catalog generator runs on THIS compilation (the
          streaming proto contracts need their generated catalog — checkpoint appends fail to map
@@ -88,6 +91,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Client\Modules\Streams\Filters\ExpressionFilter\" />
     <Folder Include="Experimental\Components\" />
   </ItemGroup>
 

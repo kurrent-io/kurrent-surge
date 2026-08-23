@@ -96,11 +96,13 @@ static class DuckDbRenderer {
 
         if (key is null) return column.Name;
 
+        // The key already carries its own form — a JSONPath when a dotted name descended into a JSON
+        // column, a plain member name otherwise. Adding a prefix here would double it.
         return column.Kind switch {
-            FilterColumnKind.Scalar => column.Name,
-            FilterColumnKind.Map    => $"{column.Name}->>'{EscapeText(key)}'",
-            FilterColumnKind.Json   => $"{column.Name}->>'$.{EscapeText(key)}'",  // A JSON column reaches nested members through one JSONPath, so a dotted key stays whole.
-            _                       => throw new NotSupportedException($"Unhandled column kind '{column.Kind}'.")
+            FilterColumnKind.Scalar          => column.Name,
+            FilterColumnKind.Map or
+            FilterColumnKind.Json            => $"{column.Name}->>'{EscapeText(key)}'",
+            _                                => throw new NotSupportedException($"Unhandled column kind '{column.Kind}'.")
         };
     }
 

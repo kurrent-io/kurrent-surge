@@ -29,8 +29,8 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
             schema_id VARCHAR,
             schema_format VARCHAR NOT NULL,
             record_id BLOB NOT NULL,
-            data JSON,
-            metadata JSON
+            data VARCHAR,
+            metadata VARCHAR
         )
         """;
 
@@ -41,28 +41,45 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
         _connection.Dispose();
     }
 
-    async Task ValidateExpressions(string category, string[] expressions) {
-        var duckDbFailures = new List<string>();
-        var parserFailures = new List<string>();
+    async Task ValidateExpressions(string category, string[] expressions, bool expressionIsValidSql = true) {
+        var duckDbFailures   = new List<string>();
+        var parserFailures   = new List<string>();
+        var renderedFailures = new List<string>();
 
         foreach (var expression in expressions) {
-            try {
-                await using var cmd = _connection.CreateCommand();
-                cmd.CommandText = $"EXPLAIN SELECT * FROM records WHERE {expression}";
-                await Task.Run(() => cmd.ExecuteNonQuery());
-            }
-            catch (Exception ex) {
-                duckDbFailures.Add($"[{category}] {expression}: {ex.Message}");
-            }
+            if (expressionIsValidSql && await Explain(expression) is { } expressionError)
+                duckDbFailures.Add($"[{category}] {expression}: {expressionError}");
 
             // The suite exists to prove our surface is a subset of DuckDB's. Checking only DuckDB
             // proves the strings are valid SQL, not that our parser accepts them — both must pass.
-            if (!ExpressionFilterParser.TryParse(expression, out _, out var error))
+            if (!RecordFilterSchema.Default.TryParse(expression, out var filter, out var error)) {
                 parserFailures.Add($"[{category}] {expression}: {error.ErrorMessage}");
+                continue;
+            }
+
+            // What the server actually receives is the rendered form, so that is what has to bind —
+            // client-only syntax such as dot access is valid nowhere else.
+            var rendered = filter.ToSql();
+
+            if (await Explain(rendered) is { } renderedError)
+                renderedFailures.Add($"[{category}] {expression} rendered as {rendered}: {renderedError}");
         }
 
         await Assert.That(duckDbFailures).IsEmpty();
         await Assert.That(parserFailures).IsEmpty();
+        await Assert.That(renderedFailures).IsEmpty();
+    }
+
+    async Task<string?> Explain(string predicate) {
+        try {
+            await using var cmd = _connection.CreateCommand();
+            cmd.CommandText = $"EXPLAIN SELECT * FROM records WHERE {predicate}";
+            await Task.Run(() => cmd.ExecuteNonQuery());
+            return null;
+        }
+        catch (Exception ex) {
+            return ex.Message;
+        }
     }
 
     #region . Scalar Columns .
@@ -80,9 +97,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
         "stream_revision = 5",
         "schema_name = 'OrderCreated'",
         "category = 'orders'",
-        "schema_format = 'json'",
-        "deleted = true",
-        "deleted = false"
+        "schema_format = 'json'"
     ]);
 
     [Test]
@@ -116,8 +131,6 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
         "stream IS NOT NULL",
         "schema_id IS NULL",
         "schema_id IS NOT NULL",
-        "expires_at IS NULL",
-        "expires_at IS NOT NULL",
         "data IS NULL",
         "data IS NOT NULL",
         "metadata IS NULL",
@@ -185,6 +198,8 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
         "metadata->>'score' BETWEEN '0' AND '100'"
     ]);
 
+    // Dot access is client syntax, not SQL: DuckDB cannot descend into a VARCHAR column, so only
+    // the rendered form is checked against it.
     [Test]
     public async Task validates_metadata_dot_access() => await ValidateExpressions("metadata dot", [
         "metadata.region = 'us-east'",
@@ -193,7 +208,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
         "metadata.region LIKE 'us-%'",
         "metadata.region ILIKE 'US-%'",
         "metadata.userId = 'user-123'"
-    ]);
+    ], expressionIsValidSql: false);
 
     #endregion
 
@@ -229,20 +244,24 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     // for chained traversal (data->'a'->'b'). Since ->> and dot notation cover all
     // filter use cases, there's no reason to add it.
 
+    // Dot access is client syntax, not SQL: DuckDB cannot descend into a VARCHAR column, so only
+    // the rendered form is checked against it.
     [Test]
     public async Task validates_data_dot_access() => await ValidateExpressions("data dot", [
         "data.region = 'us-east'",
         "data.region IS NOT NULL",
         "data.region IS NULL",
         "data.tags IS NOT NULL"
-    ]);
+    ], expressionIsValidSql: false);
 
+    // Dot access is client syntax, not SQL: DuckDB cannot descend into a VARCHAR column, so only
+    // the rendered form is checked against it.
     [Test]
     public async Task validates_data_nested_dot_access() => await ValidateExpressions("data nested dot", [
         "data.address.city = 'NYC'",
         "data.address.city IS NOT NULL",
         "data.user.profile.name = 'Alice'"
-    ]);
+    ], expressionIsValidSql: false);
 
     #endregion
 
@@ -266,7 +285,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
         // NOT with complex inner
         "NOT (schema_name = 'SystemEvent' OR schema_name = 'HeartbeatEvent')",
         // nested JSON with scalar predicates
-        "data.address.city = 'NYC' AND stream = 'customers' AND created_at >= 1704067200000",
+        "data->>'$.address.city' = 'NYC' AND stream = 'customers' AND created_at >= 1704067200000",
         // mixed metadata access styles
         "metadata->>'region' = 'us-east' AND data->>'status' = 'active'",
         // pattern matching with JSON
@@ -288,6 +307,44 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
         "metadata->>'region' NOT LIKE '%test%'",
         "data->>'env' NOT IN ('dev', 'staging')"
     ]);
+
+    #endregion
+
+    #region . Rendering .
+
+    // The schema declares a canonical column per alias. Asserting the rendered text alone would only
+    // prove it matches what was typed here; running it against the table proves the name is real.
+    public sealed class RenderCases : TestCaseDataGenerator<(string Written, string Rendered)> {
+        protected override IEnumerable<TestCase<(string Written, string Rendered)>> Data() {
+            yield return new(("pos > 100",                    "log_position > 100"),                     "pos");
+            yield return new(("position > 100",               "log_position > 100"),                     "position");
+            yield return new(("revision = 5",                 "stream_revision = 5"),                    "revision");
+            yield return new(("schema = 'OrderCreated'",      "schema_name = 'OrderCreated'"),           "schema");
+            yield return new(("ts >= 1704067200000",          "created_at >= 1704067200000"),            "ts");
+            yield return new(("timestamp >= 1704067200000",   "created_at >= 1704067200000"),            "timestamp");
+            yield return new(("rec.stream = 'orders'",        "stream = 'orders'"),                      "rec. qualifier");
+            yield return new(("props['region'] = 'us-east'",  "metadata->>'region' = 'us-east'"),        "props key");
+            yield return new(("properties.region = 'us-east'", "metadata->>'region' = 'us-east'"),       "properties dot");
+            yield return new(("data.address.city = 'NYC'",    "data->>'$.address.city' = 'NYC'"),        "json path");
+        }
+    }
+
+    [Test]
+    [RenderCases]
+    public async Task renders_aliases_to_columns_the_table_carries(string written, string rendered) {
+        // Arrange
+        var filter = RecordFilterSchema.Default.Parse(written);
+
+        // Act
+        var sql = filter.ToSql();
+
+        await using var cmd = _connection.CreateCommand();
+        cmd.CommandText = $"EXPLAIN SELECT * FROM records WHERE {sql}";
+        await Task.Run(() => cmd.ExecuteNonQuery());
+
+        // Assert
+        await Assert.That(sql).IsEqualTo(rendered);
+    }
 
     #endregion
 }

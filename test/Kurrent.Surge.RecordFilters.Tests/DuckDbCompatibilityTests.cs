@@ -21,8 +21,8 @@ public class DuckDbCompatibilityTests : IDisposable {
             status          VARCHAR,
             amount          DECIMAL(18,2),
             created_at      BIGINT,
-            tags            JSON,
-            payload         JSON
+            tags            VARCHAR,
+            payload         VARCHAR
         )
         """;
 
@@ -180,13 +180,15 @@ public class DuckDbCompatibilityTests : IDisposable {
         "tags->>'score' BETWEEN '0' AND '100'"
     ]);
 
+    // Dot access is SDK input, not SQL: DuckDB cannot descend into a VARCHAR column, so only the
+    // rendered form is checked against it.
     [Test]
     public async ValueTask validates_map_dot_access() => await ValidateExpressions("map dot", [
         "tags.region = 'us-east'",
         "tags.region IS NOT NULL",
         "tags.region LIKE 'us-%'",
         "tags.region ILIKE 'US-%'"
-    ]);
+    ], expressionIsValidSql: false);
 
     #endregion
 
@@ -207,25 +209,36 @@ public class DuckDbCompatibilityTests : IDisposable {
         "payload->>'region' LIKE 'us-%'"
     ]);
 
-    // A key already written as a JSONPath renders with a second '$.' in front of it. DuckDB plans
-    // '$.$.x' without complaint, so both sides are valid SQL — they do not select the same member.
+    // A key already written as a JSONPath passes through unchanged. It used to render with a second
+    // '$.' in front of it, which DuckDB planned without complaint while selecting a different member.
     [Test]
     public async ValueTask validates_json_arrow_with_jsonpath() => await ValidateExpressions("json JSONPath", [
         "payload->>'$.region' = 'us-east'",
-        "payload->>'$.tags' IS NOT NULL"
+        "payload->>'$.address.city' = 'lisbon'",
+        "payload->>'$.tags' IS NOT NULL",
+        "payload->>'$.tags[0]' = 'a'"
     ]);
 
+    [Test]
+    public async ValueTask validates_json_arrow_with_json_pointer() => await ValidateExpressions("json Pointer", [
+        "payload->>'/region' = 'us-east'",
+        "payload->>'/address/city' = 'lisbon'",
+        "payload->>'/tags/0' = 'a'"
+    ]);
+
+    // Dot access is SDK input, not SQL: DuckDB cannot descend into a VARCHAR column, so only the
+    // rendered form is checked against it.
     [Test]
     public async ValueTask validates_json_dot_access() => await ValidateExpressions("json dot", [
         "payload.region = 'us-east'",
         "payload.region IS NULL"
-    ]);
+    ], expressionIsValidSql: false);
 
     [Test]
     public async ValueTask validates_json_nested_dot_access() => await ValidateExpressions("json nested dot", [
         "payload.address.city = 'lisbon'",
         "payload.user.profile.name = 'Alice'"
-    ]);
+    ], expressionIsValidSql: false);
 
     #endregion
 
@@ -249,7 +262,7 @@ public class DuckDbCompatibilityTests : IDisposable {
         // NOT with complex inner
         "NOT (status = 'draft' OR status = 'void')",
         // nested JSON with scalar predicates
-        "payload.address.city = 'lisbon' AND stream = 'customers-1' AND created_at >= 1704067200000",
+        "payload->>'$.address.city' = 'lisbon' AND stream = 'customers-1' AND created_at >= 1704067200000",
         // mixed map and JSON access
         "tags->>'region' = 'us-east' AND payload->>'status' = 'active'",
         // pattern matching with keyed access

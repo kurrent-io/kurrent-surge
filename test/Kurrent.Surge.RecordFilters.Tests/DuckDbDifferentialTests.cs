@@ -24,8 +24,8 @@ public class DuckDbDifferentialTests : IDisposable {
             status          VARCHAR,
             amount          DECIMAL(18,2),
             created_at      BIGINT,
-            tags            JSON,
-            payload         JSON
+            tags            VARCHAR,
+            payload         VARCHAR
         )
         """;
 
@@ -266,6 +266,29 @@ public class DuckDbDifferentialTests : IDisposable {
         "payload.address.city = 'Lisbon'",
         "payload.address.city IS NOT NULL",
         "payload.address.city LIKE '%o%'"
+    );
+
+    // The same member reached three ways. A dotted name descends, a JSONPath descends, and a bare key
+    // does not — so the first two select the same rows and the third selects none.
+    [Test]
+    public async ValueTask agrees_on_every_json_notation() => await AssertSameMatches(
+        "payload.address.city = 'lisbon'",
+        "payload->>'$.address.city' = 'lisbon'",
+        "payload->>'/address/city' = 'lisbon'",
+        "payload->>'address.city' = 'lisbon'",
+        "payload.address.city IS NULL",
+        "payload->>'$.address.city' IS NULL",
+        "payload->>'/address/city' IS NULL",
+        "payload->>'address.city' IS NULL"
+    );
+
+    [Test]
+    public async ValueTask agrees_on_a_json_path_reaching_one_level() => await AssertSameMatches(
+        "payload.priority = '3'",
+        "payload->>'$.priority' = '3'",
+        "payload->>'/priority' = '3'",
+        "payload->>'priority' = '3'",
+        "payload['priority'] = '3'"
     );
 
     #endregion

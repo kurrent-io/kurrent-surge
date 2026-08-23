@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Kurrent.Surge.RecordFilters;
 
 /// <summary>
@@ -52,6 +54,13 @@ abstract class ColumnAccessor<T> {
     /// </summary>
     public abstract Func<T, object?> Getter(string? key);
 
+    /// <summary>
+    /// Reads the column as text, for a caller that wants the value itself rather than a predicate over
+    /// it. Predicates never take this path — <c>LIKE</c> keeps reading the value directly — so a
+    /// declared text form cannot change what an expression matches.
+    /// </summary>
+    public abstract Func<T, string?> TextReader(string? key);
+
     public virtual Func<T, bool?>? BindComparison(ComparisonOperator op, FilterValue literal) => null;
 
     public virtual Func<T, bool?>? BindRange(FilterValue lower, FilterValue upper, bool negated) => null;
@@ -61,7 +70,7 @@ abstract class ColumnAccessor<T> {
 /// Holds the accessor at its declared return type, so a predicate can be bound directly against
 /// <typeparamref name="TValue"/> with no boxing and no per-record type inspection.
 /// </summary>
-sealed class ScalarAccessor<T, TValue>(Func<T, TValue> getter) : ColumnAccessor<T> {
+sealed class ScalarAccessor<T, TValue>(Func<T, TValue> getter, Func<TValue, string?>? text = null) : ColumnAccessor<T> {
     // Comparer<string>.Default is culture-sensitive. Column values compare ordinally, matching the
     // database, so string columns must not take the default comparer.
     static readonly IComparer<TValue> Comparer =
@@ -72,6 +81,15 @@ sealed class ScalarAccessor<T, TValue>(Func<T, TValue> getter) : ColumnAccessor<
     public override Func<T, object?> Getter(string? key) {
         var get = getter;
         return t => get(t);
+    }
+
+    public override Func<T, string?> TextReader(string? key) {
+        var get     = getter;
+        var project = text;
+
+        return project is null
+            ? t => ColumnText.Of(get(t))
+            : t => project(get(t));
     }
 
     public override Func<T, bool?>? BindComparison(ComparisonOperator op, FilterValue literal) {
@@ -175,9 +193,120 @@ sealed class ScalarAccessor<T, TValue>(Func<T, TValue> getter) : ColumnAccessor<
 /// A column whose values have no declared type — a metadata bag or a JSON document. It cannot bind
 /// ahead of time, so it always takes the fallback path.
 /// </summary>
+/// <summary>
+/// A JSON document. The engine owns what a path means so the .NET walk and the
+/// <c>-&gt;&gt;'$.path'</c> the renderer emits cannot disagree; the declarer supplies only the document.
+/// </summary>
+sealed class JsonAccessor<T>(Func<T, JsonNode?> document) : ColumnAccessor<T> {
+    public override Func<T, object?> Getter(string? key) {
+        var read = document;
+        return t => Read(read(t), key);
+    }
+
+    public override Func<T, string?> TextReader(string? key) {
+        var read = document;
+        return t => Read(read(t), key);
+    }
+
+    static string? Read(JsonNode? node, string? key) {
+        if (node is null) return null;
+
+        // A null key means the column itself was referenced — `data IS NULL`, not `data->>'city'`.
+        // The answer is the whole document, matching what the column holds.
+        if (key is null) return node.ToJsonString();
+
+        var found = Walk(node, key);
+
+        return found switch {
+            JsonValue value => value.ToString(),
+            _               => found?.ToJsonString()
+        };
+    }
+
+    // `->>` reads one of three path forms and nothing else: a JSONPath rooted at `$`, an RFC 6901
+    // pointer rooted at `/`, or a single member name. A name is never split, so `->>'a.b'` reads a
+    // member literally called `a.b` — DuckDB returns NULL there rather than descending.
+    static JsonNode? Walk(JsonNode node, string key) =>
+        key.StartsWith('$') ? WalkPath(node, key)
+      : key.StartsWith('/') ? WalkPointer(node, key)
+      : Member(node, key);
+
+    static JsonNode? WalkPath(JsonNode? node, string path) {
+        var i = 1; // past the '$'
+
+        while (node is not null && i < path.Length) {
+            int start;
+
+            switch (path[i]) {
+                case '.':
+                    start = ++i;
+                    while (i < path.Length && path[i] is not ('.' or '[')) i++;
+                    node = Member(node, path[start..i]);
+                    break;
+
+                case '[':
+                    start = ++i;
+                    while (i < path.Length && path[i] != ']') i++;
+                    if (!int.TryParse(path[start..i], out var index)) return null;
+                    node = Index(node, index);
+                    i++; // past the ']'
+                    break;
+
+                default:
+                    return null;
+            }
+        }
+
+        return node;
+    }
+
+    static JsonNode? WalkPointer(JsonNode? node, string pointer) {
+        foreach (var raw in pointer.Split('/', StringSplitOptions.RemoveEmptyEntries)) {
+            // RFC 6901 escapes: `~1` is a literal '/', `~0` a literal '~'. Tilde is unescaped last
+            // so that `~01` reads as the two characters `~1` rather than as a slash.
+            var segment = raw.Replace("~1", "/").Replace("~0", "~");
+
+            node = node is JsonArray && int.TryParse(segment, out var index)
+                ? Index(node, index)
+                : Member(node, segment);
+
+            if (node is null) return null;
+        }
+
+        return node;
+    }
+
+    static JsonNode? Member(JsonNode? node, string name) =>
+        node is JsonObject obj && obj.TryGetPropertyValue(name, out var value) ? value : null;
+
+    // JSON indexing is 0-based, unlike DuckDB's LIST and ARRAY types.
+    static JsonNode? Index(JsonNode? node, int index) =>
+        node is JsonArray array && index >= 0 && index < array.Count ? array[index] : null;
+}
+
 sealed class KeyedAccessor<T>(Func<T, string?, object?> getter) : ColumnAccessor<T> {
     public override Func<T, object?> Getter(string? key) {
         var get = getter;
         return t => get(t, key);
     }
+
+    public override Func<T, string?> TextReader(string? key) {
+        var get = getter;
+        return t => ColumnText.Of(get(t, key));
+    }
+}
+
+/// <summary>
+/// The text form of a value when no column declared one. A key derived from it must not depend on the
+/// type the value happened to arrive as, so the formats are the ones that read back identically.
+/// </summary>
+static class ColumnText {
+    public static string? Of(object? value) =>
+        value switch {
+            null          => null,
+            string text   => text,
+            Guid guid     => guid.ToString("N"),
+            DateTime date => date.ToString("O"),
+            _             => value.ToString()
+        };
 }

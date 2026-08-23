@@ -32,6 +32,9 @@ public sealed record FilterParseError {
     public static FilterParseError EmptyInput() =>
         new("Error parsing filter: empty expression", 0, null);
 
+    public static FilterParseError UndeclaredColumn(string column, string target) =>
+        new($"Error parsing filter: no column named \"{column}\" is declared in FilterSchema<{target}>", 0, column);
+
     public FilterFormatException ToException() => new(this);
 }
 

@@ -156,8 +156,8 @@ static class FilterCompiler {
     static FilterColumn<T>? Resolve<T>(PropertyAccess property, FilterSchema<T> schema, out string? key) =>
         schema.Find(property.PropertyName, property.Key, out key);
 
-    // An undeclared column reads as absent on every instance, so `unknown IS NULL` is true and every
-    // other predicate over it is UNKNOWN — the same answers the untyped path gave.
+    // The schema rejects an undeclared column at parse time, so a null column cannot arrive here from
+    // Parse. The absent-reads-as-null arm remains as the safe answer for any other entry point.
     static Func<T, object?> Getter<T>(FilterColumn<T>? column, string? key) =>
         column is null ? _ => null : column.Accessor.Getter(key);
 
@@ -216,7 +216,12 @@ static class LikePattern {
         return regex.IsMatch;
     }
 
-    static Regex ToRegex(string pattern, bool caseInsensitive) {
+    /// <summary>
+    /// Translates a LIKE pattern into an anchored regular expression. Shared with
+    /// <see cref="FilterTerm.ToRegex"/>, which hands this text to a caller rather than matching with
+    /// it — the two must agree on what the pattern means.
+    /// </summary>
+    public static string ToRegexPattern(string pattern) {
         var builder = new StringBuilder(pattern.Length + 4).Append('^');
 
         foreach (var ch in pattern) {
@@ -230,14 +235,16 @@ static class LikePattern {
                 builder.Append(ch);
         }
 
-        builder.Append('$');
-
-        var options = RegexOptions.Compiled | RegexOptions.Singleline;
-        if (caseInsensitive) options |= RegexOptions.IgnoreCase;
-
-        return new(builder.ToString(), options);
+        return builder.Append('$').ToString();
 
         static bool IsMetaChar(char ch) =>
             ch is '\\' or '*' or '+' or '?' or '|' or '{' or '}' or '[' or ']' or '(' or ')' or '^' or '$' or '.';
+    }
+
+    static Regex ToRegex(string pattern, bool caseInsensitive) {
+        var options = RegexOptions.Compiled | RegexOptions.Singleline;
+        if (caseInsensitive) options |= RegexOptions.IgnoreCase;
+
+        return new(ToRegexPattern(pattern), options);
     }
 }
