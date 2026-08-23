@@ -1,0 +1,46 @@
+// Groups are proto2-only and encode differently from a nested message: the body is delimited by a
+// start and end tag rather than by a length prefix. They are here because nothing else in the suite
+// exercises that path.
+syntax = "proto2";
+
+package transcoder.groups;
+
+enum Carrier {
+  CARRIER_UNSPECIFIED = 0;
+  CARRIER_ROAD        = 1;
+  CARRIER_AIR         = 2;
+}
+
+message Parcel {
+  optional string parcel_id = 1;
+
+  repeated group Line = 2 {
+    optional string sku      = 1;
+    optional int32  quantity = 2;
+    optional bytes  barcode  = 3;
+  }
+
+  optional group Shipping = 3 {
+    optional Carrier carrier = 1;
+    optional int64   weight  = 2;
+
+    // A group inside a group: the end tag of the inner one must not close the outer.
+    optional group Address = 3 {
+      optional string city     = 1;
+      optional string postcode = 2;
+    }
+
+    // A group body obeys the full message grammar. A map and a oneof declared here are the
+    // constructs a group-only body reader does not reach.
+    map<string, string> labels = 4;
+
+    oneof billing {
+      string account = 5;
+      string card    = 6;
+    }
+  }
+
+  required string reference = 4;
+
+  optional int32 retries = 5 [default = 3];
+}

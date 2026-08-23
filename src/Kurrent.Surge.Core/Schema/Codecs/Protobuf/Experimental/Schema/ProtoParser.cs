@@ -65,11 +65,11 @@ static class ProtoParser {
                 }
 
                 case "message":
-                    file.MessageType.Add(ParseMessage(lexer, fileName, file.Syntax));
+                    file.MessageType.Add(ParseMessage(lexer, file.Syntax));
                     break;
 
                 case "enum":
-                    file.EnumType.Add(ParseEnum(lexer, fileName));
+                    file.EnumType.Add(ParseEnum(lexer));
                     break;
 
                 // Services are parsed only so the tokens are consumed. A transcoder decodes
@@ -79,7 +79,7 @@ static class ProtoParser {
                     break;
 
                 case "extend":
-                    ParseExtendBlock(lexer, fileName, file.Syntax, file.Extension);
+                    ParseExtendBlock(lexer, file.Extension);
                     break;
             }
         }
@@ -87,13 +87,22 @@ static class ProtoParser {
         return file;
     }
 
-    static DescriptorProto ParseMessage(ProtoLexer lexer, string fileName, string syntax) {
+    static DescriptorProto ParseMessage(ProtoLexer lexer, string syntax) {
         var name = ExpectIdent(lexer);
 
         Expect(lexer, "{");
 
-        var message = new DescriptorProto { Name = name };
+        return ParseMessageBody(lexer, syntax, new DescriptorProto { Name = name });
+    }
 
+    /// <summary>Reads a message body, from just past its opening brace to its closing one.</summary>
+    /// <remarks>
+    /// A group declares a message and a field at once, and its body obeys the same grammar as any
+    /// other message — the language says so. Sharing the reader is what makes that true here rather
+    /// than nearly true: the group form used to accept nine of these constructs, so a oneof, a map,
+    /// an extend block or a nested group inside a group was silently mis-parsed.
+    /// </remarks>
+    static DescriptorProto ParseMessageBody(ProtoLexer lexer, string syntax, DescriptorProto message) {
         // A proto3 `optional` field is carried by a oneof holding only that field. Those synthetic
         // oneofs must follow every declared one, so they are appended once the body is closed.
         var synthetic = new List<FieldDescriptorProto>();
@@ -102,21 +111,21 @@ static class ProtoParser {
             var token = lexer.Next();
 
             if (token.Kind == TokenKind.Eof)
-                throw new ProtoParseException(fileName, token.Line, token.Column, "Unexpected end of input in message");
+                throw new ProtoParseException(lexer.FileName, token.Line, token.Column, "Unexpected end of input in message");
 
             if (token.Value == "}") break;
 
             switch (token.Value) {
                 case "message":
-                    message.NestedType.Add(ParseMessage(lexer, fileName, syntax));
+                    message.NestedType.Add(ParseMessage(lexer, syntax));
                     break;
 
                 case "enum":
-                    message.EnumType.Add(ParseEnum(lexer, fileName));
+                    message.EnumType.Add(ParseEnum(lexer));
                     break;
 
                 case "oneof":
-                    ParseOneof(lexer, fileName, message, syntax);
+                    ParseOneOf(lexer, message);
                     break;
 
                 case "map":
@@ -124,15 +133,15 @@ static class ProtoParser {
                     break;
 
                 case "repeated":
-                    ParseField(lexer, fileName, message, Label.Repeated, syntax, synthetic);
+                    ParseField(lexer, message, Label.Repeated, syntax, synthetic);
                     break;
 
                 case "optional":
-                    ParseField(lexer, fileName, message, Label.Optional, syntax, synthetic, explicitOptional: true);
+                    ParseField(lexer, message, Label.Optional, syntax, synthetic, explicitOptional: true);
                     break;
 
                 case "required":
-                    ParseField(lexer, fileName, message, Label.Required, syntax, synthetic);
+                    ParseField(lexer, message, Label.Required, syntax, synthetic);
                     break;
 
                 case "reserved":
@@ -144,7 +153,7 @@ static class ProtoParser {
                     break;
 
                 case "extend":
-                    ParseExtendBlock(lexer, fileName, syntax, message.Extension);
+                    ParseExtendBlock(lexer, message.Extension);
                     break;
 
                 case "option": {
@@ -157,14 +166,14 @@ static class ProtoParser {
                 }
 
                 case "group":
-                    ParseGroupField(lexer, fileName, message, Label.Optional, syntax);
+                    ParseGroupField(lexer, message, Label.Optional, syntax);
                     break;
 
                 case ";":
                     break;
 
                 default:
-                    ParseFieldWithType(lexer, fileName, message, Label.Optional, token, syntax, synthetic);
+                    ParseFieldWithType(lexer, message, Label.Optional, token, syntax, synthetic);
                     break;
             }
         }
@@ -178,21 +187,21 @@ static class ProtoParser {
     }
 
     static void ParseField(
-        ProtoLexer lexer, string fileName, DescriptorProto message, Label label, string syntax,
+        ProtoLexer lexer, DescriptorProto message, Label label, string syntax,
         List<FieldDescriptorProto> synthetic, bool explicitOptional = false
     ) {
         var typeToken = lexer.Next();
 
         if (typeToken.Value == "group") {
-            ParseGroupField(lexer, fileName, message, label, syntax);
+            ParseGroupField(lexer, message, label, syntax);
             return;
         }
 
-        ParseFieldWithType(lexer, fileName, message, label, typeToken, syntax, synthetic, explicitOptional);
+        ParseFieldWithType(lexer, message, label, typeToken, syntax, synthetic, explicitOptional);
     }
 
     static void ParseFieldWithType(
-        ProtoLexer lexer, string fileName, DescriptorProto message, Label label, Token typeToken, string syntax,
+        ProtoLexer lexer, DescriptorProto message, Label label, Token typeToken, string syntax,
         List<FieldDescriptorProto> synthetic, bool explicitOptional = false
     ) {
         var (fieldType, typeName) = ResolveFieldType(typeToken, lexer);
@@ -203,15 +212,6 @@ static class ProtoParser {
 
         var number = ExpectInt(lexer);
 
-        FieldOptionValues options = default;
-
-        if (lexer.Peek().Value == "[") {
-            lexer.Next();
-            options = ParseFieldOptions(lexer);
-        }
-
-        Expect(lexer, ";");
-
         var field = new FieldDescriptorProto {
             Name   = fieldName,
             Number = number,
@@ -219,11 +219,7 @@ static class ProtoParser {
             Label  = label
         };
 
-        if (typeName.Length > 0) field.TypeName = typeName;
-        if (options.JsonName is not null) field.JsonName = options.JsonName;
-        if (options.DefaultValue is not null) field.DefaultValue = options.DefaultValue;
-
-        ApplyFieldOptions(field, options);
+        CompleteField(lexer, field, typeName);
 
         message.Field.Add(field);
 
@@ -233,7 +229,7 @@ static class ProtoParser {
         }
     }
 
-    static void ParseGroupField(ProtoLexer lexer, string fileName, DescriptorProto message, Label label, string syntax) {
+    static void ParseGroupField(ProtoLexer lexer, DescriptorProto message, Label label, string syntax) {
         var groupName = ExpectIdent(lexer);
 
         Expect(lexer, "=");
@@ -247,65 +243,7 @@ static class ProtoParser {
 
         Expect(lexer, "{");
 
-        var nested    = new DescriptorProto { Name = groupName };
-        var synthetic = new List<FieldDescriptorProto>();
-
-        while (true) {
-            var token = lexer.Next();
-
-            if (token.Kind == TokenKind.Eof)
-                throw new ProtoParseException(fileName, token.Line, token.Column, "Unexpected end of input in group");
-
-            if (token.Value == "}") break;
-
-            switch (token.Value) {
-                case "message":
-                    nested.NestedType.Add(ParseMessage(lexer, fileName, syntax));
-                    break;
-
-                case "enum":
-                    nested.EnumType.Add(ParseEnum(lexer, fileName));
-                    break;
-
-                case "repeated":
-                    ParseField(lexer, fileName, nested, Label.Repeated, syntax, synthetic);
-                    break;
-
-                case "optional":
-                    ParseField(lexer, fileName, nested, Label.Optional, syntax, synthetic, explicitOptional: true);
-                    break;
-
-                case "required":
-                    ParseField(lexer, fileName, nested, Label.Required, syntax, synthetic);
-                    break;
-
-                case "reserved":
-                    SkipToSemicolon(lexer);
-                    break;
-
-                case "extensions":
-                    ParseExtensionsRange(lexer, nested);
-                    break;
-
-                case "option":
-                    SkipOption(lexer);
-                    break;
-
-                case ";":
-                    break;
-
-                default:
-                    ParseFieldWithType(lexer, fileName, nested, Label.Optional, token, syntax, synthetic);
-                    break;
-            }
-        }
-
-        foreach (var field in synthetic) {
-            field.OneofIndex = nested.OneofDecl.Count;
-            nested.OneofDecl.Add(new OneofDescriptorProto { Name = $"_{field.Name}" });
-        }
-
-        message.NestedType.Add(nested);
+        message.NestedType.Add(ParseMessageBody(lexer, syntax, new DescriptorProto { Name = groupName }));
 
         // The group's field is named after the group in lower case. That is the language rule,
         // not a convention: https://protobuf.dev/programming-guides/proto2/#groups
@@ -318,7 +256,7 @@ static class ProtoParser {
         });
     }
 
-    static void ParseExtendBlock(ProtoLexer lexer, string fileName, string syntax, IList<FieldDescriptorProto> extensions) {
+    static void ParseExtendBlock(ProtoLexer lexer, IList<FieldDescriptorProto> extensions) {
         var extendee = ReadFullIdentOrDotPrefixed(lexer);
 
         Expect(lexer, "{");
@@ -327,7 +265,7 @@ static class ProtoParser {
             var token = lexer.Next();
 
             if (token.Kind == TokenKind.Eof)
-                throw new ProtoParseException(fileName, token.Line, token.Column, "Unexpected end of input in extend block");
+                throw new ProtoParseException(lexer.FileName, token.Line, token.Column, "Unexpected end of input in extend block");
 
             if (token.Value == "}") break;
             if (token.Value == ";") continue;
@@ -353,15 +291,6 @@ static class ProtoParser {
 
             var number = ExpectInt(lexer);
 
-            FieldOptionValues options = default;
-
-            if (lexer.Peek().Value == "[") {
-                lexer.Next();
-                options = ParseFieldOptions(lexer);
-            }
-
-            Expect(lexer, ";");
-
             var field = new FieldDescriptorProto {
                 Name     = fieldName,
                 Number   = number,
@@ -370,11 +299,7 @@ static class ProtoParser {
                 Extendee = extendee
             };
 
-            if (typeName.Length > 0) field.TypeName = typeName;
-            if (options.JsonName is not null) field.JsonName = options.JsonName;
-            if (options.DefaultValue is not null) field.DefaultValue = options.DefaultValue;
-
-            ApplyFieldOptions(field, options);
+            CompleteField(lexer, field, typeName);
 
             extensions.Add(field);
         }
@@ -465,20 +390,20 @@ static class ProtoParser {
         });
     }
 
-    static void ParseOneof(ProtoLexer lexer, string fileName, DescriptorProto message, string syntax) {
-        var oneofName = ExpectIdent(lexer);
+    static void ParseOneOf(ProtoLexer lexer, DescriptorProto message) {
+        var oneOfName = ExpectIdent(lexer);
 
         Expect(lexer, "{");
 
         var oneofIndex = message.OneofDecl.Count;
 
-        message.OneofDecl.Add(new OneofDescriptorProto { Name = oneofName });
+        message.OneofDecl.Add(new OneofDescriptorProto { Name = oneOfName });
 
         while (true) {
             var token = lexer.Next();
 
             if (token.Kind == TokenKind.Eof)
-                throw new ProtoParseException(fileName, token.Line, token.Column, "Unexpected end of input in oneof");
+                throw new ProtoParseException(lexer.FileName, token.Line, token.Column, "Unexpected end of input in oneof");
 
             if (token.Value == "}") break;
             if (token.Value == ";") continue;
@@ -496,15 +421,6 @@ static class ProtoParser {
 
             var number = ExpectInt(lexer);
 
-            FieldOptionValues options = default;
-
-            if (lexer.Peek().Value == "[") {
-                lexer.Next();
-                options = ParseFieldOptions(lexer);
-            }
-
-            Expect(lexer, ";");
-
             var field = new FieldDescriptorProto {
                 Name       = fieldName,
                 Number     = number,
@@ -513,19 +429,13 @@ static class ProtoParser {
                 OneofIndex = oneofIndex
             };
 
-            if (typeName.Length > 0) field.TypeName = typeName;
-            if (options.JsonName is not null) field.JsonName = options.JsonName;
-            if (options.DefaultValue is not null) field.DefaultValue = options.DefaultValue;
-
-            ApplyFieldOptions(field, options);
+            CompleteField(lexer, field, typeName);
 
             message.Field.Add(field);
         }
-
-        _ = syntax;
     }
 
-    static EnumDescriptorProto ParseEnum(ProtoLexer lexer, string fileName) {
+    static EnumDescriptorProto ParseEnum(ProtoLexer lexer) {
         var name = ExpectIdent(lexer);
 
         Expect(lexer, "{");
@@ -536,7 +446,7 @@ static class ProtoParser {
             var token = lexer.Next();
 
             if (token.Kind == TokenKind.Eof)
-                throw new ProtoParseException(fileName, token.Line, token.Column, "Unexpected end of input in enum");
+                throw new ProtoParseException(lexer.FileName, token.Line, token.Column, "Unexpected end of input in enum");
 
             if (token.Value == "}") break;
             if (token.Value == ";") continue;
@@ -614,6 +524,29 @@ static class ProtoParser {
     }
 
     readonly record struct FieldOptionValues(bool? Packed, string? JsonName, string? DefaultValue, FeatureSet? Features);
+
+    /// <summary>Reads a field's optional <c>[…]</c> block and its terminator, then applies both.</summary>
+    /// <remarks>
+    /// Every field ends the same way whatever declared it — a plain field, an extension, a oneof
+    /// member. Only the object above differs, so the tail is written once.
+    /// </remarks>
+    static void CompleteField(ProtoLexer lexer, FieldDescriptorProto field, string typeName) {
+        FieldOptionValues options = default;
+
+        if (lexer.Peek().Value == "[") {
+            lexer.Next();
+
+            options = ParseFieldOptions(lexer);
+        }
+
+        Expect(lexer, ";");
+
+        if (typeName.Length > 0) field.TypeName = typeName;
+        if (options.JsonName is not null) field.JsonName = options.JsonName;
+        if (options.DefaultValue is not null) field.DefaultValue = options.DefaultValue;
+
+        ApplyFieldOptions(field, options);
+    }
 
     /// <remarks>
     /// <c>packed</c> is recorded only when the source states it. Editions express repeated encoding

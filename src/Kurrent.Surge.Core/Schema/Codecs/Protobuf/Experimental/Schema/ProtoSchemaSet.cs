@@ -49,7 +49,7 @@ public sealed class ProtoSchemaSet {
         if (files.Length == 0) throw new ArgumentException("At least one schema is required.", nameof(files));
 
         var sources = files.ToDictionary(file => file.Name, file => file.Content, StringComparer.Ordinal);
-        var ordered = new List<ParsedFile>();
+        var ordered = new List<FileDescriptorProto>();
         var visited = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var file in files) Visit(file.Name, sources, visited, ordered);
@@ -59,7 +59,7 @@ public sealed class ProtoSchemaSet {
         IReadOnlyList<FileDescriptor> built;
 
         try {
-            built = FileDescriptor.BuildFromByteStrings(ordered.Select(file => file.Bytes));
+            built = FileDescriptor.BuildFromByteStrings(ordered.Select(file => file.ToByteString()));
         }
         catch (Exception ex) when (ex is not ProtoParseException) {
             throw new ArgumentException($"The schema set could not be resolved: {ex.Message}", nameof(files), ex);
@@ -89,27 +89,20 @@ public sealed class ProtoSchemaSet {
     /// <summary>Finds a message by fully qualified name, or returns null.</summary>
     public MessageDescriptor? TryFindMessage(string fullName) => _messages.GetValueOrDefault(fullName);
 
-    /// <summary>A file on its way to a descriptor. <see cref="Proto"/> is null for a well-known type.</summary>
-    /// <remarks>
-    /// A well-known type arrives already compiled, so it contributes enum names to resolution but is
-    /// never rewritten.
-    /// </remarks>
-    sealed record ParsedFile(FileDescriptorProto? Proto, FileDescriptor? WellKnown) {
-        public ByteString Bytes => Proto?.ToByteString() ?? WellKnown!.ToProto().ToByteString();
-    }
-
     /// <remarks>
     /// Post-order: a file is appended only once its imports are, because
     /// <c>BuildFromByteStrings</c> resolves each dependency against what precedes it and fails
     /// outright on a forward reference.
     /// </remarks>
-    static void Visit(string name, Dictionary<string, string> sources, HashSet<string> visited, List<ParsedFile> ordered) {
+    static void Visit(string name, Dictionary<string, string> sources, HashSet<string> visited, List<FileDescriptorProto> ordered) {
         if (!visited.Add(name)) return;
 
+        // A well-known type arrives already compiled. Converting it here rather than at the end
+        // means one form reaches every later stage, so nothing downstream has to ask which it is.
         if (WellKnown.TryGetValue(name, out var wellKnown)) {
             foreach (var dependency in wellKnown.Dependencies) Visit(dependency.Name, sources, visited, ordered);
 
-            ordered.Add(new ParsedFile(null, wellKnown));
+            ordered.Add(wellKnown.ToProto());
 
             return;
         }
@@ -121,7 +114,7 @@ public sealed class ProtoSchemaSet {
 
         foreach (var dependency in file.Dependency) Visit(dependency, sources, visited, ordered);
 
-        ordered.Add(new ParsedFile(file, null));
+        ordered.Add(file);
     }
 
     #region ->> Enum resolution <<-
@@ -135,24 +128,19 @@ public sealed class ProtoSchemaSet {
     /// validates rather than infers — it reports <c>"Priority" is not a message type</c> — so the
     /// distinction has to be settled here, once every file in the set has been parsed.
     /// </remarks>
-    static void ResolveEnumFieldTypes(List<ParsedFile> files) {
+    static void ResolveEnumFieldTypes(List<FileDescriptorProto> files) {
         var enums = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var file in files) {
-            if (file.WellKnown is not null) CollectEnums(file.WellKnown, enums);
-            else CollectEnums(file.Proto!, enums);
-        }
+        foreach (var file in files) CollectEnums(file, enums);
 
         if (enums.Count == 0) return;
 
+        // Well-known files are walked too. Their enum-typed fields already carry the right type, so
+        // the pass finds nothing to do there — which is cheaper than the special case that skipped it.
         foreach (var file in files) {
-            if (file.Proto is null) continue;
+            foreach (var field in file.Extension) Retype(field, file.Package, enums);
 
-            var scope = file.Proto.Package;
-
-            foreach (var field in file.Proto.Extension) Retype(field, scope, enums);
-
-            foreach (var message in file.Proto.MessageType) RetypeMessage(message, scope, enums);
+            foreach (var message in file.MessageType) RetypeMessage(message, file.Package, enums);
         }
     }
 
@@ -210,18 +198,6 @@ public sealed class ProtoSchemaSet {
         foreach (var declared in message.EnumType) enums.Add($"{inner}.{declared.Name}");
 
         foreach (var nested in message.NestedType) CollectEnums(nested, inner, enums);
-    }
-
-    static void CollectEnums(FileDescriptor file, HashSet<string> enums) {
-        foreach (var declared in file.EnumTypes) enums.Add(declared.FullName);
-
-        foreach (var message in file.MessageTypes) CollectEnums(message, enums);
-    }
-
-    static void CollectEnums(MessageDescriptor message, HashSet<string> enums) {
-        foreach (var declared in message.EnumTypes) enums.Add(declared.FullName);
-
-        foreach (var nested in message.NestedTypes) CollectEnums(nested, enums);
     }
 
     #endregion // Enum resolution

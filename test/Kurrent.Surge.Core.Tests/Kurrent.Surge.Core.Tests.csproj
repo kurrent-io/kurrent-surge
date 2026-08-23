@@ -22,10 +22,14 @@
         <PackageReference Include="TUnit" />
     </ItemGroup>
 
-    <ItemGroup Label="Transcoder probe schema">
+    <ItemGroup Label="Transcoder probe schemas">
         <!-- Compiled for the typed oracle, and copied out so the same text can drive the parser. -->
         <Protobuf Include="$(ProbeProtoRoot)/transcoder_probe.proto" ProtoRoot="$(ProbeProtoRoot)" GrpcServices="None" />
         <None Include="$(ProbeProtoRoot)/transcoder_probe.proto" CopyToOutputDirectory="PreserveNewest" LinkBase="protos" />
+
+        <!-- proto2, for the group wire form the proto3 schema cannot express. -->
+        <Protobuf Include="$(ProbeProtoRoot)/transcoder_groups.proto" ProtoRoot="$(ProbeProtoRoot)" GrpcServices="None" />
+        <None Include="$(ProbeProtoRoot)/transcoder_groups.proto" CopyToOutputDirectory="PreserveNewest" LinkBase="protos" />
     </ItemGroup>
 
 </Project>

@@ -355,17 +355,16 @@ static class ProtoJson {
 
     #region ->> Well-known types <<-
 
-    /// <summary>Reads a fixed-shape message's fields without building anything.</summary>
+    /// <summary>Reads one numeric field of a fixed-shape message, without building anything.</summary>
     /// <remarks>
-    /// Every well-known type has one or two fields at known numbers, so a direct scan is both
-    /// smaller and faster than routing it through a strategy.
+    /// Only <c>Timestamp</c> and <c>Duration</c> need this, and both declare their two fields as
+    /// <c>int64</c> and <c>int32</c> — always varint on the wire. A length-delimited value at those
+    /// numbers is a payload that does not match the schema, so it is skipped rather than decoded.
     /// </remarks>
-    static bool TryFindField(ReadOnlySpan<byte> data, int fieldNumber, out ProtoWireType wireType, out ReadOnlySpan<byte> value, out ulong scalar) {
+    static bool TryFindNumericField(ReadOnlySpan<byte> data, int fieldNumber, out ulong scalar) {
         var reader = new ProtoWireReader(data);
 
-        wireType = default;
-        value    = default;
-        scalar   = 0;
+        scalar = 0;
 
         while (!reader.IsAtEnd) {
             var tag = reader.ReadTag();
@@ -380,39 +379,31 @@ static class ProtoJson {
                 continue;
             }
 
-            wireType = kind;
-
             switch (kind) {
                 case ProtoWireType.Varint:
                     scalar = reader.ReadVarint();
-                    break;
+                    return true;
 
                 case ProtoWireType.Fixed32:
                     scalar = reader.ReadFixed32();
-                    break;
+                    return true;
 
                 case ProtoWireType.Fixed64:
                     scalar = reader.ReadFixed64();
-                    break;
-
-                case ProtoWireType.LengthDelimited:
-                    value = reader.ReadLengthDelimited();
-                    break;
+                    return true;
 
                 default:
                     reader.Skip(kind, number);
                     continue;
             }
-
-            return true;
         }
 
         return false;
     }
 
     static (long Seconds, int Nanos) ReadSecondsAndNanos(ReadOnlySpan<byte> data) {
-        var seconds = TryFindField(data, 1, out _, out _, out var rawSeconds) ? (long)rawSeconds : 0L;
-        var nanos   = TryFindField(data, 2, out _, out _, out var rawNanos) ? (int)(long)rawNanos : 0;
+        var seconds = TryFindNumericField(data, 1, out var rawSeconds) ? (long)rawSeconds : 0L;
+        var nanos   = TryFindNumericField(data, 2, out var rawNanos) ? (int)(long)rawNanos : 0;
 
         return (seconds, nanos);
     }
