@@ -20,8 +20,9 @@ namespace Kurrent.Surge.Codecs.Protobuf.Experimental.Schema;
 /// </remarks>
 static class ProtoParser {
     public static FileDescriptorProto Parse(string fileName, string content) {
-        var lexer = new ProtoLexer(fileName, content);
-        var file  = new FileDescriptorProto { Name = fileName };
+        var lexer     = new ProtoLexer(fileName, content);
+        var file      = new FileDescriptorProto { Name = fileName };
+        var locations = new ProtoSourceLocations();
 
         while (true) {
             var token = lexer.Next();
@@ -58,18 +59,23 @@ static class ProtoParser {
                 case "option": {
                     var features = TryParseFeatureOption(lexer);
 
-                    if (features is null) SkipOption(lexer);
-                    else MergeInto(file.Options ??= new FileOptions(), features);
+                    if (features is not null) MergeInto(file.Options ??= new FileOptions(), features);
+                    else if (!TryParseFileOption(lexer, file)) SkipOption(lexer);
 
                     break;
                 }
 
+                // 4 and 5 are message_type and enum_type on FileDescriptorProto.
                 case "message":
-                    file.MessageType.Add(ParseMessage(lexer, file.Syntax));
+                    locations.Enter(4, file.MessageType.Count);
+                    file.MessageType.Add(ParseMessage(lexer, file.Syntax, locations, token));
+                    locations.Exit();
                     break;
 
                 case "enum":
-                    file.EnumType.Add(ParseEnum(lexer));
+                    locations.Enter(5, file.EnumType.Count);
+                    file.EnumType.Add(ParseEnum(lexer, locations, token));
+                    locations.Exit();
                     break;
 
                 // Services are parsed only so the tokens are consumed. A transcoder decodes
@@ -84,15 +90,22 @@ static class ProtoParser {
             }
         }
 
+        file.SourceCodeInfo = locations.ToSourceCodeInfo();
+
         return file;
     }
 
-    static DescriptorProto ParseMessage(ProtoLexer lexer, string syntax) {
+    static DescriptorProto ParseMessage(ProtoLexer lexer, string syntax, ProtoSourceLocations locations, Token start) {
         var name = ExpectIdent(lexer);
 
         Expect(lexer, "{");
 
-        return ParseMessageBody(lexer, syntax, new DescriptorProto { Name = name });
+        var message = ParseMessageBody(lexer, syntax, new DescriptorProto { Name = name }, locations);
+
+        // The body has just consumed its closing brace, so that is where the declaration ends.
+        locations.Record(start, lexer.LastToken, lexer.TakeTrailingComment(lexer.LastToken.EndLine));
+
+        return message;
     }
 
     /// <summary>Reads a message body, from just past its opening brace to its closing one.</summary>
@@ -102,7 +115,7 @@ static class ProtoParser {
     /// than nearly true: the group form used to accept nine of these constructs, so a oneof, a map,
     /// an extend block or a nested group inside a group was silently mis-parsed.
     /// </remarks>
-    static DescriptorProto ParseMessageBody(ProtoLexer lexer, string syntax, DescriptorProto message) {
+    static DescriptorProto ParseMessageBody(ProtoLexer lexer, string syntax, DescriptorProto message, ProtoSourceLocations locations) {
         // A proto3 `optional` field is carried by a oneof holding only that field. Those synthetic
         // oneofs must follow every declared one, so they are appended once the body is closed.
         var synthetic = new List<FieldDescriptorProto>();
@@ -116,36 +129,41 @@ static class ProtoParser {
             if (token.Value == "}") break;
 
             switch (token.Value) {
+                // 3, 4 and 8 are nested_type, enum_type and oneof_decl on DescriptorProto.
                 case "message":
-                    message.NestedType.Add(ParseMessage(lexer, syntax));
+                    locations.Enter(3, message.NestedType.Count);
+                    message.NestedType.Add(ParseMessage(lexer, syntax, locations, token));
+                    locations.Exit();
                     break;
 
                 case "enum":
-                    message.EnumType.Add(ParseEnum(lexer));
+                    locations.Enter(4, message.EnumType.Count);
+                    message.EnumType.Add(ParseEnum(lexer, locations, token));
+                    locations.Exit();
                     break;
 
                 case "oneof":
-                    ParseOneOf(lexer, message);
+                    ParseOneOf(lexer, message, locations, token);
                     break;
 
                 case "map":
-                    ParseMapField(lexer, message);
+                    ParseMapField(lexer, message, locations, token);
                     break;
 
                 case "repeated":
-                    ParseField(lexer, message, Label.Repeated, syntax, synthetic);
+                    ParseField(lexer, message, Label.Repeated, syntax, synthetic, locations, token);
                     break;
 
                 case "optional":
-                    ParseField(lexer, message, Label.Optional, syntax, synthetic, explicitOptional: true);
+                    ParseField(lexer, message, Label.Optional, syntax, synthetic, locations, token, explicitOptional: true);
                     break;
 
                 case "required":
-                    ParseField(lexer, message, Label.Required, syntax, synthetic);
+                    ParseField(lexer, message, Label.Required, syntax, synthetic, locations, token);
                     break;
 
                 case "reserved":
-                    SkipToSemicolon(lexer);
+                    ParseReserved(lexer, message);
                     break;
 
                 case "extensions":
@@ -160,20 +178,22 @@ static class ProtoParser {
                     var features = TryParseFeatureOption(lexer);
 
                     if (features is not null) MergeInto(message.Options ??= new MessageOptions(), features);
-                    else if (!TryParseMapEntryOption(lexer, message)) SkipOption(lexer);
+                    else if (TryParseBoolOption(lexer, "map_entry", out var mapEntry)) (message.Options ??= new MessageOptions()).MapEntry = mapEntry;
+                    else if (TryParseBoolOption(lexer, "deprecated", out var deprecated)) (message.Options ??= new MessageOptions()).Deprecated = deprecated;
+                    else SkipOption(lexer);
 
                     break;
                 }
 
                 case "group":
-                    ParseGroupField(lexer, message, Label.Optional, syntax);
+                    ParseGroupField(lexer, message, Label.Optional, syntax, locations, token);
                     break;
 
                 case ";":
                     break;
 
                 default:
-                    ParseFieldWithType(lexer, message, Label.Optional, token, syntax, synthetic);
+                    ParseFieldWithType(lexer, message, Label.Optional, token, syntax, synthetic, locations, token);
                     break;
             }
         }
@@ -188,21 +208,21 @@ static class ProtoParser {
 
     static void ParseField(
         ProtoLexer lexer, DescriptorProto message, Label label, string syntax,
-        List<FieldDescriptorProto> synthetic, bool explicitOptional = false
+        List<FieldDescriptorProto> synthetic, ProtoSourceLocations locations, Token start, bool explicitOptional = false
     ) {
         var typeToken = lexer.Next();
 
         if (typeToken.Value == "group") {
-            ParseGroupField(lexer, message, label, syntax);
+            ParseGroupField(lexer, message, label, syntax, locations, start);
             return;
         }
 
-        ParseFieldWithType(lexer, message, label, typeToken, syntax, synthetic, explicitOptional);
+        ParseFieldWithType(lexer, message, label, typeToken, syntax, synthetic, locations, start, explicitOptional);
     }
 
     static void ParseFieldWithType(
         ProtoLexer lexer, DescriptorProto message, Label label, Token typeToken, string syntax,
-        List<FieldDescriptorProto> synthetic, bool explicitOptional = false
+        List<FieldDescriptorProto> synthetic, ProtoSourceLocations locations, Token start, bool explicitOptional = false
     ) {
         var (fieldType, typeName) = ResolveFieldType(typeToken, lexer);
 
@@ -219,7 +239,14 @@ static class ProtoParser {
             Label  = label
         };
 
+        // 2 is DescriptorProto.field. Entered before the index is taken, because the field is only
+        // appended once its terminator is read.
+        locations.Enter(2, message.Field.Count);
+
         CompleteField(lexer, field, typeName);
+
+        locations.Record(start, lexer.LastToken, lexer.TakeTrailingComment(lexer.LastToken.EndLine));
+        locations.Exit();
 
         message.Field.Add(field);
 
@@ -229,7 +256,7 @@ static class ProtoParser {
         }
     }
 
-    static void ParseGroupField(ProtoLexer lexer, DescriptorProto message, Label label, string syntax) {
+    static void ParseGroupField(ProtoLexer lexer, DescriptorProto message, Label label, string syntax, ProtoSourceLocations locations, Token start) {
         var groupName = ExpectIdent(lexer);
 
         Expect(lexer, "=");
@@ -243,7 +270,12 @@ static class ProtoParser {
 
         Expect(lexer, "{");
 
-        message.NestedType.Add(ParseMessageBody(lexer, syntax, new DescriptorProto { Name = groupName }));
+        locations.Enter(3, message.NestedType.Count);
+
+        message.NestedType.Add(ParseMessageBody(lexer, syntax, new DescriptorProto { Name = groupName }, locations));
+
+        locations.Record(start, lexer.LastToken, lexer.TakeTrailingComment(lexer.LastToken.EndLine));
+        locations.Exit();
 
         // The group's field is named after the group in lower case. That is the language rule,
         // not a convention: https://protobuf.dev/programming-guides/proto2/#groups
@@ -339,11 +371,99 @@ static class ProtoParser {
     }
 
     /// <remarks>
+    /// A statement carries either numbers or names and never both, so the first token decides which.
+    /// <c>ReservedRange.End</c> is exclusive, matching <c>ExtensionRange</c> above and unlike the enum
+    /// form below. See https://protobuf.dev/reference/protobuf/proto3-spec/#reserved.
+    /// </remarks>
+    static void ParseReserved(ProtoLexer lexer, DescriptorProto message) {
+        const int MaxFieldNumber = 536870911;
+
+        if (lexer.Peek().Kind == TokenKind.StringLiteral) {
+            ReadReservedNames(lexer, message.ReservedName);
+            return;
+        }
+
+        while (true) {
+            var start = ExpectInt(lexer);
+            var end   = start;
+
+            if (lexer.Peek().Value == "to") {
+                lexer.Next();
+
+                if (lexer.Peek().Value == "max") {
+                    lexer.Next();
+                    end = MaxFieldNumber;
+                }
+                else {
+                    end = ExpectInt(lexer);
+                }
+            }
+
+            message.ReservedRange.Add(new DescriptorProto.Types.ReservedRange { Start = start, End = end + 1 });
+
+            if (lexer.Peek().Value != ",") break;
+
+            lexer.Next();
+        }
+
+        Expect(lexer, ";");
+    }
+
+    /// <remarks>
+    /// <c>EnumReservedRange.End</c> is inclusive where the message form's is exclusive. An enum value
+    /// reaches int32 max, so an exclusive end could not name the last one. The numbers are signed for
+    /// the same reason — an enum value may be negative, a field number may not.
+    /// </remarks>
+    static void ParseReserved(ProtoLexer lexer, EnumDescriptorProto @enum) {
+        if (lexer.Peek().Kind == TokenKind.StringLiteral) {
+            ReadReservedNames(lexer, @enum.ReservedName);
+            return;
+        }
+
+        while (true) {
+            var start = ExpectSignedInt(lexer);
+            var end   = start;
+
+            if (lexer.Peek().Value == "to") {
+                lexer.Next();
+
+                if (lexer.Peek().Value == "max") {
+                    lexer.Next();
+                    end = int.MaxValue;
+                }
+                else {
+                    end = ExpectSignedInt(lexer);
+                }
+            }
+
+            @enum.ReservedRange.Add(new EnumDescriptorProto.Types.EnumReservedRange { Start = start, End = end });
+
+            if (lexer.Peek().Value != ",") break;
+
+            lexer.Next();
+        }
+
+        Expect(lexer, ";");
+    }
+
+    static void ReadReservedNames(ProtoLexer lexer, ICollection<string> names) {
+        while (true) {
+            names.Add(ExpectString(lexer));
+
+            if (lexer.Peek().Value != ",") break;
+
+            lexer.Next();
+        }
+
+        Expect(lexer, ";");
+    }
+
+    /// <remarks>
     /// A map field is sugar for a repeated entry message. The entry is synthesized here and flagged
     /// through <c>options.map_entry</c>, which is how the descriptor carries it — the reader then
     /// derives <c>IsMap</c> from the flag rather than from anything on this field.
     /// </remarks>
-    static void ParseMapField(ProtoLexer lexer, DescriptorProto message) {
+    static void ParseMapField(ProtoLexer lexer, DescriptorProto message, ProtoSourceLocations locations, Token start) {
         Expect(lexer, "<");
 
         var (keyType, keyTypeName) = ResolveFieldType(lexer.Next(), lexer);
@@ -381,6 +501,12 @@ static class ProtoParser {
             Field   = { key, value }
         });
 
+        // The comment belongs to the map field the source declares, not to the entry message the
+        // language synthesizes beside it.
+        locations.Enter(2, message.Field.Count);
+        locations.Record(start, lexer.LastToken, lexer.TakeTrailingComment(lexer.LastToken.EndLine));
+        locations.Exit();
+
         message.Field.Add(new FieldDescriptorProto {
             Name     = fieldName,
             Number   = number,
@@ -390,7 +516,7 @@ static class ProtoParser {
         });
     }
 
-    static void ParseOneOf(ProtoLexer lexer, DescriptorProto message) {
+    static void ParseOneOf(ProtoLexer lexer, DescriptorProto message, ProtoSourceLocations locations, Token start) {
         var oneOfName = ExpectIdent(lexer);
 
         Expect(lexer, "{");
@@ -429,13 +555,24 @@ static class ProtoParser {
                 OneofIndex = oneofIndex
             };
 
+            locations.Enter(2, message.Field.Count);
+
             CompleteField(lexer, field, typeName);
+
+            locations.Record(token, lexer.LastToken, lexer.TakeTrailingComment(lexer.LastToken.EndLine));
+            locations.Exit();
 
             message.Field.Add(field);
         }
+
+        // 8 is DescriptorProto.oneof_decl. Recorded after the body, so a comment on the oneof itself
+        // is not mistaken for one on its first member.
+        locations.Enter(8, oneofIndex);
+        locations.Record(start, lexer.LastToken, lexer.TakeTrailingComment(lexer.LastToken.EndLine));
+        locations.Exit();
     }
 
-    static EnumDescriptorProto ParseEnum(ProtoLexer lexer) {
+    static EnumDescriptorProto ParseEnum(ProtoLexer lexer, ProtoSourceLocations locations, Token start) {
         var name = ExpectIdent(lexer);
 
         Expect(lexer, "{");
@@ -452,15 +589,17 @@ static class ProtoParser {
             if (token.Value == ";") continue;
 
             if (token.Value == "reserved") {
-                SkipToSemicolon(lexer);
+                ParseReserved(lexer, result);
                 continue;
             }
 
             if (token.Value == "option") {
                 var features = TryParseFeatureOption(lexer);
 
-                if (features is null) SkipOption(lexer);
-                else MergeInto(result.Options ??= new EnumOptions(), features);
+                if (features is not null) MergeInto(result.Options ??= new EnumOptions(), features);
+                else if (TryParseBoolOption(lexer, "allow_alias", out var allowAlias)) (result.Options ??= new EnumOptions()).AllowAlias = allowAlias;
+                else if (TryParseBoolOption(lexer, "deprecated", out var deprecated)) (result.Options ??= new EnumOptions()).Deprecated = deprecated;
+                else SkipOption(lexer);
 
                 continue;
             }
@@ -478,8 +617,15 @@ static class ProtoParser {
 
             Expect(lexer, ";");
 
+            // 2 is EnumDescriptorProto.value.
+            locations.Enter(2, result.Value.Count);
+            locations.Record(token, lexer.LastToken, lexer.TakeTrailingComment(lexer.LastToken.EndLine));
+            locations.Exit();
+
             result.Value.Add(new EnumValueDescriptorProto { Name = valueName, Number = number });
         }
+
+        locations.Record(start, lexer.LastToken, lexer.TakeTrailingComment(lexer.LastToken.EndLine));
 
         return result;
     }
@@ -523,7 +669,7 @@ static class ProtoParser {
         };
     }
 
-    readonly record struct FieldOptionValues(bool? Packed, string? JsonName, string? DefaultValue, FeatureSet? Features);
+    readonly record struct FieldOptionValues(bool? Packed, string? JsonName, string? DefaultValue, bool? Deprecated, FeatureSet? Features);
 
     /// <summary>Reads a field's optional <c>[…]</c> block and its terminator, then applies both.</summary>
     /// <remarks>
@@ -557,6 +703,7 @@ static class ProtoParser {
         bool?       packed       = null;
         string?     jsonName     = null;
         string?     defaultValue = null;
+        bool?       deprecated   = null;
         FeatureSet? features     = null;
 
         while (true) {
@@ -579,6 +726,11 @@ static class ProtoParser {
                 case "default":
                     Expect(lexer, "=");
                     defaultValue = ReadDefaultValue(lexer);
+                    break;
+
+                case "deprecated":
+                    Expect(lexer, "=");
+                    deprecated = lexer.Next().Value == "true";
                     break;
 
                 case "features": {
@@ -613,15 +765,16 @@ static class ProtoParser {
             }
         }
 
-        return new FieldOptionValues(packed, jsonName, defaultValue, features);
+        return new FieldOptionValues(packed, jsonName, defaultValue, deprecated, features);
     }
 
     static void ApplyFieldOptions(FieldDescriptorProto field, FieldOptionValues values) {
-        if (values.Packed is null && values.Features is null) return;
+        if (values.Packed is null && values.Deprecated is null && values.Features is null) return;
 
         field.Options ??= new FieldOptions();
 
         if (values.Packed is { } packed) field.Options.Packed = packed;
+        if (values.Deprecated is { } deprecated) field.Options.Deprecated = deprecated;
         if (values.Features is { } features) MergeInto(field.Options, features);
     }
 
@@ -701,16 +854,59 @@ static class ProtoParser {
         if (source.HasJsonFormat) target.JsonFormat = source.JsonFormat;
     }
 
-    static bool TryParseMapEntryOption(ProtoLexer lexer, DescriptorProto message) {
-        if (lexer.Peek().Value != "map_entry") return false;
+    /// <remarks>
+    /// Consumes <c>name = true|false ;</c> when the next token names the option, and leaves the lexer
+    /// where it was otherwise, so a caller can try the next name before giving up and skipping.
+    /// </remarks>
+    static bool TryParseBoolOption(ProtoLexer lexer, string name, out bool value) {
+        value = false;
+
+        if (lexer.Peek().Value != name) return false;
 
         lexer.Next();
 
         Expect(lexer, "=");
 
-        if (lexer.Next().Value == "true") (message.Options ??= new MessageOptions()).MapEntry = true;
+        value = lexer.Next().Value == "true";
 
         Expect(lexer, ";");
+
+        return true;
+    }
+
+    /// <remarks>
+    /// The generated-code options. None reaches the wire or the JSON mapping, so nothing downstream
+    /// reads them — but a file that drops them cannot be written back out as the one that was read.
+    /// A name not listed here is skipped, which today is only the extension options a service declares.
+    /// </remarks>
+    static bool TryParseFileOption(ProtoLexer lexer, FileDescriptorProto file) {
+        var name = lexer.Peek().Value;
+
+        if (name is not ("java_package" or "java_outer_classname" or "java_multiple_files" or "go_package"
+                      or "csharp_namespace" or "objc_class_prefix" or "cc_enable_arenas" or "deprecated"))
+            return false;
+
+        lexer.Next();
+
+        Expect(lexer, "=");
+
+        var value = lexer.Next().Value;
+
+        Expect(lexer, ";");
+
+        var options = file.Options ??= new FileOptions();
+
+        switch (name) {
+            case "java_package":         options.JavaPackage       = value; break;
+            case "java_outer_classname": options.JavaOuterClassname = value; break;
+            case "go_package":           options.GoPackage         = value; break;
+            case "csharp_namespace":     options.CsharpNamespace   = value; break;
+            case "objc_class_prefix":    options.ObjcClassPrefix   = value; break;
+
+            case "java_multiple_files": options.JavaMultipleFiles = value == "true"; break;
+            case "cc_enable_arenas":    options.CcEnableArenas    = value == "true"; break;
+            case "deprecated":          options.Deprecated        = value == "true"; break;
+        }
 
         return true;
     }
