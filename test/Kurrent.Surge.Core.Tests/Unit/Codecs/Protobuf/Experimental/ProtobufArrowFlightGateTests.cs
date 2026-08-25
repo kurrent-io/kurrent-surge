@@ -3,6 +3,7 @@ using Google.Protobuf;
 using Google.Protobuf.Reflection;
 using Kurrent.Surge.Codecs.Protobuf.Experimental.Indexed;
 using Kurrent.Surge.Codecs.Protobuf.Experimental.Schema;
+using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Validation;
 using Kurrent.Testkit.TUnit;
 using Type = Google.Protobuf.Reflection.FieldType;
@@ -21,11 +22,11 @@ public class ProtobufArrowFlightGateTests {
     static string ProtoRoot { get; } = Path.Combine(AppContext.BaseDirectory, "protos");
 
     /// <summary>The schema as text, which is all the writer and the exporter ever see.</summary>
-    static ProtoSchemaSet Schema { get; } = ProtoSchemaSet.Build(
+    static IReadOnlyList<string> SchemaTexts { get; } =
         Directory.EnumerateFiles(Path.Combine(ProtoRoot, "arrow"), "*.proto", SearchOption.AllDirectories)
             .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(path => new ProtoFile(Path.GetRelativePath(ProtoRoot, path).Replace('\\', '/'), File.ReadAllText(path)))
-            .ToArray());
+            .Select(File.ReadAllText)
+            .ToArray();
 
     /// <summary>The same schema as types, which is the oracle.</summary>
     static TypeRegistry Types { get; } = TypeRegistry.FromFiles(
@@ -34,10 +35,31 @@ public class ProtobufArrowFlightGateTests {
 
     static JsonFormatter Oracle { get; } = new(JsonFormatter.Settings.Default.WithTypeRegistry(Types));
 
+    /// <summary>The schema text every message is exported and transcoded from.</summary>
+    /// <remarks>Cached per message so both gates share one resolved schema rather than parsing twice.</remarks>
+    static readonly Dictionary<string, SchemaSource> Sources = new(StringComparer.Ordinal);
+
+    static SchemaSource Source(string messageTypeName) {
+        lock (Sources) {
+            if (Sources.TryGetValue(messageTypeName, out var cached)) return cached;
+
+            return Sources[messageTypeName] = SchemaSource.From(messageTypeName, SchemaTexts);
+        }
+    }
+
+    /// <summary>Every message the two generated files declare, nested ones included.</summary>
+    static IEnumerable<string> DeclaredMessages(IEnumerable<MessageDescriptor> messages) {
+        foreach (var message in messages) {
+            yield return message.FullName;
+
+            foreach (var nested in DeclaredMessages(message.NestedTypes)) yield return nested;
+        }
+    }
+
     public sealed class ArrowMessages : TestCaseDataGenerator<string> {
         protected override IEnumerable<TestCase<string>> Data() =>
-            Schema.MessageNames
-                .Where(name => name.StartsWith("arrow.", StringComparison.Ordinal))
+            DeclaredMessages(Apache.Arrow.Flight.Protocol.FlightReflection.Descriptor.MessageTypes)
+                .Concat(DeclaredMessages(Arrow.Flight.Protocol.Sql.FlightSqlReflection.Descriptor.MessageTypes))
                 // A map entry is synthesized by the language rather than declared, so nothing exports one.
                 .Where(name => !name.EndsWith("Entry", StringComparison.Ordinal))
                 .OrderBy(name => name, StringComparer.Ordinal)
@@ -48,12 +70,13 @@ public class ProtobufArrowFlightGateTests {
     [ArrowMessages]
     public async ValueTask a_transcoded_payload_validates_against_the_exported_schema(string messageTypeName) {
         // Arrange
+        var source   = Source(messageTypeName);
         var payload  = Populated(messageTypeName).ToByteArray();
-        var exported = ProtobufJsonSchema.Export(Schema, messageTypeName);
+        var exported = ProtobufJsonSchema.Instance.ExportAsString(source);
 
         // Act
-        var transcoded = new ProtobufJsonWriter(Schema, messageTypeName).Write(payload);
-        var result     = NJsonSchemaAgent.Instance.ParseSchema(exported).Validate(transcoded);
+        var transcoded = ProtobufSchemaTranscoder.Instance.ToJson(source, payload);
+        var result     = JsonSchemaNetAgent.Instance.ParseSchema(exported).Validate(transcoded);
 
         // Assert
         await Assert.That(result.IsValid)
@@ -70,7 +93,7 @@ public class ProtobufArrowFlightGateTests {
         var expected = Normalize(Oracle.Format(message));
 
         // Act
-        var actual = Normalize(new ProtobufJsonWriter(Schema, messageTypeName).Write(message.ToByteArray()));
+        var actual = Normalize(ProtobufSchemaTranscoder.Instance.ToJson(Source(messageTypeName), message.ToByteArray()));
 
         // Assert
         await Assert.That(actual).IsEqualTo(expected);

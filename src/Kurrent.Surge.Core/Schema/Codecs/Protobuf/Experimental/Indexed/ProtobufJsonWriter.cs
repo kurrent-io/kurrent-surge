@@ -110,7 +110,7 @@ public sealed class ProtobufJsonWriter {
             return;
         }
 
-        if (ProtoJson.IsWellKnown(descriptor) && ProtoJson.TryWriteWellKnown(descriptor, data, writer, _options)) return;
+        if (ProtoJson.IsWellKnown(descriptor) && ProtoJson.TryWriteWellKnown(descriptor, data, writer)) return;
 
         var count = Index(data, descriptor, offset);
 
@@ -181,19 +181,12 @@ public sealed class ProtobufJsonWriter {
             break;
         }
 
-        if (!present) {
-            // A field that tracks presence has no default to emit: absent and default are different
-            // states for it, so inventing one would report a value that was never written. Only
-            // implicit-presence fields, repeated fields and maps have a default worth stating.
-            if (!_options.EmitDefaults || field.HasPresence) return;
+        // The canonical mapping omits an absent field rather than inventing a value for it. A field
+        // with implicit presence set to its default is indistinguishable from an absent one on the
+        // wire, so it is omitted too — the reader recovers the default from the schema.
+        if (!present) return;
 
-            ProtoJson.WriteFieldName(writer, field, _options);
-            ProtoJson.WriteDefault(writer, field);
-
-            return;
-        }
-
-        ProtoJson.WriteFieldName(writer, field, _options);
+        ProtoJson.WriteFieldName(writer, field);
 
         if (field.IsMap) WriteMap(data, field, slices, writer, depth, offset);
         else if (field.IsRepeated) WriteRepeated(data, field, slices, writer, depth, offset);
@@ -303,7 +296,7 @@ public sealed class ProtobufJsonWriter {
                 var packed = reader.ReadLengthDelimited();
                 var inner  = new ProtoWireReader(packed);
 
-                while (!inner.IsAtEnd) ProtoJson.WriteScalar(ref inner, field, writer, _options);
+                while (!inner.IsAtEnd) ProtoJson.WriteScalar(ref inner, field, writer);
 
                 continue;
             }
@@ -340,7 +333,7 @@ public sealed class ProtobufJsonWriter {
                 break;
 
             default:
-                ProtoJson.WriteScalar(ref reader, field, writer, _options);
+                ProtoJson.WriteScalar(ref reader, field, writer);
                 break;
         }
     }

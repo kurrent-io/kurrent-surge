@@ -36,9 +36,6 @@
         <Protobuf Include="$(ProbeProtoRoot)/transcoder_groups.proto" ProtoRoot="$(ProbeProtoRoot)" GrpcServices="None" />
         <None Include="$(ProbeProtoRoot)/transcoder_groups.proto" CopyToOutputDirectory="PreserveNewest" LinkBase="protos" />
 
-        <!-- Text only. Nothing transcodes this one — it exists so the annotation minimality gate has a
-             schema that uses reserved ranges, an aliased enum, a json_name override and comments. -->
-        <None Include="$(ProbeProtoRoot)/annotation_coverage.proto" CopyToOutputDirectory="PreserveNewest" LinkBase="protos" />
     </ItemGroup>
 
     <ItemGroup Label="Arrow Flight typed oracle">

@@ -46,7 +46,7 @@ static class ProtoJson {
     /// written by whichever strategy owns the traversal.
     /// </remarks>
     public static bool TryWriteWellKnown(
-        MessageDescriptor descriptor, ReadOnlySpan<byte> data, Utf8JsonWriter writer, ProtobufJsonWriterOptions options
+        MessageDescriptor descriptor, ReadOnlySpan<byte> data, Utf8JsonWriter writer
     ) {
         if (IsWrapper(descriptor)) {
             WriteWrapper(descriptor, data, writer);
@@ -63,15 +63,15 @@ static class ProtoJson {
                 return true;
 
             case StructTypeName:
-                WriteStruct(descriptor, data, writer, options);
+                WriteStruct(descriptor, data, writer);
                 return true;
 
             case ValueTypeName:
-                WriteValue(descriptor, data, writer, options);
+                WriteValue(descriptor, data, writer);
                 return true;
 
             case ListValueTypeName:
-                WriteListValue(descriptor, data, writer, options);
+                WriteListValue(descriptor, data, writer);
                 return true;
 
             case FieldMaskTypeName:
@@ -94,27 +94,24 @@ static class ProtoJson {
     /// transcodes it; <see cref="JsonEncodedText"/> has already done both, so the write is a copy.
     /// A message pays this once per declared field, on every message of that type in the payload.
     /// </remarks>
-    public static void WriteFieldName(Utf8JsonWriter writer, FieldDescriptor field, ProtobufJsonWriterOptions options) =>
-        writer.WritePropertyName(NamesOf(field.ContainingType)[field.Index].Select(options.UseProtoFieldNames));
-
-    /// <summary>A field's two spellings, encoded once.</summary>
-    readonly record struct FieldNames(JsonEncodedText Json, JsonEncodedText Proto) {
-        public JsonEncodedText Select(bool useProtoName) => useProtoName ? Proto : Json;
-    }
+    public static void WriteFieldName(Utf8JsonWriter writer, FieldDescriptor field) =>
+        writer.WritePropertyName(NamesOf(field.ContainingType)[field.Index]);
 
     /// <remarks>
     /// Keyed by message rather than by field, so a message costs one lookup and then an array index
     /// per field. Descriptors live as long as the schema set that built them, so the cache is
     /// bounded by the schemas in use.
     /// </remarks>
-    static readonly ConcurrentDictionary<MessageDescriptor, FieldNames[]> NameCache = new();
+    static readonly ConcurrentDictionary<MessageDescriptor, JsonEncodedText[]> NameCache = new();
 
-    static FieldNames[] NamesOf(MessageDescriptor descriptor) =>
+    static JsonEncodedText[] NamesOf(MessageDescriptor descriptor) =>
         NameCache.GetOrAdd(descriptor, static message => {
-            var names = new FieldNames[message.Fields.InDeclarationOrder().Count];
+            var names = new JsonEncodedText[message.Fields.InDeclarationOrder().Count];
 
+            // The JSON name, always. The mapping has one spelling, so the declared name is never the
+            // one written and does not need encoding.
             foreach (var field in message.Fields.InDeclarationOrder())
-                names[field.Index] = new FieldNames(JsonEncodedText.Encode(field.JsonName), JsonEncodedText.Encode(field.Name));
+                names[field.Index] = JsonEncodedText.Encode(field.JsonName);
 
             return names;
         });
@@ -122,7 +119,7 @@ static class ProtoJson {
     /// <summary>Reads one value of <paramref name="field"/> and writes its JSON form.</summary>
     /// <remarks>Message and group fields are not handled here — the strategy owns recursion.</remarks>
     public static void WriteScalar(
-        ref ProtoWireReader reader, FieldDescriptor field, Utf8JsonWriter writer, ProtobufJsonWriterOptions options
+        ref ProtoWireReader reader, FieldDescriptor field, Utf8JsonWriter writer
     ) {
         switch (field.FieldType) {
             case Type.Bool:
@@ -191,7 +188,7 @@ static class ProtoJson {
                 break;
 
             case Type.Enum:
-                WriteEnum((int)(long)reader.ReadVarint(), field, writer, options);
+                WriteEnum((int)(long)reader.ReadVarint(), field, writer);
                 break;
 
             default:
@@ -281,14 +278,8 @@ static class ProtoJson {
 
     #region ->> Scalars <<-
 
-    static void WriteEnum(int number, FieldDescriptor field, Utf8JsonWriter writer, ProtobufJsonWriterOptions options) {
-        if (options.EnumsAsIntegers) {
-            writer.WriteNumberValue(number);
-            return;
-        }
-
+    static void WriteEnum(int number, FieldDescriptor field, Utf8JsonWriter writer) =>
         WriteEnumName(field.EnumType, number, writer);
-    }
 
     static void WriteEnumDefault(FieldDescriptor field, Utf8JsonWriter writer) => WriteEnumName(field.EnumType, 0, writer);
 
@@ -525,7 +516,7 @@ static class ProtoJson {
                 continue;
             }
 
-            WriteScalar(ref reader, field, writer, ProtobufJsonWriterOptions.Default);
+            WriteScalar(ref reader, field, writer);
 
             return;
         }
@@ -535,7 +526,7 @@ static class ProtoJson {
         WriteDefault(writer, field);
     }
 
-    static void WriteStruct(MessageDescriptor descriptor, ReadOnlySpan<byte> data, Utf8JsonWriter writer, ProtobufJsonWriterOptions options) {
+    static void WriteStruct(MessageDescriptor descriptor, ReadOnlySpan<byte> data, Utf8JsonWriter writer) {
         var entry = descriptor.FindFieldByNumber(1).MessageType;
         var value = entry.FindFieldByNumber(2).MessageType;
 
@@ -556,13 +547,13 @@ static class ProtoJson {
                 continue;
             }
 
-            WriteStructEntry(reader.ReadLengthDelimited(), value, writer, options);
+            WriteStructEntry(reader.ReadLengthDelimited(), value, writer);
         }
 
         writer.WriteEndObject();
     }
 
-    static void WriteStructEntry(ReadOnlySpan<byte> entry, MessageDescriptor valueDescriptor, Utf8JsonWriter writer, ProtobufJsonWriterOptions options) {
+    static void WriteStructEntry(ReadOnlySpan<byte> entry, MessageDescriptor valueDescriptor, Utf8JsonWriter writer) {
         var hasValue = false;
 
         ReadOnlySpan<byte> key   = default;
@@ -592,7 +583,7 @@ static class ProtoJson {
 
         writer.WritePropertyName(key);
 
-        if (hasValue) WriteValue(valueDescriptor, value, writer, options);
+        if (hasValue) WriteValue(valueDescriptor, value, writer);
         else writer.WriteNullValue();
     }
 
@@ -600,7 +591,7 @@ static class ProtoJson {
     /// <c>Value</c> is a oneof of six branches. Whichever is present on the wire is the one to
     /// write, and an empty payload is a JSON null.
     /// </remarks>
-    static void WriteValue(MessageDescriptor descriptor, ReadOnlySpan<byte> data, Utf8JsonWriter writer, ProtobufJsonWriterOptions options) {
+    static void WriteValue(MessageDescriptor descriptor, ReadOnlySpan<byte> data, Utf8JsonWriter writer) {
         var reader = new ProtoWireReader(data);
 
         while (!reader.IsAtEnd) {
@@ -630,11 +621,11 @@ static class ProtoJson {
                     return;
 
                 case 5:
-                    WriteStruct(descriptor.FindFieldByNumber(5).MessageType, reader.ReadLengthDelimited(), writer, options);
+                    WriteStruct(descriptor.FindFieldByNumber(5).MessageType, reader.ReadLengthDelimited(), writer);
                     return;
 
                 case 6:
-                    WriteListValue(descriptor.FindFieldByNumber(6).MessageType, reader.ReadLengthDelimited(), writer, options);
+                    WriteListValue(descriptor.FindFieldByNumber(6).MessageType, reader.ReadLengthDelimited(), writer);
                     return;
 
                 default:
@@ -646,7 +637,7 @@ static class ProtoJson {
         writer.WriteNullValue();
     }
 
-    static void WriteListValue(MessageDescriptor descriptor, ReadOnlySpan<byte> data, Utf8JsonWriter writer, ProtobufJsonWriterOptions options) {
+    static void WriteListValue(MessageDescriptor descriptor, ReadOnlySpan<byte> data, Utf8JsonWriter writer) {
         var value = descriptor.FindFieldByNumber(1).MessageType;
 
         writer.WriteStartArray();
@@ -661,7 +652,7 @@ static class ProtoJson {
             var number = ProtoWireReader.FieldNumberOf(tag);
             var kind   = ProtoWireReader.WireTypeOf(tag);
 
-            if (number == 1 && kind == ProtoWireType.LengthDelimited) WriteValue(value, reader.ReadLengthDelimited(), writer, options);
+            if (number == 1 && kind == ProtoWireType.LengthDelimited) WriteValue(value, reader.ReadLengthDelimited(), writer);
             else reader.Skip(kind, number);
         }
 

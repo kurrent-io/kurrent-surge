@@ -8,46 +8,47 @@ using Transcoder.Probe;
 namespace Kurrent.Surge.Core.Tests.Unit.Codecs.Protobuf.Experimental;
 
 /// <summary>
-/// The dialect boundary of the second validator, measured against real exported documents rather
-/// than fixtures. Node references its own type, which is the case that decides whether a recursive
+/// The dialect boundary of the validator, measured against real exported documents rather than
+/// fixtures. Node references its own type, which is the case that decides whether a recursive
 /// message can be described in draft 2020-12 at all.
 /// </summary>
 /// <remarks>
 /// Scoped to what the validator itself decides. Whether an exported document agrees with what the
-/// writer emits is a separate question about the exporter and the writer, and it is measured in the
-/// sibling protobuf tests.
+/// writer emits is a separate question, measured in the sibling protobuf tests.
 /// </remarks>
 public class JsonSchemaNetDialectTests {
-    static readonly ProtobufJsonSchemaOptions Draft04     = new();
-    static readonly ProtobufJsonSchemaOptions Draft202012 = new() { Dialect = JsonSchemaDialect.Draft202012 };
+    const string NodeType = "transcoder.probe.Node";
 
-    const string OrderType = ProbeSchema.OrderTypeName;
-    const string NodeType  = "transcoder.probe.Node";
+    static SchemaSource Node { get; } = SchemaSource.Text(ProbeSchema.Text, NodeType);
 
     // Three levels deep, so the recursive $ref is followed rather than merely declared.
-    static byte[] NodePayload() => new Node {
-        Label = "root",
-        Child = new Node { Label = "middle", Child = new Node { Label = "leaf" } }
-    }.ToByteArray();
+    static string Transcoded() {
+        var payload = new Transcoder.Probe.Node {
+            Label = "root",
+            Child = new Transcoder.Probe.Node { Label = "middle", Child = new Transcoder.Probe.Node { Label = "leaf" } }
+        };
+
+        return ProtobufSchemaTranscoder.Instance.ToJson(Node, payload.ToByteArray());
+    }
 
     [Test]
-    public async ValueTask draft_2020_12_resolves_a_self_referencing_type() {
+    public async ValueTask resolves_a_self_referencing_type() {
         // Arrange — a root $ref whose target references itself
-        var exported = ProtobufJsonSchema.Export(ProbeSchema.Set, NodeType, Draft202012);
+        var exported = ProtobufJsonSchema.Instance.ExportAsString(Node);
 
         // Act
-        var result = JsonSchemaNetAgent.Instance.ParseSchema(exported).Validate(ProbeSchema.Write(NodePayload(), NodeType));
+        var result = JsonSchemaNetAgent.Instance.ParseSchema(exported).Validate(Transcoded());
 
         // Assert
         await Assert.That(result.IsValid).IsTrue().Because(Errors(result));
     }
 
     [Test]
-    public async ValueTask draft_2020_12_rejects_an_undeclared_property_on_a_recursive_type() {
+    public async ValueTask rejects_an_undeclared_property_on_a_recursive_type() {
         // Arrange — accepting a payload proves nothing unless the validator also rejects one. The
         // exported objects are closed, so an undeclared member has to fail.
-        var exported   = ProtobufJsonSchema.Export(ProbeSchema.Set, NodeType, Draft202012);
-        var transcoded = ProbeSchema.Write(NodePayload(), NodeType).TrimEnd('}') + ",\"notAField\":1}";
+        var exported   = ProtobufJsonSchema.Instance.ExportAsString(Node);
+        var transcoded = Transcoded().TrimEnd('}') + ",\"notAField\":1}";
 
         // Act
         var result = JsonSchemaNetAgent.Instance.ParseSchema(exported).Validate(transcoded);
@@ -57,12 +58,16 @@ public class JsonSchemaNetDialectTests {
     }
 
     [Test]
-    public async ValueTask draft_04_is_refused() {
-        // Arrange — draft 4 is the dialect the other agent is kept for
-        var exported = ProtobufJsonSchema.Export(ProbeSchema.Set, OrderType, Draft04);
+    public async ValueTask refuses_draft_04() {
+        // Arrange — written out rather than exported, because the exporter emits one dialect now and
+        // draft 4 is not it. This is the boundary the other agent is kept for.
+        var draft04 = """
+                      {"$schema":"http://json-schema.org/draft-04/schema#","type":"object",
+                       "properties":{"label":{"type":"string"}}}
+                      """;
 
         // Act
-        var parse = () => JsonSchemaNetAgent.Instance.ParseSchema(exported);
+        var parse = () => JsonSchemaNetAgent.Instance.ParseSchema(draft04);
 
         // Assert
         await Assert.That(parse).Throws<JsonSchemaException>();

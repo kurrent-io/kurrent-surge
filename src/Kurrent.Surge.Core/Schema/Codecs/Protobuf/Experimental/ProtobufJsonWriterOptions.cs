@@ -3,42 +3,23 @@ namespace Kurrent.Surge.Codecs.Protobuf.Experimental;
 /// <summary>
 /// Controls what a protobuf-to-JSON writer emits.
 /// </summary>
+/// <remarks>
+/// There is one output form — the canonical JSON mapping — so nothing here changes what the JSON
+/// looks like. A setting that did would have to be told to the schema exporter as well, or the
+/// exported schema would reject the very payload this writer produced.
+/// </remarks>
 [PublicAPI]
-public sealed class ProtobufJsonWriterOptions {
-    /// <summary>
-    /// Emits the declared field name instead of its JSON name.
-    /// </summary>
-    /// <remarks>
-    /// Off produces the lower camel case name the canonical mapping calls for. On produces
-    /// <c>order_id</c> rather than <c>orderId</c>, which readers that key off the schema expect.
-    /// </remarks>
-    public bool UseProtoFieldNames { get; init; }
-
-    /// <summary>
-    /// Emits fields that are absent from the payload, carrying their default value.
-    /// </summary>
-    /// <remarks>
-    /// Off follows the canonical mapping, which omits them. A field with implicit presence set to
-    /// its default is indistinguishable from an absent one on the wire, so it is omitted either way
-    /// unless this is on.
-    /// </remarks>
-    public bool EmitDefaults { get; init; }
-
-    /// <summary>
-    /// Emits enum values as their numbers instead of their names.
-    /// </summary>
-    /// <remarks>A value absent from the schema is emitted as a number regardless.</remarks>
-    public bool EnumsAsIntegers { get; init; }
-
+public class ProtobufJsonWriterOptions {
     /// <summary>
     /// How deeply nested a message may be before the payload is rejected.
     /// </summary>
     /// <remarks>
     /// Nesting is decoded by recursion, so an unbounded depth is a stack overflow waiting for the
-    /// right payload — and a stack overflow cannot be caught. The default matches the limit the
-    /// reference implementations enforce.
+    /// right payload — and a stack overflow cannot be caught. A recursive message type lets a few
+    /// bytes ask for thousands of levels, which makes this a limit on hostile input rather than a
+    /// tuning knob. The default matches what the reference implementations enforce.
     /// </remarks>
-    public int MaxDepth { get; init; } = DefaultMaxDepth;
+    public int MaxDepth { get; set; } = DefaultMaxDepth;
 
     /// <summary>The nesting limit the reference protobuf implementations enforce.</summary>
     public const int DefaultMaxDepth = 100;
