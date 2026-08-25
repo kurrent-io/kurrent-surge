@@ -108,7 +108,10 @@ static class ConstraintAnalyzer {
 
     // Aliases share one declaration, so identity settles whether a reference names the same column —
     // which is what makes `rec.stream` and any alias resolve. A key never qualifies: `stream['x']`
-    // reads a member, not the column.
+    // reads a member, not the column. Neither does a transform: `lower(stream)` constrains the
+    // lowercased value, and a store asked to match the raw column would miss rows.
     static bool IsColumn<T>(PropertyAccess property, FilterColumn<T> declared, FilterSchema<T> schema) =>
-        ReferenceEquals(schema.Find(property.PropertyName, property.Key, out var key), declared) && key is null;
+        property.IsBare
+     && ReferenceEquals(schema.Find(property.PropertyName, property.Key, out var key), declared)
+     && key is null;
 }

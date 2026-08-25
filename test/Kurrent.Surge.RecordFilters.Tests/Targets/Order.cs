@@ -5,6 +5,8 @@ namespace Kurrent.Surge.RecordFilters.Tests.Targets;
 
 public sealed record Order {
     public required string         Stream    { get; init; }
+    // Defaulted rather than required so the targets that only exercise other columns stay unchanged.
+    public byte[] RecordId { get; init; } = new byte[16];
     public required long           Revision  { get; init; }
     public required decimal        Amount    { get; init; }
     public required DateTimeOffset CreatedAt { get; init; }
@@ -20,6 +22,7 @@ public static class OrderSchema {
     public static readonly FilterSchema<Order> Default = FilterSchema<Order>.Create(
         schema => schema
             .Scalar(o => o.Stream,                             "stream")
+            .Scalar(o => o.RecordId,                           "record_id")
             .Scalar(o => o.Revision,                           "stream_revision", "revision")
             .Scalar(o => o.Status,                             "status")
             .Scalar(o => o.Amount,                             "amount")

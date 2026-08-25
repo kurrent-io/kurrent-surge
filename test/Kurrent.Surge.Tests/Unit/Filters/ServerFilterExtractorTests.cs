@@ -285,7 +285,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task timestamp_filter_has_no_server_filter() {
-        var expr   = ParseExpression("timestamp >= '2024-01-01'");
+        var expr   = ParseExpression("timestamp >= epoch_ms(TIMESTAMP '2024-01-01')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         await Assert.That(filter).IsEqualTo(RecordFilter.None);
@@ -321,7 +321,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task extracts_server_filter_from_combined_expression() {
-        var expr   = ParseExpression("stream = 'Orders-ABC123' AND timestamp >= '2024-01-01'");
+        var expr   = ParseExpression("stream = 'Orders-ABC123' AND timestamp >= epoch_ms(TIMESTAMP '2024-01-01')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         await Assert.That(filter).IsTypeOf<StreamNameFilter>();
@@ -349,7 +349,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     public async Task extracts_server_filter_with_multiple_client_predicates() {
-        var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100 AND timestamp >= '2024-01-01'");
+        var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100 AND timestamp >= epoch_ms(TIMESTAMP '2024-01-01')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();
@@ -774,7 +774,7 @@ public class ServerFilterExtractorTests {
     [Test]
     public async Task flattens_deeply_nested_and_chain() {
         // 5-level AND chain — all conjuncts should be flattened and extractable predicates found
-        var expr   = ParseExpression("stream = 'orders-1' AND schema = 'OrderPlaced' AND position > 10 AND revision > 0 AND timestamp >= '2024-01-01'");
+        var expr   = ParseExpression("stream = 'orders-1' AND schema = 'OrderPlaced' AND position > 10 AND revision > 0 AND timestamp >= epoch_ms(TIMESTAMP '2024-01-01')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         await Assert.That(filter).IsTypeOf<StreamFilter>();

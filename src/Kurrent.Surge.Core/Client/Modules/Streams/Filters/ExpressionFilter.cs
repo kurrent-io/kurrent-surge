@@ -25,12 +25,22 @@ public record ExpressionFilter : RecordFilter {
     /// </summary>
     /// <param name="expression">A SQL-like filter expression (e.g., "stream = 'orders' AND properties.amount > 100")</param>
     /// <exception cref="FilterFormatException">The expression is not valid, or names a column no record carries.</exception>
-    public ExpressionFilter(string expression) {
+    public ExpressionFilter(string expression) : this(expression, null) { }
+
+    /// <summary>
+    /// Creates a filter from a SQL-like expression, binding its <c>@name</c> placeholders.
+    /// </summary>
+    /// <param name="expression">A SQL-like filter expression.</param>
+    /// <param name="parameters">Values for the expression's placeholders.</param>
+    /// <exception cref="FilterFormatException">The expression is not valid, or a parameter is unbound.</exception>
+    public ExpressionFilter(string expression, FilterParameters? parameters) {
         ArgumentException.ThrowIfNullOrWhiteSpace(expression);
 
+        // The template is kept as written. ToSql() renders the bound values, so a log can show both
+        // the shape the caller wrote and what it resolved to.
         Expression = expression;
 
-        _filter = RecordFilterSchema.Default.Parse(expression);
+        _filter = RecordFilterSchema.Default.Parse(expression, parameters);
 
         var extraction = ServerFilterExtractor.Extract(_filter);
         ServerFilter             = extraction.ServerFilter;

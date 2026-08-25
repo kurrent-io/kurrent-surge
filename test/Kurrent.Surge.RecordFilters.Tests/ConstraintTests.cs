@@ -28,11 +28,9 @@ public class ConstraintTests {
         protected override IEnumerable<TestCase<string>> Data() {
             yield return new("amount > 100",                            DisplayName: "says nothing about stream");
             yield return new("props['region'] = 'us-east'",             DisplayName: "a different column entirely");
-            yield return new("stream['x'] = 'a'",                       DisplayName: "a key reads a member, not the column");
             yield return new("stream != 'a'",                           DisplayName: "inequality names no value");
             yield return new("stream > 'a'",                            DisplayName: "ordering names no value");
             yield return new("stream IS NULL",                          DisplayName: "IS NULL names no value");
-            yield return new("stream = 123",                            DisplayName: "a non-string literal");
             yield return new("NOT (stream = 'a')",                      DisplayName: "negation inverts the set");
             yield return new("stream NOT LIKE 'a%'",                    DisplayName: "negated LIKE inverts the set");
             yield return new("stream NOT IN ('a')",                     DisplayName: "negated IN inverts the set");

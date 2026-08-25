@@ -322,7 +322,6 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
             yield return new(("schema = 'OrderCreated'",      "schema_name = 'OrderCreated'"),           "schema");
             yield return new(("ts >= 1704067200000",          "created_at >= 1704067200000"),            "ts");
             yield return new(("timestamp >= 1704067200000",   "created_at >= 1704067200000"),            "timestamp");
-            yield return new(("rec.stream = 'orders'",        "stream = 'orders'"),                      "rec. qualifier");
             yield return new(("props['region'] = 'us-east'",  "metadata->>'region' = 'us-east'"),        "props key");
             yield return new(("properties.region = 'us-east'", "metadata->>'region' = 'us-east'"),       "properties dot");
             yield return new(("data.address.city = 'NYC'",    "data->>'$.address.city' = 'NYC'"),        "json path");

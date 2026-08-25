@@ -25,6 +25,15 @@ public class FilterParsingTests {
         }
     }
 
+    public class ScalarFieldAccessCases : TestCaseDataGenerator<(string Expression, string Field, string Column)> {
+        protected override IEnumerable<TestCase<(string Expression, string Field, string Column)>> Data() {
+            yield return new(("stream.region = 'a'",     "region", "stream"),          "dotted path");
+            yield return new(("stream['region'] = 'a'",  "region", "stream"),          "bracket key");
+            yield return new(("stream->>'region' = 'a'", "region", "stream"),          "arrow key");
+            yield return new(("revision.region = 1",     "region", "stream_revision"), "an alias reports its canonical column");
+        }
+    }
+
     public class BlankInputCases : TestCaseDataGenerator<string> {
         protected override IEnumerable<TestCase<string>> Data() {
             yield return new("",      DisplayName: "empty");
@@ -36,6 +45,47 @@ public class FilterParsingTests {
     #endregion
 
     #region ->> Rejection <<-
+
+    // DuckDB refuses these when it binds the query, so they never reach a record. Previously they
+    // compared the two ToString() forms and answered arbitrarily.
+    public class IncomparableTypeCases : TestCaseDataGenerator<string> {
+        protected override IEnumerable<TestCase<string>> Data() {
+            yield return new("stream = 123",                 DisplayName: "number against a text column");
+            yield return new("stream > 5",                   DisplayName: "ordering a text column by a number");
+            yield return new("stream = true",                DisplayName: "boolean against a text column");
+            yield return new("stream IN ('a', 2)",           DisplayName: "a number inside an IN list");
+            yield return new("stream BETWEEN 1 AND 2",       DisplayName: "a numeric range over text");
+        }
+    }
+
+    [Test]
+    [IncomparableTypeCases]
+    public async ValueTask rejects_a_literal_that_cannot_compare(string expression) {
+        var parsed = OrderSchema.Default.TryParse(expression, out _, out var error);
+
+        await Assert.That(parsed).IsFalse();
+        await Assert.That(error!.ErrorMessage).Contains("an explicit cast is required");
+    }
+
+    // A string literal binds against a numeric column but has to convert, and the literal is constant
+    // so the failure is settled at parse time rather than once per record.
+    public class UnconvertibleLiteralCases : TestCaseDataGenerator<string> {
+        protected override IEnumerable<TestCase<string>> Data() {
+            yield return new("created_at < 'abc'",           DisplayName: "text against a timestamp column");
+            yield return new("created_at = 'yesterday'",     DisplayName: "a word against a timestamp column");
+            yield return new("stream_revision > 'abc'",      DisplayName: "text against a numeric column");
+            yield return new("amount BETWEEN 'a' AND 'b'",   DisplayName: "a text range over a numeric column");
+        }
+    }
+
+    [Test]
+    [UnconvertibleLiteralCases]
+    public async ValueTask rejects_a_literal_that_cannot_convert(string expression) {
+        var parsed = OrderSchema.Default.TryParse(expression, out _, out var error);
+
+        await Assert.That(parsed).IsFalse();
+        await Assert.That(error!.ErrorMessage).Contains("Conversion Error");
+    }
 
     [Test]
     [RejectedExpressionCases]
@@ -50,6 +100,22 @@ public class FilterParsingTests {
         await Assert.That(parsed).IsFalse();
         await Assert.That(filter).IsNull();
         await Assert.That(error!.ErrorMessage).Contains(expectedPrefix);
+    }
+
+    [Test]
+    [ScalarFieldAccessCases]
+    public async ValueTask rejects_a_field_read_from_a_scalar_column(string expression, string field, string column) {
+        // Arrange
+        var expectedMessage =
+            $"Error parsing filter: cannot extract field '{field}' from column \"{column}\" because it is not a map or json column";
+
+        // Act
+        var parsed = OrderSchema.Default.TryParse(expression, out var filter, out var error);
+
+        // Assert
+        await Assert.That(parsed).IsFalse();
+        await Assert.That(filter).IsNull();
+        await Assert.That(error!.ErrorMessage).IsEqualTo(expectedMessage);
     }
 
     [Test]

@@ -1,3 +1,5 @@
+using Kurrent.Surge.RecordFilters;
+
 namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
@@ -59,6 +61,15 @@ public abstract record RecordFilter {
     /// <param name="expression">A filter expression (e.g., "stream = 'orders' AND props.amount > 100").</param>
     public static RecordFilter ByExpression(string expression) =>
         new ExpressionFilter(expression);
+
+    /// <summary>
+    /// Creates a filter from a DuckDB-compatible SQL expression, binding its <c>@name</c> placeholders.
+    /// A bound value becomes a literal in the parsed expression rather than text spliced into it.
+    /// </summary>
+    /// <param name="expression">A filter expression (e.g., "stream = @stream AND revision > @from").</param>
+    /// <param name="parameters">Values for the expression's placeholders.</param>
+    public static RecordFilter ByExpression(string expression, FilterParameters parameters) =>
+        new ExpressionFilter(expression, parameters);
 
     /// <summary>
     /// Creates a filter that matches a single stream name exactly.

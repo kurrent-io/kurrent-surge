@@ -13,7 +13,10 @@ namespace Kurrent.Surge.Client.Streams;
 static class RecordFilterSchema {
     public static readonly FilterSchema<Record> Default = FilterSchema<Record>.Create(
         schema => schema
-            .Scalar(accessor: r => r.Id, text: id => id.ToGuid().ToString("N"), aliases: "record_id")
+            // The server stores record_id as a BLOB, so the column presents the 16 bytes. Every SQL
+            // face of it then follows from DuckDB's own functions — hex(record_id) for the hex form,
+            // CAST(record_id AS UUID) for the GUID one — with no id-specific handling in the engine.
+            .Scalar(r => r.Id.ToByteArray(), "record_id")
             .Scalar(r => r.Position.LogPosition.Value,          "log_position", "position", "pos")
             .Scalar(r => r.Stream.Category,                     "category")
             .Scalar(r => r.Stream.Value,                        "stream")
@@ -25,9 +28,6 @@ static class RecordFilterSchema {
                                                                 "created_at", "timestamp", "ts")
             .Json(r => r.DecodedValueAsJson,                    "data")
             .Map(ResolveMetadata,                               "metadata", "properties", "props")
-
-            .Qualifier("rec.")
-            // .TrimPrefix("field_")
     );
 
     static object? ResolveMetadata(Record record, string? key) {

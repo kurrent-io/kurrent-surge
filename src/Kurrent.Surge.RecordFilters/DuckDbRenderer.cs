@@ -94,25 +94,54 @@ static class DuckDbRenderer {
                   ?? throw new InvalidOperationException(
                          $"Cannot render '{property.PropertyName}' as SQL: no column with that name is declared in FilterSchema<{typeof(T).Name}>.");
 
-        if (key is null) return column.Name;
+        var text = Access();
 
-        // The key already carries its own form — a JSONPath when a dotted name descended into a JSON
-        // column, a plain member name otherwise. Adding a prefix here would double it.
-        return column.Kind switch {
-            FilterColumnKind.Scalar          => column.Name,
-            FilterColumnKind.Map or
-            FilterColumnKind.Json            => $"{column.Name}->>'{EscapeText(key)}'",
-            _                                => throw new NotSupportedException($"Unhandled column kind '{column.Kind}'.")
-        };
+        // Transforms are held innermost first, so wrapping in order rebuilds what was written.
+        foreach (var transform in property.Transforms) {
+            text = transform switch {
+                CastTransform cast     => $"{(cast.Strict ? "CAST" : "TRY_CAST")}({text} AS {cast.TargetType})",
+                FunctionTransform call => Call(call, text),
+                _                      => throw new NotSupportedException($"Unhandled transform '{transform.GetType().Name}'.")
+            };
+        }
+
+        return text;
+
+        string Access() {
+            if (key is null) return column.Name;
+
+            // The key already carries its own form — a JSONPath when a dotted name descended into a
+            // JSON column, a plain member name otherwise. Adding a prefix here would double it.
+            return column.Kind switch {
+                FilterColumnKind.Scalar => column.Name,
+                FilterColumnKind.Map or
+                FilterColumnKind.Json   => $"{column.Name}->>'{EscapeText(key)}'",
+                _                       => throw new NotSupportedException($"Unhandled column kind '{column.Kind}'.")
+            };
+        }
+
+        static string Call(FunctionTransform call, string operand) {
+            var builder = new StringBuilder(call.Name).Append('(').Append(operand);
+
+            foreach (var argument in call.Arguments) {
+                builder.Append(", ");
+                WriteLiteral(argument, builder);
+            }
+
+            return builder.Append(')').ToString();
+        }
     }
 
     static StringBuilder WriteLiteral(FilterValue value, StringBuilder builder) =>
         value switch{
-            StringFilterValue s  => builder.Append('\'').Append(EscapeText(s.Value)).Append('\''),
-            NumberFilterValue n  => builder.Append(n.Value.ToString(CultureInfo.InvariantCulture)),
-            BooleanFilterValue b => builder.Append(b.Value ? "TRUE" : "FALSE"),
-            NullFilterValue      => builder.Append("NULL"),
-            _                    => throw new NotSupportedException($"Unhandled literal '{value.GetType().Name}'.")
+            StringFilterValue s   => builder.Append('\'').Append(EscapeText(s.Value)).Append('\''),
+            NumberFilterValue n   => builder.Append(n.Value.ToString(CultureInfo.InvariantCulture)),
+            BooleanFilterValue b  => builder.Append(b.Value ? "TRUE" : "FALSE"),
+            NullFilterValue       => builder.Append("NULL"),
+            // Bytes go back as the call that produced them; SQL has no portable blob literal.
+            BlobFilterValue blob  => builder.Append("from_hex('").Append(Convert.ToHexString(blob.Value)).Append("')"),
+            DateTimeFilterValue d => builder.Append(d.TypeName).Append(" '").Append(d.Value.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)).Append('\''),
+            _                     => throw new NotSupportedException($"Unhandled literal '{value.GetType().Name}'.")
         };
 
     // SQL escapes a quote by doubling it. The tokenizer accepts backslash escapes on input, so a

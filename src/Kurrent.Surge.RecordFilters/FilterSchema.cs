@@ -42,16 +42,32 @@ public sealed class FilterSchema<T> {
         !TryParse(expression, out var filter, out var error) ? throw error.ToException() : filter;
 
     /// <summary>
+    /// Parses an expression, binding its <c>@name</c> placeholders to <paramref name="parameters"/>.
+    /// </summary>
+    /// <exception cref="FilterFormatException">The expression is not valid, or a parameter is unbound.</exception>
+    public Filter<T> Parse(string expression, FilterParameters parameters) =>
+        !TryParse(expression, parameters, out var filter, out var error) ? throw error.ToException() : filter;
+
+    /// <summary>
     /// Parses an expression against this schema, reporting failure instead of throwing.
     /// </summary>
     public bool TryParse(
         string expression,
         [NotNullWhen(true)]  out Filter<T>? filter,
         [NotNullWhen(false)] out FilterParseError? error
+    ) => TryParse(expression, null, out filter, out error);
+
+    /// <inheritdoc cref="TryParse(string,out Filter{T},out FilterParseError)"/>
+    /// <param name="parameters">Values for the expression's <c>@name</c> placeholders.</param>
+    public bool TryParse(
+        string expression,
+        FilterParameters? parameters,
+        [NotNullWhen(true)]  out Filter<T>? filter,
+        [NotNullWhen(false)] out FilterParseError? error
     ) {
         filter = null;
 
-        if (!FilterParser.TryParse(expression, out var parsed, out error)) return false;
+        if (!FilterParser.TryParse(expression, parameters, out var parsed, out error)) return false;
         if (!TryValidate(parsed, out error)) return false;
 
         filter = new(expression, parsed, this);
@@ -68,9 +84,7 @@ public sealed class FilterSchema<T> {
         read = null;
 
         if (!FilterParser.TryParsePath(path, out var property, out _)) return false;
-
-        var column = Find(property.PropertyName, property.Key, out var key);
-        if (column is null) return false;
+        if (!TryResolve(property, out var column, out var key, out _)) return false;
 
         read = column.Accessor.TextReader(key);
         return true;
@@ -87,19 +101,123 @@ public sealed class FilterSchema<T> {
             case OrExpression e:  return TryValidate(e.Left, out error) && TryValidate(e.Right, out error);
             case NotExpression e: return TryValidate(e.Inner, out error);
 
-            case ComparisonExpression e: error = Declared(e.Property); break;
+            case ComparisonExpression e: error = Declared(e.Property) ?? Comparable(e.Property, [e.Value]); break;
             case IsNullExpression e:     error = Declared(e.Property); break;
             case LikeExpression e:       error = Declared(e.Property); break;
-            case InExpression e:         error = Declared(e.Property); break;
-            case BetweenExpression e:    error = Declared(e.Property); break;
+            case InExpression e:         error = Declared(e.Property) ?? Comparable(e.Property, e.Values); break;
+            case BetweenExpression e:    error = Declared(e.Property) ?? Comparable(e.Property, [e.Lower, e.Upper]); break;
         }
 
         return error is null;
 
         FilterParseError? Declared(PropertyAccess property) =>
-            Find(property.PropertyName, property.Key, out _) is not null
-                ? null
-                : FilterParseError.UndeclaredColumn(property.PropertyName, typeof(T).Name);
+            TryResolve(property, out _, out _, out var declaredError) ? null : declaredError;
+
+        FilterParseError? Comparable(PropertyAccess property, IReadOnlyList<FilterValue> literals) {
+            var column = Find(property.PropertyName, property.Key, out _);
+            if (column is null) return null;
+
+            // Only a scalar column has a type this can be sure of. A map or JSON access renders to a
+            // form whose SQL type depends on how the underlying column is declared — `col['k']` is
+            // JSON on a JSON column and a string slice on a VARCHAR one — so it is left alone until
+            // the column's own type is declared here.
+            if (column.Kind is not FilterColumnKind.Scalar && property.IsBare) return null;
+
+            var family = Family(column, property);
+
+            foreach (var literal in literals) {
+                if (LiteralError(column.Name, family, literal) is { } error) return error;
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The type a reference presents after its transforms. A cast or a call replaces the column's own
+    /// type, so the last one in the chain decides what a literal has to be comparable with.
+    /// </summary>
+    static SqlTypeFamily Family(FilterColumn<T> column, PropertyAccess property) {
+        var family = column.Accessor.SqlType;
+
+        foreach (var transform in property.Transforms) {
+            family = transform switch {
+                CastTransform cast     => SqlTypes.OfTarget(cast.TargetType),
+                FunctionTransform call => FilterFunctions.ReturnType(call.Name),
+                _                      => SqlTypeFamily.Unknown
+            };
+        }
+
+        return family;
+    }
+
+    /// <summary>
+    /// Whether a literal may compare against a column of this type, following DuckDB. A number or
+    /// boolean literal binds only against a numeric or boolean column; a string binds against anything
+    /// but must convert where the column is not text.
+    /// </summary>
+    static FilterParseError? LiteralError(string column, SqlTypeFamily family, FilterValue literal) {
+        // NULL compares against everything, and an undeclared type rules nothing out.
+        if (literal is NullFilterValue || family is SqlTypeFamily.Unknown) return null;
+
+        return literal switch {
+            StringFilterValue text => family switch {
+                SqlTypeFamily.Text or SqlTypeFamily.Blob => null,
+                // Numeric-at-all is the test: DuckDB takes '7.9' for a BIGINT column and rounds it.
+                SqlTypeFamily.Number    => Converts(text.Value, "DOUBLE")    ? null : FilterParseError.LiteralConversion(text.Value, "BIGINT"),
+                SqlTypeFamily.Timestamp => Converts(text.Value, "TIMESTAMP") ? null : FilterParseError.LiteralConversion(text.Value, "TIMESTAMP"),
+                SqlTypeFamily.Boolean   => Converts(text.Value, "BOOLEAN")   ? null : FilterParseError.LiteralConversion(text.Value, "BOOLEAN"),
+                _                       => null
+            },
+
+            NumberFilterValue  => Binds(family, "INTEGER_LITERAL"),
+            BooleanFilterValue => Binds(family, "BOOLEAN"),
+
+            BlobFilterValue     => family is SqlTypeFamily.Blob or SqlTypeFamily.Text      ? null : Incomparable("BLOB"),
+            DateTimeFilterValue => family is SqlTypeFamily.Timestamp or SqlTypeFamily.Text ? null : Incomparable("TIMESTAMP"),
+
+            _ => null
+        };
+
+        FilterParseError? Binds(SqlTypeFamily target, string literalType) =>
+            target is SqlTypeFamily.Number or SqlTypeFamily.Boolean ? null : Incomparable(literalType);
+
+        FilterParseError Incomparable(string literalType) =>
+            FilterParseError.IncomparableTypes(column, Name(family), literalType);
+
+        static bool Converts(string value, string target) => FilterFunctions.TryCast(value, target, out _);
+
+        static string Name(SqlTypeFamily family) =>
+            family switch {
+                SqlTypeFamily.Text      => "VARCHAR",
+                SqlTypeFamily.Number    => "BIGINT",
+                SqlTypeFamily.Boolean   => "BOOLEAN",
+                SqlTypeFamily.Blob      => "BLOB",
+                SqlTypeFamily.Timestamp => "TIMESTAMP",
+                _                       => "UNKNOWN"
+            };
+    }
+
+    bool TryResolve(
+        PropertyAccess property,
+        [NotNullWhen(true)]  out FilterColumn<T>? column,
+        out string? key,
+        [NotNullWhen(false)] out FilterParseError? error
+    ) {
+        column = Find(property.PropertyName, property.Key, out key);
+
+        if (column is null) {
+            error = FilterParseError.UndeclaredColumn(property.PropertyName, typeof(T).Name);
+            return false;
+        }
+
+        // A key only means something on a column that holds members. A scalar has none, so both the
+        // reader and the renderer would discard it, and `schema.name` would silently mean `schema_name`.
+        error = column.Kind is FilterColumnKind.Scalar && key is not null
+            ? FilterParseError.ScalarColumnHasNoFields(column.Name, key)
+            : null;
+
+        return error is null;
     }
 
     /// <summary>

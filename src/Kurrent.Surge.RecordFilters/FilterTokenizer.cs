@@ -45,6 +45,13 @@ internal enum TokenType {
     // JSON access operator
     ArrowText, // ->> (extract as text, DuckDB compatible)
 
+    // Casts
+    As,
+    DoubleColon, // ::
+
+    // A bound value: @name
+    Parameter,
+
     // Delimiters
     LeftParen,
     RightParen,
@@ -89,6 +96,7 @@ internal sealed class FilterTokenizer(ReadOnlySpan<char> input) {
             ["IN"]      = TokenType.In,
             ["BETWEEN"] = TokenType.Between,
             ["IS"]      = TokenType.Is,
+            ["AS"]      = TokenType.As,
             ["NULL"]    = TokenType.Null,
             ["TRUE"]    = TokenType.True,
             ["FALSE"]   = TokenType.False,
@@ -210,6 +218,25 @@ internal sealed class FilterTokenizer(ReadOnlySpan<char> input) {
                     return ReadNumber();
 
                 return Token.Error("Unexpected character '-'", start);
+
+            case '@':
+                Advance();
+                if (IsAtEnd || !(char.IsLetter(Current) || Current == '_'))
+                    return Token.Error("Expected a parameter name after '@'", start);
+
+                var nameStart = _position;
+                while (!IsAtEnd && IdentifierChars.Contains(Current)) Advance();
+
+                return new(TokenType.Parameter, _input[nameStart.._position], start);
+
+            case ':':
+                Advance();
+                if (Current == ':') {
+                    Advance();
+                    return new(TokenType.DoubleColon, "::", start);
+                }
+
+                return Token.Error("Expected ':' after ':'", start);
 
             case '\'': return ReadString();
         }

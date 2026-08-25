@@ -25,6 +25,61 @@ enum FilterColumnKind {
 }
 
 /// <summary>
+/// The SQL type family a value presents as. Comparison legality is decided per family, matching
+/// DuckDB: a number or boolean literal binds only against a numeric or boolean column, while a string
+/// literal binds against anything and converts where it must.
+/// </summary>
+enum SqlTypeFamily {
+    Text,
+    Number,
+    Boolean,
+    Blob,
+    Timestamp,
+
+    /// <summary>
+    /// No declared type, so nothing can be ruled out ahead of time.
+    /// </summary>
+    Unknown
+}
+
+static class SqlTypes {
+    public static SqlTypeFamily Of(Type type) {
+        // Checked before the TypeCode switch: an enum reports its underlying integer there, but it
+        // reads and renders as its name, which is a VARCHAR column on the database side.
+        if (type.IsEnum) return SqlTypeFamily.Text;
+
+        if (Nullable.GetUnderlyingType(type) is { } nullable) return Of(nullable);
+
+        return Type.GetTypeCode(type) switch {
+            TypeCode.String                                                                    => SqlTypeFamily.Text,
+            TypeCode.Boolean                                                                   => SqlTypeFamily.Boolean,
+            TypeCode.DateTime                                                                  => SqlTypeFamily.Timestamp,
+            TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or
+            TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 or
+            TypeCode.Single or TypeCode.Double or TypeCode.Decimal                             => SqlTypeFamily.Number,
+            _ when type == typeof(byte[])                                                      => SqlTypeFamily.Blob,
+            _ when type == typeof(DateTimeOffset)                                              => SqlTypeFamily.Timestamp,
+            _ when type == typeof(Guid)                                                        => SqlTypeFamily.Text,
+            _                                                                                  => SqlTypeFamily.Unknown
+        };
+    }
+
+    /// <summary>
+    /// The family a cast target names, or <see cref="SqlTypeFamily.Unknown"/> when it names nothing.
+    /// </summary>
+    public static SqlTypeFamily OfTarget(string target) =>
+        target.ToUpperInvariant() switch {
+            "VARCHAR" or "TEXT" or "STRING"                     => SqlTypeFamily.Text,
+            "BIGINT" or "INTEGER" or "INT" or "DOUBLE" or "DECIMAL" => SqlTypeFamily.Number,
+            "BOOLEAN" or "BOOL"                                 => SqlTypeFamily.Boolean,
+            "UUID"                                              => SqlTypeFamily.Text,
+            "BLOB"                                              => SqlTypeFamily.Blob,
+            "TIMESTAMP" or "DATE"                               => SqlTypeFamily.Timestamp,
+            _                                                   => SqlTypeFamily.Unknown
+        };
+}
+
+/// <summary>
 /// One declared column: the .NET accessor, the canonical DuckDB column name, and the access form
 /// shared by both. Aliases resolve to the same instance, which is what lets an alias render as its
 /// canonical name.
@@ -49,6 +104,11 @@ sealed class FilterColumn<T>(string name, FilterColumnKind kind, ColumnAccessor<
 /// </summary>
 abstract class ColumnAccessor<T> {
     /// <summary>
+    /// The SQL type the column presents as, which decides which literals may compare against it.
+    /// </summary>
+    public abstract SqlTypeFamily SqlType { get; }
+
+    /// <summary>
     /// Reads the column, boxing value types. <paramref name="key"/> is applied by keyed columns and
     /// ignored by scalars.
     /// </summary>
@@ -71,12 +131,16 @@ abstract class ColumnAccessor<T> {
 /// <typeparamref name="TValue"/> with no boxing and no per-record type inspection.
 /// </summary>
 sealed class ScalarAccessor<T, TValue>(Func<T, TValue> getter, Func<TValue, string?>? text = null) : ColumnAccessor<T> {
+    public override SqlTypeFamily SqlType { get; } = SqlTypes.Of(typeof(TValue));
+
     // Comparer<string>.Default is culture-sensitive. Column values compare ordinally, matching the
-    // database, so string columns must not take the default comparer.
+    // database, so string columns must not take the default comparer. A byte[] has no default
+    // comparer at all — Comparer<byte[]>.Default throws when asked — and DuckDB orders BLOB
+    // byte-wise, so it gets one of its own.
     static readonly IComparer<TValue> Comparer =
-        typeof(TValue) == typeof(string)
-            ? (IComparer<TValue>)(object)StringComparer.Ordinal
-            : Comparer<TValue>.Default;
+        typeof(TValue) == typeof(string) ? (IComparer<TValue>)(object)StringComparer.Ordinal
+      : typeof(TValue) == typeof(byte[]) ? (IComparer<TValue>)(object)ByteSequenceComparer.Instance
+      : Comparer<TValue>.Default;
 
     public override Func<T, object?> Getter(string? key) {
         var get = getter;
@@ -148,6 +212,16 @@ sealed class ScalarAccessor<T, TValue>(Func<T, TValue> getter, Func<TValue, stri
                 result = (TValue)(object)b.Value;
                 return true;
 
+            case BlobFilterValue b when typeof(TValue) == typeof(byte[]):
+                result = (TValue)(object)b.Value;
+                return true;
+
+            // A BLOB compares against a VARCHAR by the text's own bytes. Encoding here binds the
+            // literal once; leaving it to the fallback would encode the same string per record.
+            case StringFilterValue s when typeof(TValue) == typeof(byte[]):
+                result = (TValue)(object)System.Text.Encoding.UTF8.GetBytes(s.Value);
+                return true;
+
             case NumberFilterValue n:
                 return TryCoerceNumber(n.Value, out result);
 
@@ -198,6 +272,9 @@ sealed class ScalarAccessor<T, TValue>(Func<T, TValue> getter, Func<TValue, stri
 /// <c>-&gt;&gt;'$.path'</c> the renderer emits cannot disagree; the declarer supplies only the document.
 /// </summary>
 sealed class JsonAccessor<T>(Func<T, JsonNode?> document) : ColumnAccessor<T> {
+    // `->>` yields VARCHAR whatever the document holds, so a number literal cannot bind against it.
+    public override SqlTypeFamily SqlType => SqlTypeFamily.Text;
+
     public override Func<T, object?> Getter(string? key) {
         var read = document;
         return t => Read(read(t), key);
@@ -285,6 +362,8 @@ sealed class JsonAccessor<T>(Func<T, JsonNode?> document) : ColumnAccessor<T> {
 }
 
 sealed class KeyedAccessor<T>(Func<T, string?, object?> getter) : ColumnAccessor<T> {
+    public override SqlTypeFamily SqlType => SqlTypeFamily.Text;
+
     public override Func<T, object?> Getter(string? key) {
         var get = getter;
         return t => get(t, key);
@@ -294,6 +373,18 @@ sealed class KeyedAccessor<T>(Func<T, string?, object?> getter) : ColumnAccessor
         var get = getter;
         return t => ColumnText.Of(get(t, key));
     }
+}
+
+sealed class ByteSequenceComparer : IComparer<byte[]> {
+    public static readonly ByteSequenceComparer Instance = new();
+
+    public int Compare(byte[]? left, byte[]? right) =>
+        (left, right) switch {
+            (null, null) => 0,
+            (null, _)    => -1,
+            (_, null)    => 1,
+            _            => left.AsSpan().SequenceCompareTo(right)
+        };
 }
 
 /// <summary>
@@ -307,6 +398,8 @@ static class ColumnText {
             string text   => text,
             Guid guid     => guid.ToString("N"),
             DateTime date => date.ToString("O"),
+            // Matches hex(), the form a BLOB is displayed and round-tripped as.
+            byte[] bytes  => Convert.ToHexString(bytes),
             _             => value.ToString()
         };
 }

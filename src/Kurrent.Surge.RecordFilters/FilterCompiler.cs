@@ -44,10 +44,11 @@ static class FilterCompiler {
     static Func<T, bool?> Comparison<T>(ComparisonExpression expression, FilterSchema<T> schema) {
         var column = Resolve(expression.Property, schema, out var key);
 
-        if (column?.Accessor.BindComparison(expression.Op, expression.Value) is { } bound)
+        // The typed binding compares against the column's own value, so a transform rules it out.
+        if (expression.Property.IsBare && column?.Accessor.BindComparison(expression.Op, expression.Value) is { } bound)
             return bound;
 
-        var get   = Getter(column, key);
+        var get   = Getter(column, key, expression.Property);
         var right = expression.Value.GetValue();
         var op    = expression.Op;
 
@@ -64,14 +65,14 @@ static class FilterCompiler {
 
     // The only predicate that is never UNKNOWN — answering that question is what it is for.
     static Func<T, bool?> IsNull<T>(IsNullExpression expression, FilterSchema<T> schema) {
-        var get     = Getter(Resolve(expression.Property, schema, out var key), key);
+        var get     = Getter(Resolve(expression.Property, schema, out var key), key, expression.Property);
         var negated = expression.Negated;
 
         return t => get(t) is null ? !negated : negated;
     }
 
     static Func<T, bool?> Like<T>(LikeExpression expression, FilterSchema<T> schema) {
-        var get     = Getter(Resolve(expression.Property, schema, out var key), key);
+        var get     = Getter(Resolve(expression.Property, schema, out var key), key, expression.Property);
         var matches = LikePattern.Bind(expression.Pattern, expression.CaseInsensitive);
         var negated = expression.Negated;
 
@@ -85,7 +86,7 @@ static class FilterCompiler {
     }
 
     static Func<T, bool?> In<T>(InExpression expression, FilterSchema<T> schema) {
-        var get      = Getter(Resolve(expression.Property, schema, out var key), key);
+        var get      = Getter(Resolve(expression.Property, schema, out var key), key, expression.Property);
         var negated  = expression.Negated;
         var values   = expression.Values;
         var hasNulls = false;
@@ -130,10 +131,10 @@ static class FilterCompiler {
     static Func<T, bool?> Between<T>(BetweenExpression expression, FilterSchema<T> schema) {
         var column = Resolve(expression.Property, schema, out var key);
 
-        if (column?.Accessor.BindRange(expression.Lower, expression.Upper, expression.Negated) is { } bound)
+        if (expression.Property.IsBare && column?.Accessor.BindRange(expression.Lower, expression.Upper, expression.Negated) is { } bound)
             return bound;
 
-        var get     = Getter(column, key);
+        var get     = Getter(column, key, expression.Property);
         var low     = expression.Lower.GetValue();
         var high    = expression.Upper.GetValue();
         var negated = expression.Negated;
@@ -160,6 +161,71 @@ static class FilterCompiler {
     // Parse. The absent-reads-as-null arm remains as the safe answer for any other entry point.
     static Func<T, object?> Getter<T>(FilterColumn<T>? column, string? key) =>
         column is null ? _ => null : column.Accessor.Getter(key);
+
+    /// <summary>
+    /// Reads a column and applies the calls written around it. Each transform compiles to a delegate
+    /// once — the function body, its arguments and the cast target are all resolved here — so
+    /// evaluating a record is a chain of direct calls with nothing left to look up.
+    /// </summary>
+    static Func<T, object?> Getter<T>(FilterColumn<T>? column, string? key, PropertyAccess property) {
+        var get = Getter(column, key);
+
+        if (property.IsBare) return get;
+
+        var steps = new Func<object?, object?>[property.Transforms.Count];
+        for (var i = 0; i < steps.Length; i++)
+            steps[i] = Step(property.Transforms[i]);
+
+        // A single transform is the common case, so it skips the loop entirely.
+        if (steps.Length == 1) {
+            var only = steps[0];
+            return t => get(t) is { } value ? only(value) : null;
+        }
+
+        return t => {
+            var value = get(t);
+
+            // An array enumerates by struct, so this allocates nothing per record.
+            foreach (var step in steps) {
+                if (value is null) return null;
+                value = step(value);
+            }
+
+            return value;
+        };
+    }
+
+    static Func<object?, object?> Step(ColumnTransform transform) {
+        switch (transform) {
+            case CastTransform cast: {
+                var target = FilterFunctions.ResolveTarget(cast.TargetType);
+                var name   = cast.TargetType;
+                var strict = cast.Strict;
+
+                return value => {
+                    // DuckDB fails the query on a bad CAST rather than dropping the row, so a strict
+                    // cast raises here too. TRY_CAST is the NULL-returning form.
+                    if (FilterFunctions.TryCast(value, target, out var converted)) return converted;
+
+                    return strict ? throw FilterConversionException.Cast(value, name) : null;
+                };
+            }
+
+            case FunctionTransform function: {
+                var implementation = FilterFunctions.Resolve(function.Name);
+
+                // The arguments are literals, so they are read once rather than per record.
+                var arguments = new object?[function.Arguments.Count];
+                for (var i = 0; i < arguments.Length; i++)
+                    arguments[i] = function.Arguments[i].GetValue();
+
+                return value => implementation(value, arguments);
+            }
+
+            default:
+                throw new NotSupportedException($"Unhandled transform '{transform.GetType().Name}'.");
+        }
+    }
 
     static bool Apply(ComparisonOperator op, int comparison) =>
         op switch {

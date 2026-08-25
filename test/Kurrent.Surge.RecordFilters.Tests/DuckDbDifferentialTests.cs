@@ -20,6 +20,7 @@ public class DuckDbDifferentialTests : IDisposable {
         cmd.CommandText = """
         CREATE TABLE orders (
             stream          VARCHAR,
+            record_id       BLOB,
             stream_revision BIGINT,
             status          VARCHAR,
             amount          DECIMAL(18,2),
@@ -68,6 +69,7 @@ public class DuckDbDifferentialTests : IDisposable {
     static Order Row(string stream, long revision, string? status, decimal amount, int tick, (string Key, string Value)? tag, string? payload) =>
         new() {
             Stream    = stream,
+            RecordId  = IdFor(tick),
             Revision  = revision,
             Status    = status,
             Amount    = amount,
@@ -76,12 +78,22 @@ public class DuckDbDifferentialTests : IDisposable {
             Payload   = payload is null ? null : JsonNode.Parse(payload)
         };
 
+    // A deterministic 16-byte id per row: a fixed prefix so the hex face is readable, and the tick in
+    // the last byte so byte-wise order matches insertion order.
+    static byte[] IdFor(int tick) {
+        var bytes = new byte[16];
+        bytes[0]  = 0x4A;
+        bytes[15] = (byte)tick;
+        return bytes;
+    }
+
     static string InsertFor(Order order) {
         var tags = OrderSchema.TagsAsJson(order.Tags);
 
         return $"""
         INSERT INTO orders VALUES (
             {Text(order.Stream)},
+            from_hex('{Convert.ToHexString(order.RecordId)}'),
             {order.Revision},
             {Text(order.Status)},
             {order.Amount.ToString(CultureInfo.InvariantCulture)},
@@ -488,6 +500,206 @@ public class DuckDbDifferentialTests : IDisposable {
         "stream LIKE 'zzz%'",
         "stream IN ('nope')",
         "amount > 99999"
+    );
+
+    #endregion
+
+    #region . Functions on a column .
+
+    [Test]
+    public async ValueTask agrees_on_string_functions() => await AssertSameMatches(
+        "lower(status) = 'shipped'",
+        "upper(status) = 'SHIPPED'",
+        "lower(status) != 'shipped'",
+        "trim(status) = 'shipped'",
+        "lower(stream) LIKE 'orders%'",
+        "length(status) = 7",
+        "length(status) > 5"
+    );
+
+    [Test]
+    public async ValueTask agrees_on_predicate_functions() => await AssertSameMatches(
+        "starts_with(stream, 'orders') = true",
+        "ends_with(stream, '-1') = true",
+        "contains(stream, 'order') = true",
+        "starts_with(status, 'ship') = true"
+    );
+
+    // A function over a NULL column is NULL, so the predicate is UNKNOWN and the row drops out —
+    // including under a surrounding NOT.
+    [Test]
+    public async ValueTask agrees_on_functions_over_null_columns() => await AssertSameMatches(
+        "lower(status) = 'shipped'",
+        "NOT (lower(status) = 'shipped')",
+        "lower(status) IS NULL",
+        "lower(status) IS NOT NULL",
+        "length(status) > 0",
+        "lower(tags['region']) = 'us-east'",
+        "lower(tags['missing']) IS NULL"
+    );
+
+    [Test]
+    public async ValueTask agrees_on_functions_over_keyed_columns() => await AssertSameMatches(
+        "lower(tags['region']) = 'us-east'",
+        "upper(tags['region']) = 'US-EAST'",
+        "lower(payload.address.city) = 'lisbon'",
+        "lower(payload->>'priority') = '3'"
+    );
+
+    [Test]
+    public async ValueTask agrees_on_nested_calls() => await AssertSameMatches(
+        "lower(trim(status)) = 'shipped'",
+        "upper(lower(status)) = 'SHIPPED'"
+    );
+
+    #endregion
+
+    #region . Casts .
+
+    [Test]
+    public async ValueTask agrees_on_casts_written_either_way() => await AssertSameMatches(
+        "CAST(stream_revision AS VARCHAR) = '1'",
+        "stream_revision::VARCHAR = '1'",
+        "CAST(stream AS VARCHAR) = 'orders-1'",
+        "CAST(amount AS BIGINT) = 150",
+        "amount::BIGINT = 150"
+    );
+
+    [Test]
+    public async ValueTask agrees_on_try_cast_yielding_null() => await AssertSameMatches(
+        // TRY_CAST is the NULL-returning form: 'shipped' is not a number, so the row drops out.
+        "TRY_CAST(status AS BIGINT) = 1",
+        "TRY_CAST(status AS BIGINT) IS NULL",
+        "TRY_CAST(status AS BIGINT) IS NOT NULL"
+    );
+
+    // DuckDB fails the whole query on a bad CAST rather than dropping the row, so the client raises
+    // instead of silently selecting less.
+    [Test]
+    public async ValueTask raises_on_a_strict_cast_that_cannot_convert() {
+        // Arrange
+        var filter = OrderSchema.Default.Parse("CAST(status AS BIGINT) = 1");
+
+        var evaluate = () => {
+            foreach (var order in Seed) filter.IsMatch(order);
+        };
+
+        // Act + Assert
+        await Assert.That(evaluate).Throws<FilterConversionException>();
+        await Assert.That(() => QueryStreams(filter.ToSql())).Throws<Exception>();
+    }
+
+    #endregion
+
+    #region . Constant folding .
+
+    [Test]
+    public async ValueTask agrees_when_a_call_folds_to_a_constant() => await AssertSameMatches(
+        $"created_at >= epoch_ms(TIMESTAMP '{Epoch.AddSeconds(4):yyyy-MM-dd HH:mm:ss}')",
+        $"created_at < epoch_ms(TIMESTAMP '{Epoch.AddSeconds(4):yyyy-MM-dd HH:mm:ss}')",
+        $"created_at = epoch_ms(TIMESTAMP '{Epoch:yyyy-MM-dd HH:mm:ss}')",
+        $"created_at BETWEEN epoch_ms(TIMESTAMP '{Epoch:yyyy-MM-dd HH:mm:ss}') AND epoch_ms(TIMESTAMP '{Epoch.AddSeconds(3):yyyy-MM-dd HH:mm:ss}')"
+    );
+
+    [Test]
+    public async ValueTask agrees_when_a_literal_cast_folds() => await AssertSameMatches(
+        "stream_revision = '3'::BIGINT",
+        "stream_revision > CAST('5' AS BIGINT)"
+    );
+
+    #endregion
+
+    #region . Parameters .
+
+    // A bound value has to render to SQL DuckDB accepts, and select the same rows the client does.
+    [Test]
+    public async ValueTask agrees_when_values_are_bound() {
+        // Arrange
+        (string Expression, FilterParameters Parameters)[] cases = [
+            ("stream = @s",                      new FilterParameters().Add("s", "orders-1")),
+            ("status = @s OR stream = @s",       new FilterParameters().Add("s", "shipped")),
+            ("stream_revision > @from",          new FilterParameters().Add("from", 5L)),
+            ("amount BETWEEN @low AND @high",    new FilterParameters().Add("low", 0m).Add("high", 150m)),
+            ("record_id = @id",                  new FilterParameters().Add("id", IdFor(3))),
+            ("created_at > @since",              new FilterParameters().Add("since", Epoch.AddSeconds(4))),
+            ("status = @s",                      new FilterParameters().Add("s", "it's")),
+            ("status = @s",                      new FilterParameters().Add("s", "o' OR 1=1 --")),
+            ("tags['region'] = @r",              new FilterParameters().Add("r", "apac")),
+            ("status IN (@a, @b)",               new FilterParameters().Add("a", "shipped").Add("b", "pending"))
+        ];
+
+        var divergences = new List<string>();
+
+        // Act
+        foreach (var (expression, parameters) in cases) {
+            var filter = OrderSchema.Default.Parse(expression, parameters);
+            var sql    = filter.ToSql();
+
+            var fromDuckDb = QueryStreams(sql);
+            var fromDotNet = Seed.Where(filter.IsMatch).Select(o => o.Stream).Order().ToArray();
+
+            if (!fromDuckDb.SequenceEqual(fromDotNet, StringComparer.Ordinal)) {
+                divergences.Add(
+                    $"{expression}  [sql: {sql}]{Environment.NewLine}" +
+                    $"    duckdb: {string.Join(", ", fromDuckDb)}{Environment.NewLine}" +
+                    $"    dotnet: {string.Join(", ", fromDotNet)}");
+            }
+        }
+
+        // Assert
+        await Assert.That(divergences).IsEmpty();
+    }
+
+    #endregion
+
+    #region . Blob columns .
+
+    // record_id is a BLOB on the server, so the column carries bytes and every face of it comes from
+    // DuckDB's own functions rather than from anything the engine knows about identifiers.
+    [Test]
+    public async ValueTask agrees_on_blob_equality() => await AssertSameMatches(
+        $"record_id = from_hex('{Convert.ToHexString(IdFor(0))}')",
+        $"record_id = from_hex('{Convert.ToHexString(IdFor(7))}')",
+        $"record_id != from_hex('{Convert.ToHexString(IdFor(0))}')",
+        "record_id = from_hex('00000000000000000000000000000000')",
+        "record_id IS NULL",
+        "record_id IS NOT NULL",
+
+        // A bare string is not a blob literal. DuckDB compares the text's own bytes and matches
+        // nothing; the hex face has to be asked for with hex() or from_hex().
+        $"record_id = '{Convert.ToHexString(IdFor(0))}'",
+        "record_id = 'anything'"
+    );
+
+    [Test]
+    public async ValueTask agrees_on_blob_ordering() => await AssertSameMatches(
+        $"record_id > from_hex('{Convert.ToHexString(IdFor(5))}')",
+        $"record_id <= from_hex('{Convert.ToHexString(IdFor(5))}')",
+        $"record_id BETWEEN from_hex('{Convert.ToHexString(IdFor(2))}') AND from_hex('{Convert.ToHexString(IdFor(6))}')"
+    );
+
+    [Test]
+    public async ValueTask agrees_on_the_hex_face_of_a_blob() => await AssertSameMatches(
+        $"hex(record_id) = '{Convert.ToHexString(IdFor(3))}'",
+        "hex(record_id) LIKE '4A%'",
+        "lower(hex(record_id)) LIKE '4a%'",
+        "hex(record_id) = 'nope'"
+    );
+
+    [Test]
+    public async ValueTask agrees_on_the_uuid_face_of_a_blob() => await AssertSameMatches(
+        "CAST(record_id AS UUID) = '4a000000-0000-0000-0000-000000000001'",
+        "record_id::UUID = '4a000000-0000-0000-0000-000000000009'",
+        "CAST(record_id AS UUID) = '00000000-0000-0000-0000-000000000000'"
+    );
+
+    // CAST(blob AS VARCHAR) is the escaped-byte form, not the hex or UUID one: printable bytes stay,
+    // everything else becomes \xNN. 0x4A is 'J', which is why the prefix reads that way.
+    [Test]
+    public async ValueTask agrees_on_the_text_face_of_a_blob() => await AssertSameMatches(
+        @"CAST(record_id AS VARCHAR) = 'J\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01'",
+        "CAST(record_id AS VARCHAR) LIKE 'J%'",
+        "record_id::VARCHAR LIKE 'J%'"
     );
 
     #endregion

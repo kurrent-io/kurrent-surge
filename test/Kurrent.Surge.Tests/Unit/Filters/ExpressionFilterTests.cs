@@ -784,54 +784,42 @@ public class ExpressionFilterTests {
 
     #endregion
 
-    #region Record Prefix Stripping
+    #region Record Prefix Rejection
 
-    [Test]
-    public async Task evaluates_rec_prefixed_stream() {
-        // Arrange
-        var filter      = Parse("rec.stream = 'orders-99'");
-        var matching    = _faker.With("orders-99");
-        var nonMatching = _faker.With("payments-1");
-
-        // Act & Assert
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+    public sealed class RecPrefixedColumns : TestCaseDataGenerator<string> {
+        protected override IEnumerable<TestCase<string>> Data() {
+            yield return new("rec.stream = 'orders-99'",              "stream");
+            yield return new("rec.category = 'orders'",               "category");
+            yield return new("rec.schema_name = 'OrderPlaced'",       "schema_name");
+            yield return new("rec.properties['region'] = 'us-east'",  "metadata key");
+        }
     }
 
     [Test]
-    public async Task evaluates_rec_prefixed_category() {
-        // Arrange
-        var filter      = Parse("rec.category = 'orders'");
-        var matching    = _faker.With("orders-abc123");
-        var nonMatching = _faker.With("payments-1");
-
+    [RecPrefixedColumns]
+    public async Task rejects_rec_prefixed_column(string expression) {
         // Act & Assert
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+        await Assert.That(() => Parse(expression)).Throws<FilterFormatException>();
+    }
+
+    #endregion
+
+    #region Scalar Field Access
+
+    public sealed class ScalarFieldColumns : TestCaseDataGenerator<string> {
+        protected override IEnumerable<TestCase<string>> Data() {
+            yield return new("schema.name = 'OrderPlaced'",   "dotted path onto an alias");
+            yield return new("stream.category = 'orders'",    "dotted path onto a canonical column");
+            yield return new("stream['category'] = 'orders'", "bracket key");
+            yield return new("stream->>'category' = 'orders'", "arrow key");
+        }
     }
 
     [Test]
-    public async Task evaluates_rec_prefixed_schema_name() {
-        // Arrange
-        var filter      = Parse("rec.schema_name = 'OrderPlaced'");
-        var matching    = _faker.With(schemaName: "OrderPlaced");
-        var nonMatching = _faker.With(schemaName: "OrderShipped");
-
+    [ScalarFieldColumns]
+    public async Task rejects_a_field_read_from_a_scalar_column(string expression) {
         // Act & Assert
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
-    }
-
-    [Test]
-    public async Task evaluates_rec_prefixed_metadata_key() {
-        // Arrange
-        var filter      = Parse("rec.properties['region'] = 'us-east'");
-        var matching    = _faker.With(metadata: new Metadata().With("region", "us-east"));
-        var nonMatching = _faker.With(metadata: new Metadata().With("region", "eu-west"));
-
-        // Act & Assert
-        await Assert.That(filter.IsMatch(matching)).IsTrue();
-        await Assert.That(filter.IsMatch(nonMatching)).IsFalse();
+        await Assert.That(() => Parse(expression)).Throws<FilterFormatException>();
     }
 
     #endregion

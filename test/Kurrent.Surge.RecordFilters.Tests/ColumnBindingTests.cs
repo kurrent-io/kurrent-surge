@@ -166,6 +166,16 @@ public class ColumnBindingTests {
     }
 
     [Test]
+    public async ValueTask refuses_to_bind_a_field_of_a_scalar_column() {
+        // Arrange & Act
+        var bound = Bound.TryBind("stream.region", out var read);
+
+        // Assert
+        await Assert.That(bound).IsFalse();
+        await Assert.That(read).IsNull();
+    }
+
+    [Test]
     public async ValueTask refuses_to_bind_a_malformed_path() {
         // Arrange & Act
         var bound = Bound.TryBind("!!!invalid", out var read);

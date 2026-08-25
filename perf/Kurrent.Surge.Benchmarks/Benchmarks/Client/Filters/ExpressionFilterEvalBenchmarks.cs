@@ -118,6 +118,18 @@ public class ExpressionFilterEvalBenchmarks {
             new("like-complex-hit", "stream LIKE 'order_-%'",
                 () => faker.With(stream: "orders-123")),
 
+            // Transforms: a call on a column, evaluated once per record.
+            new("fn-lower-hit", "lower(stream) = 'orders-123'",
+                () => faker.With(stream: "ORDERS-123")),
+            new("fn-lower-miss", "lower(stream) = 'orders-123'",
+                () => faker.With(stream: "ORDERS-999")),
+            new("fn-nested-hit", "lower(trim(stream)) = 'orders-123'",
+                () => faker.With(stream: "ORDERS-123")),
+            new("cast-hit", "CAST(revision AS VARCHAR) = '42'",
+                () => faker.With(streamRevision: 42)),
+            new("cast-miss", "CAST(revision AS VARCHAR) = '42'",
+                () => faker.With(streamRevision: 7)),
+
             // IN with larger set (FrozenSet benefit)
             new("in-large-hit",
                 "schema IN ('OrderCreated', 'OrderUpdated', 'OrderShipped', 'OrderCancelled', 'OrderRefunded', 'OrderArchived', 'OrderPlaced', 'OrderConfirmed')",
