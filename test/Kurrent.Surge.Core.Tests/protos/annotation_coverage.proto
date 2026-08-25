@@ -1,0 +1,46 @@
+// Every fact the x-protobuf annotation claims to carry, in one schema, so the minimality gate has
+// something to lose for each key. The probe schema is proto3 and documents nothing, which leaves nine
+// keys untested there — a key that survives because nothing exercises it is not a redundant key.
+
+syntax = "proto2";
+
+package coverage;
+
+// A detached block. The blank line below is what detaches it from the message.
+
+// The order a customer placed.
+message Coverage {
+  // Compatibility holes left by fields that were deleted.
+  reserved 7, 9 to 11;
+  reserved "legacy_total", "old_status";
+
+  // Present on the wire whatever else is true.
+  required string order_id = 1;
+
+  // Explicitly optional, which proto2 distinguishes from implicit presence.
+  optional string region = 2;
+
+  // The JSON name the mapping would derive is 'httpUrl', so this override is not invertible.
+  optional string http_url = 3 [json_name = "url"];
+
+  optional Priority priority = 4; // Trailing, on the same line as the declaration.
+
+  repeated string labels = 5;
+
+  map<int32, string> totals = 6;
+
+  oneof source {
+    string web    = 12;
+    string mobile = 13;
+  }
+}
+
+// Two names on one number, and numbers that are not their own ordinals.
+enum Priority {
+  option allow_alias = true;
+
+  PRIORITY_UNSPECIFIED = 0;
+  PRIORITY_NORMAL      = 5;
+  PRIORITY_DEFAULT     = 5;
+  PRIORITY_HIGH        = 9;
+}

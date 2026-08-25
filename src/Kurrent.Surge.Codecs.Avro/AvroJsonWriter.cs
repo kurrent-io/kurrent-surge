@@ -58,7 +58,7 @@ public sealed class AvroJsonWriter {
     /// larger document. The writer is not flushed — the caller owns it.
     /// </remarks>
     /// <exception cref="InvalidDataException">The payload does not match the schema.</exception>
-    public void Write(ReadOnlyMemory<byte> data, Utf8JsonWriter writer) {
+    void Write(ReadOnlyMemory<byte> data, Utf8JsonWriter writer) {
         ArgumentNullException.ThrowIfNull(writer);
 
         WriteValue(_schema.Root, new AvroBinaryDecoder(data), writer);

@@ -319,9 +319,10 @@ public sealed class ProtobufJsonWriter {
 
         // Last occurrence wins. The format allows a singular field to repeat, and every
         // implementation keeps the final value.
-        foreach (var slice in slices)
+        foreach (var slice in slices) {
             if (slice.Number == field.FieldNumber)
                 start = slice.Start;
+        }
 
         WriteValue(data[start..], field, writer, depth, offset);
     }

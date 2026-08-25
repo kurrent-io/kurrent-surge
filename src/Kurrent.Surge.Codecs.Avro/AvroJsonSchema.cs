@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Codecs.Avro.Generators.Model;
+using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Codecs.Avro;
 

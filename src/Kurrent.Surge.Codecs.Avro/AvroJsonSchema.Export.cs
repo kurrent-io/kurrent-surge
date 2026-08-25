@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Codecs.Avro.Generators.Model;
+using Kurrent.Surge.Schema;
 using AvroJsonKind = Kurrent.Surge.Codecs.Avro.Generators.Json.JsonKind;
 using AvroJsonValue = Kurrent.Surge.Codecs.Avro.Generators.Json.JsonValue;
 using JsonParser = Kurrent.Surge.Codecs.Avro.Generators.Json.JsonParser;

@@ -30,7 +30,7 @@ static class ProtobufExtensions {
     extension(MessageDescriptor descriptor) {
         public bool TryGetMessageExtensionValue<TValue>(Extension<MessageOptions, TValue> extension, out TValue? value) where TValue : IMessage {
             var options = descriptor.GetOptions();
-
+            
             if (options?.HasExtension(extension) ?? false) {
                 value = options.GetExtension(extension);
                 return true;

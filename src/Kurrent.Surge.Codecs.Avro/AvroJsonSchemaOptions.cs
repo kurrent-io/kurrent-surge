@@ -1,3 +1,5 @@
+using Kurrent.Surge.Schema;
+
 namespace Kurrent.Surge.Codecs.Avro;
 
 /// <summary>

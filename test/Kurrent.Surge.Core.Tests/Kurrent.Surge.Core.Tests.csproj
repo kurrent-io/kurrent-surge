@@ -3,11 +3,16 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <ProbeProtoRoot>$(MSBuildProjectDirectory)/protos</ProbeProtoRoot>
+        <RepositoryProtoRoot>$(MSBuildProjectDirectory)/../../proto</RepositoryProtoRoot>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
         <ProjectReference Include="..\Kurrent.Surge.Testkit\Kurrent.Surge.Testkit.csproj" />
+
+        <!-- The validator the schema registry runs. An exported schema is measured against it rather
+             than against a second implementation that may be more forgiving. -->
+        <ProjectReference Include="..\..\src\Kurrent.Surge.Schema.Validation\Kurrent.Surge.Schema.Validation.csproj" />
     </ItemGroup>
 
     <ItemGroup>
@@ -30,6 +35,36 @@
         <!-- proto2, for the group wire form the proto3 schema cannot express. -->
         <Protobuf Include="$(ProbeProtoRoot)/transcoder_groups.proto" ProtoRoot="$(ProbeProtoRoot)" GrpcServices="None" />
         <None Include="$(ProbeProtoRoot)/transcoder_groups.proto" CopyToOutputDirectory="PreserveNewest" LinkBase="protos" />
+
+        <!-- Text only. Nothing transcodes this one — it exists so the annotation minimality gate has a
+             schema that uses reserved ranges, an aliased enum, a json_name override and comments. -->
+        <None Include="$(ProbeProtoRoot)/annotation_coverage.proto" CopyToOutputDirectory="PreserveNewest" LinkBase="protos" />
+    </ItemGroup>
+
+    <ItemGroup Label="Arrow Flight typed oracle">
+        <!-- Compiled so a payload can be built and diffed against Google's own formatter. The same
+             files are read as text below, which is what makes the comparison mean anything: one side
+             holds types generated at build time, the other resolves the schema at run time. -->
+        <Protobuf Include="$(ProbeProtoRoot)/arrow/flight/protocol/Flight.proto" ProtoRoot="$(ProbeProtoRoot)" GrpcServices="None" />
+        <Protobuf Include="$(ProbeProtoRoot)/arrow/flight/protocol/sql/FlightSql.proto" ProtoRoot="$(ProbeProtoRoot)" GrpcServices="None" />
+    </ItemGroup>
+
+    <ItemGroup Label="Arrow Flight schema corpus">
+        <!-- Third-party protocol, text only. Two independent files carrying 54 named types, 22 of them
+             enums — the scale the two hand-written fixtures cannot reach. Kept apart from the
+             repository corpus because it is not this repository's schema. -->
+        <!-- Update rather than Include, because the SDK's default None glob already owns anything under
+             the project directory, and the path is relative because Update matches the item specs that
+             glob produced. No LinkBase: it is only honoured for items defined outside the project
+             directory, so these land at their own relative path and that is the path the test reads. -->
+        <None Update="protos/arrow/**/*.proto" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+    <ItemGroup Label="Repository schema corpus">
+        <!-- Text only, never compiled. These are the schemas the parser is measured against, and
+             generating types for them would collide with the protocol types the SDK already carries.
+             The directory layout is preserved because an import resolves by path. -->
+        <None Include="$(RepositoryProtoRoot)/**/*.proto" CopyToOutputDirectory="PreserveNewest" LinkBase="corpus" />
     </ItemGroup>
 
 </Project>

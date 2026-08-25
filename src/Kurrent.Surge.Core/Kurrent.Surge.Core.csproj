@@ -82,6 +82,7 @@
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Surge" />
     <InternalsVisibleTo Include="Kurrent.Surge.Arrow" />
+    <InternalsVisibleTo Include="Kurrent.Surge.Schema.Validation" />
     <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
     <InternalsVisibleTo Include="Kurrent.Projectors.DuckDB.Tests" />
@@ -93,6 +94,7 @@
   <ItemGroup>
     <Folder Include="Client\Modules\Streams\Filters\ExpressionFilter\" />
     <Folder Include="Experimental\Components\" />
+    <Folder Include="Schema\Codecs\Protobuf\Experimental\" />
   </ItemGroup>
 
 </Project>

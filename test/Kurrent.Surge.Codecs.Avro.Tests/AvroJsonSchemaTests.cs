@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Kurrent.Surge.Codecs.Avro.Generators.Model;
+using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Validation;
 using AvroJsonKind = Kurrent.Surge.Codecs.Avro.Generators.Json.JsonKind;
 using AvroJsonValue = Kurrent.Surge.Codecs.Avro.Generators.Json.JsonValue;
