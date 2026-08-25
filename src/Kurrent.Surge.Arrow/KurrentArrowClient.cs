@@ -8,7 +8,7 @@ using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 
-namespace Kurrent;
+namespace Kurrent.Surge.Arrow;
 
 /// <summary>
 /// Executes read-only SQL over a KurrentDB node via the Arrow Flight SQL protocol and streams the
@@ -22,29 +22,85 @@ namespace Kurrent;
 /// <para>
 /// Rows from <c>kdb.records</c> map onto the SDK's <see cref="Record"/> so queried records decode
 /// (<see cref="Record.Decode"/>/<see cref="Record.As{T}"/>) exactly like records from reads and
-/// subscriptions. A <see cref="KurrentClient"/> is created internally to reuse the SDK serializer
-/// pipeline.
+/// subscriptions.
 /// </para>
 /// </remarks>
-public sealed class Queries : IAsyncDisposable {
-    readonly FlightSqlDriver _driver = new();
-    readonly KurrentClient   _client;
-    readonly IRecordDecoder  _decoder;
-    readonly string          _serverAddress;
+[PublicAPI]
+public sealed class KurrentArrowClient : IAsyncDisposable {
+    readonly FlightSqlDriver      _driver = new();
+    readonly KurrentArrowOptions  _options;
+    readonly string               _serverAddress;
+    readonly Lazy<IRecordDecoder> _decoder;
 
-    public Queries(string connectionString) {
+    KurrentClient? _ownedClient;
+
+    KurrentArrowClient(KurrentArrowOptions options, IRecordDecoder? decoder) {
+        _options       = options;
+        _serverAddress = ResolveServerAddress(options);
+
+        // Built on first use: Query<T> with an explicit mapper never touches the decoder, so a
+        // client that only runs projections never pays for a KurrentClient.
+        _decoder = new(() => decoder ?? OwnDecoder());
+
+        IRecordDecoder OwnDecoder() {
+            _ownedClient = KurrentClient.Create(options.ToClientOptions());
+            return _ownedClient.ReadPipeline;
+        }
+    }
+
+    /// <summary>
+    /// Creates a client from a pre-built <see cref="KurrentArrowOptions"/> instance.
+    /// </summary>
+    public static KurrentArrowClient Create(KurrentArrowOptions options) => new(options, decoder: null);
+
+    /// <summary>
+    /// Creates a client from a KurrentDB connection string, optionally tuned before construction.
+    /// </summary>
+    public static KurrentArrowClient Create(string connectionString, Action<KurrentArrowOptions>? configure = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
-        // The KurrentDB connection string (kurrentdb://user:pass@host:port?tls=...) drives both the
-        // Flight SQL endpoint and schema decoding. The .NET ADBC driver talks plain HTTP/2, so the
-        // scheme is translated: tls=false -> http://, otherwise https://.
-        var uri = new Uri(connectionString);
-        var tls = !uri.Query.Contains("tls=false", StringComparison.OrdinalIgnoreCase);
-        _serverAddress = $"{(tls ? "https" : "http")}://{uri.Host}:{uri.Port}";
+        var options = KurrentArrowOptions.Parse(connectionString);
 
-        _client  = KurrentClient.Create(connectionString);
-        _decoder = _client.ReadPipeline;
+        configure?.Invoke(options);
+
+        return Create(options);
     }
+
+    /// <summary>
+    /// Creates a client that decodes through an existing pipeline instead of building its own.
+    /// </summary>
+    internal static KurrentArrowClient Create(KurrentArrowOptions options, IRecordDecoder decoder) =>
+        new(options, decoder);
+
+    static string ResolveServerAddress(KurrentArrowOptions options) {
+        var connection = options.ToClientOptions();
+
+        // KurrentClientOptions.Address only names a real host:port for a single direct endpoint;
+        // under discovery it returns a synthetic kurrentdb+discover:// URI that Grpc.Net.Client
+        // cannot resolve. The ADBC driver builds its channel from a bare address with no resolver,
+        // so a cluster connection has no node to address until the driver is replaced.
+        if (connection.ConnectionScheme != KurrentConnectionScheme.Direct || connection.Endpoints.Length != 1)
+            throw new InvalidOperationException(
+                "Flight SQL requires a single node address. Use a direct kurrentdb:// connection string; discovery is not supported yet.");
+
+        return connection.Address.GetLeftPart(UriPartial.Authority);
+    }
+
+    AdbcConnection CreateConnection() =>
+        _driver.CreateConnection(
+            _serverAddress,
+            parameters => {
+                if (BuildAuthorizationHeader(_options.ToClientOptions()) is { } authorization)
+                    parameters[FlightSqlParameters.Authorization] = authorization;
+            });
+
+    // The driver forwards its "authorization" parameter verbatim as gRPC call metadata, so the value
+    // is a complete HTTP Authorization header. Mirrors the header the SDK's own channel sends in
+    // ClusterChannel — keep the two in step.
+    static string? BuildAuthorizationHeader(KurrentClientOptions connection) =>
+        connection.Security.Authentication.Value is BasicCredentials basic
+            ? $"Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{basic.Username}:{basic.Password}"))}"
+            : null;
 
     /// <summary>
     /// Runs a SELECT over <c>kdb.records</c> and maps each row to an SDK <see cref="Record"/>.
@@ -55,7 +111,7 @@ public sealed class Queries : IAsyncDisposable {
     ) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
 
-        await using var connection = _driver.CreateConnection(_serverAddress);
+        await using var connection = CreateConnection();
         await connection.OpenAsync(ct).ConfigureAwait(false);
 
         await using var command = connection.CreateCommand();
@@ -65,8 +121,16 @@ public sealed class Queries : IAsyncDisposable {
         await using var reader = await command.ExecuteReaderAsync(ct).ConfigureAwait(false);
 
         var columns = ColumnSet(reader);
-        while (await reader.ReadAsync(ct).ConfigureAwait(false))
-            yield return MapRecord(reader, columns, _decoder);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false)) {
+            var record = MapRecord(reader, columns, _decoder.Value);
+
+            // Same contract as the read path: the decoder always travels with the record and
+            // SkipDecoding only defers materializing the payload.
+            if (!_options.SkipDecoding)
+                await record.TryDecode(ct).ConfigureAwait(false);
+
+            yield return record;
+        }
     }
 
     /// <summary>
@@ -78,7 +142,7 @@ public sealed class Queries : IAsyncDisposable {
     ) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
 
-        await using var connection = _driver.CreateConnection(_serverAddress);
+        await using var connection = CreateConnection();
         await connection.OpenAsync(ct).ConfigureAwait(false);
 
         await using var command = connection.CreateCommand();
@@ -165,6 +229,8 @@ public sealed class Queries : IAsyncDisposable {
 
     public async ValueTask DisposeAsync() {
         _driver.Dispose();
-        await _client.DisposeAsync().ConfigureAwait(false);
+
+        if (_ownedClient is { } client)
+            await client.DisposeAsync().ConfigureAwait(false);
     }
 }

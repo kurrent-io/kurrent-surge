@@ -10,7 +10,7 @@ public class FlightSqlLinqTests {
     [ClassDataSource<ArrowFixture>(Shared = SharedType.PerTestSession)]
     public required ArrowFixture Fixture { get; [UsedImplicitly] init; }
 
-    Queries NewQueries() => new(Fixture.ConnectionString);
+    KurrentArrowClient NewQueries() => KurrentArrowClient.Create(Fixture.ConnectionString);
 
     // SELECT * so the full Record can be reconstructed; ordered by revision so the positional LINQ
     // operators (Take/Skip/TakeWhile/SkipWhile) are deterministic.
@@ -19,7 +19,7 @@ public class FlightSqlLinqTests {
 
     // The DuckDB-backed secondary index is eventually consistent, so wait until all appended records
     // are visible before exercising the operators (bounded by the test timeout).
-    static async Task WaitUntilIndexed(Queries queries, string stream, int expected, CancellationToken ct) {
+    static async Task WaitUntilIndexed(KurrentArrowClient queries, string stream, int expected, CancellationToken ct) {
         while (true) {
             ct.ThrowIfCancellationRequested();
 
@@ -49,7 +49,7 @@ public class FlightSqlLinqTests {
         var record = await queries.Query(SelectStream(stream.ToString()), ct).FirstAsync(ct);
 
         // Assert — the kdb.records row reconstructs a full SDK Record (Data is raw bytes).
-        await Assert.That(record.Id).IsNotEqualTo(Guid.Empty);
+        await Assert.That(record.Id).IsNotEqualTo(RecordId.None);
         await Assert.That(record.Stream).IsEqualTo(stream);
         await Assert.That(record.Revision).IsEqualTo(Revision.From(0));
         await Assert.That(record.Timestamp).IsNotEqualTo(default(DateTime));

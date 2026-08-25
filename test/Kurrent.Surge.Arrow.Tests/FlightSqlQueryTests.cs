@@ -60,7 +60,7 @@ public class FlightSqlQueryTests {
         var stream = seeded.Stream.ToString();
         var sql    = $"SELECT stream FROM kdb.records WHERE stream = '{stream}'";
 
-        await using var queries = new Queries(Fixture.ConnectionString);
+        await using var queries = KurrentArrowClient.Create(Fixture.ConnectionString);
 
         // Act — Query maps rows to the SDK Record; project the stream name back out.
         var streams = await ReadUntilNonEmpty(
