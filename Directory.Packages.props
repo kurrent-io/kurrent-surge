@@ -29,6 +29,14 @@
     <PackageVersion Include="Grpc.Tools" Version="2.81.0" />
     <PackageVersion Include="Humanizer.Core" Version="3.0.10" />
     <PackageVersion Include="Jint" Version="4.4.1" />
+    <!-- Second schema validator, alongside NJsonSchema. Draft 6 and up only; NJsonSchema stays
+         for draft-4.
+         Pinned to the last MIT release. From 9.0.0 the package ships under an Open Source
+         Maintenance Fee EULA that bills revenue-generating organisations. 9.0.0 carried no code
+         change, so this is functionally that release.
+         The chain stays MIT with it: JsonPointer.Net 6.0.1 and Json.More.Net 2.2.0. Do not raise
+         any of the three without checking the licence on the target version. -->
+    <PackageVersion Include="JsonSchema.Net" Version="8.0.5" />
     <PackageVersion Include="kurrent.quack" Version="0.0.0-alpha.176" />
     <PackageVersion Include="MessagePack" Version="3.1.8" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.11" />

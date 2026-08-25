@@ -10,7 +10,7 @@ using NJsonSchema;
 
 namespace Kurrent.Surge.Schema.Validation;
 
-public delegate SchemaCompatibilityResult CheckSchemaCompatibility(JsonSchema reference, JsonSchema uncheckedSchema);
+delegate SchemaCompatibilityResult CheckSchemaCompatibility(JsonSchema reference, JsonSchema uncheckedSchema);
 
 [PublicAPI]
 public class NJsonSchemaCompatibilityManager : SchemaCompatibilityManagerBase {
@@ -204,8 +204,8 @@ internal static class SchemaCompatibilityChecker {
 				Kind = SchemaCompatibilityErrorKind.IncompatibleTypeChange,
 				PropertyPath = propertyPath,
 				Details = "Property has incompatible type change",
-				OriginalType = schema1.Type,
-				NewType = schema2.Type
+				OriginalType = NJsonSchemaMappings.MapValueType(schema1.Type),
+				NewType = NJsonSchemaMappings.MapValueType(schema2.Type)
 			});
 	}
 
@@ -262,8 +262,8 @@ internal static class SchemaCompatibilityChecker {
 				Kind = SchemaCompatibilityErrorKind.ArrayTypeIncompatibility,
 				PropertyPath = propertyPath,
 				Details = "Array items have incompatible type change",
-				OriginalType = resolvedReferenceItem.Type,
-				NewType = resolvedUncheckedItem.Type
+				OriginalType = NJsonSchemaMappings.MapValueType(resolvedReferenceItem.Type),
+				NewType = NJsonSchemaMappings.MapValueType(resolvedUncheckedItem.Type)
 			});
 		}
 
@@ -289,8 +289,8 @@ internal static class SchemaCompatibilityChecker {
 				Kind = SchemaCompatibilityErrorKind.ArrayTypeIncompatibility,
 				PropertyPath = propertyPath,
 				Details = "Array items have incompatible type change",
-				OriginalType = resolvedUncheckedItem.Type,
-				NewType = resolvedReferenceItem.Type
+				OriginalType = NJsonSchemaMappings.MapValueType(resolvedUncheckedItem.Type),
+				NewType = NJsonSchemaMappings.MapValueType(resolvedReferenceItem.Type)
 			});
 		}
 

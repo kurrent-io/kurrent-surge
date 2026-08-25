@@ -67,6 +67,7 @@
     <Project Path="test/Kurrent.Surge.Cli.Tests/Kurrent.Surge.Cli.Tests.csproj" />
     <Project Path="test/Kurrent.Surge.Schema.Catalogs.Tests.Samples/Kurrent.Surge.Schema.Catalogs.Tests.Samples.csproj" />
     <Project Path="test/Kurrent.Surge.Schema.Catalogs.Tests/Kurrent.Surge.Schema.Catalogs.Tests.csproj" />
+    <Project Path="test/Kurrent.Surge.Schema.Validation.Tests/Kurrent.Surge.Schema.Validation.Tests.csproj" />
     <Project Path="test/Kurrent.Surge.Arrow.Tests/Kurrent.Surge.Arrow.Tests.csproj" />
   </Folder>
   <Folder Name="/Extensions/AI/">

@@ -1,8 +1,6 @@
 // Copyright (c) Kurrent, Inc and/or licensed to Kurrent, Inc under one or more agreements.
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
-using NJsonSchema;
-
 namespace Kurrent.Surge.Schema.Validation;
 
 public record SchemaCompatibilityResult {
@@ -29,8 +27,15 @@ public record SchemaCompatibilityError {
     public SchemaCompatibilityErrorKind Kind         { get; init; }
     public string                       PropertyPath { get; init; } = "";
     public string                       Details      { get; init; } = "";
-    public JsonObjectType?              OriginalType { get; init; }
-    public JsonObjectType?              NewType      { get; init; }
+    /// <summary>
+    /// Gets the type the reference schema declares for the property; otherwise, <c>null</c>.
+    /// </summary>
+    public SchemaValueType? OriginalType { get; init; }
+
+    /// <summary>
+    /// Gets the type the schema under test declares for the property; otherwise, <c>null</c>.
+    /// </summary>
+    public SchemaValueType? NewType { get; init; }
 
     public override string ToString() =>
         $"{Kind} at '{PropertyPath}': {Details}";

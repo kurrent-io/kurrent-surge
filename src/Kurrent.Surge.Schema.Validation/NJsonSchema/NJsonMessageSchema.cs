@@ -44,5 +44,5 @@ public class NJsonMessageSchema(string schemaDefinition, JsonSchema schema, Json
         Validate(Serializer.Serialize(data).Span);
 
     public override SchemaCompatibilityResult IsCompatible(MessageSchema other, SchemaCompatibilityMode mode) =>
-        NJsonSchemaCompatibilityManager.CheckCompatibility(Schema, ((NJsonMessageSchema)other).Schema, mode);
+        NJsonSchemaCompatibilityManager.CheckCompatibility(((NJsonMessageSchema)other).Schema, Schema, mode);
 }
