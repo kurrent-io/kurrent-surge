@@ -44,8 +44,6 @@ public sealed class ProtoSchemaSet {
     /// <exception cref="ProtoParseException">A schema could not be parsed.</exception>
     /// <exception cref="ArgumentException">An import cannot be resolved, or the set is not a valid schema.</exception>
     public static ProtoSchemaSet Build(params ProtoFile[] files) {
-        ArgumentNullException.ThrowIfNull(files);
-
         if (files.Length == 0) throw new ArgumentException("At least one schema is required.", nameof(files));
 
         var sources = files.ToDictionary(file => file.Name, file => file.Content, StringComparer.Ordinal);

@@ -16,25 +16,30 @@ into Google.Protobuf.
 
 ## Performance
 
-Apple M2 Max, .NET 10.0.9 Arm64, BenchmarkDotNet 0.15.8 at default warmup and iteration counts.
-`Lines` is the number of nested messages in the payload, so it scales both size and depth. Standard
-deviation stays under 1% of the mean on every row.
+Apple M2 Max, macOS 26.3.1, .NET SDK 10.0.301 on .NET 10.0.9 Arm64, BenchmarkDotNet 0.15.8 at default
+warmup and iteration counts. Measured 2026-08-26. `Lines` is the number of nested messages in the
+payload, so it scales both size and depth. Standard deviation stays under 1% of the mean on every row.
 
 | Lines | Implementation | Mean | Ratio | Allocated | Alloc ratio |
 |------:|----------------|-----:|------:|----------:|------------:|
-| 0 | **`ProtobufJsonWriter`** | **1.532 μs** | **0.60** | **64 B** | **0.007** |
-| 0 | Google `JsonFormatter`, compiled types | 2.387 μs | 0.94 | 3 496 B | 0.38 |
-| 0 | `DynamicMessage` baseline | 2.538 μs | 1.00 | 9 112 B | 1.00 |
-| 8 | **`ProtobufJsonWriter`** | **3.547 μs** | **0.64** | **576 B** | **0.03** |
-| 8 | Google `JsonFormatter`, compiled types | 5.264 μs | 0.95 | 5 864 B | 0.32 |
-| 8 | `DynamicMessage` baseline | 5.546 μs | 1.00 | 18 376 B | 1.00 |
-| 64 | **`ProtobufJsonWriter`** | **17.719 μs** | **0.66** | **4 160 B** | **0.05** |
-| 64 | Google `JsonFormatter`, compiled types | 24.977 μs | 0.93 | 22 512 B | 0.27 |
-| 64 | `DynamicMessage` baseline | 27.009 μs | 1.00 | 82 960 B | 1.00 |
+| 0 | **`ProtobufJsonWriter`** | **2.149 μs** | **0.59** | **64 B** | **0.007** |
+| 0 | Google `JsonFormatter`, compiled types | 3.365 μs | 0.92 | 3 496 B | 0.38 |
+| 0 | `DynamicMessage` baseline | 3.665 μs | 1.00 | 9 112 B | 1.00 |
+| 8 | **`ProtobufJsonWriter`** | **4.973 μs** | **0.63** | **576 B** | **0.03** |
+| 8 | Google `JsonFormatter`, compiled types | 7.330 μs | 0.93 | 5 864 B | 0.32 |
+| 8 | `DynamicMessage` baseline | 7.913 μs | 1.00 | 18 376 B | 1.00 |
+| 64 | **`ProtobufJsonWriter`** | **24.809 μs** | **0.67** | **4 160 B** | **0.05** |
+| 64 | Google `JsonFormatter`, compiled types | 34.571 μs | 0.93 | 22 512 B | 0.27 |
+| 64 | `DynamicMessage` baseline | 37.119 μs | 1.00 | 82 960 B | 1.00 |
 
-The writer is 29–36% faster than Google's own formatter and allocates a twentieth to a fiftieth of
+The writer is 28–36% faster than Google's own formatter and allocates a twentieth to a fiftieth of
 what it does — while resolving the schema at run time, where the formatter is handed types generated
 at build time.
+
+Read the ratio and allocation columns first. Absolute means move with machine state: an earlier run of
+this same table on the same hardware was about 40% faster on every row, the untouched `DynamicMessage`
+baseline included, while the allocation figures reproduced byte for byte. Compare a mean only against
+the other means in the same table.
 
 Two notes so the figures survive scrutiny. `JsonFormatter` emits UTF-16 and offers no UTF-8
 destination, so its allocation is not strictly like-for-like; it is charged for the output form its

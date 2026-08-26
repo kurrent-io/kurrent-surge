@@ -31,8 +31,6 @@ public sealed partial class ProtobufJsonSchema : IJsonSchemaExporter {
     /// <exception cref="ArgumentException">The schema is not valid, or declares no such message.</exception>
     /// <exception cref="ProtoParseException">A schema could not be parsed.</exception>
     public JsonNode Export(SchemaSource schema, JsonSchemaExportOptions? options = null) {
-        ArgumentNullException.ThrowIfNull(schema);
-
         if (schema.MessageTypeName is not { Length: > 0 } messageTypeName)
             throw new ArgumentException(
                 "A protobuf document declares many messages, so the one to export must be named.",

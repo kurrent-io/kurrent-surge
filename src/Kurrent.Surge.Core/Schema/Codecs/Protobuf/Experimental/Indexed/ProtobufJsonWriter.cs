@@ -63,8 +63,6 @@ public sealed class ProtobufJsonWriter {
     /// </remarks>
     /// <exception cref="InvalidDataException">The payload does not match the schema.</exception>
     public void Write(ReadOnlyMemory<byte> data, Utf8JsonWriter writer) {
-        ArgumentNullException.ThrowIfNull(writer);
-
         SliceBuffer ??= new Slice[InitialSliceCapacity];
 
         try {

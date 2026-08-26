@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Google.Protobuf;
 using Kurrent.Surge.Codecs.Protobuf.Experimental.Schema;
@@ -88,6 +89,21 @@ public class ProtobufJsonSchemaTests {
     }
 
     [Test]
+    public async ValueTask the_exported_document_satisfies_the_2020_12_meta_schema() {
+        // Arrange — the keyword gate proves no stray keyword is emitted. It cannot prove a keyword
+        // carries a legal value, which is what the official meta-schema decides.
+        var exported = ProtobufJsonSchema.Instance.ExportAsString(Order);
+
+        // Act
+        using var document = JsonDocument.Parse(exported);
+
+        var result = Json.Schema.MetaSchemas.Draft202012.Evaluate(document.RootElement);
+
+        // Assert
+        await Assert.That(result.IsValid).IsTrue().Because(exported);
+    }
+
+    [Test]
     public async ValueTask carries_no_kurrent_specific_keywords() {
         // Arrange — the document is portable JSON Schema. Nothing reads it back into a .proto, so
         // nothing needs an annotation to do it with.
@@ -137,10 +153,13 @@ public class ProtobufJsonSchemaTests {
     public async ValueTask the_exported_schema_rejects_an_undeclared_field() {
         // Arrange — a schema that accepts anything validates nothing.
         var exported   = ProtobufJsonSchema.Instance.ExportAsString(Order);
-        var transcoded = ProtobufSchemaTranscoder.Instance.ToJson(Order, Payload()).TrimEnd('}') + ",\"notAField\":1}";
+        var transcoded = ProtobufSchemaTranscoder.Instance.ToJsonNode(Order, Payload());
 
-        // Act
-        var result = JsonSchemaNetAgent.Instance.ParseSchema(exported).Validate(transcoded);
+        // Act — added on the node rather than by trimming the closing brace, which a nested object's
+        // own brace would take with it.
+        transcoded["notAField"] = 1;
+
+        var result = JsonSchemaNetAgent.Instance.ParseSchema(exported).Validate(transcoded.ToJsonString());
 
         // Assert
         await Assert.That(result.IsValid).IsFalse();

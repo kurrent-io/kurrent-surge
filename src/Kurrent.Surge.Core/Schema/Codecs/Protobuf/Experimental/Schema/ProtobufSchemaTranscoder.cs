@@ -23,12 +23,8 @@ public sealed class ProtobufSchemaTranscoder : ISchemaTranscoder {
     /// <inheritdoc />
     /// <exception cref="ArgumentException">The schema names no message, or does not declare it.</exception>
     /// <exception cref="ProtoParseException">A schema could not be parsed.</exception>
-    public void ToJson(SchemaSource schema, ReadOnlyMemory<byte> payload, Utf8JsonWriter writer) {
-        ArgumentNullException.ThrowIfNull(schema);
-        ArgumentNullException.ThrowIfNull(writer);
-
+    public void ToJson(SchemaSource schema, ReadOnlyMemory<byte> payload, Utf8JsonWriter writer) =>
         _writers.GetValue(schema, Resolve).Write(payload, writer);
-    }
 
     static ProtobufJsonWriter Resolve(SchemaSource schema) {
         if (schema.MessageTypeName is not { Length: > 0 } messageTypeName)
