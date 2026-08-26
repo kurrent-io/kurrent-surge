@@ -356,7 +356,7 @@ public class AvroJsonSchemaTests {
 
     static JsonNode Coverage() =>
         AvroJsonSchema.Instance.Export(
-            SchemaSource.Text(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Corpus", "AnnotationCoverage.avsc"))));
+            SchemaSource.Text(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Corpus", "ExportCoverage.avsc"))));
 
     static JsonNode CoverageRecord() => Coverage()["$defs"]![CoverageType]!;
 
