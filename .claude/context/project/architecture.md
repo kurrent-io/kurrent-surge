@@ -139,7 +139,7 @@ three packages:
 | Layer                                   | Where                                              | Key types                                                                 |
 |-----------------------------------------|----------------------------------------------------|---------------------------------------------------------------------------|
 | Vocabulary (naming + catalogs)          | `Kurrent.Surge.Schema.Catalogs`                    | `SchemaName`, `MessageCatalog`, `MessageResolver`, `MessageTypeDescriptor`, naming strategies, `SchemaUrn` |
-| Serializer contracts + options/context  | `Kurrent.Surge.Core/Client/Schema[/Serialization]` | `ISchemaSerializer`, `SchemaSerializerProvider`, Json/Protobuf options + `JsonSerializerContext`s, `BytesPassthroughSerializer`, `NJsonSchemaExporter`, `SystemJsonSchemaExporter`, `SchemaRegistrationOptions` |
+| Serializer contracts + options/context  | `Kurrent.Surge.Core/Client/Schema[/Serialization]` | `ISchemaSerializer`, `SchemaSerializerProvider`, Json/Protobuf options + `JsonSerializerContext`s, `BytesPassthroughSerializer`, `ISchemaExporter`, `SystemJsonSchemaExporter`, `SchemaRegistrationOptions` |
 | Concrete serializers + manager          | `Kurrent.Surge/Client/Schema/Serialization`        | `SchemaManager` (talks to `RegistryClient`), `JsonSchemaSerializer`, `ProtobufSchemaSerializer`, `SystemMessageCatalog` (always-active `$metadata`/link/scavenge mappings) |
 
 ### Error handling

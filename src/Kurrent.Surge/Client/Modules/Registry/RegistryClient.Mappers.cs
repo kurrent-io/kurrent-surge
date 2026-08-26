@@ -1,6 +1,5 @@
 using Google.Protobuf.Collections;
 using Kurrent.Surge.Schema;
-using NJsonSchema;
 using Contracts = KurrentDB.Protocol.V2.Registry;
 
 namespace Kurrent.Surge.Client.Registry;
@@ -16,8 +15,8 @@ static class RegistryClientMapper {
             Kind         = (SchemaCompatibilityErrorKind)error.Kind,
             Details      = error.Details,
             PropertyPath = error.PropertyPath,
-            OriginalType = Enum.TryParse<JsonObjectType>(error.OriginalType, out var originalType) ? originalType : JsonObjectType.None,
-            NewType      = Enum.TryParse<JsonObjectType>(error.NewType, out var newType) ? newType : JsonObjectType.None
+            OriginalType = Enum.TryParse<SchemaValueType>(error.OriginalType, out var originalType) ? originalType : SchemaValueType.None,
+            NewType      = Enum.TryParse<SchemaValueType>(error.NewType, out var newType) ? newType : SchemaValueType.None
         };
     }
 

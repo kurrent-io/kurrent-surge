@@ -47,7 +47,7 @@ sealed class SchemaGovernance : ISchemaGovernance {
     public static SchemaGovernance Create(
         KurrentClient client, IReadOnlyList<MessageCatalog> catalogs,
         KurrentClientSchemaOptions options, CancellationToken ct = default
-    ) => new(new RegistryClient(client), NJsonSchemaExporter.Instance, catalogs, options, ct);
+    ) => new(new RegistryClient(client), SystemJsonSchemaExporter.Instance, catalogs, options, ct);
 
     public Task<CatalogSchemaMap> CatalogRegistration =>
         _catalogRegistration.Value;

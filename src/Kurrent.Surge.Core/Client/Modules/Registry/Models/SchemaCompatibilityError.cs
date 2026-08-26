@@ -1,5 +1,5 @@
 using System.Collections;
-using NJsonSchema;
+using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Registry;
 
@@ -7,9 +7,9 @@ public readonly record struct SchemaCompatibilityError() {
     public SchemaCompatibilityErrorKind Kind    { get; init; } = SchemaCompatibilityErrorKind.Unspecified;
     public string                       Details { get; init; } = "";
 
-    public string         PropertyPath { get; init; } = "";
-    public JsonObjectType OriginalType { get; init; } = JsonObjectType.None;
-    public JsonObjectType NewType      { get; init; } = JsonObjectType.None;
+    public string          PropertyPath { get; init; } = "";
+    public SchemaValueType OriginalType { get; init; } = SchemaValueType.None;
+    public SchemaValueType NewType      { get; init; } = SchemaValueType.None;
 
     public override string ToString() =>
         $"{Kind} at '{PropertyPath}': {Details}";

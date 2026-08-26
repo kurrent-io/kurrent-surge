@@ -228,6 +228,28 @@ public class SystemJsonSchemaExporterTests {
 		await Assert.That(string.Join(",", rootKeys)).IsEqualTo(expectedKeyOrder);
 	}
 
+	[Test]
+	public async ValueTask njsonschema_resolves_a_recursive_export() {
+		// Arrange — a self-referencing type is the shape that forces a hoisted definition and a $ref back
+		// into it. NJsonSchema's resolver is the consumer that has failed on that shape before, and this
+		// exporter is what the client now registers with.
+		var definition = new SystemJsonSchemaExporter().Export(typeof(TreeNode), SchemaDataFormat.Json);
+		var valid      = """{"name":"root","children":[{"name":"leaf","children":[]}]}""";
+		var invalid    = """{"name":"root","children":[{"name":1,"children":[]}]}""";
+
+		// Act
+		var schema = await NJsonSchema.JsonSchema.FromJsonAsync(definition);
+
+		// Assert — the emitted $ref is asserted first, because without one the two cases below would
+		// pass on a document that never exercised reference resolution at all.
+		await Assert.That(definition).Contains("$ref");
+
+		// The negative case is what proves the nested reference resolved. A document whose reference
+		// did not resolve accepts both.
+		await Assert.That(schema.Validate(valid)).IsEmpty();
+		await Assert.That(schema.Validate(invalid)).IsNotEmpty();
+	}
+
 	static List<string> RequiredNames(JsonObject schema) =>
 		schema["required"] is JsonArray required
 			? required.Select(node => (string)node!).ToList()
@@ -246,4 +268,6 @@ public class SystemJsonSchemaExporterTests {
 		LocalDate LocalDate, LocalTime LocalTime, Duration Duration);
 
 	record HasNullableInstant(Instant? Moment);
+
+	record TreeNode(string Name, TreeNode[] Children);
 }

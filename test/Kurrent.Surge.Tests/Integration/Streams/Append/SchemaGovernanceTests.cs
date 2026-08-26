@@ -59,7 +59,7 @@ public class SchemaGovernanceTests {
     // messageType: an extra required field breaks Backward compatibility deterministically
     // (proven by CheckSchemaCompatibilityTests.check_schema_compatibility_backward_is_incompatible).
     static async ValueTask<string> NewConflictingDefinition(Type messageType) {
-        var exported = await JsonSchema.FromJsonAsync(NJsonSchemaExporter.Instance.Export(messageType, SchemaDataFormat.Json));
+        var exported = await JsonSchema.FromJsonAsync(SystemJsonSchemaExporter.Instance.Export(messageType, SchemaDataFormat.Json));
         return exported.AddRequired("governance-test-conflict", JsonObjectType.String).ToJson();
     }
 
