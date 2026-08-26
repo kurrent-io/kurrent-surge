@@ -82,6 +82,34 @@ public class AvroTypeGeneratorTests {
     }
 
     [Test]
+    public async ValueTask types_a_nullable_record_union_as_a_nullable_variant() {
+        // Arrange — the same union with a null branch. The value is a Cat, a Dog, or absent, so the
+        // property has to admit null. A non-nullable property with no initializer and no `required`
+        // is a hole: the compiler cannot see it and the decoder can produce it.
+        var schema =
+            """
+            {
+              "type": "record",
+              "name": "Sighting",
+              "namespace": "Acme.Messages",
+              "fields": [
+                { "name": "Subject", "type": [
+                    "null",
+                    { "type": "record", "name": "Cat", "fields": [ { "name": "Lives", "type": "int" } ] },
+                    { "type": "record", "name": "Dog", "fields": [ { "name": "Bark", "type": "string" } ] }
+                  ] }
+              ]
+            }
+            """;
+
+        // Act
+        var source = SourceOf(Run(("/schemas/Sighting.avsc", schema)));
+
+        // Assert
+        await Assert.That(source).Contains("public global::Acme.Messages.ISightingSubjectVariant? Subject { get; set; }");
+    }
+
+    [Test]
     public async ValueTask implements_every_variant_interface_a_record_belongs_to() {
         // Arrange — the same two records in two unions. Each field gets its own interface, so a branch
         // record has to carry both; holding one interface per record would silently drop whichever field

@@ -85,12 +85,14 @@ sealed class AvroTypeMap(AvroSchemaDocument document, AvroGeneratorOptions optio
     string UnionType(AvroUnion union, FieldSite site) {
         if (union.IsNullable) return $"{TypeOf(union.NullableBranch!, site)}?";
 
-        if (union.IsVariant(document.Resolve))
-            return AvroNaming.QualifiedVariantInterfaceName(site.Owner, site.Field);
+        // A null branch drops `required` from the property, so the type has to admit null or the
+        // property is left non-nullable, unassigned and uninitialised. IsNullable below reads the same
+        // branches, and the two answers have to agree.
+        var suffix = IsNullable(union) ? "?" : "";
 
-        return union.Branches.Any(branch => document.Resolve(branch) is AvroPrimitive { Kind: AvroPrimitiveKind.Null })
-            ? "object?"
-            : "object";
+        return union.IsVariant(document.Resolve)
+            ? $"{AvroNaming.QualifiedVariantInterfaceName(site.Owner, site.Field)}{suffix}"
+            : $"object{suffix}";
     }
 
     /// <remarks>

@@ -37,7 +37,8 @@ public class GeneratedCodeCompilesTests {
             { "name": "Items",    "type": { "type": "array", "items": "Inner" } },
             { "name": "Lookup",   "type": { "type": "map", "values": "int" } },
             { "name": "Status",   "type": { "type": "enum", "name": "State", "symbols": ["On", "Off"] } },
-            { "name": "Raw",      "type": { "type": "fixed", "name": "Raw16", "size": 16 } },
+            { "name": "Raw",      "type": { "type": "fixed", "name": "Raw16", "size": 16 },
+                                  "default": "0123456789ABCDEF" },
             { "name": "Maybe",    "type": ["null", "string"] },
             { "name": "Either",   "type": [
                                     { "type": "record", "name": "Cat", "fields": [ { "name": "Lives", "type": "int" } ] },
