@@ -34,6 +34,9 @@
 
   <ItemGroup>
     <AdditionalFiles Include="Schemas/*.avsc" />
+    <!-- Also copied out, because AvroJsonSchemaBenchmarks is driven by schema text at run time rather
+         than by a generated type. Update, not Include: the SDK's default glob already owns these. -->
+    <None Update="Schemas/*.avsc" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- AvroLogicalTypeBenchmarks measures the NanoInstant conversion across ISpecificRecord, which the

@@ -5,20 +5,19 @@ An [Apache Avro](https://avro.apache.org/) codec for the [Kurrent](https://kurre
 
 ## What this package does
 
-Kurrent Surge serializes messages through a pluggable `ISchemaCodec`. This package adds Avro alongside the SDK's
-built-in JSON and Protobuf support. It reuses the same registration model, the same message catalog, and the same read
-and write path.
+Kurrent Surge serializes messages through a pluggable `ISchemaCodec`. This package adds Avro next to the SDK's built-in
+JSON and Protobuf codecs, and reuses the same registration model and the same read and write path.
 
 You write `.avsc` schema files. A build-time generator turns each one into a C# message type and the code that encodes
-and decodes it. Nothing reflects over your types at runtime.
+and decodes it. Nothing reflects over your types at run time.
 
 ## Why Avro
 
-Avro gives you a compact binary format with a real schema behind every message. Choose it when you want strict schema
-evolution rules, payloads smaller than JSON, or interoperability with the wider Avro and Kafka ecosystem.
+Avro gives you a compact binary format with a real schema behind every message. Choose it for strict schema evolution
+rules, for payloads smaller than JSON, or to interoperate with the wider Avro and Kafka ecosystem.
 
-Avro is schema-first. Your message type takes its shape from a schema definition rather than from a class, and that is
-what separates this package from the SDK's MessagePack codecs.
+Avro is schema-first. Your message type takes its shape from a schema definition and not from a class, and that is what
+separates this package from the SDK's MessagePack codecs.
 
 ## Installation
 
@@ -56,10 +55,10 @@ Point your project at it. This is the one manual step, because nothing can know 
 Build. `Acme.Orders.OrderPlaced` now exists:
 
 ```csharp
-public sealed partial record OrderPlaced : global::Avro.Specific.ISpecificRecord {
+public sealed partial record OrderPlaced {
     public required string OrderId { get; set; }
     public required double Amount  { get; set; }
-    // ISpecificRecord.Schema, Get and Put follow, implemented explicitly
+    // Equals and GetHashCode follow, and compare by value
 }
 ```
 
@@ -76,23 +75,47 @@ var client = KurrentClient.Create(connectionString, options => {
 
 Installing this package is the only reference you need. The generator ships inside it.
 
+A type whose `.avsc` never reached `AdditionalFiles` has no generated codec. Encoding or decoding it throws
+`AvroCodecNotGeneratedException`, which names the type and the item group to add.
+
+## Generator options
+
+Set these MSBuild properties in your `.csproj` or in `Directory.Build.props`. The package ships the
+`CompilerVisibleProperty` entries that carry them to the generator.
+
+| Property                          | Values                | Default  |
+|-----------------------------------|-----------------------|----------|
+| `KurrentAvroAccessModifier`       | `Public`, `Internal`  | `Public` |
+| `KurrentAvroXmlDocs`              | `Off`, `On`           | `Off`    |
+| `KurrentAvroTimeModel`            | `Bcl`, `NodaTime`     | `Bcl`    |
+| `KurrentAvroNanosecondTimestamps` | `Long`, `NanoInstant` | `Long`   |
+| `KurrentAvroApacheInterop`        | `Off`, `On`           | `Off`    |
+
+Values are not case sensitive. A value the generator does not recognise raises `KAVRO004`, and the default holds.
+
+`KurrentAvroApacheInterop` decides whether a generated type carries the surface that Apache's own readers and writers
+need. Off emits no `ISpecificRecord`, no `Schema` property and no `SpecificFixed` base. The wire bytes are the same
+either way, because Avro's contract is the encoding and not the CLR shape.
+
+`KurrentAvroTimeModel` decides which family the temporal logical types surface as. See [Logical types](#logical-types).
+
 ## Native AOT and trimming
 
 This package sets `IsAotCompatible` and `IsTrimmable`, and publishes clean under `PublishAot`.
 
-The generator writes encode and decode into your assembly at compile time, so nothing resolves a type at runtime. This
+The generator writes encode and decode into your assembly at compile time, so nothing resolves a type at run time. This
 package deliberately avoids Apache's `SpecificDatumReader<T>` and `SpecificDatumWriter<T>`: they walk the schema through
 `Avro.Specific.ObjectCreator`, which calls `Type.GetType(string)` and `MakeGenericType` and needs a JIT.
 
-`ISpecificRecord.Schema` parses its schema text on first read rather than at type initialization. Code that never asks
-for the schema never pays for it: `Avro.Schema.Parse` pulls in Newtonsoft.Json, about 9.5 MB of a native binary.
+Under the default, a generated type holds no schema text at all, so nothing roots `Avro.Schema.Parse`. That call pulls
+in Newtonsoft.Json, about 9.5 MB of a native binary. With Apache interop on, the type gains a `Schema` property. It
+parses its text on first read and never at type initialization, so code that never asks for the schema never pays.
 
 ## Supported schema constructs
 
 The generator fully qualifies every type it emits, so the real output reads
-The generator fully qualifies every type it emits, so the real output reads
 `global::System.Collections.Generic.IReadOnlyList<string>` where the examples below read `IReadOnlyList<string>`. The
-examples drop the qualification to stay readable; nothing else about them is shortened.
+examples drop the qualification to stay readable. They shorten nothing else.
 
 ### Primitive types
 
@@ -109,8 +132,9 @@ examples drop the qualification to stay readable; nothing else about them is sho
 
 ### Records
 
-A record becomes a `sealed partial record` implementing `ISpecificRecord` explicitly, so `Schema`, `Get` and `Put` stay
-off the public surface. Declare a record inline and it becomes a sibling type in the same namespace, never a nested one.
+A record becomes a `sealed partial record` with one property for each field, plus the `Equals` and `GetHashCode` pair
+that gives it value equality. Declare a record inline and it becomes a sibling type in the same namespace, never a
+nested one.
 
 ```json
 {
@@ -124,9 +148,12 @@ off the public surface. Declare a record inline and it becomes a sibling type in
 ```
 
 ```csharp
-public sealed partial record Order    : ISpecificRecord { public required Customer Customer { get; set; } }
-public sealed partial record Customer : ISpecificRecord { public required string   Name     { get; set; } }
+public sealed partial record Order    { public required Customer Customer { get; set; } }
+public sealed partial record Customer { public required string   Name     { get; set; } }
 ```
+
+With Apache interop on, the record also implements `ISpecificRecord` explicitly, so `Schema`, `Get` and `Put` stay off
+the public surface.
 
 A record may reference itself, or any named type declared earlier in the same file.
 
@@ -147,17 +174,19 @@ public enum Status { Pending, Shipped, Cancelled, }
 ```
 
 ```csharp
-public sealed partial class Md5 : SpecificFixed {
+public sealed partial class Md5 : AvroFixedValue {
     public Md5() : base(16) { }
-    public int Size => 16;
 }
 ```
+
+`AvroFixedValue` holds the bytes in `Value`, reports `Size`, compares by content, and prints as hex. With Apache interop
+on the base is `Avro.Specific.SpecificFixed` instead, and the class also carries `Size` and `Schema`.
 
 ### Arrays and maps
 
 Arrays map to `IReadOnlyList<T>` and maps to `IReadOnlyDictionary<string, T>`. The decoder builds a concrete `List<T>`
-or `Dictionary<string, T>` and hands it over as the interface. Avro sends an element count per block, so the decoder
-sizes the collection once instead of growing it from empty.
+or `Dictionary<string, T>` and hands it over as the interface. Avro sends an element count for each block, so the
+decoder sizes the collection once instead of growing it from empty.
 
 ```json
 { "name": "Lines",    "type": { "type": "array", "items": "string" } }
@@ -183,7 +212,7 @@ Three shapes, three treatments.
 public string? Note { get; set; }
 ```
 
-**A union of records** gets an interface, and every branch implements it. The interface is named from the
+**A union of records** gets an interface, and every branch implements it. The generator names the interface after the
 declaring record and the field, so two fields with the same branches each get their own:
 
 ```json
@@ -195,15 +224,15 @@ declaring record and the field, so two fields with the same branches each get th
 ```csharp
 public partial interface ISightingSubjectVariant;
 
-public sealed partial record Cat : ISpecificRecord, ISightingSubjectVariant { ... }
-public sealed partial record Dog : ISpecificRecord, ISightingSubjectVariant { ... }
+public sealed partial record Cat : ISightingSubjectVariant { ... }
+public sealed partial record Dog : ISightingSubjectVariant { ... }
 
 public required ISightingSubjectVariant Subject { get; set; }
 ```
 
-A record appearing in two different unions implements both interfaces.
+A record that appears in two different unions implements both interfaces.
 
-**Any other union** maps to `object`, or `object?` when one branch is null. The encoder recovers the
+**Any other union** maps to `object`, or to `object?` when one branch is null. The encoder recovers the
 branch with a type test:
 
 ```json
@@ -216,26 +245,29 @@ public required object Value { get; set; }
 
 ### Value equality
 
-A generated record compares by value, all the way down. C# would otherwise synthesize equality that compares a `byte[]`,
-a list or a dictionary member by reference, so two decoded messages carrying identical data would come out unequal.
+A generated record compares by value, all the way down. C# otherwise synthesizes equality that compares a `byte[]`, a
+list or a dictionary member by reference, and two decoded messages that carry identical data then come out unequal.
 
 ```csharp
+var codec = new AvroSchemaCodec();
+
 var a = (Order)codec.Decode(wire, typeof(Order));
 var b = (Order)codec.Decode(wire, typeof(Order));
 
-a == b;                        // true — element by element, including nested records
+a == b;                              // true — element by element, including nested records
 a.GetHashCode() == b.GetHashCode();  // true
 ```
 
-Lists compare in order, maps compare regardless of order, and `byte[]` compares by content. Nested records use their own
-generated equality, so the comparison recurses to any depth.
+Lists compare in order, maps compare independently of order, and `byte[]` compares by content. A nested record uses its
+own generated equality, so the comparison recurses to any depth.
 
-Collections take part in the hash. Mutate one after using the record as a dictionary key and the entry is lost — the
-same hazard every property already carries, since all of them have setters.
+Collections take part in the hash. Mutate one after you use the record as a dictionary key and the entry is lost. Every
+property already carries the same hazard, because all of them have setters.
 
 ### Field defaults
 
-A field with no default is emitted as `required`. A field with one is initialized from it and drops `required`:
+The generator emits a field with no default as `required`. A field with a default takes its initializer from that
+default and drops `required`. A field that can hold null is never `required`, because null is already a value for it:
 
 ```json
 { "name": "Retries", "type": "int",              "default": 3 },
@@ -251,18 +283,19 @@ public IReadOnlyList<string> Tags { get; set; } = new List<string> { "a", "b" };
 public int?         Count   { get; set; } = 0;
 ```
 
-The last line matters. A union default has to match *one* element of the union, not the first, so a `["null", "int"]`
-field defaulting to `0` initializes to `0` rather than to null.
+The last line matters. A union default has to match *one* element of the union and not the first, so a `["null", "int"]`
+field with a default of `0` initializes to `0` and not to null.
 
 Defaults for `bytes` and `fixed` follow the specification: the JSON string's code points 0-255 are the bytes, so `"ÿ"`
 is the single byte `0xFF`.
 
-The generator drops a default it cannot express in C#, and the property stays `required`. This covers a `fixed` default
-whose length disagrees with the declared size, and every default on a logical type.
+The generator drops a default it cannot express in C#. This covers a `fixed` default whose length disagrees with the
+declared size, and every default on a logical type.
 
 ### Documentation
 
-A `doc` attribute on a record, enum, fixed or field becomes an XML summary on the generated member.
+Set `KurrentAvroXmlDocs` to `On`, and a `doc` attribute on a record, an enum, a fixed or a field becomes an XML summary
+on the generated member. Off, which is the default, emits no XML documentation.
 
 ### Names that collide with C# keywords
 
@@ -276,7 +309,7 @@ The generator escapes an Avro name with `@`, one segment at a time. The name on 
 ```csharp
 namespace Acme.@event.@internal;
 
-public sealed partial record Booking : ISpecificRecord {
+public sealed partial record Booking {
     public required string @class { get; set; }
 }
 ```
@@ -287,28 +320,42 @@ A dotted `name` is a fullname and overrides the `namespace` attribute, as the sp
 
 A logical type annotates a base type. It changes no bytes — it tells the codec what the bytes mean.
 
-| Logical type             | Base        | C# type            |
-|--------------------------|-------------|--------------------|
-| `decimal`                | `bytes`     | `Avro.AvroDecimal` |
-| `decimal`                | `fixed`     | `Avro.AvroDecimal` |
-| `uuid`                   | `string`    | `System.Guid`      |
-| `uuid`                   | `fixed(16)` | `System.Guid`      |
-| `date`                   | `int`       | `System.DateTime`  |
-| `time-millis`            | `int`       | `System.TimeSpan`  |
-| `time-micros`            | `long`      | `System.TimeSpan`  |
-| `timestamp-millis`       | `long`      | `System.DateTime`  |
-| `timestamp-micros`       | `long`      | `System.DateTime`  |
-| `local-timestamp-millis` | `long`      | `System.DateTime`  |
-| `local-timestamp-micros` | `long`      | `System.DateTime`  |
-| `timestamp-nanos`        | `long`      | `NanoInstant`      |
+`KurrentAvroTimeModel` selects the column. Both models draw the same distinction the Avro specification does, between a
+point on the global timeline and a reading with no zone attached.
 
-Conversions match `Avro.Util` exactly, down to the direction each one truncates. A test asserts wire parity with Apache
-for every construct in the table.
+| Logical type             | Base        | `Bcl` (default)         | `NodaTime`               |
+|--------------------------|-------------|-------------------------|--------------------------|
+| `decimal`                | `bytes`     | `AvroDecimal`           | `AvroDecimal`            |
+| `decimal`                | `fixed`     | `AvroDecimal`           | `AvroDecimal`            |
+| `uuid`                   | `string`    | `System.Guid`           | `System.Guid`            |
+| `uuid`                   | `fixed(16)` | `System.Guid`           | `System.Guid`            |
+| `date`                   | `int`       | `System.DateOnly`       | `NodaTime.LocalDate`     |
+| `time-millis`            | `int`       | `System.TimeOnly`       | `NodaTime.LocalTime`     |
+| `time-micros`            | `long`      | `System.TimeOnly`       | `NodaTime.LocalTime`     |
+| `timestamp-millis`       | `long`      | `System.DateTimeOffset` | `NodaTime.Instant`       |
+| `timestamp-micros`       | `long`      | `System.DateTimeOffset` | `NodaTime.Instant`       |
+| `local-timestamp-millis` | `long`      | `System.DateTime`       | `NodaTime.LocalDateTime` |
+| `local-timestamp-micros` | `long`      | `System.DateTime`       | `NodaTime.LocalDateTime` |
+| `timestamp-nanos`        | `long`      | `long`                  | `NodaTime.Instant`       |
+| `duration`               | `fixed(12)` | the fixed class         | `NodaTime.Period`        |
+
+`AvroDecimal` is this package's own struct, which holds an unscaled value and a scale and does not overflow past 96
+bits. With Apache interop on it is `Avro.AvroDecimal` instead, because that is the type Apache's readers and writers
+expect to see.
+
+An absolute `timestamp` is `DateTimeOffset` because a `DateTime` with `Kind=Unspecified` encodes differently on two
+machines. The offset itself is not on the wire, so a value round-trips to the same instant at offset zero and not to its
+original offset. The `local-timestamp` variants stay `DateTime`, because they are wall-clock readings and not instants.
+
+A test asserts wire parity with Apache for every construct in the table.
 
 ### Nanosecond timestamps
 
-`DateTime` resolves to 100 nanoseconds, so it would truncate every `timestamp-nanos` value. The generator emits
-`NanoInstant` instead, a readonly struct over the wire value:
+`timestamp-nanos` surfaces as a plain `long`. This is what Apache does: it sees an unknown logical type over a `long`
+and erases it.
+
+Set `KurrentAvroNanosecondTimestamps` to `NanoInstant` for a type that carries the units. `DateTime` resolves to 100
+nanoseconds and truncates every value, so the generator emits `NanoInstant`, a readonly struct over the wire value:
 
 ```csharp
 var moment = new NanoInstant(1_700_000_000_123_456_789L);
@@ -318,12 +365,14 @@ moment.NanoOfSecond;        // 123456789, always 0..999,999,999, before the epoc
 moment.ToDateTimeOffset();  // truncates to 100ns
 ```
 
-The range belongs to the format rather than to this type. A signed 64-bit nanosecond count spans
+The range belongs to the format and not to this type. A signed 64-bit nanosecond count spans
 **1677-09-21 to 2262-04-11**, and no representation reaches further.
 
+Under the NodaTime time model the setting does nothing. `Instant` is nanosecond-native and carries the value already.
+
 Apache.Avro does not model `timestamp-nanos`. It resolves the field to an unknown logical type over a `long` and rejects
-any other value, so `ISpecificRecord.Get` hands it the `long` and `Put` reconstructs the `NanoInstant`. Apache's own
-readers and writers keep working, and nothing changes on the wire.
+any other value. With Apache interop on, `ISpecificRecord.Get` therefore hands it the `long` and `Put` rebuilds the
+`NanoInstant`. Apache's own readers and writers keep working, and nothing changes on the wire.
 
 ### UUIDs backed by a fixed
 
@@ -338,123 +387,282 @@ Registration replaces the built-in for the whole process, so **the generator emi
 that declare such a schema**. An assembly without one pays nothing.
 
 The codec writes the bytes in RFC 4122 order. `Guid.ToByteArray()` without an argument is little-endian across the first
-three fields and would swap every value, so the generated code passes `bigEndian: true` in both directions.
+three fields and swaps every value, so the generated code passes `bigEndian: true` in both directions.
 
 ## Schema conversion
 
-`AvroJsonSchema` converts an Avro schema to a [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/schema)
-document, and converts that document back to the same Avro schema. Both directions are total, so the JSON Schema is a
-form of your schema rather than a view of it.
+Three types read Avro schema text at run time. None of them needs a CLR type.
 
-Use it to publish a schema to a registry, to validate a payload with any JSON Schema validator, or to embed the schema
-in an OpenAPI 3.1 document. No CLR type is involved. The input is schema text and the output is schema text.
+| Type                   | Takes            | Gives                                                                                                   |
+|------------------------|------------------|---------------------------------------------------------------------------------------------------------|
+| `AvroJsonSchema`       | `SchemaSource`   | the schema as a [JSON Schema 2020-12](https://json-schema.org/draft/2020-12/schema) document            |
+| `AvroSchemaTranscoder` | `SchemaSource`   | an Avro binary payload as JSON                                                                          |
+| `AvroJsonWriter`       | Avro schema text | an Avro binary payload as JSON, from a parse you hold                                                   |
+
+The exported document describes the JSON that the transcoder writes. A transcoded payload therefore validates against
+the exported schema.
+
+Export a schema to publish it to a registry, to validate a payload with any JSON Schema validator, or to embed it in an
+OpenAPI 3.1 document.
+
+`AvroJsonSchema` and `AvroSchemaTranscoder` both take a `SchemaSource`. Give it exactly one schema. An Avro document
+declares one root type and resolves its named references inside itself, so a source that carries none, or more than
+one, raises `ArgumentException`. So does text that is not valid Avro.
+
+`SchemaSource.MessageTypeName` names a message in a format whose document declares several. Avro never reads it.
+
+### Export
 
 ```csharp
 using Kurrent.Surge.Codecs.Avro;
+using Kurrent.Surge.Schema;
 
-var avsc = File.ReadAllText("Schemas/OrderPlaced.avsc");
+var source = SchemaSource.Text(File.ReadAllText("Schemas/Shipment.avsc"));
 
-string   jsonSchema = AvroJsonSchema.Export(avsc);
-JsonNode asNode     = AvroJsonSchema.ExportAsJsonNode(avsc);
-
-string backToAvro = AvroJsonSchema.Import(jsonSchema);   // equals avsc
+JsonNode document = AvroJsonSchema.Instance.Export(source);
+string   text     = AvroJsonSchema.Instance.ExportAsString(source);
 ```
 
+`AvroJsonSchema` implements `IJsonSchemaExporter`, and `ExportAsString` is an extension on that interface.
+
+Every document declares draft 2020-12, and `AvroJsonSchema.Dialect` holds that URI. There is no dialect to select.
+
+`JsonSchemaExportOptions` carries four settings. This exporter reads one of them:
+
+| Setting              | What the Avro exporter does                                          |
+|----------------------|-----------------------------------------------------------------------|
+| `Canonical`          | Read. Sorts every object key                                          |
+| `SerializerOptions`  | Ignored. Property names come from the schema, not from a CLR type     |
+| `NullableIsOptional` | Ignored. `required` holds the fields that declare no default          |
+| `EnumAsOneOf`        | Ignored. An Avro enum is always a string with an `enum` list          |
+
+`Canonical` makes two schemas of the same shape export byte for byte alike:
+
+```csharp
+AvroJsonSchema.Instance.ExportAsString(source, new JsonSchemaExportOptions { Canonical = true });
+```
+
+`Canonical` never sorts array items. `oneOf` order is the union tag, and `enum` order is the symbol number. To sort
+either one changes what the schema says.
+
+### Transcode
+
+```csharp
+using Kurrent.Surge.Codecs.Avro;
+using Kurrent.Surge.Schema;
+
+var source = SchemaSource.Text(File.ReadAllText("Schemas/Shipment.avsc"));
+
+ReadOnlyMemory<byte> payload = ...;   // the Avro bytes
+
+string   json = AvroSchemaTranscoder.Instance.ToJson(source, payload);
+JsonNode node = AvroSchemaTranscoder.Instance.ToJsonNode(source, payload);
+
+AvroSchemaTranscoder.Instance.ToJson(source, payload, writer);   // into a Utf8JsonWriter you own
+```
+
+`AvroSchemaTranscoder` implements `ISchemaTranscoder`. The `Utf8JsonWriter` overload is the primitive, and the string
+and node forms are extensions built on it. That overload writes into your buffer and does not flush. You own the
+writer.
+
+A payload that disagrees with the schema raises `InvalidDataException`.
+
+### Transcode from a parse you hold
+
+`AvroJsonWriter` is the type the transcoder caches. Construct one directly to own the parse yourself:
+
+```csharp
+var jsonWriter = new AvroJsonWriter(File.ReadAllText("Schemas/Shipment.avsc"));
+
+string json = jsonWriter.Write(payload);
+jsonWriter.Write(payload, writer);   // into a Utf8JsonWriter you own
+```
+
+The constructor parses the schema, and raises `ArgumentException` if the text is not valid Avro. Each `Write` call then
+costs only the transcode. An instance holds the parsed schema and nothing else, so several threads can share one.
+
+### What a call costs
+
+A parse costs more than an export or a transcode does. The three entry points pay for it differently.
+
+| Call                          | Parses the schema                                                |
+|-------------------------------|-------------------------------------------------------------------|
+| `AvroJsonSchema.Export`       | On every call. Export once and keep the document yourself         |
+| `AvroSchemaTranscoder.ToJson` | Once for each `SchemaSource` instance                             |
+| `AvroJsonWriter.Write`        | Never. The constructor parses                                     |
+
+The transcoder keys its cache on the `SchemaSource` object and not on the schema text. Two sources built from the same
+text are two keys.
+
+Hold one source and reuse it, and you pay for the parse once. Build a fresh source for each record, and you pay every
+time. The cache holds the source weakly, so a transcoded source stays collectable.
+
+`Export` caches nothing. It reads the text twice on each call: once into the schema model, and once as a raw tree for
+the facts the model does not keep.
+
 ### What it emits
+
+This schema:
+
+```json
+{
+  "type": "record",
+  "name": "Shipment",
+  "namespace": "Acme.Orders",
+  "doc": "An order left the warehouse.",
+  "fields": [
+    { "name": "orderId", "type": "string" },
+    { "name": "total",   "type": { "type": "bytes", "logicalType": "decimal", "precision": 12, "scale": 2 } },
+    { "name": "status",  "type": { "type": "enum", "name": "Status", "symbols": ["Pending", "Shipped"] } },
+    { "name": "note",    "type": ["null", "string"], "default": null }
+  ]
+}
+```
+
+exports as this document:
 
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$ref": "#/$defs/Acme.Orders.OrderPlaced",
+  "$ref": "#/$defs/Acme.Orders.Shipment",
   "$defs": {
-    "Acme.Orders.OrderPlaced": {
+    "Acme.Orders.Shipment": {
       "type": "object",
       "properties": {
-        "orderId": { "type": "string", "x-avro": { "ordinal": 0 } },
-        "total": {
-          "type": "string",
-          "pattern": "^-?\\d{1,10}(\\.\\d{2})?$",
-          "x-avro": { "type": "bytes", "logicalType": "decimal", "precision": 12, "ordinal": 1 }
-        },
-        "placedAt": {
-          "type": "string", "format": "date-time", "pattern": "^\\d{4}-…",
-          "x-avro": { "logicalType": "timestamp-micros", "ordinal": 2 }
-        },
+        "orderId": { "type": "string" },
+        "total": { "type": "string", "pattern": "^[\\x00-\\xFF]*$" },
+        "status": { "$ref": "#/$defs/Acme.Orders.Status" },
         "note": {
           "oneOf": [
-            { "type": "null",   "x-avro": { "branch": 0 } },
-            { "type": "string", "x-avro": { "branch": 1 } }
+            { "type": "null" },
+            {
+              "type": "object",
+              "properties": { "string": { "type": "string" } },
+              "required": ["string"],
+              "additionalProperties": false
+            }
           ],
-          "default": null,
-          "x-avro": { "ordinal": 3 }
+          "default": null
         }
       },
-      "required": ["orderId", "total", "placedAt"],
-      "additionalProperties": false
-    }
+      "required": ["orderId", "total", "status"],
+      "additionalProperties": false,
+      "description": "An order left the warehouse."
+    },
+    "Acme.Orders.Status": { "type": "string", "enum": ["Pending", "Shipped"] }
   }
 }
 ```
 
-Every named type becomes a `$defs` entry keyed by its fullname. A recursive record needs this, because you cannot inline
-a type that contains itself.
+and a payload of that schema transcodes to this JSON, which the document above accepts:
 
-Every union becomes `oneOf`, including the nullable `["null", X]` form. The shorter `{"type": [X, "null"]}` form is a
-set rather than a list, so it cannot say which branch `null` was. That branch number is the tag on the wire.
+```json
+{"orderId":"ORD-1","total":"\u0000\u0002\u00FF","status":"Shipped","note":{"string":"gift wrap"}}
+```
+
+`total` is three characters, one for each byte of the unscaled decimal. `Utf8JsonWriter` escapes them, and a validator
+reads the escaped and the unescaped form as the same string.
+
+### The mapping
+
+| Avro       | JSON Schema                                                                             |
+|------------|------------------------------------------------------------------------------------------|
+| `null`     | `"type": "null"`                                                                         |
+| `boolean`  | `"type": "boolean"`                                                                      |
+| `int`      | `"type": "integer"`, with `minimum` and `maximum` at the int32 limits                    |
+| `long`     | `"type": "integer"`, with `minimum` and `maximum` at the int64 limits                    |
+| `float`    | `"type": "number"`                                                                       |
+| `double`   | `"type": "number"`                                                                       |
+| `bytes`    | `"type": "string"`, with the byte string `pattern`                                       |
+| `string`   | `"type": "string"`                                                                       |
+| `record`   | a `$defs` entry: `"type": "object"` with `properties`, `required`, `additionalProperties: false` |
+| `enum`     | a `$defs` entry: `"type": "string"` with `enum` for the symbols, in declaration order    |
+| `fixed`    | a `$defs` entry: `"type": "string"` with `minLength`, `maxLength` and the byte string `pattern` |
+| `array`    | `"type": "array"` with `items`                                                           |
+| `map`      | `"type": "object"` with `additionalProperties`                                           |
+| `union`    | `oneOf`, one entry for each branch                                                       |
+
+A map writes no `propertyNames`. The keys of a JSON object are strings by definition, so an assertion there asserts
+nothing.
+
+### Named types
+
+Every record, enum and fixed becomes a `$defs` entry keyed by its Avro fullname, and the point of use holds a `$ref` to
+it. A record root makes the root of the document such a `$ref`. A recursive record needs this, because you cannot
+inline a type that contains itself.
+
+### Unions
+
+Every union becomes `oneOf`, and the nullable `["null", X]` form as well. Each branch describes what the Avro JSON
+encoding writes, and that is not the branch value.
+
+The encoding writes the null branch as a bare JSON `null`. It wraps each other branch in an object whose single
+property is the name of the branch type. The exported schema therefore describes a `oneOf` of tagged wrapper objects:
+
+```json
+"note": {
+  "oneOf": [
+    { "type": "null" },
+    {
+      "type": "object",
+      "properties": { "string": { "type": "string" } },
+      "required": ["string"],
+      "additionalProperties": false
+    }
+  ]
+}
+```
+
+The wrapper is load-bearing. The string branch of that union transcodes to `{"note":{"string":"gift wrap"}}`, and a
+schema that described the branch values directly rejects that document. A schema its own transcoder fails is a wrong
+schema and not a strict one. The exporter and the transcoder read the tag from the same code, so the two cannot drift.
+
+A named branch carries its fullname as the tag. Each other branch carries its Avro type name.
+
+This is standard JSON Schema. Any validator reads it, and none of it is annotation.
+
+### Bytes and fixed
+
+The Avro JSON encoding writes one Unicode code point for each byte, so `0xFF` is U+00FF. It is not base64. The exported
+schema asserts this with a `pattern`:
+
+```json
+{ "type": "string", "pattern": "^[\\x00-\\xFF]*$" }
+```
+
+A `fixed` adds `minLength` and `maxLength`, both equal to the declared size. One character for each byte means that the
+two keywords recover the byte count exactly.
+
+The schema uses `pattern` because `pattern` is an assertion in every draft. `contentEncoding` is not an assertion, and
+2020-12 disables `format` by default.
+
+### Fields, defaults and documentation
 
 `required` holds the fields with no declared default. Every field is present on the Avro wire, but a field with a
 default is legitimately absent from a JSON document.
 
-### The `x-avro` annotation
+The export carries a field `default` verbatim. Under the Avro JSON encoding the two representations are the same one,
+so a `bytes` default stays the byte string that Avro wrote.
 
-JSON Schema cannot express nine Avro facts. Each one goes in an `x-avro` object on the node it belongs to, and nothing
-else does. A fact that a standard keyword already carries is never written twice.
+A `doc` on a record, an enum, a fixed or a field becomes `description`. An enum's own `default` becomes the standard
+`default` keyword, because an enum default is one of its symbols.
 
-| Key | On | What it recovers |
-|-------------|--------------------------|-----------------------------------------------------------------|
-| `type` | any node | `float` from `double`, and `fixed` from `bytes` |
-| `logicalType` | annotated nodes | the five logical types that share `format: date-time`, and any unknown one |
-| `ordinal` | record fields | field position, which is what the Avro wire is ordered by |
-| `branch` | union branches | the branch number, which is the union tag |
-| `size` | `fixed` | the byte count. Base64 encodes 16, 17 and 18 bytes to 24 characters alike |
-| `precision` | `decimal` | total digits. The pattern pins the scale, so `scale` needs no key |
-| `aliases` | fields and named types | no keyword exists |
-| `order` | fields | no keyword exists. Written only when it is not `ascending` |
-| `props` | any node | your own attributes, which Avro permits and requires preserved |
+### What the document does not carry
 
-JSON Schema 2020-12 ignores keywords it does not know. Strip every `x-avro` and a validator reaches the same verdict, so
-the annotation is safe to hand to a tool that has never heard of Avro.
+The document describes what the transcoder writes. An Avro fact that the Avro JSON encoding does not write has no
+keyword to hold it, so the export drops it:
 
-Each annotation is paired with an assertion. In 2020-12 `format` is disabled by default and `contentEncoding` is
-explicitly not an assertion, so a `pattern`, a `minLength` or a `minimum` does the real checking beside it.
+| Avro fact                       | Why the document cannot hold it                                                     |
+|---------------------------------|--------------------------------------------------------------------------------------|
+| `logicalType`                   | The encoding writes the base type. A `date` is a plain integer day count              |
+| `float` apart from `double`     | JSON Schema has one numeric type. Both become `number`                                |
+| field position                  | The properties of a JSON object have no order. The Avro wire is ordered by it         |
+| `aliases`                       | No keyword holds them                                                                 |
+| `order`                         | No keyword holds it                                                                   |
+| custom properties               | No keyword holds them                                                                 |
+| decimal `precision` and `scale` | The encoding writes the unscaled value as bytes, and neither number is in those bytes |
 
-### Options
-
-```csharp
-AvroJsonSchema.Export(avsc, new AvroJsonSchemaOptions { Canonical = true });
-```
-
-| Option | Default | Effect |
-|------------------|---------|--------------------------------------------------------------------------------|
-| `Annotations` | `true` | Off writes a portable document that no longer converts back |
-| `Canonical` | `false` | Sorts object keys and `$defs`, so two identical schemas export byte for byte alike |
-| `DeclareDialect` | `true` | Off omits `$schema`, for embedding the result in a larger document |
-
-`Canonical` never sorts array items. `oneOf` order is the union tag and `enum` order is the symbol number, so sorting
-either would change what the schema means.
-
-### Limits
-
-`Import` accepts a hand-written JSON Schema with no `x-avro` at all, and infers what it can: `number` becomes `double`,
-`integer` becomes `long` unless the maximum fits an int32, and `date-time` becomes `timestamp-millis`. An inferred
-import gives you a valid Avro schema. Only an annotated document gives you back the one you started from.
-
-A record, an enum or a fixed must live in `$defs`. Avro needs a name for each, and an inline JSON Schema object has
-none.
-
-The exported document describes the value, not the Avro JSON encoding. `AvroJsonWriter` writes a `date` as a day count
-and tags a union branch by name, exactly as the Avro specification requires, so its output does not validate against
-this document. The two are different projections of one schema.
+The document is therefore a view of the schema, in one direction. You cannot rebuild the Avro schema from it.
 
 ## What this package does not support
 
@@ -470,40 +678,43 @@ The reader schema always equals the writer schema. This package decodes with the
 implements none of Avro's resolution rules: no field reordering, no defaults for fields the writer omitted, no numeric
 promotion.
 
-Consequently `aliases`, a field's `order`, and an enum's `default` influence nothing here. All three survive verbatim in
-the schema text a generated type exposes, so an Apache-based reader still sees them.
+`aliases`, a field's `order`, and an enum's `default` therefore influence nothing here. With Apache interop on, all
+three survive verbatim in the schema text a generated type exposes, so an Apache-based reader still sees them.
 
 ### Generic mode
 
 There is no `GenericRecord` path. Every message the codec encodes or decodes needs a static CLR type, and that is what
 keeps the codec free of runtime type resolution, and therefore AOT-safe.
 
-Two paths do read a schema at run time, and neither needs a CLR type: `AvroJsonWriter` rewrites a payload as JSON, and
-`AvroJsonSchema` converts the schema itself. Both take schema text and give you back text.
+The three types under [Schema conversion](#schema-conversion) do read a schema at run time, and none of them needs a CLR
+type. They read a payload, or describe one, without the message type in the process.
 
 ### Logical types nobody implements in .NET
 
-These parse and round-trip correctly, degrading to their base type exactly as Apache.Avro does. You get the underlying
-value rather than a richer one.
+These parse and round-trip correctly, and degrade to their base type exactly as Apache.Avro does. You get the underlying
+value and not a richer one.
 
-| Logical type            | Base        | What you get    | Why                                                                                         |
-|-------------------------|-------------|-----------------|---------------------------------------------------------------------------------------------|
-| `big-decimal`           | `bytes`     | `byte[]`        | No C# implementation exists to check an encoding against                                    |
-| `duration`              | `fixed(12)` | the fixed class | Months plus days plus milliseconds has no faithful BCL type. `TimeSpan` cannot hold a month |
-| `local-timestamp-nanos` | `long`      | `long`          | Apache implements neither nanos variant, so there is no reference behaviour to match        |
-| any unrecognised name   | any         | the base type   | The specification requires implementations to ignore unknown logical types                  |
+| Logical type            | Base        | What you get    | Why                                                                                     |
+|-------------------------|-------------|-----------------|-------------------------------------------------------------------------------------------|
+| `big-decimal`           | `bytes`     | `byte[]`        | No C# implementation exists to check an encoding against                                |
+| `duration`              | `fixed(12)` | the fixed class | `TimeSpan` cannot hold a month, so months plus days plus milliseconds has no BCL type. The NodaTime model maps it to `Period` |
+| `local-timestamp-nanos` | `long`      | `long`          | Apache implements neither nanos variant, so there is no reference behaviour to match    |
+| any unrecognised name   | any         | the base type   | The specification requires implementations to ignore unknown logical types              |
 
-`uuid` on a `fixed` of any size other than 16 also degrades, matching Java.
+`uuid` on a `fixed` of any size other than 16 also degrades, which matches Java.
 
 ### Invalid schemas
 
 The generator does not validate Avro names, enum symbol uniqueness, or union constraints. A schema that breaks those
-rules reaches the C# compiler as an error rather than a diagnostic. Apache.Avro 1.12.2 validates all three when a
-generated type's `Schema` property is read.
+rules reaches the C# compiler as an error and not as a diagnostic. With Apache interop on, Apache.Avro 1.12.2 validates
+all three the first time anything reads a generated type's `Schema` property.
 
 ## Interoperability with Apache.Avro
 
-Two upstream limitations surface as exceptions rather than as wrong data.
+This section applies with `KurrentAvroApacheInterop` set to `On`. Off, a generated type carries no Apache surface, so
+neither limitation below can reach you.
+
+Two upstream limitations surface as exceptions and not as wrong data.
 
 **Apache's Specific writer cannot encode a logical type backed by a fixed.** Its conversion produces a
 `GenericFixed`, and `SpecificDatumWriter.WriteFixed` accepts only a `SpecificFixed`. This affects `decimal` on `fixed`
@@ -511,20 +722,21 @@ and `uuid` on `fixed`. Use `GenericDatumWriter` for those, or this package's own
 and is unaffected.
 
 **A known logical type on an invalid base throws in Apache's parser.** `{"type":"long","logicalType":"date"}`
-declares `date`, which is defined on `int`. This package erases the annotation and uses the base type, as the
-specification instructs and as Java does. Apache.Avro throws instead, so reading `Schema` on such a type raises
+declares `date`, which the specification defines on `int`. This package erases the annotation and uses the base type,
+as the specification instructs and as Java does. Apache.Avro throws instead, so reading `Schema` on such a type raises
 `AvroTypeException` even though the codec itself works.
 
 ## Diagnostics
 
-| Id         | Severity | Meaning                                                                                  |
-|------------|----------|------------------------------------------------------------------------------------------|
-| `KAVRO001` | Error    | The file is not valid JSON, or not a valid Avro schema. Reported at the offending offset |
-| `KAVRO002` | Warning  | The root schema is not a record, so no codec is generated                                |
-| `KAVRO003` | Warning  | Two schemas declare the same type with different shapes. Only the first is generated     |
+| Id         | Severity | Meaning                                                                                     |
+|------------|----------|-----------------------------------------------------------------------------------------------|
+| `KAVRO001` | Error    | The file is not valid JSON, or not a valid Avro schema. Reported at the offending offset    |
+| `KAVRO002` | Warning  | The root schema is not a record, so no codec is generated                                   |
+| `KAVRO003` | Error    | Two schemas declare the same type with different shapes. A type may have only one definition |
+| `KAVRO004` | Warning  | A `KurrentAvro*` property holds a value the generator does not recognise. The default holds |
 
-The generator silently deduplicates two schemas that declare the same type identically: sharing a nested record between
-files is ordinary, and generates the same C# either way.
+The generator deduplicates two schemas that declare the same type identically, and reports nothing: sharing a nested
+record between files is ordinary, and generates the same C# either way.
 
 ## Credits
 

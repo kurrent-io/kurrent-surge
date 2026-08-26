@@ -6,8 +6,8 @@
          analyzers/dotnet/cs. Wire it explicitly so these tests exercise the generated codec. -->
     <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
-    <!-- The schema registry validates with NJsonSchema through this project, so gate 3 asserts against the
-         validator that actually runs rather than against a second implementation that might disagree. -->
+    <!-- Carries the 2020-12 validator the exported document is asserted against, so a transcoded payload
+         is checked by a real validator rather than by a second reading of the same mapping. -->
     <ProjectReference Include="..\..\src\Kurrent.Surge.Schema.Validation\Kurrent.Surge.Schema.Validation.csproj" />
   </ItemGroup>
 

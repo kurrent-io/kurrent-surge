@@ -1,5 +1,6 @@
 using Kurrent.Surge.Codecs.Avro;
 using Kurrent.Surge.Codecs.Avro.AotProbe.Messages;
+using Kurrent.Surge.Schema;
 
 // Published with PublishAot and run as a process. It is the only check that proves the generated codec
 // works under Native AOT: the analyzers can be satisfied by code that still fails at runtime, and the
@@ -176,23 +177,31 @@ var jsonOk =
 Console.WriteLine($"AVROJSON  chars={json.Length} transcode={(jsonOk ? "OK" : "MISMATCH")}");
 Console.WriteLine($"          {json}");
 
-// Schema conversion, both directions. It reads no generated type either, and it drives JsonNode rather
-// than Utf8JsonWriter — a path where the trim analyser is satisfied by code that still needs runtime code
-// generation, so the linked binary is the only thing that settles it. The fixpoint is the assertion:
-// exporting a reimported schema must reproduce the document it came from.
-var surge     = AvroJsonSchema.Export(jsonSchema, new AvroJsonSchemaOptions { Canonical = true });
-var reimport  = AvroJsonSchema.Import(surge);
-var refixed   = AvroJsonSchema.Export(reimport, new AvroJsonSchemaOptions { Canonical = true });
+// Schema export. It reads no generated type either, and it drives JsonNode rather than Utf8JsonWriter —
+// a path where the trim analyser is satisfied by code that still needs runtime code generation, so the
+// linked binary is the only thing that settles it. Canonical export is the fixpoint: two exports of one
+// schema must be byte-identical.
+var source   = SchemaSource.Text(jsonSchema);
+var exported = AvroJsonSchema.Instance.ExportAsString(source, new JsonSchemaExportOptions { Canonical = true });
+var again    = AvroJsonSchema.Instance.ExportAsString(source, new JsonSchemaExportOptions { Canonical = true });
 
 var schemaOk =
-    surge.Contains("\"$schema\"")                    &&
-    surge.Contains("\"x-avro\"")                     &&
-    reimport.Contains("\"type\": \"record\"")        &&
-    refixed == surge;
+    exported.Contains(AvroJsonSchema.Dialect) &&
+    exported.Contains("\"$defs\"")            &&
+    !exported.Contains("x-avro")              &&
+    again == exported;
 
-Console.WriteLine($"AVROSCHEM chars={surge.Length} roundtrip={(schemaOk ? "OK" : "MISMATCH")}");
+Console.WriteLine($"AVROSCHEM chars={exported.Length} deterministic={(schemaOk ? "OK" : "MISMATCH")}");
 
-var allOk = flatOk && complexOk && nullOk && unionOk && unionNullOk && logicalOk && localOk && decimalOk && jsonOk && schemaOk;
+// The transcoder is the memoised path over the same writer, and it is what a consumer calls. Its output
+// must be the writer's own, or the exported schema describes one of them and not the other.
+var viaTranscoder = AvroSchemaTranscoder.Instance.ToJson(source, complexBytes);
+var transcodeOk   = viaTranscoder == json;
+
+Console.WriteLine($"AVROTRANS chars={viaTranscoder.Length} agrees={(transcodeOk ? "OK" : "MISMATCH")}");
+
+var allOk = flatOk && complexOk && nullOk && unionOk && unionNullOk && logicalOk && localOk && decimalOk
+         && jsonOk && schemaOk && transcodeOk;
 
 Console.WriteLine(allOk ? "RESULT: ALL PASSED" : "RESULT: FAILED");
 

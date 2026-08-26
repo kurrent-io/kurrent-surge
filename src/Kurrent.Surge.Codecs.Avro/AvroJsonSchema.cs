@@ -1,6 +1,3 @@
-using System.Buffers;
-using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Codecs.Avro.Generators.Model;
 using Kurrent.Surge.Schema;
@@ -8,81 +5,44 @@ using Kurrent.Surge.Schema;
 namespace Kurrent.Surge.Codecs.Avro;
 
 /// <summary>
-/// Converts between an Avro schema and a JSON Schema 2020-12 document, in both directions.
+/// Converts an Avro schema into a JSON Schema document.
 /// </summary>
 /// <remarks>
-/// The exported document carries an <c>x-avro</c> object on the nodes whose Avro facts the standard
-/// keywords cannot express, so <see cref="Import(string)"/> reproduces the schema it came from. 2020-12
-/// ignores unknown keywords, so a validator that has never heard of <c>x-avro</c> reaches the same verdict
-/// as one that has.
-/// <para>
-/// This is not an <c>ISchemaExporter</c>. That interface takes a CLR <see cref="Type"/>, and no CLR type is
-/// involved here — the Avro schema text is the only input.
-/// </para>
+/// The document describes what <see cref="AvroJsonWriter"/> writes, so a transcoded payload validates
+/// against it. A logical type is written as the base type the encoding carries — a date is a day count
+/// because that is what the mapping emits, not a date because that is what it means.
 /// </remarks>
 [PublicAPI]
-public static partial class AvroJsonSchema {
-    /// <summary>The draft 4 dialect, declared by default.</summary>
-    public const string Draft04Dialect = "http://json-schema.org/draft-04/schema#";
+public sealed partial class AvroJsonSchema : IJsonSchemaExporter {
+    /// <summary>The draft every exported document declares.</summary>
+    public const string Dialect = "https://json-schema.org/draft/2020-12/schema";
 
-    /// <summary>The draft 2020-12 dialect.</summary>
-    public const string Draft202012Dialect = "https://json-schema.org/draft/2020-12/schema";
+    /// <summary>Where named types are hoisted, and what a <c>$ref</c> points into.</summary>
+    internal const string Container = "$defs";
 
-    internal static string DialectOf(JsonSchemaDialect dialect) =>
-        dialect is JsonSchemaDialect.Draft202012 ? Draft202012Dialect : Draft04Dialect;
+    public static AvroJsonSchema Instance { get; } = new();
 
-    /// <summary>Where a draft hoists its named types.</summary>
+    // Held privately rather than shared: JsonSchemaExportOptions is mutable, so a singleton anything
+    // outside this class can reach is a singleton anything outside it can reconfigure.
+    static readonly JsonSchemaExportOptions DefaultOptions = new();
+
+    /// <inheritdoc />
+    /// <exception cref="ArgumentException">The schema is not valid Avro, or more than one was supplied.</exception>
+    public JsonNode Export(SchemaSource schema, JsonSchemaExportOptions? options = null) =>
+        ExportDocument(Single(schema), options ?? DefaultOptions);
+
     /// <remarks>
-    /// A <c>$ref</c> is a JSON Pointer, so either name resolves under either draft. They are kept apart
-    /// anyway: a document declares one draft and reads entirely as that draft, or it reads as neither.
+    /// An Avro document declares one root type and resolves its named references inside itself, so
+    /// <see cref="SchemaSource.MessageTypeName"/> is never read. A source carrying several documents is
+    /// rejected rather than resolved to the first, which is what the contract on
+    /// <see cref="SchemaSource"/> requires.
     /// </remarks>
-    internal static string ContainerOf(JsonSchemaDialect dialect) =>
-        dialect is JsonSchemaDialect.Draft202012 ? "$defs" : "definitions";
-
-    /// <summary>Converts Avro schema JSON to a JSON Schema 2020-12 document.</summary>
-    /// <param name="avroSchema">The Avro schema, as JSON text.</param>
-    /// <param name="options">Emission options. Defaults to annotated, non-canonical, dialect declared.</param>
-    /// <exception cref="ArgumentException">The schema is not valid Avro.</exception>
-    public static string Export(string avroSchema, AvroJsonSchemaOptions? options = null) =>
-        Serialize(ExportAsJsonNode(avroSchema, options));
-
-    /// <summary>Converts Avro schema JSON to a JSON Schema 2020-12 document.</summary>
-    /// <remarks>The overload to use when the result is embedded in a larger document.</remarks>
-    /// <exception cref="ArgumentException">The schema is not valid Avro.</exception>
-    public static JsonNode ExportAsJsonNode(string avroSchema, AvroJsonSchemaOptions? options = null) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(avroSchema);
-
-        return ExportDocument(avroSchema, options ?? AvroJsonSchemaOptions.Default);
-    }
-
-    /// <summary>Converts a JSON Schema 2020-12 document to Avro schema JSON.</summary>
-    /// <remarks>
-    /// A document with no <c>x-avro</c> annotations still converts, by inference from the standard
-    /// keywords. Only an annotated document is guaranteed to reproduce the Avro schema it was exported
-    /// from.
-    /// </remarks>
-    /// <exception cref="ArgumentException">The document is not valid JSON.</exception>
-    /// <exception cref="AvroJsonSchemaException">The document cannot be expressed as an Avro schema.</exception>
-    public static string Import(string jsonSchema) {
-        ArgumentException.ThrowIfNullOrWhiteSpace(jsonSchema);
-
-        var node = JsonNode.Parse(jsonSchema)
-                ?? throw new ArgumentException("The JSON Schema is null.", nameof(jsonSchema));
-
-        return Import(node);
-    }
-
-    /// <inheritdoc cref="Import(string)"/>
-    public static string Import(JsonNode jsonSchema) => Serialize(ImportDocument(jsonSchema));
-
-    static string Serialize(JsonNode node) {
-        var buffer = new ArrayBufferWriter<byte>();
-
-        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true }))
-            node.WriteTo(writer);
-
-        return Encoding.UTF8.GetString(buffer.WrittenSpan);
-    }
+    internal static string Single(SchemaSource schema) =>
+        schema.Schemas is [var text]
+            ? text
+            : throw new ArgumentException(
+                $"An Avro document declares one root type, so exactly one schema is expected; {schema.Schemas.Count} were supplied.",
+                nameof(schema));
 
     static AvroSchemaDocument Parse(string avroSchema, string parameterName) =>
         AvroSchemaParser.TryParse(avroSchema, out var document, out var error, out var offset)
