@@ -134,11 +134,18 @@ sealed class SchemaGovernance : ISchemaGovernance {
             return Cache(await _registry.CreateSchema(schema, definition, RegistrationDataFormat, ct).ConfigureAwait(false));
         }
         catch (SchemaAlreadyExistsException) {
-            // The name is taken. Either another client registered this same type first — likely,
-            // since registry reads lag writes by a few hundred milliseconds — or the name maps to
-            // a different type. Compatibility separates the two: a mismatch is a real error, not
-            // a race.
-            return new(await EnsureCompatibleByName(schema, messageType, RegistrationDataFormat, ct).ConfigureAwait(false), 0);
+            // The name is taken, which is all registration promised — the create command reads the
+            // schema's own stream, so its answer is authoritative. With validation off there is
+            // nothing left to ask.
+            if (_options.ValidationMode is not SchemaValidationMode.Enabled)
+                return new(SchemaVersionId.Unset, 0);
+
+            // Validation is on, so the name still has to be proven compatible: it may map to a
+            // different type, which is a real error rather than a race. That check reads the
+            // registry's projection, which lags the create by a few hundred milliseconds, so a
+            // not-found here means "not visible yet" and never "absent" — the command just proved
+            // otherwise. Wait for it to appear rather than failing a registration that succeeded.
+            return new(await EnsureCompatibleByNameOnceVisible(schema, messageType, ct).ConfigureAwait(false), 0);
         }
 
         SchemaVersionDescriptor Cache(SchemaVersionDescriptor descriptor) {
@@ -180,6 +187,23 @@ sealed class SchemaGovernance : ISchemaGovernance {
         }
         catch (SchemaIncompatibleException incompatible) {
             throw new SchemaValidationException(dataFormat, versionId, messageType, incompatible.Errors.Errors);
+        }
+    }
+
+    // Bounded because the schema is known to exist: the create command said so. Only the read
+    // side has to catch up, so every attempt but the last swallows the absence.
+    async ValueTask<SchemaVersionId> EnsureCompatibleByNameOnceVisible(SchemaName schema, Type messageType, CancellationToken ct) {
+        const int attempts = 5;
+        var       delay    = TimeSpan.FromMilliseconds(100);
+
+        for (var attempt = 1; ; attempt++) {
+            try {
+                return await EnsureCompatibleByName(schema, messageType, RegistrationDataFormat, ct).ConfigureAwait(false);
+            }
+            catch (SchemaNotFoundException) when (attempt < attempts) {
+                await Task.Delay(delay, ct).ConfigureAwait(false);
+                delay *= 2;
+            }
         }
     }
 
