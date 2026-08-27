@@ -150,11 +150,9 @@ jobs:
       - name: Build Examples (Package Validation)
         if: steps.changes.outputs.build == 'true'
         # The packed SDK packages carry this build's version and exist ONLY in the local
-        # .artifacts/packages feed (disabled by default in nuget.config). Enable it and drop the
-        # remote GitHub source so restore can't fall through to a version the feed can't have.
+        # .artifacts/packages feed, which nuget.config disables by default. Enable it here.
         run: |
           dotnet nuget enable source local
-          dotnet nuget disable source GitHub
           dotnet build examples/Examples.slnx -c Release \
             -p:TestPackages=true \
             -p:Version=${{ steps.version.outputs.version }}
