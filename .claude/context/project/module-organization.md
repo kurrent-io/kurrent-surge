@@ -1,6 +1,6 @@
 # Module Organization
 
-> File layout, naming conventions, and mapping patterns for client modules under `src/Kurrent.Client/Modules/`.
+> File layout, naming conventions, and mapping patterns for client modules under `src/Kurrent.Surge/Client/Modules/`.
 
 ## Folder Structure
 
@@ -21,7 +21,7 @@ Modules/{Module}/
 │   ├── Record.cs
 │   ├── StreamName.cs
 │   └── ...
-└── {Subsystem}/                               # self-contained subsystem (e.g. Filters/, Metadata/)
+└── {Subsystem}/                               # self-contained subsystem (e.g. Metadata/, Pipeline/)
 ```
 
 Not every operation needs all file slots. A simple operation may only have the `.cs` file. Only create
@@ -79,14 +79,14 @@ parameter genuinely do not work.
 
 ## MappingContext Pattern
 
-Operations that need dependencies for mapping (serializers, registry policies) use a context struct
+Operations that need dependencies for mapping (decoders, policies) use a context struct
 instead of a stateful mapper class. The context bundles dependencies and the cancellation token into
 a single value, created once per operation call.
 
 ```csharp
 readonly record struct MappingContext(
-    ISchemaSerializerProvider Serializer,
-    SchemaRegistryPolicy Policy,
+    IMetadataDecoder MetadataDecoder,
+    IRecordDecoder Decoder,
     CancellationToken CancellationToken
 );
 ```
@@ -112,7 +112,7 @@ static class AppendRecordsMapping {
 Call site in the client method:
 
 ```csharp
-var ctx = new MappingContext(SerializerProvider, RegistryPolicy, cancellationToken);
+var ctx = new MappingContext(MetadataDecoder, Decoder, cancellationToken);
 var serviceRequest = await request.ToContract(ctx).ConfigureAwait(false);
 var rsp = await ServiceClient.AppendRecordsAsync(serviceRequest, cancellationToken: cancellationToken).ConfigureAwait(false);
 return rsp.ToResponse();
@@ -150,8 +150,8 @@ Modules/Streams/
 │   ├── RecordPosition.cs
 │   ├── StreamName.cs
 │   └── ... and more
-├── Filters/
-└── Metadata/
+├── Metadata/
+└── Pipeline/
 ```
 
 ## What This Convention Eliminates

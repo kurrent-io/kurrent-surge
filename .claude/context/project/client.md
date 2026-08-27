@@ -1,72 +1,127 @@
-# Kurrent.Client
+# Kurrent.Surge
 
-> gRPC client library for reading and writing streams to KurrentDB; the foundation package of the SDK.
+> The gRPC client, in `src/Kurrent.Surge/Client/`. Reads and writes streams, and drives the schema
+> registry, secondary indexes, connectors, and node administration. Its contracts live in
+> `src/Kurrent.Surge.Core/Client/`.
 
 ## Overview
 
-`KurrentClient` is the entry point. It exposes feature modules as properties. All modules inherit from `ClientModuleBase`, which provides: `Logger`, `SerializerProvider`, `ServerCapabilities`, `TypeMapper`, `MetadataDecoder`, `TimeProvider`, `LoggerFactory`.
+`KurrentClient` is the entry point, built with `KurrentClient.Create(options)` or
+`KurrentClient.Create(connectionString, configure)`. It exposes five feature modules as properties.
+Modules inherit `ClientModuleBase`, which provides `Logger`, `LoggerFactory`, `Time`,
+`MetadataDecoder`, and `GetBackdoorClient()`.
 
-| Module                                             | Property            | Notes                 |
-|----------------------------------------------------|---------------------|-----------------------|
-| Streams                                            | `client.Streams`    |                       |
-| Registry                                           | `client.Registry`   | V2 gRPC               |
-| Indexes                                            | `client.Indexes`    | V2 gRPC, active       |
-| Connectors                                         | `client.Connectors` | V2 gRPC, active       |
-| Users, PersistentSubscriptions, Admin, Projections | —                   | Commented out, future |
+| Module     | Property            | Interface           |
+|------------|---------------------|---------------------|
+| Streams    | `client.Streams`    | `IStreamsClient`    |
+| Registry   | `client.Registry`   | `IRegistryClient`   |
+| Indexes    | `client.Indexes`    | `IIndexesClient`    |
+| Connectors | `client.Connectors` | `IConnectorsClient` |
+| Admin      | `client.Admin`      | `IAdminClient`      |
+
+Users, PersistentSubscriptions, and Projections are commented out and future.
+
+## What the client can do
+
+### Streams
+
+| Group     | Operations                                                                    |
+|-----------|-------------------------------------------------------------------------------|
+| Append    | `AppendRecords` (multi-stream atomic), `AppendStream` (single-stream sugar)   |
+| Read      | `ReadRecords` (log), `ReadStream`, `InspectRecord`, `FirstRecord`, `LastRecord` |
+| Subscribe | `Subscribe`                                                                   |
+| Manage    | `GetStreamInfo`, `Delete`, `Tombstone`, `Truncate`, `SetCustomMetadata`, `ConfigureDataRetention` |
+
+`ReadRecords`, `ReadStream`, and `Subscribe` return `IAsyncEnumerable<ReadMessage>` and
+`IAsyncEnumerable<SubscribeMessage>`. `AppendRecords` returns `ValueTask<AppendRecordsResponse>`.
+
+Append runs on V2 gRPC. Read and manage run on the V1 legacy service — `StreamsClient` holds both a
+`ServiceClient` (V2) and a `LegacyServiceClient`, plus a separate `LegacyReadServiceClient` on its own
+call invoker.
+
+### Registry
+
+`CreateSchema`, `GetSchema`, `GetSchemaVersion`, `GetSchemaVersionById`, `RegisterSchemaVersion`,
+`ListSchemas`, `DeleteSchema`, `CheckSchemaCompatibility`.
+
+### Indexes
+
+`Create`, `Get`, `List`, `Start`, `Stop`, `Delete`.
+
+### Connectors
+
+`Create`, `Reconfigure`, `Rename`, `Reset`, `Start`, `Stop`, `Delete`, `GetSettings`,
+`GetConfiguration`, `List`.
+
+### Admin
+
+`StartScavenge`, `StopScavenge`, `GetScavengeDetails`, `ListScavenges`, `ResignNode`,
+`SetNodePriority`, `ShutdownServer`.
 
 ## Key Concepts
 
-### Streams Module
+### Module file layout
 
-The most mature module. Split across 15+ partial class files under `Modules/Streams/`. See [Module Organization](module-organization.md) for file layout conventions.
+The Streams module is the largest, split across 16 partial files under `Modules/Streams/`. See
+[Module Organization](module-organization.md) for the conventions.
 
-**Append** (V2 gRPC): `AppendRecords` (unary, multi-stream atomic), `AppendSession` (client-streaming), `AppendAdapter` (bridges V1-style through V2 session).
+### Record pipelines
 
-**Read** (V1 legacy gRPC): `InspectRecord`, `ReadStreamEdge`, `ReadRecords` (global log + named stream). Returns `RecordStream` — a lazy `Channel<ReadRecordsResult>`, single-consumer.
+`Modules/Streams/Pipeline/` holds `ReadRecordPipeline` and `WriteRecordPipeline` with their step
+files. Records move through a composed step chain rather than a stateful mapper.
 
-**Manage** (V1 legacy gRPC): `GetStreamInfo`, `Delete`, `Tombstone`, `SetStreamMetadata`, `Truncate`, `ConfigureStreamDataRetention`.
+### Schema governance
 
-### Error Handling
+`Client/Schema/Governance/` holds `ISchemaGovernance`, `SchemaGovernance`, `CatalogSchemaMap`, and
+`CatalogRegistrationFailedException`. Governance owns registry round-trips: registering a schema and
+checking compatibility.
 
-Exception types decorated with `[KurrentOperationError]` are source-generated. Operations throw these typed exceptions directly. RPC errors are parsed via `ex.ToException(parsers...)` where each parser is a static `From` method group on the exception type.
+`KurrentClientSchemaOptions` is the single dial, with three presets:
 
-### Filter System
+| Preset         | Meaning                       |
+|----------------|-------------------------------|
+| `Disabled`     | default                       |
+| `AutoRegister` | register on first use         |
+| `Strict`       | registration plus validation  |
 
-Filters implement `IRecordFilter`. Factory: `RecordFilter`. Available filters: `ByStream`, `ByStreamPrefix`, `ByCategory`, `BySchema`, `BySchemaPrefix`, `ByExpression(string)`.
+It carries `RegistrationMode` (`SchemaRegistrationMode`, default `Manual`), `ValidationMode`
+(`SchemaValidationMode`, default `Disabled`), and `NameStrategy` (`ISchemaNameStrategy`, default
+`SchemaNameStrategies.TypeName()`).
 
-`ByExpression` uses a SQL-like DSL parsed by a Pratt parser. `ExpressionFilter` extracts a `ServerFilter` for server-side pushdown and evaluates the full AST client-side via `IsMatch`.
+Codecs live in `Kurrent.Surge.Core/Schema/Codecs/` — `ISchemaCodec` and `SchemaCodecProvider`, with
+`Json/` and `Protobuf/` implementations. One codec per `SchemaDataFormat`; registering two throws
+`DuplicateSchemaCodecException`.
 
-### Schema System
+### Filters
 
-Located in `src/Kurrent.Client/Schema/`. Type-safe serialization with optional registry governance.
+`RecordFilter` is an abstract record — concrete filters derive from it, and its static members are
+the factory:
 
-Pipeline: `CLR Type → MessageTypeMapper → SchemaManager → Serializer → Bytes`.
+| Factory                                | Target                        |
+|----------------------------------------|-------------------------------|
+| `RecordFilter.None`                    | no filtering                  |
+| `ByStream`, `ByStreamPattern`          | one stream, or a pattern      |
+| `ByCategory`                           | a stream category             |
+| `BySchema`                             | a schema name                 |
+| `ByUserIndex`                          | a secondary index             |
+| `ByExpression(string[, parameters])`   | a SQL-like expression         |
 
-Active path: `AutoMapMessages` — maps CLR types to schema names via the configured name strategy without server round-trips.
+`ByExpression` is parsed by a Pratt parser. `ExpressionFilter` extracts a server-side filter for
+pushdown and evaluates the full AST client-side.
 
-**Registration modes** (`SchemaRegistrationOptions`): `AutoMap`, `ManualMap`, `AutoRegister`, `ManualRegister`, `ServerPolicy`.
+### Cluster connection
 
-**Name strategies**: `MessageSchemaNameStrategy` (default), `CategorySchemaNameStrategy`, `NamespaceSchemaNameStrategy`, `NamespaceCategorySchemaNameStrategy`.
+`Client/LoadBalancing/` owns cluster routing: `GossipResolver` and `GrpcGossipClient` discover
+topology, `KurrentDBLoadBalancer` picks a channel, and `LeaderChangeInterceptor` reacts to a leader
+change. `ClusterChannels`, `ClusterEndpoint`, and `ClusterTopology` carry the state.
 
-**SchemaUrn** format: `urn:schemas-kurrent:{namespace}:{messageName}[:{guid}]`
+`Client/Initialization/` runs startup work: `ClientInitializer` with `IClientInitializationTask`, and
+the `FaultGateCallInvoker` / `FaultGateHttpHandler` pair that fails calls when initialization faulted.
 
-Serializers: `JsonSchemaSerializer` (System.Text.Json), `ProtobufSchemaSerializer` (Google.Protobuf), `BytesPassthroughSerializer`.
+### Options and configuration
 
-Use `MessageTypeMapper` registration, not reflection.
-
-### Registry Module
-
-`RegistryClient` provides schema management against the V2 `SchemaRegistryService` gRPC endpoint. Operations: `CreateSchema`, `GetSchema`, `GetSchemaVersion`, `DeleteSchema`, `CheckSchemaCompatibility`.
-
-### Options and Configuration
-
-`KurrentClientOptions` is the central configuration record. Created via:
-- `KurrentClient.New` (fluent builder)
-- `.Parse(connectionString)`
-- `.FromConfiguration(prefix)`
-- `AddKurrentClient()` DI extension
-
-### Connection Strings
+`KurrentClientOptions` is the central configuration record. Created via `.Parse(connectionString)` or
+the `AddKurrentClient()` DI extension.
 
 ```
 kurrentdb://localhost:2113                               # Single node, insecure
@@ -75,10 +130,18 @@ kurrentdb+discover://node1:2113,node2:2113               # Cluster discovery
 kurrents://localhost:2113?tls=true&tlsVerifyCert=true    # TLS
 ```
 
-Node preference options: `Leader`, `Follower`, `Random`, `ReadOnlyReplica`.
+`NodeReadPreference` selects the node: `Leader`, `Follower`, `Random`, `ReadOnlyReplica`. The
+connection-string parameter is `ReadPreference`; `NodePreference` is still accepted as an alias.
+
+### Error handling
+
+Operations throw typed exceptions deriving from `KurrentException`, each carrying an
+`ErrorCode.FromType<T>()`. RPC errors are mapped through `ex.ToException(parsers...)`, where each
+parser is a static `From` method group on the exception type.
 
 ## Gotchas
 
-- `RecordStream` is single-consumer (backed by `Channel<T>`); do not enumerate it multiple times.
-- `Indexes` and `Connectors` use V2 protos but still route through `LegacyCallInvoker` — do not assume V2 means a separate call path.
-- Public API surface is locked: do not rename, remove, or change signatures of `public` members without explicit approval.
+- Read and subscribe results are `IAsyncEnumerable<T>` over a channel — enumerate once.
+- Append is V2; read and manage are V1 legacy. One module, two protocols.
+- Public API surface is locked: do not rename, remove, or change signatures of `public` members
+  without explicit approval.

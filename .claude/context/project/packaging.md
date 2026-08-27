@@ -23,9 +23,9 @@ flags) produces a `.nuspec` with a NuGet dependency that doesn't exist on any fe
 `NU1101`.
 
 **Analyzer flow:** NuGet excludes `Build,Analyzers` on dependency edges by default. A consumer that
-installs only `Kurrent.Streaming` would NOT get the catalog generator shipped inside `Kurrent.Client` —
-which is why Streaming's reference to Client carries `PrivateAssets="none"` (→ `include="All"` in the
-nuspec dependency). The **in-repo** counterpart — getting that same generator to run on projects that
+installs only `Kurrent.Surge` would NOT get the catalog generator shipped inside
+`Kurrent.Surge.Schema.Catalogs` — which is why Surge's reference to Schema.Catalogs carries
+`PrivateAssets="none"` (→ `include="All"` in the nuspec dependency). The **in-repo** counterpart — getting that same generator to run on projects that
 reference the SDK by source — is a separate problem (analyzers aren't transitive through `ProjectReference`);
 see [In-repo source consumers](#in-repo-source-consumers-packedanalyzerproject).
 
@@ -64,8 +64,6 @@ detects `IsPackable=true` and wires the pack pipeline (`_CollectVendoredAndBundl
 
 Currently packable: `Kurrent.Surge`, `Kurrent.Surge.Core`, `Kurrent.Surge.Schema.Catalogs`,
 `Kurrent.Surge.Codecs.Avro`.
-`src/Kurrent.Client/` and `src/Kurrent.Streaming/` exist on disk with no `.csproj` — untracked leftovers from
-an approved-but-unexecuted rename (see `[[kurrent-surge-restructure]]` in project memory), not real projects.
 
 How a reference is treated is controlled by **metadata flags** on the `<ProjectReference>` /
 `<PackageReference>` item. The next section covers each flag; [How Suppression Works](#how-suppression-works)
@@ -77,13 +75,13 @@ nuspec.
 ### Public dependency (becomes a NuGet dependency)
 
 ```xml
-<ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" />
+<ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
 ```
 
 No special metadata. The SDK declares it as a package dependency in the `.nuspec`. Use only when the
-referenced project is itself a published NuGet package. Example: `Kurrent.Streaming` references
-`Kurrent.Client` this way — with `PrivateAssets="none"` so Client's packed analyzer flows to consumers
-that install only Streaming (see [Analyzer flow](#tldr)). External `<PackageReference>` items
+referenced project is itself a published NuGet package. Example: `Kurrent.Surge` references
+`Kurrent.Surge.Schema.Catalogs` this way — with `PrivateAssets="none"` so the Catalogs package's packed
+analyzer flows to consumers that install only Surge (see [Analyzer flow](#tldr)). External `<PackageReference>` items
 (`Google.Protobuf`, `kurrent.quack`, …) are handled conventionally by the SDK.
 
 ### Embedded library (bundled in `lib/{tfm}/`)
@@ -126,7 +124,7 @@ validate with `verify-package.py` if you introduce one.
 only. `Directory.Build.targets` expands it to `OutputItemType="Analyzer" ReferenceOutputAssembly="false"
 PrivateAssets="all"` — so the generator runs, its DLL is not copied to output, and it never appears in the
 package or its nuspec. Use for SDK-internal generators (e.g. `Variant.SourceGenerators`,
-`Kurrent.Client.SourceGenerators`) that consumers do not need.
+`Kurrent.Surge.SourceGenerators`) that consumers do not need.
 
 ### Packed generator (shipped in `analyzers/dotnet/cs/`)
 
@@ -141,7 +139,7 @@ requirement, regardless of the packable project's TFM) and places the result und
 
 The set is declared **once** as `@(PackedAnalyzerProject)` in `Directory.Build.props` and referenced with
 `PackedAnalyzer="true"`; the same list is also wired for in-repo source consumers (below). Today this is
-the message-catalog generator (`Kurrent.Client.MessageCatalogs.Generators`).
+the message-catalog generator (`Kurrent.Surge.Schema.Catalogs.Generators`).
 
 > **Generator helper code is baked in by source, not shipped as a DLL.** Generators include shared Roslyn
 > helpers via `Kurrent.CodeAnalysis.Sources.props` (source compiled into each generator), so each packed
@@ -153,21 +151,21 @@ the message-catalog generator (`Kurrent.Client.MessageCatalogs.Generators`).
 A packed generator reaches real NuGet consumers automatically (it ships under `analyzers/dotnet/cs/`). But
 **in-repo** projects (examples, tests, sibling packages) reference the SDK by *source* (`ProjectReference`),
 and **Roslyn analyzers are NOT transitive through a `ProjectReference`** — by design in the SDK. So a
-project that references `Kurrent.Client`/`Kurrent.Streaming` from source does not get the catalog generator
+project that references `Kurrent.Surge`/`Kurrent.Surge.Schema.Catalogs` from source does not get the catalog generator
 the way a packaged consumer does; without help its `[MessageCatalog]` / `[MessageType]` declarations would
 generate nothing.
 
 The fix is centralized:
 
 - **`@(PackedAnalyzerProject)`** (`Directory.Build.props`) is the single source of truth — the generators
-  that ship to consumers. `Kurrent.Client` references it with `PackedAnalyzer="true"`.
+  that ship to consumers. `Kurrent.Surge.Schema.Catalogs` references it with `PackedAnalyzer="true"`.
 - A rule in `Directory.Build.targets` wires that **same list** as analyzers onto any in-repo project that
-  references `Kurrent.Client` or `Kurrent.Streaming` by source. It is skipped when `TestPackages=true` (in
+  references `Kurrent.Surge` or `Kurrent.Surge.Schema.Catalogs` by source. It is skipped when `TestPackages=true` (in
   package mode the package already supplies the generator; adding it again would emit the types twice →
   `CS0101`).
 
 Detection filters `@(ProjectReference)` by filename via an item-to-item transform
-(`@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Client'))`), **not** a property: MSBuild
+(`@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Surge'))`), **not** a property: MSBuild
 evaluates properties before items, so a property assigned `@(ProjectReference)` reads as the literal,
 unexpanded string.
 
@@ -209,16 +207,21 @@ the refs keep flowing.
 What a packable project's `.nupkg` contains and where each assembly comes from:
 
 ```
-Kurrent.Client.nupkg
+Kurrent.Surge.Core.nupkg
 ├── lib/net10.0/
-│   ├── Kurrent.Client.dll                          ← main assembly (SDK default)
-│   └── Kurrent.Variant.dll                         ← Bundle (_CollectVendoredAndBundledFiles)
+│   ├── Kurrent.Surge.Core.dll                      ← main assembly (SDK default)
+│   ├── Kurrent.Variant.dll                         ← Bundle (_CollectVendoredAndBundledFiles)
+│   └── Kurrent.Surge.RecordFilters.dll             ← Bundle (_CollectVendoredAndBundledFiles)
+
+Kurrent.Surge.Schema.Catalogs.nupkg
+├── lib/net10.0/
+│   └── Kurrent.Surge.Schema.Catalogs.dll           ← main assembly (SDK default)
 └── analyzers/dotnet/cs/
-    └── Kurrent.Client.MessageCatalogs.Generators.dll  ← PackedAnalyzer (_CollectPackedAnalyzers)
+    └── Kurrent.Surge.Schema.Catalogs.Generators.dll  ← PackedAnalyzer (_CollectPackedAnalyzers)
 ```
 
-`Variant.SourceGenerators` and `Kurrent.Client.SourceGenerators` are `Analyzer="true"` (SDK-internal) — they
-run while building `Kurrent.Client` but ship **nothing**. The nuspec lists only the real external
+`Variant.SourceGenerators` and `Kurrent.Surge.SourceGenerators` are `Analyzer="true"` (SDK-internal) — they
+run while building `Kurrent.Surge` but ship **nothing**. The nuspec lists only the real external
 dependencies (`Google.*`, `Grpc.*`, `Microsoft.Extensions.*`, `NJsonSchema`, …); `Kurrent.Variant` and the
 generators are absent.
 
@@ -261,7 +264,7 @@ not** add `PackProjectDependencies` / `PackSourceGenerators` targets — they no
 
 ### Add a project-to-project public dependency
 
-Only when both projects are published packages (e.g. `Kurrent.Streaming` → `Kurrent.Client`). Reference with
+Only when both projects are published packages (e.g. `Kurrent.Surge` → `Kurrent.Surge.Core`). Reference with
 no special metadata; add `PrivateAssets="none"` if the dependency ships an analyzer that consumers need to
 receive transitively. Never use a bare reference for an unpublished project — use `Bundle="true"`.
 
@@ -272,10 +275,10 @@ Bundle/Vendor/Analyzer contract declared in its csproj, including the full trans
 
 ```sh
 # Pack and verify (default: packs the CI way — standalone restore + --no-build --no-restore pack)
-python3 scripts/verify-package.py --csproj src/Kurrent.Client/Kurrent.Client.csproj --output-dir .artifacts/local-packages
+python3 scripts/verify-package.py --csproj src/Kurrent.Surge/Kurrent.Surge.csproj --output-dir .artifacts/local-packages
 
 # Verify an existing package
-python3 scripts/verify-package.py path/to/Kurrent.Client.1.2.3.nupkg --csproj src/Kurrent.Client/Kurrent.Client.csproj
+python3 scripts/verify-package.py path/to/Kurrent.Surge.1.2.3.nupkg --csproj src/Kurrent.Surge/Kurrent.Surge.csproj
 ```
 
 By default it packs **the way CI ships** (standalone restore, then `--no-build --no-restore`) — the path
@@ -304,7 +307,7 @@ references — no custom pack targets.
 
   <ItemGroup>
     <!-- Public dependency: becomes a NuGet dependency. Only for other published packages. -->
-    <ProjectReference Include="..\Kurrent.Client\Kurrent.Client.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
 
     <!-- Internal library: shipped in lib/{tfm}/, hidden from nuspec deps. -->
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
