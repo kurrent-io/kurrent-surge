@@ -52,18 +52,38 @@ public partial class RegistryClient {
             SchemaDefinition = ByteString.CopyFromUtf8(options.SchemaDefinition)
         };
 
-        try {
-            var response = await ServiceClient
-                .CreateSchemaAsync(rpc, cancellationToken: ct)
-                .ConfigureAwait(false);
+        // A create on a cold registry can fail while the schema's own stream is still being
+        // created: the command service folds that stream to decide the entity is new, the read
+        // throws StreamNotFound, and the server's classifier does not see through the
+        // AggregateException wrapper, so it reports Internal. The condition is transient and hits
+        // a varying subset of a catalog walk, so the create is retried rather than translated.
+        // Drop this once the server unwraps before classifying.
+        const int attempts = 5;
 
-            return response.ToSchemaVersionDescriptor();
+        var delay = TimeSpan.FromMilliseconds(100);
+
+        for (var attempt = 1; ; attempt++) {
+            try {
+                var response = await ServiceClient
+                    .CreateSchemaAsync(rpc, cancellationToken: ct)
+                    .ConfigureAwait(false);
+
+                return response.ToSchemaVersionDescriptor();
+            }
+            catch (RpcException rex) when (attempt < attempts && IsColdRegistryFault(rex)) {
+                await Task.Delay(delay, ct).ConfigureAwait(false);
+                delay *= 2;
+            }
+            catch (Exception ex) {
+                throw ex.ToException(
+                    // StatusCode fallbacks
+                    SchemaAlreadyExistsException.Match(options.SchemaName));
+            }
         }
-        catch (Exception ex) {
-            throw ex.ToException(
-                // StatusCode fallbacks
-                SchemaAlreadyExistsException.Match(options.SchemaName));
-        }
+
+        static bool IsColdRegistryFault(RpcException ex) =>
+            ex.StatusCode == StatusCode.Internal
+         && ex.Status.Detail.Contains("ReadResponseException+StreamNotFound", StringComparison.Ordinal);
     }
 
     #endregion
