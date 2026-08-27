@@ -73,7 +73,7 @@ public ref struct CodedReader
         var length = (int)ReadRawVarint32();
         if (length < 0)
             throw new DecodeException("Negative string length.");
-        if (length == 0) return string.Empty;
+        if (length == 0) return "";
 
         EnsureAvailable(length);
         var result = Encoding.UTF8.GetString(_buffer.Slice(_position, length));
