@@ -80,8 +80,8 @@ issue IDs. Linear links PRs to issues via the branch name.
 Validate package contents before proposing packaging changes with the verification gate:
 
 ```bash
-python3 scripts/verify-package.py --csproj src/Kurrent.Client/Kurrent.Client.csproj
-python3 scripts/verify-package.py --csproj src/Kurrent.Streaming/Kurrent.Streaming.csproj --list
+python3 scripts/verify-package.py --csproj src/Kurrent.Surge/Kurrent.Surge.csproj
+python3 scripts/verify-package.py --csproj src/Kurrent.Surge.Core/Kurrent.Surge.Core.csproj --list
 ```
 
 Pass an existing `.nupkg` as a positional argument to verify a pre-built package instead of packing.
@@ -90,12 +90,14 @@ Pass an existing `.nupkg` as a positional argument to verify a pre-built package
 
 Publishable packages (no meta-package — consumers install only what they need):
 
-| Package                                     | What it does                                                       |
-|---------------------------------------------|--------------------------------------------------------------------|
-| [Kurrent.Client](src/Kurrent.Client/)       | gRPC client — streams, schema registry, connectors, admin          |
-| [Kurrent.Streaming](src/Kurrent.Streaming/) | Stream processing with checkpointing and partitioning; builds on the client |
+| Package                                                             | What it does                                                       |
+|---------------------------------------------------------------------|--------------------------------------------------------------------|
+| [Kurrent.Surge](src/Kurrent.Surge/)                                 | gRPC client and stream processing — streams, schema registry, indexes, connectors, admin |
+| [Kurrent.Surge.Core](src/Kurrent.Surge.Core/)                       | The contract layer, with no transport dependencies                 |
+| [Kurrent.Surge.Schema.Catalogs](src/Kurrent.Surge.Schema.Catalogs/) | Message declaration, naming, and the catalog generator             |
+| [Kurrent.Surge.Codecs.Avro](src/Kurrent.Surge.Codecs.Avro/)         | The opt-in Avro codec                                              |
 
-Everything else under `src/` (source generators, `Variant`, `Kurrent.CodeAnalysis`, schema catalogs) is shared
+Everything else under `src/` (source generators, `Variant`, `Kurrent.CodeAnalysis`) is shared
 solution infrastructure, not shipped as standalone packages. Proto definitions live in
 `proto/kurrentdb/protocol/{v0,v1,v2}/`.
 

@@ -10,10 +10,12 @@ There is no meta-package; each package is independently installable, so you pull
 
 ## Packages
 
-| Package                                       | What it does                                                                                                         | Install                                 |
-|-----------------------------------------------|----------------------------------------------------------------------------------------------------------------------|-----------------------------------------|
-| [Kurrent.Client](src/Kurrent.Client/)         | Append and read records, manage streams, work with the schema registry, and interact with connectors                 | `dotnet add package Kurrent.Client`     |
-| [Kurrent.Streaming](src/Kurrent.Streaming/)   | Subscribe to and process records from the log with automatic checkpointing and partitioning                          | `dotnet add package Kurrent.Streaming`  |
+| Package                                                                 | What it does                                                                                          | Install                                              |
+|-------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
+| [Kurrent.Surge](src/Kurrent.Surge/)                                     | Append and read records, manage streams, work with the schema registry, drive indexes and connectors, and process records with checkpointing and partitioning | `dotnet add package Kurrent.Surge`                   |
+| [Kurrent.Surge.Core](src/Kurrent.Surge.Core/)                           | The contract layer: client interfaces and the data types they accept and return, with no transport dependencies | `dotnet add package Kurrent.Surge.Core`              |
+| [Kurrent.Surge.Schema.Catalogs](src/Kurrent.Surge.Schema.Catalogs/)     | Declare your message types and map each one to a schema name                                          | `dotnet add package Kurrent.Surge.Schema.Catalogs`   |
+| [Kurrent.Surge.Codecs.Avro](src/Kurrent.Surge.Codecs.Avro/)             | The opt-in Avro codec                                                                                 | `dotnet add package Kurrent.Surge.Codecs.Avro`       |
 
 See each package's README for quick-start guides, code samples, and detailed feature documentation.
 
@@ -24,8 +26,8 @@ See each package's README for quick-start guides, code samples, and detailed fea
 
 ## Requirements
 
-- .NET 10.0
-- KurrentDB 24.10 or later
+- .NET 10.0 or a subsequent version
+- KurrentDB 24.10 or a subsequent version
 
 ## Contributing
 

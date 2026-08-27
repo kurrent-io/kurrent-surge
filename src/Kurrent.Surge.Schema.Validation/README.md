@@ -1,5 +1,9 @@
 # Schema validation
 
+> **This project is internal.** It is not published to NuGet, and there is no package to install.
+> It serves the test suite, and `Kurrent.Surge.Core` opens its internals to it. The document below
+> records why the JsonSchema.Net version is pinned.
+
 Two schema agents sit side by side. Each covers a range of JSON Schema drafts the other cannot.
 
 | Agent | Library | Drafts | Native AOT |

@@ -5,6 +5,19 @@ assemblies can declare their messages without dragging in gRPC, Google.Protobuf,
 
 The Kurrent client references this same package, so both sides speak the same types.
 
+## Installation
+
+```shell
+dotnet add package Kurrent.Surge.Schema.Catalogs
+```
+
+`Kurrent.Surge` references this package. Add it only to a contracts or domain assembly that must
+declare its messages without the client.
+
+### Supported frameworks
+
+- .NET 10.0 or a subsequent version
+
 ## What it gives you
 
 | Concern                            | API                                                                                  |

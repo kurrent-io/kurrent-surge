@@ -1,36 +1,47 @@
-# Kurrent.Client
+# Kurrent.Surge
 
-The official .NET client for [KurrentDB](https://kurrent.io) — a cloud-native event streaming database.
+The .NET client for [KurrentDB](https://kurrent.io), a cloud-native event streaming database.
 
 ## Installation
 
 ```shell
-dotnet add package Kurrent.Client
+dotnet add package Kurrent.Surge
 ```
 
-### Supported Frameworks
+### Supported frameworks
 
-- .NET 10.0
+- .NET 10.0 or a subsequent version
 
-## Quick Start
+## Quick start
+
+Declare a catalog for your message types. The client reads it to map each CLR type to a schema name.
 
 ```csharp
-using Kurrent.Client;
+using Kurrent.Surge.Client;
+using Kurrent.Surge.Schema.Catalogs;
 
-var client = new KurrentClient("kurrentdb://localhost:2113");
+[assembly: MessageCatalog("Orders.Events", AlwaysActive = true)]
 
-// Append events to a stream
-await client.Streams.AppendAsync("orders-123", [
-    new MessageData("OrderPlaced", orderData)
-]);
+await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
-// Read events from a stream
-await foreach (var message in client.Streams.ReadAsync("orders-123")) {
-    Console.WriteLine($"{message.EventType}: {message.Data}");
+// Append a record to a stream.
+var records = new[] { AppendRecord.Create(new OrderPlaced("order-123")) };
+var result  = await client.Streams.AppendStream("orders-123", records, ExpectedStreamState.NoStream);
+
+Console.WriteLine($"The append wrote revision {result.Revision}.");
+
+// Read the stream back.
+await foreach (var message in client.Streams.ReadStream("orders-123")) {
+    if (message.Value is Record record)
+        Console.WriteLine(record.Value);
+}
+
+namespace Orders.Events {
+    public record OrderPlaced(string OrderId);
 }
 ```
 
-## Connection Strings
+## Connection strings
 
 ```
 kurrentdb://localhost:2113
@@ -40,13 +51,15 @@ kurrentdb+discover://node1:2113,node2:2113,node3:2113
 
 ## Features
 
-- **Streams** — append, read, subscribe, and manage streams
-- **Schema Registry** — type-safe serialization with automatic schema management
-- **Filter Expressions** — server-side SQL filtering for subscriptions and reads
-- **Serialization** — built-in JSON and Protobuf serializers with auto-registration
-- **OpenTelemetry** — distributed tracing and metrics out of the box
-- **Dependency Injection** — first-class `IServiceCollection` integration
-- **AOT Compatible** — source generators for zero-reflection operation
+- **Streams** — append, read, subscribe to, and manage streams
+- **Schema registry** — register a schema, get it, and check its compatibility
+- **Indexes and connectors** — create, start, stop, and delete them
+- **Filter expressions** — server-side SQL filtering for subscriptions and reads
+- **Codecs** — JSON and protobuf are built in. Avro is an opt-in package
+- **Stream processing** — processors and projectors with checkpointing and partitioning
+- **OpenTelemetry** — distributed tracing and metrics
+- **Dependency injection** — first-class `IServiceCollection` integration
+- **AOT compatible** — source generators give operation with no reflection
 
 ## Message Formats
 
