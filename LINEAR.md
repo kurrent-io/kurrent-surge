@@ -34,9 +34,9 @@ Language/runtime. Always apply, for cross-project visibility.
 
 | Label                 | When to apply                                                                      |
 |-----------------------|---------------------------------------------------------------------------------------|
-| `sdk-client`          | Kurrent.Client — streams, schema registry client, admin, management                  |
-| `sdk-streaming`       | Kurrent.Streaming — processors, projectors core, checkpointing, stream processing    |
-| `sdk-schema-catalogs` | Kurrent.Schema.Catalogs — catalogs, attributes, naming, coders, catalog generator     |
+| `sdk-client`          | Kurrent.Surge — streams, schema registry client, admin, management                   |
+| `sdk-streaming`       | Stream processing — processors, projectors core, checkpointing                       |
+| `sdk-schema-catalogs` | Kurrent.Surge.Schema.Catalogs — catalogs, attributes, naming, coders, catalog generator |
 
 ### Projectors
 

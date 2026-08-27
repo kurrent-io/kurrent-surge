@@ -1,4 +1,4 @@
-# Kurrent.Schema.Catalogs
+# Kurrent.Surge.Schema.Catalogs
 
 The message **declaration layer** for the Kurrent Platform — extracted so contracts/domain
 assemblies can declare their messages without dragging in gRPC, Google.Protobuf, or the client.
@@ -12,8 +12,8 @@ The Kurrent client references this same package, so both sides speak the same ty
 | Per-type declaration               | `[MessageType<T>("wire-name")]` / `[MessageType<T, TStrategy>]`                      |
 | Group declaration (namespace scan) | `[assembly: MessageCatalog("My.Namespace", Key = "...")]`                            |
 | Hand-written catalog               | `[CustomMessageCatalog]` on a `MessageCatalog` subclass                              |
-| Schema vocabulary                  | `SchemaName`, `SchemaDataFormat` (`Kurrent.Schema`)                                  |
-| Naming strategies                  | `ISchemaNameStrategy`, `SchemaNameStrategies`, `SchemaUrn` (`Kurrent.Schema.Naming`) |
+| Schema vocabulary                  | `SchemaName`, `SchemaDataFormat` (`Kurrent.Surge.Schema`)                            |
+| Naming strategies                  | `ISchemaNameStrategy`, `SchemaNameStrategies`, `SchemaUrn` (`Kurrent.Surge.Schema.Naming`) |
 
 A source generator (shipped inside this package as an analyzer) turns those declarations into a
 discoverable `MessageCatalog` per assembly, with zero runtime reflection — fully NativeAOT-compatible.
@@ -25,6 +25,6 @@ package and because the generated code uses current C# features.
 
 ## Namespaces
 
-- `Kurrent.Schema` — shared schema vocabulary (`SchemaName`, `SchemaDataFormat`)
-- `Kurrent.Schema.Catalogs` — the declaration layer (attributes, `MessageCatalog`, `MessageResolver`)
-- `Kurrent.Schema.Naming` — schema naming (`ISchemaNameStrategy`, strategies, `SchemaUrn`)
+- `Kurrent.Surge.Schema` — shared schema vocabulary (`SchemaName`, `SchemaDataFormat`)
+- `Kurrent.Surge.Schema.Catalogs` — the declaration layer (attributes, `MessageCatalog`, `MessageResolver`)
+- `Kurrent.Surge.Schema.Naming` — schema naming (`ISchemaNameStrategy`, strategies, `SchemaUrn`)

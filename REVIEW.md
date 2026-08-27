@@ -21,7 +21,7 @@ Read the two convention files for every review. Read the area docs only when the
 | XML documentation | devx standard bundled with the `devx-xmldoc-audit` skill; repo addenda in [AGENTS.md](AGENTS.md) | Public API doc changes |
 | Packaging and project references | [.claude/context/project/packaging.md](.claude/context/project/packaging.md) | csproj / reference changes |
 | Architecture boundaries | [.claude/context/project/architecture.md](.claude/context/project/architecture.md) | Structural or cross-module changes |
-| Client library specifics | [.claude/context/project/client.md](.claude/context/project/client.md) | `Kurrent.Client` changes |
+| Client library specifics | [.claude/context/project/client.md](.claude/context/project/client.md) | `Kurrent.Surge` changes |
 | Documentation writing | [.claude/context/project/docs-guidelines.md](.claude/context/project/docs-guidelines.md) | Docs changes |
 
 ## Skip what tooling enforces

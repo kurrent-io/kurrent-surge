@@ -72,6 +72,6 @@ process has no type for. A client has the type, and the codec gives it the value
 ## Links
 
 - [Documentation](https://kurrent.io/docs)
-- [Examples](https://github.com/kurrent-io/Kurrent.Client/tree/main/examples)
-- [GitHub Repository](https://github.com/kurrent-io/Kurrent.Client)
-- [License (Apache 2.0)](https://github.com/kurrent-io/Kurrent.Client/blob/main/LICENSE.md)
+- [Examples](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/examples)
+- [GitHub Repository](https://github.com/kurrent-io/kurrent-sdk-dotnet)
+- [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-sdk-dotnet/blob/main/LICENSE.md)

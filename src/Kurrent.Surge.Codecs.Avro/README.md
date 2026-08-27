@@ -748,5 +748,5 @@ The generator's Avro name handling and the shape of its emitted types derive fro
 - [Documentation](https://kurrent.io/docs)
 - [Apache Avro specification](https://avro.apache.org/docs/1.12.0/specification/)
 - [Apache.Avro (C#) source](https://github.com/apache/avro/tree/main/lang/csharp)
-- [GitHub Repository](https://github.com/kurrent-io/Kurrent.Client)
-- [License (Apache 2.0)](https://github.com/kurrent-io/Kurrent.Client/blob/main/LICENSE.md)
+- [GitHub Repository](https://github.com/kurrent-io/kurrent-sdk-dotnet)
+- [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-sdk-dotnet/blob/main/LICENSE.md)

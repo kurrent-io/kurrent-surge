@@ -27,5 +27,5 @@ dotnet add package Kurrent.Abstractions
 ## Links
 
 - [Documentation](https://kurrent.io/docs)
-- [GitHub Repository](https://github.com/kurrent-io/Kurrent.Client)
-- [License (Apache 2.0)](https://github.com/kurrent-io/Kurrent.Client/blob/main/LICENSE.md)
+- [GitHub Repository](https://github.com/kurrent-io/kurrent-sdk-dotnet)
+- [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-sdk-dotnet/blob/main/LICENSE.md)

@@ -34,7 +34,8 @@ Before referring to any project, file, or path by name — verify it exists on d
 projects exist from naming convention alone.
 
 Playground, probe, and throwaway projects (`playground/`, `.claude/context/.scratch/`) always target net10.0 — they
-are not consumer-facing, so the minimum-supported TFM rule does not apply.
+are not consumer-facing, so the minimum-supported TFM rule does not apply. `playground/` is tracked and ships with
+the repository; only `.claude/context/.scratch/` is throwaway.
 
 When debugging CI or workflow issues, create a minimal throwaway workflow targeting just the failing step
 instead of running the full pipeline.
@@ -56,29 +57,26 @@ The V2 read path is commented out; those RPCs do not exist in the proto yet. Pro
 
 ## Structure
 
-Publishable packages, target naming (approved 2026-06-10, not yet executed on disk — see
-`[[streaming-reorganization]]`/`[[kurrent-surge-restructure]]` in project memory):
+Four publishable packages:
 
 ```
-Kurrent.Client              ← gRPC client (streams, registry, connectors, admin)
-  └── Kurrent.Streaming     ← stream processing, depends on Kurrent.Client
+Kurrent.Surge                  ← gRPC client (streams, registry, indexes, connectors, admin)
+Kurrent.Surge.Core             ← contracts and shared foundation
+Kurrent.Surge.Schema.Catalogs  ← message declaration layer; ships the catalog generator
+Kurrent.Surge.Codecs.Avro      ← opt-in Avro codec
 ```
 
-**Current disk state differs**: the actual packable projects today are named `Kurrent.Surge`/`Kurrent.Surge.Core`
-plus opt-in add-ons (`Kurrent.Surge.Codecs.Avro`, `Kurrent.Surge.Schema.Catalogs`) — verify the live
-list with `grep -l "IsPackable>true" src/*/*.csproj` before assuming either naming. `src/Kurrent.Client/` and
-`src/Kurrent.Streaming/` exist on disk with no `.csproj` — untracked leftovers, not real projects.
+Verify the live list with `grep -l "IsPackable>true" src/*/*.csproj`.
 
-Solution-level shared libraries — `Variant`, `Kurrent.Client.SourceGenerators`,
+Solution-level shared libraries — `Variant`, `Kurrent.Surge.SourceGenerators`,
 `Kurrent.CodeAnalysis` — are not published as NuGet packages.
 
-`Kurrent.Client` contains a `Legacy/` folder with V1 gRPC compatibility — not a separate package.
+`Kurrent.Surge` contains a `Client/Legacy/` folder with V1 gRPC compatibility — not a separate package.
 
-Streams module split across 15+ partial class files. Naming convention documented in
+Streams module split across 13 partial class files. Naming convention documented in
 [Module Organization](.claude/context/project/module-organization.md).
 
-Sum types use source-generated `IVariant` discriminated unions. Exception types decorated with
-`[KurrentOperationError]` get source-generated constructors.
+Sum types use source-generated `IVariant` discriminated unions.
 
 ## Project context
 
@@ -93,7 +91,7 @@ Read these before working on related areas. Do not read all upfront.
 | Document                                                              | When to read                                             |
 |-----------------------------------------------------------------------|----------------------------------------------------------|
 | [Architecture](.claude/context/project/architecture.md)               | Before structural changes, new modules, or protocol work |
-| [Kurrent.Client](.claude/context/project/client.md)                   | Before working on the client library                     |
+| [Kurrent.Surge](.claude/context/project/client.md)                    | Before working on the client library                     |
 | [Builder Conventions](.claude/context/project/builder-conventions.md) | Before adding builders, factories, or fluent APIs        |
 | [Packaging](.claude/context/project/packaging.md)                     | Before adding project references to packable projects    |
 | [Module Organization](.claude/context/project/module-organization.md) | Before adding files, models, or mappers to a module      |
@@ -109,8 +107,6 @@ actionable-only; `<example>` and `<seealso>` banned. Domain vocabulary lives in 
 Repo addenda for the audit:
 
 - Module client summaries read `Provides operations for [module] in KurrentDB.`
-- Never sweep `src/Kurrent.Client/` or `src/Kurrent.Streaming/` — on disk with no `.csproj`, untracked
-  leftovers.
 - Exemption: source-generator-emitted implicit conversion operators on `IVariant` types.
 
 ## Agent skills

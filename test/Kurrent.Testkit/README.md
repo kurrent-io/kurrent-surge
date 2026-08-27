@@ -312,7 +312,7 @@ Assembly-level attribute for centralized skip management. Apply multiple instanc
 [assembly: SkipAll(typeof(StreamReadTests), "Blocked by DEV-1234")]
 
 // Skip all tests under a namespace prefix
-[assembly: SkipAll("Kurrent.Client.Tests.Integration.Streams", "Server upgrade in progress")]
+[assembly: SkipAll("Kurrent.Surge.Tests.Integration.Streams", "Server upgrade in progress")]
 ```
 
 ## Logging & Observability
