@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Kurrent.Surge.Mcp</PackageId>
-    <IsPackable>true</IsPackable>
+    <PackageId>Kurrent.Surge.AI.Mcp</PackageId>
+    <IsPackable>false</IsPackable>
     <Title>Kurrent Surge MCP Task Store</Title>
     <Product>Kurrent Surge MCP Task Store</Product>
     <Description>Self-contained DuckDB-backed IMcpTaskStore for the Model Context Protocol C# SDK (ModelContextProtocol.Core 2.0). Durable, restart-surviving task persistence for MCP servers.</Description>

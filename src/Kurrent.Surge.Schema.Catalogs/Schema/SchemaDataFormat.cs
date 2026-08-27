@@ -29,12 +29,7 @@ public enum SchemaDataFormat {
     /// <summary>
     /// The data is in raw bytes format.
     /// </summary>
-    Bytes = 4,
-
-    /// <summary>
-    /// The data is in MessagePack format.
-    /// </summary>
-    MessagePack = 5
+    Bytes = 4
 }
 
 /// <summary>
@@ -44,8 +39,7 @@ static class SchemaDataFormatExtensions {
 	const string JsonContentType        = "application/json";
 	const string ProtobufContentType    = "application/vnd.google.protobuf";
 	const string AvroContentType        = "application/vnd.apache.avro+json";
-	const string BytesContentType       = "application/octet-stream";
-	const string MessagePackContentType = "application/msgpack";
+	const string BytesContentType    = "application/octet-stream";
 
     /// <param name="dataFormat">The schema data format.</param>
     extension(SchemaDataFormat dataFormat) {
@@ -60,7 +54,6 @@ static class SchemaDataFormatExtensions {
                 SchemaDataFormat.Protobuf    => ProtobufContentType,
                 SchemaDataFormat.Avro        => AvroContentType,
                 SchemaDataFormat.Bytes       => BytesContentType,
-                SchemaDataFormat.MessagePack => MessagePackContentType,
                 SchemaDataFormat.Unspecified => BytesContentType,
                 _                            => throw new ArgumentOutOfRangeException(nameof(dataFormat), dataFormat, null)
             };
@@ -79,9 +72,8 @@ static class SchemaDataFormatExtensions {
                 JsonContentType        => SchemaDataFormat.Json,
                 ProtobufContentType    => SchemaDataFormat.Protobuf,
                 AvroContentType        => SchemaDataFormat.Avro,
-                BytesContentType       => SchemaDataFormat.Bytes,
-                MessagePackContentType => SchemaDataFormat.MessagePack,
-                _                      => SchemaDataFormat.Unspecified
+                BytesContentType    => SchemaDataFormat.Bytes,
+                _                   => SchemaDataFormat.Unspecified
             };
         }
     }

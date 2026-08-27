@@ -17,7 +17,7 @@ Avro gives you a compact binary format with a real schema behind every message. 
 rules, for payloads smaller than JSON, or to interoperate with the wider Avro and Kafka ecosystem.
 
 Avro is schema-first. Your message type takes its shape from a schema definition and not from a class, and that is what
-separates this package from the SDK's MessagePack codecs.
+separates this package from the built-in codecs, which derive their schema from the CLR type.
 
 ## Installation
 

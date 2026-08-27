@@ -78,20 +78,10 @@
   </Folder>
   <Folder Name="/Extensions/Codecs/">
     <Project Path="src/Kurrent.Surge.Codecs.Avro.Generators/Kurrent.Surge.Codecs.Avro.Generators.csproj" />
-    <Project Path="src/ProtobufTranscoder/ProtobufTranscoder.csproj" />
     <Project Path="src\Kurrent.Surge.Codecs.Avro\Kurrent.Surge.Codecs.Avro.csproj" />
-    <Project Path="src\Kurrent.Surge.Codecs.MessagePack\Kurrent.Surge.Codecs.MessagePack.csproj" />
-    <Project Path="src\Kurrent.Surge.Codecs.NerdbankMessagePack\Kurrent.Surge.Codecs.NerdbankMessagePack.csproj" />
-    <Project Path="test/ProtobufTranscoder.Tests/ProtobufTranscoder.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.AotProbe\Kurrent.Surge.Codecs.Avro.AotProbe.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.NodaTime.Tests\Kurrent.Surge.Codecs.Avro.NodaTime.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.Tests\Kurrent.Surge.Codecs.Avro.Tests.csproj" />
-    <Project Path="test\Kurrent.Surge.Codecs.MessagePack.Tests\Kurrent.Surge.Codecs.MessagePack.Tests.csproj" />
-    <Project Path="test\Kurrent.Surge.Codecs.NerdbankMessagePack.Tests\Kurrent.Surge.Codecs.NerdbankMessagePack.Tests.csproj" />
-  </Folder>
-  <Folder Name="/Projectors/">
-    <Project Path="src/Kurrent.Projectors.DuckDB/Kurrent.Projectors.DuckDB.csproj" />
-    <Project Path="test/Kurrent.Projectors.DuckDB.Tests/Kurrent.Projectors.DuckDB.Tests.csproj" />
   </Folder>
   <Project Path="src/Kurrent.Surge.SourceGenerators/Kurrent.Surge.SourceGenerators.csproj" />
   <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />

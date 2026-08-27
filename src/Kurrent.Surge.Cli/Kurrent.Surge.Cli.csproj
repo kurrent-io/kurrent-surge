@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <PackageId>Kurrent.Surge.Cli</PackageId>
-    <IsPackable>true</IsPackable>
+    <IsPackable>false</IsPackable>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>surge</ToolCommandName>
     <Title>Kurrent Surge CLI</Title>

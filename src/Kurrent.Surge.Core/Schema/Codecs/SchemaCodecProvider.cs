@@ -37,9 +37,8 @@ public class SchemaCodecNotFoundException(SchemaDataFormat dataFormat, params Sc
 	: KurrentException(ErrorCode.FromType<SchemaCodecNotFoundException>(), $"Unsupported schema data format. Expected one of {string.Join(", ", supportedDataFormats)} but got {dataFormat}.");
 
 /// <summary>
-/// Exception thrown when more than one codec is registered for the same schema data format —
-/// e.g. two opt-in packages that both implement <see cref="SchemaDataFormat.MessagePack"/>. Only one
-/// codec per data format is supported; pick one.
+/// Exception thrown when more than one codec is registered for the same schema data format.
+/// Only one codec per data format is supported; pick one.
 /// </summary>
 public class DuplicateSchemaCodecException(SchemaDataFormat dataFormat, Type existing, Type duplicate)
 	: KurrentException(ErrorCode.FromType<DuplicateSchemaCodecException>(), $"Multiple codecs registered for schema data format '{dataFormat}': '{existing.FullName}' and '{duplicate.FullName}'. Only one codec per data format is supported.");

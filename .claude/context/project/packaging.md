@@ -62,8 +62,8 @@ detects `IsPackable=true` and wires the pack pipeline (`_CollectVendoredAndBundl
 `_CollectPackedAnalyzers`) automatically. There are no per-project `PackProjectDependencies` /
 `PackSourceGenerators` targets to copy anymore; everything is centralized.
 
-Currently packable: `Kurrent.Surge`, `Kurrent.Surge.Core`, `Kurrent.Surge.Schema.Catalogs`, `Kurrent.Surge.Cli`,
-`Kurrent.Surge.Mcp`, `Kurrent.Surge.MessagePack`, `Kurrent.Surge.MessagePack.Nerdbank`, `Kurrent.Surge.Avro`.
+Currently packable: `Kurrent.Surge`, `Kurrent.Surge.Core`, `Kurrent.Surge.Schema.Catalogs`,
+`Kurrent.Surge.Codecs.Avro`.
 `src/Kurrent.Client/` and `src/Kurrent.Streaming/` exist on disk with no `.csproj` — untracked leftovers from
 an approved-but-unexecuted rename (see `[[kurrent-surge-restructure]]` in project memory), not real projects.
 

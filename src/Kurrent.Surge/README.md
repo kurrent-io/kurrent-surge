@@ -55,8 +55,6 @@ kurrentdb+discover://node1:2113,node2:2113,node3:2113
 | JSON | built in | Yes | From the CLR type | Not necessary. The payload is JSON |
 | Protobuf | built in | Yes | From the CLR type, or from `.proto` text | Yes, from `.proto` text |
 | Avro | `Kurrent.Surge.Codecs.Avro` | Yes | From the CLR type, or from `.avsc` text | Yes, from `.avsc` text |
-| MessagePack | `Kurrent.Surge.Codecs.MessagePack` | Yes | From the CLR type | No |
-| MessagePack | `Kurrent.Surge.Codecs.NerdbankMessagePack` | Yes | From the CLR type | No |
 | Bytes | built in | Passthrough | None | No |
 
 Each format has a schema, and the registry validates a payload against it. The SDK makes that schema
@@ -65,8 +63,8 @@ from the CLR type, so each format in the table has one.
 Transcoding is different. It reads a payload and writes JSON, and it uses no .NET type. It must read
 the schema as text.
 
-Protobuf has a `.proto` file and Avro has an `.avsc` file. MessagePack has no schema language, so it
-has no text to read.
+Protobuf has a `.proto` file and Avro has an `.avsc` file. A format with no schema language has no
+text to read, so it cannot transcode.
 
 Transcoding is more useful in a server than in a client. A server reads a stored payload that its
 process has no type for. A client has the type, and the codec gives it the value.

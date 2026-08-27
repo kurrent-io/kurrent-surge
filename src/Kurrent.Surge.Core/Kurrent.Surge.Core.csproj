@@ -85,7 +85,6 @@
     <InternalsVisibleTo Include="Kurrent.Surge.Schema.Validation" />
     <InternalsVisibleTo Include="Kurrent.Surge.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Streaming.Tests" />
-    <InternalsVisibleTo Include="Kurrent.Projectors.DuckDB.Tests" />
     <InternalsVisibleTo Include="Kurrent.Surge.Benchmarks" />
     <InternalsVisibleTo Include="Kurrent.Surge.Testkit" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />

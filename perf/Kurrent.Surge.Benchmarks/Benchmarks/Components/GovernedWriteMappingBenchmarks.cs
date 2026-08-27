@@ -16,8 +16,7 @@ using Contracts = KurrentDB.Protocol.V2.Streams;
 namespace Benchmarks;
 
 /// <summary>
-/// Prices the governed write chain's mapping cost per payload format. Three formats only: the
-/// msgpack rows register standalone catalogs the governed extraction cannot see.
+/// Prices the governed write chain's mapping cost per payload format.
 /// </summary>
 [Config(typeof(BenchmarkConfig))]
 [BenchmarkCategory("Mapping")]

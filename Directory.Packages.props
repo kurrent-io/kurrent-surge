@@ -38,7 +38,6 @@
          any of the three without checking the licence on the target version. -->
     <PackageVersion Include="JsonSchema.Net" Version="8.0.5" />
     <PackageVersion Include="kurrent.quack" Version="0.0.0-alpha.176" />
-    <PackageVersion Include="MessagePack" Version="3.1.8" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
@@ -62,7 +61,6 @@
     <!-- SEP-2663 Tasks (IMcpTaskStore et al.) moved out of ModelContextProtocol.Core into this
          bolt-on package as of csharp-sdk#1693. -->
     <PackageVersion Include="ModelContextProtocol.Extensions.Tasks" Version="2.2.0" />
-    <PackageVersion Include="Nerdbank.MessagePack" Version="1.2.36" />
     <PackageVersion Include="NJsonSchema" Version="11.6.1" />
     <PackageVersion Include="NodaTime" Version="3.3.0" />
     <PackageVersion Include="NodaTime.Serialization.Protobuf" Version="2.0.2" />

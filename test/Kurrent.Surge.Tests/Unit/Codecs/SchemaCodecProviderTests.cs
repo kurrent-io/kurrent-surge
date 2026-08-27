@@ -17,7 +17,7 @@ public class SchemaCodecProviderTests {
 		// Assert
 		await Assert.That(sut.SupportsDataFormat(SchemaDataFormat.Json)).IsTrue();
 		await Assert.That(sut.SupportsDataFormat(SchemaDataFormat.Protobuf)).IsTrue();
-		await Assert.That(sut.SupportsDataFormat(SchemaDataFormat.MessagePack)).IsFalse();
+		await Assert.That(sut.SupportsDataFormat(SchemaDataFormat.Avro)).IsFalse();
 		await Assert.That(sut.GetCodec(SchemaDataFormat.Json)).IsEqualTo(json);
 	}
 
@@ -27,15 +27,15 @@ public class SchemaCodecProviderTests {
 		var sut = new SchemaCodecProvider([new FakeSchemaCodec(SchemaDataFormat.Json)]);
 
 		// Act & Assert
-		await Assert.That(() => sut.GetCodec(SchemaDataFormat.MessagePack))
+		await Assert.That(() => sut.GetCodec(SchemaDataFormat.Avro))
 			.Throws<SchemaCodecNotFoundException>();
 	}
 
 	[Test]
 	public async ValueTask duplicate_data_format_throws() {
 		// Arrange
-		var first  = new FakeSchemaCodec(SchemaDataFormat.MessagePack);
-		var second = new FakeSchemaCodec(SchemaDataFormat.MessagePack);
+		var first  = new FakeSchemaCodec(SchemaDataFormat.Avro);
+		var second = new FakeSchemaCodec(SchemaDataFormat.Avro);
 
 		// Act & Assert
 		await Assert.That(() => new SchemaCodecProvider([first, second]))
