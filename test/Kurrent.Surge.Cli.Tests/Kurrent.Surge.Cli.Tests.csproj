@@ -7,6 +7,7 @@
   <ItemGroup>
     <Using Include="TUnit" />
     <Using Include="Kurrent.Testkit" />
+    <Using Include="Kurrent.Testkit.TUnit" />
     <Using Include="Kurrent.Surge.AI.HuggingFace" />
     <Using Include="Kurrent.Surge.Cli" />
     <Using Include="System.CommandLine" />
