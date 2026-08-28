@@ -170,6 +170,11 @@ jobs:
           report: 'false'
           report-name: Integration — Streams
           filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Streams/*/*[Category=Integration]
+          # The group shares one container and one log. Log-path reads here scan forward from an
+          # anchor — RecordsExtensionsTests does it a single record at a time — so records other
+          # tests append during a scan land inside the window being crawled and the read times
+          # out. Capping concurrency bounds how much other traffic a scan has to walk through.
+          extra-args: --maximum-parallel-tests 4
 
       - name: Integration — Registry
         if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
