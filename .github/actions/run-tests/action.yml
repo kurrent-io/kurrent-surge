@@ -32,7 +32,11 @@ runs:
         INPUT_FILTER: ${{ inputs.filter }}
         INPUT_REPORT_NAME: ${{ inputs.report-name }}
       run: |
-        results_dir=".artifacts/test-results/$INPUT_CATEGORY"
+        # One directory per report, so sequential groups sharing a category keep their own
+        # results instead of erasing each other on the clean step below.
+        slug=$(printf '%s' "${INPUT_REPORT_NAME:-$INPUT_CATEGORY}" \
+          | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '-' | sed -E 's/-+/-/g; s/^-|-$//g')
+        results_dir=".artifacts/test-results/$slug"
 
         case "$INPUT_CATEGORY" in
           unit)        filter="/*/*/*/*[Category!=Integration]" ; tunit_args="" ;;

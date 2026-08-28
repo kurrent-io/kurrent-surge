@@ -158,11 +158,65 @@ jobs:
             - registry: docker.kurrent.io
           images: ${{ vars.TEST_CONTAINERS }}
 
-      - name: Run Integration Tests
+      # Integration runs one logical group at a time. A single solution-wide run puts every
+      # assembly's tests on one shared KurrentDB container concurrently, which starves it and
+      # surfaces as read, fold and subscribe timeouts rather than as real failures. Sequential
+      # groups keep one group's load on the container at a time.
+      - name: Integration — Streams
         if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
         uses: ./.github/actions/run-tests
         with:
           category: integration
+          report-name: Integration — Streams
+          filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Streams/*/*[Category=Integration]
+
+      - name: Integration — Registry
+        if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
+        uses: ./.github/actions/run-tests
+        with:
+          category: integration
+          report-name: Integration — Registry
+          filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Registry/*/*[Category=Integration]
+
+      - name: Integration — Indexes
+        if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
+        uses: ./.github/actions/run-tests
+        with:
+          category: integration
+          report-name: Integration — Indexes
+          filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Indexes/*/*[Category=Integration]
+
+      - name: Integration — Connectors
+        if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
+        uses: ./.github/actions/run-tests
+        with:
+          category: integration
+          report-name: Integration — Connectors
+          filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Connectors/*/*[Category=Integration]
+
+      - name: Integration — Client
+        if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
+        uses: ./.github/actions/run-tests
+        with:
+          category: integration
+          report-name: Integration — Client
+          filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Client*/*/*[Category=Integration]
+
+      - name: Integration — Streaming
+        if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
+        uses: ./.github/actions/run-tests
+        with:
+          category: integration
+          report-name: Integration — Streaming
+          filter: /Kurrent.Surge.Streaming.Tests/*/*/*[Category=Integration]
+
+      - name: Integration — Aspire Host
+        if: steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true
+        uses: ./.github/actions/run-tests
+        with:
+          category: integration
+          report-name: Integration — Aspire Host
+          filter: /Aspire.Hosting.KurrentDB.Tests/*/*/*[Category=Integration]
 
       # Runs after tests so no Aspire session is active on this runner; reaping
       # mid-session corrupts DCP state. Skipped on cancellation — a superseding
