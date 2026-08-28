@@ -1,0 +1,77 @@
+/* Capacitor brand tokens (2026-08 redesign). Canonical source for both the
+   marketing pages and the docs site so they share the same palette and
+   typography. Token NAMES are stable — the 2026-08 rebrand changed their
+   VALUES so every consumer (marketing.css, feature pages, Starlight theme)
+   reskins through this one file. */
+
+:root {
+  /* Surfaces — near-black base with purple-tinted lifted cards. */
+  --bg:           #0a0a0a;
+  --bg-1:         #13111c;
+  --bg-2:         #1c1a27;
+  --bg-3:         #2a273f;
+  --bg-warm:      #1a1a1a;
+
+  /* Foreground — bone white headings, pale-lavender body over the dark base. */
+  --fg:           #f5f3f0;
+  --fg-1:         #d1d1e0;
+  --fg-dim:       #a79ab8;
+  --fg-dimmer:    #9d9db0;
+  --fg-fade:      #7a7a7a;
+
+  /* Light sections — the redesign introduces bone-colored bands/pages
+     (pricing, get-started, the analytics band). Ink tokens are the text
+     colors used on top of them. */
+  --bone:         #f5f3f0;
+  --pale-blue:    #edf1fc;
+  --ink:          #1a1a1a;
+  --ink-dim:      #525252;
+
+  /* Hairlines. */
+  --border:       rgba(245, 243, 240, 0.10);
+  --border-1:     rgba(245, 243, 240, 0.16);
+  --border-strong:rgba(245, 243, 240, 0.30);
+
+  /* Brand accents — coral is the primary call-to-action color. */
+  --plum:         #2a273f;
+  --plum-lift:    #3a3654;
+  --coral:        #ff4a80;
+  --seaglass:     #64edbb;
+  --seaglass-d:   #2fa97c;
+  --rose:         #b75f81;
+  --rose-dim:     #6a3a51;
+
+  /* Semantic chart/status colors (analytics dashboard). Distinct from the
+     brand accent on purpose. */
+  --good:         #3b82f6;
+  --warn:         #ef4444;
+
+  /* CTA derivatives — text color used on top of coral fills, and the
+     coral focus/hover ring. Single source so primary buttons across the
+     site stay in lockstep. */
+  --cta-fg:       #000000;
+  --coral-ring:   rgba(255, 74, 128, 0.22);
+
+  /* Typography. */
+  --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Layout. */
+  --maxw: 1080px;
+  --maxw-tight: 880px;
+}
+
+/* Respect reduced motion across the whole site. Hover/focus transitions
+   collapse to near-instant; users who opted out get state changes without
+   the slide/glow choreography. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

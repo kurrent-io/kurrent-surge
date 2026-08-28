@@ -1,0 +1,19 @@
+/* Ported from kcap-web (src/styles/fonts.css). Work Sans for body and
+   headings, JetBrains Mono for eyebrows, code and metadata. Self-hosted
+   variable fonts, latin subset — never from a CDN. */
+
+@font-face {
+  font-family: "Work Sans";
+  src: url("/fonts/WorkSans-Variable.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Variable.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}

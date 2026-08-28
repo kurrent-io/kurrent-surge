@@ -1,0 +1,117 @@
+/* Brand primitives, lifted verbatim from kcap-web src/styles/marketing.css.
+   Loaded by Starlight AND by the landing page, so a button, an eyebrow, a
+   section label or the ambient glow is the same object on a docs page as on
+   the home page. Tokens come from brand.css; nothing here invents a colour.
+
+   Source line references are kept so a future sync can diff against theirs. */
+
+/* --hero-glow is the one colour marketing.css hard-codes rather than
+   tokenising. Named here because it is now used on more than one surface. */
+:root {
+  --hero-glow: 138, 53, 86;
+}
+
+/* ---------- Layout helpers ---------- marketing.css:66-68 */
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 32px; }
+.wrap-tight { max-width: var(--maxw-tight); margin: 0 auto; padding: 0 32px; }
+.mono { font-family: var(--font-mono); font-feature-settings: "ss01", "ss02"; }
+
+/* ---------- Eyebrow ---------- marketing.css:69-77 */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+/* ---------- Section rhythm ---------- marketing.css:602-620 */
+.sect { margin: 0 0 32px 0; }
+.sect__lbl {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  margin: 0 0 22px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+.sect__lbl::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--fg-dim);
+  display: inline-block;
+}
+
+/* marketing.css:628-638 — the largest type on the page carries the least
+   weight, which is the single most identifying thing about this typography. */
+.sect__h {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  color: var(--fg);
+  font-size: clamp(28px, 3.6vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -0.018em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* ---------- Buttons ---------- marketing.css:1490-1535 */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--coral);
+  color: var(--cta-fg);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  font-weight: 500;
+  padding: 16px 22px;
+  border-radius: 4px;
+  text-decoration: none;
+  border: 1px solid var(--coral);
+  transition: transform 120ms ease, box-shadow 160ms ease;
+}
+.btn-primary:hover { box-shadow: 0 0 0 4px var(--coral-ring); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary svg { color: var(--cta-fg); }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  padding: 15px 18px;
+  border-radius: 4px;
+  text-decoration: none;
+  border: 1px solid var(--border-1);
+  transition: border-color 160ms ease, color 160ms ease;
+}
+.btn-secondary:hover { color: var(--fg); border-color: var(--border-strong); }
+
+.btn-tertiary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  padding: 14px 4px;
+  text-decoration: none;
+  border: none;
+  border-bottom: 1px dotted var(--fg-fade);
+  border-radius: 0;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+.btn-tertiary:hover { color: var(--fg-1); border-bottom-color: var(--fg-dim); }
+.btn-tertiary .arrow { font-family: var(--font-mono); transition: transform 160ms ease; }
+.btn-tertiary:hover .arrow { transform: translateX(2px); }

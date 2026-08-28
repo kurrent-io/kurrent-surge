@@ -1,0 +1,385 @@
+/* Ported verbatim from kcap-web src/styles/starlight-theme.css, minus the
+   blocks that style its own DocsHeader/DocsSidebar components.
+   Maps Capacitor brand tokens (brand.css)
+   to Starlight's internal CSS variables so the docs feel like the marketing
+   landing page. Dark-only; the lighter scope inherits the same values for
+   safety in case anything triggers the toggle. */
+
+:root,
+:root[data-theme="dark"],
+:root[data-theme="light"] {
+  /* Typography */
+  --sl-font: var(--font-sans);
+  --sl-font-system: var(--font-sans);
+  --sl-font-system-mono: var(--font-mono);
+  /* Type scale from the redesign's docs: 40 / 26 / 18px, with prose at 15px
+     and a long 1.7 leading. Docs run longer than marketing copy, so the
+     body sits a step smaller and looser than the landing pages. */
+  --sl-text-h1: 2.5rem;
+  --sl-text-h2: 1.625rem;
+  --sl-text-h3: 1.125rem;
+  --sl-text-body: 0.9375rem;
+  --sl-line-height: 1.7;
+
+  /* Surfaces */
+  --sl-color-bg: var(--bg);
+  --sl-color-bg-nav: color-mix(in oklab, var(--bg) 82%, transparent);
+  --sl-color-bg-sidebar: var(--bg);
+  --sl-color-bg-inline-code: var(--bg-2);
+  --sl-color-bg-accent: var(--coral);
+
+  /* Hairlines / borders */
+  --sl-color-hairline: var(--border);
+  --sl-color-hairline-light: var(--border);
+  --sl-color-hairline-shade: var(--border-1);
+
+  /* Text */
+  --sl-color-white: var(--fg);
+  --sl-color-gray-1: var(--fg);
+  --sl-color-gray-2: var(--fg-1);
+  --sl-color-gray-3: var(--fg-dim);
+  --sl-color-gray-4: var(--fg-dimmer);
+  --sl-color-gray-5: var(--fg-fade);
+  --sl-color-gray-6: var(--bg-2);
+  --sl-color-gray-7: var(--bg-1);
+  --sl-color-text: var(--fg-1);
+  --sl-color-text-accent: var(--fg);
+  --sl-color-text-invert: #0a0710;
+
+  /* Accent (links, focus rings, primary CTA) */
+  --sl-color-accent-low: color-mix(in oklab, var(--coral) 18%, transparent);
+  --sl-color-accent: var(--coral);
+  --sl-color-accent-high: var(--fg);
+
+  /* Asides */
+  --sl-color-asides-text-accent: var(--coral);
+}
+
+/* Heading hierarchy follows the marketing landing's editorial register:
+   the largest type carries the least weight, and each step down gains a
+   little weight so its smaller size still reads with presence.
+   - H1 350 / large air / coral rule beneath (see rule below)
+   - H2 400 / generous top margin so sections breathe
+   - H3 450 / less air, ties more tightly to surrounding prose
+   - H4+ same weight as H3, distinguished by size alone */
+.sl-markdown-content h2,
+.content-panel h2 {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  margin-top: 48px;
+  margin-bottom: 16px;
+}
+.sl-markdown-content h3 {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  line-height: 1.35;
+  margin-top: 36px;
+  margin-bottom: 12px;
+}
+
+/* Prose — 300 weight at this size keeps long pages light; the marketing
+   pages run heavier because their paragraphs are short. */
+.sl-markdown-content :is(p, li) {
+  font-weight: 300;
+  color: #b8b9c1;
+}
+.sl-markdown-content strong {
+  font-weight: 600;
+  color: var(--fg);
+}
+/* Prose links are coral here (marketing keeps coral for CTAs only) — in a
+   dense docs page an underline-only link is easy to miss. */
+.sl-markdown-content :is(p, li) > a {
+  color: var(--coral);
+  text-decoration: none;
+}
+.sl-markdown-content :is(p, li) > a:hover {
+  color: var(--fg-dim);
+}
+.sl-markdown-content :is(h4, h5, h6) {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: -0.012em;
+}
+
+/* Page H1 — marketing section headlines run at weight 300 in Solina with
+   generous air around them. Match that here so docs pages read as the same
+   editorial register as the landing, not a tighter app-style header. */
+.sl-markdown-content h1,
+.content-panel h1,
+.content-panel .page-title h1 {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-top: clamp(16px, 3vw, 40px);
+  /* The old treatment hung a short coral rule under the title. The redesign
+     drops it: the title is already the largest thing on the page, and the
+     rule read as a divider separating it from its own first paragraph.
+
+     16px, not the designer's 40: Starlight renders the title in its own
+     content panel, which already contributes ~48px before the prose starts.
+     Setting 40 here stacked the two and opened a hole under every title. */
+  margin-bottom: 16px;
+  padding-bottom: 0;
+}
+
+/* Right-rail "ON THIS PAGE" sits clearly below the H1's coral rule so the
+   page-title zone reads as one unit and the TOC reads as a quieter
+   secondary index.
+   Scoped to the desktop breakpoint where the right-sidebar is an actual
+   side column (Starlight's `lg` breakpoint, 72rem). On smaller viewports
+   the right-sidebar wraps inline above the main content as a collapsed
+   "On this page" disclosure — adding top padding there creates a huge
+   empty zone between the disclosure and the H1. */
+@media (min-width: 72rem) {
+  .right-sidebar,
+  .right-sidebar-container {
+    padding-top: clamp(72px, 9vw, 120px);
+  }
+}
+
+/* Starlight stacks two .content-panels (page-title + body) and divides them
+   with a 1px border-top on the second one. Our coral rule under the H1
+   already plays that role, so the neutral divider is redundant — and two
+   horizontal lines in the same vertical zone read as accidental, not
+   designed. Drop the duplicate. */
+.content-panel + .content-panel {
+  border-top: 0;
+}
+
+/* Body copy weight to match the marketing page (Solina 450). */
+.sl-markdown-content {
+  font-weight: 450;
+  color: var(--fg-1);
+}
+
+/* Sidebar group labels — mono eyebrow, quieter and tighter than the
+   marketing .eyebrow: the docs nav is a long list, so the labels index it
+   rather than announce it (designer's .docs-sidebar-label). */
+.sidebar-content .group-label > *,
+.sidebar-content .group-label .large {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-fade);
+}
+
+/* Sidebar entries — a soft pill that fills on hover, and an active row
+   marked by a coral rail plus a coral-tinted wash rather than a solid
+   surface, so the selected page reads without boxing itself off. */
+.sidebar-content a {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--fg-dim);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+}
+.sidebar-content a:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.04);
+}
+.sidebar-content a[aria-current="page"] {
+  color: var(--fg);
+  background: color-mix(in oklab, var(--coral) 8%, transparent);
+  border-left-color: var(--coral);
+  font-weight: 500;
+}
+
+/* Right-rail TOC — same mono eyebrow as the sidebar labels, and active
+   links go coral instead of carrying a rail: the rail is the left nav's
+   device, and repeating it on the right competes with the prose. */
+starlight-toc nav > h2,
+.right-sidebar h2 {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-fade);
+}
+/* `.right-sidebar-panel` is carried only for specificity. Starlight scopes its
+   own panel rule as `.right-sidebar-panel:where(.astro-hash) :where(a)`, which
+   is (0,1,0); a bare `starlight-toc nav a` is (0,0,3) and loses, leaving the
+   TOC at --sl-color-gray-3 — the same tone as the left sidebar. The TOC is
+   meant to read one step quieter than the nav. */
+.right-sidebar-panel starlight-toc nav a {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--fg-fade);
+  border-inline-start: none;
+  padding-block: 4px;
+}
+.right-sidebar-panel starlight-toc nav a:hover {
+  color: var(--fg);
+}
+.right-sidebar-panel starlight-toc nav a[aria-current="true"],
+.right-sidebar-panel starlight-toc nav a[aria-current="true"]:hover {
+  color: var(--coral);
+  font-weight: 400;
+}
+
+/* Search — a filled, rounded field rather than a hairline chip, with a
+   coral focus ring (designer's .docs-search-input-wrap). */
+site-search button[data-open-modal] {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  letter-spacing: normal;
+  color: var(--fg-fade);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+site-search button[data-open-modal]:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: color-mix(in oklab, var(--coral) 40%, transparent);
+  color: var(--fg);
+}
+site-search button[data-open-modal] kbd {
+  font-family: var(--font-mono);
+  background: transparent;
+  color: var(--fg-fade);
+}
+
+/* Inline code — a chip that sits inside the line without breaking its
+   rhythm: slightly smaller than the prose, hairline border, no heavy fill. */
+.sl-markdown-content :not(pre) > code {
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  font-size: 0.83em;
+  padding: 0.12em 0.42em;
+  color: var(--fg-1);
+}
+
+/* Code blocks — a lifted panel, rounder and darker than the page so the
+   sample reads as an object rather than an indent. */
+.expressive-code,
+.sl-markdown-content pre {
+  border-radius: 10px;
+}
+.expressive-code .frame pre,
+.sl-markdown-content pre {
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.expressive-code .frame.has-title:not(.is-terminal) .header,
+.expressive-code .frame.is-terminal .header {
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.expressive-code code {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+/* Dashboard screenshots (src/assets/screenshots/, captured by
+   scripts/capture-staging.py): same hairline frame as code blocks so
+   product imagery sits in the prose without shouting. */
+.sl-markdown-content img {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-1);
+}
+
+/* Asides — a tinted, rounded card keyed by type. Starlight's default is a
+   left-bar note; the redesign gives each kind its own hue so a warning and
+   an informational note are told apart before the text is read. The three
+   hues are deliberately NOT brand tokens: coral is the site's one accent,
+   and blue/amber exist only inside these cards (same rule as chart colors).
+
+   Colours land on the aside's own custom properties so the icon, title and
+   border stay in step without restyling each part. */
+.sl-markdown-content .starlight-aside {
+  border: 1px solid;
+  border-inline-start-width: 1px;
+  border-radius: 8px;
+  padding: 20px 24px;
+  margin: 24px 0 28px;
+}
+.sl-markdown-content .starlight-aside--caution,
+.sl-markdown-content .starlight-aside--danger {
+  --sl-color-asides-text-accent: var(--coral);
+  background: color-mix(in oklab, var(--coral) 6%, transparent);
+  border-color: color-mix(in oklab, var(--coral) 12%, transparent);
+}
+.sl-markdown-content .starlight-aside--note,
+.sl-markdown-content .starlight-aside--tip {
+  --sl-color-asides-text-accent: #479bff;
+  background: rgba(71, 155, 255, 0.05);
+  border-color: rgba(71, 155, 255, 0.12);
+}
+.sl-markdown-content .starlight-aside--caution {
+  --sl-color-asides-text-accent: #e0a030;
+  background: rgba(224, 160, 48, 0.05);
+  border-color: rgba(224, 160, 48, 0.12);
+}
+.sl-markdown-content .starlight-aside__title {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--sl-color-asides-text-accent);
+}
+.sl-markdown-content .starlight-aside__icon {
+  font-size: 1rem;
+  width: 16px;
+  height: 16px;
+}
+.sl-markdown-content .starlight-aside__content,
+.sl-markdown-content .starlight-aside__content :is(p, li) {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--fg-1);
+}
+
+/* Tables — the border lives on the container so the rounded corners hold;
+   the head is a faint wash rather than a rule. */
+.sl-markdown-content table {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  border-collapse: collapse;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 16px 0 24px;
+}
+.sl-markdown-content thead {
+  background: rgba(255, 255, 255, 0.04);
+}
+.sl-markdown-content :is(th, td) {
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 14px;
+}
+.sl-markdown-content th {
+  font-weight: 500;
+  color: var(--fg);
+  text-align: left;
+}
+.sl-markdown-content tbody tr:last-child :is(th, td) {
+  border-bottom: none;
+}
+
+/* The film grain that used to sit here is gone, matching marketing.css:
+   the 2026-08 redesign wants flat dark fields. Leaving it on only the docs
+   was the exact seam the brand brief warns about — a reader crossing from
+   `/` to `/docs/capacitor/` would have seen the texture appear. */
+
+/* Selection — keep the marketing site's coral selection across docs. */
+::selection {
+  background: var(--coral);
+  color: #0b0809;
+}

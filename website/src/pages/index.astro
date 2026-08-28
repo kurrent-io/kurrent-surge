@@ -1,0 +1,174 @@
+---
+// The landing page. Deliberately NOT a Starlight Markdown splash: it uses
+// kcap-web's own markup, and those styles target classes (.hero__h1,
+// .hero__sub, .btn-primary, .eyebrow, .wrap) that Markdown cannot emit.
+// Standing outside the collection means it loads its own stylesheets; the
+// first four are the same ones Starlight loads, in the same order.
+import "../styles/fonts.css";
+import "../styles/brand.css";
+import "../styles/primitives.css";
+import "../styles/home.css";
+
+const DOCS_HREF = "/getting-started/";
+const PROCESSORS_HREF = "/processors/";
+
+const packages = [
+  { name: "Kurrent.Surge", body: "The client and the processors. What you install." },
+  { name: "Kurrent.Surge.Core", body: "Contracts and value types. No gRPC, no transport." },
+  { name: "Kurrent.Surge.Schema.Catalogs", body: "Declares message types and maps them to schema names." },
+  { name: "Kurrent.Surge.Codecs.Avro", body: "The opt-in Avro codec." },
+];
+
+const sections = [
+  {
+    num: "01",
+    label: "PROCESSORS",
+    title: "Write a handler.\nThe runtime runs it.",
+    body: "No subscription loop, no checkpoint bookkeeping, no retry policy to hand-roll. Implement one method and the runtime owns the rest.",
+    link: { href: PROCESSORS_HREF, text: "Read the guide" },
+  },
+  {
+    num: "02",
+    label: "SCHEMA",
+    title: "Declare your message\ntypes once.",
+    body: "A catalog maps a CLR type to a schema name. The SDK registers and validates it against the registry, in JSON, Protobuf or Avro.",
+    link: { href: "/schema/", text: "See the schema layer" },
+  },
+  {
+    num: "03",
+    label: "CLIENT",
+    title: "Five modules,\n55 operations.",
+    body: "Streams, schema registry, secondary indexes, connectors and node administration. One surface over two gRPC protocols.",
+    link: { href: "/client/", text: "Browse the client" },
+  },
+  {
+    num: "04",
+    label: "AOT",
+    title: "Source generators,\nnot reflection.",
+    body: "Every packable project is IsAotCompatible. Catalogs, unions and Avro codecs are generated at compile time, so nothing resolves at runtime.",
+    link: { href: "/schema/formats/", text: "See the formats" },
+  },
+];
+---
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kurrent Surge — the .NET SDK for the Kurrent Platform</title>
+  <meta name="description" content="Connect to KurrentDB, and process what is in it without writing subscription plumbing." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <script is:inline>document.documentElement.dataset.theme = "dark";</script>
+</head>
+<body>
+
+<section class="hero">
+  <div class="wrap">
+    <h1 class="hero__h1">The .NET SDK for the Kurrent Platform.</h1>
+
+    <p class="hero__sub">
+      Connect to KurrentDB, and process what is in it <b>without writing subscription
+      plumbing</b>. Kurrent Surge carries the Kurrent client and adds the thing the
+      client alone does not give you: processors.
+    </p>
+
+    <div class="hero__cta">
+      <a class="btn-primary" href={DOCS_HREF}>Get started &rarr;</a>
+      <a class="btn-secondary" href={PROCESSORS_HREF}>Read the docs</a>
+    </div>
+
+    <div class="hero__install">
+      <p class="eyebrow" style="margin: 44px 0 14px 22px;">INSTALL</p>
+      <pre class="mono" style="
+        margin: 0 0 0 22px; padding: 18px 22px; max-width: 620px;
+        background: #141414; border: 1px solid var(--border);
+        border-radius: 10px; color: var(--fg-1); font-size: 14px; overflow-x: auto;"><code>dotnet add package Kurrent.Surge</code></pre>
+      <p class="mono" style="margin: 14px 0 0 22px; font-size: 13px; color: var(--fg-fade);">
+        Built by the team behind <a href="https://kurrent.io" style="color: var(--fg-dim);">KurrentDB</a>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="sect">
+  <div class="wrap">
+    <p class="sect__lbl">A COMPLETE STREAM PROCESSOR</p>
+    <h2 class="sect__h">Two methods. That is the program.</h2>
+
+    <pre class="mono" style="
+      margin: 24px 0 0; padding: 22px 24px;
+      background: #141414; border: 1px solid var(--border);
+      border-radius: 10px; color: var(--fg-1); font-size: 13.5px;
+      line-height: 1.7; overflow-x: auto;"><code>public sealed class TemperatureMonitor : IRecordProcessor &#123;
+    public ValueTask ProcessRecord(ProcessRecordContext context) &#123;
+        if (context.Record.Value is SensorReading reading)
+            Evaluate(reading);
+
+        return ValueTask.CompletedTask;
+    &#125;
+&#125;
+
+await KurrentProcessor.Create(new TemperatureMonitor(), opts =&gt; &#123;
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'");
+&#125;).RunWithGracefulShutdownAsync();</code></pre>
+
+    <p style="margin-top: 24px; color: var(--fg-dim); max-width: 68ch;">
+      The runtime owns the subscription, the checkpoints, the batching, the resilience,
+      the partition assignment and the graceful shutdown. You own the handler.
+    </p>
+  </div>
+</section>
+
+<section class="sect">
+  <div class="wrap">
+    <p class="sect__lbl">WHAT IS HERE</p>
+
+    <div class="feature-grid" style="
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      border: 1px solid var(--border); margin-top: 28px;">
+      {sections.map((s, i) => (
+        <div style={`padding: 32px; border-right: ${i % 2 === 0 ? "1px solid var(--border)" : "none"}; border-bottom: ${i < 2 ? "1px solid var(--border)" : "none"};`}>
+          <p class="mono" style="font-size: 11px; letter-spacing: 0.16em; margin: 0 0 18px;">
+            <span style="color: var(--coral);">{s.num}</span>
+            <span style="color: var(--fg-dim); margin-left: 10px;">{s.label}</span>
+          </p>
+          <h3 style="font-family: var(--font-sans); font-weight: 500; font-size: 22px; line-height: 1.25; margin: 0 0 14px; color: var(--fg); white-space: pre-line;">{s.title}</h3>
+          <p style="color: var(--fg-dim); font-size: 15px; line-height: 1.6; margin: 0 0 20px;">{s.body}</p>
+          <a class="mono" href={s.link.href} style="font-size: 12px; letter-spacing: 0.08em; color: var(--fg-dim); text-decoration: none;">{s.link.text} &rarr;</a>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section class="sect">
+  <div class="wrap">
+    <p class="sect__lbl">THE PACKAGES</p>
+    <h2 class="sect__h">Install only what you need.</h2>
+    <p style="color: var(--fg-dim); margin: 12px 0 28px;">There is no meta-package.</p>
+
+    <div style="border-top: 1px solid var(--border);">
+      {packages.map((p) => (
+        <div style="display: flex; gap: 32px; padding: 18px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
+          <code class="mono" style="font-size: 13px; color: var(--fg); min-width: 280px;">{p.name}</code>
+          <span style="color: var(--fg-dim); font-size: 15px;">{p.body}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<footer class="sect" style="padding-bottom: 96px;">
+  <div class="wrap">
+    <p style="color: var(--fg-fade); font-size: 14px;">
+      Kurrent Surge is the .NET SDK for the Kurrent Platform. Today almost everything it
+      reaches is KurrentDB, and the SDK is built to grow into the other platform services
+      without a second SDK.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>

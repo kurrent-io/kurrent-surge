@@ -1,0 +1,15 @@
+# Astro's generated content-collection cache and type shims. Regenerated on
+# every dev start and build; deleting it under a running dev server breaks
+# slug resolution, so it must never be a committed artifact either.
+.astro/
+
+# Build output.
+dist/
+
+# Bun / node.
+node_modules/
+
+# Bun writes bun.lock — it is committed. No pnpm or npm lockfiles here.
+pnpm-lock.yaml
+package-lock.json
+yarn.lock

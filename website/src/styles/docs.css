@@ -1,0 +1,80 @@
+/* Ours, not ported. kcap-web's docs carry no landing page and no CTA, so their
+   starlight-theme.css has nothing to say about buttons or the ambient glow.
+   This file carries the brand's two page-level signatures onto every Starlight
+   route, so the docs and the home page are visibly the same site.
+
+   Everything it uses is defined elsewhere: tokens in brand.css, button and
+   glow specs in primitives.css. */
+
+/* ---- Ambient glow ------------------------------------------------------ */
+/* The same single radial the hero uses, weaker, anchored to the top of the
+   viewport. Painted as a background layer on `body` rather than a
+   pseudo-element: it composites over the background colour and under every
+   descendant with no stacking context to reason about, and it cannot
+   intercept a pointer event. `fixed` keeps it still while the page scrolls. */
+body {
+  background-image: radial-gradient(
+    70% 100% at 50% 0%,
+    rgba(var(--hero-glow), 0.16) 0%,
+    rgba(var(--hero-glow), 0) 70%
+  );
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: 100% 60vh;
+  background-position: top center;
+}
+
+/* ---- Buttons ----------------------------------------------------------- */
+/* Starlight's default is a fully rounded white pill. The brand's is a 4px
+   coral rectangle with a ring on hover, and a hairline-outlined secondary.
+   Mapping rather than restating: the specs live in primitives.css. */
+a.sl-link-button {
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  gap: 12px;
+}
+
+a.sl-link-button.primary {
+  background: var(--coral);
+  border: 1px solid var(--coral);
+  color: var(--cta-fg);
+  font-size: 17px;
+  font-weight: 500;
+  padding: 16px 22px;
+  transition: transform 120ms ease, box-shadow 160ms ease;
+}
+a.sl-link-button.primary:hover {
+  background: var(--coral);
+  box-shadow: 0 0 0 4px var(--coral-ring);
+}
+a.sl-link-button.primary:active { transform: translateY(1px); }
+
+a.sl-link-button.minimal,
+a.sl-link-button.secondary {
+  background: transparent;
+  border: 1px solid var(--border-1);
+  color: var(--fg-1);
+  font-size: 16px;
+  padding: 15px 18px;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+a.sl-link-button.minimal:hover,
+a.sl-link-button.secondary:hover {
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
+
+/* ---- Code scrollbars --------------------------------------------------- */
+/* A long code line leaves a horizontal scrollbar in the browser's default
+   colours, which land blue against the near-black frame. */
+.expressive-code pre {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ---- Prose measure ----------------------------------------------------- */
+/* Starlight caps the content column by viewport, not by measure, so on a wide
+   window a paragraph runs past a comfortable line length. */
+.sl-markdown-content {
+  max-width: 74ch;
+}

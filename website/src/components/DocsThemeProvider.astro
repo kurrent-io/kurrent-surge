@@ -1,0 +1,16 @@
+---
+// Dark-only replacement for Starlight's <ThemeProvider />. The default reads
+// localStorage and prefers-color-scheme, which flips docs into Starlight's
+// light palette even with the toggle hidden.
+---
+<script is:inline>
+	window.StarlightThemeProvider = (() => {
+		try {
+			window.localStorage.removeItem("starlight-theme");
+		} catch {}
+		document.documentElement.dataset.theme = "dark";
+		return {
+			updatePickers() {},
+		};
+	})();
+</script>

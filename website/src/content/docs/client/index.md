@@ -1,0 +1,64 @@
+---
+title: Client
+description: Five modules, 55 operations — streams, registry, indexes, connectors and administration.
+---
+
+`KurrentClient` is the entry point. It exposes five feature modules as properties.
+
+```csharp
+await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
+
+await client.Streams.AppendStream(...);
+await client.Registry.CreateSchema(...);
+await client.Indexes.Create(...);
+await client.Connectors.Start(...);
+await client.Admin.StartScavenge(...);
+```
+
+| Module | Operations | Covers |
+|---|---|---|
+| [Streams](/client/streams/) | 14 | append, read, subscribe, manage |
+| [Connectors](/client/connectors/) | 10 | create, configure, start, stop |
+| [Registry](/client/registry/) | 8 | schemas and versions |
+| [Admin](/client/admin/) | 7 | scavenge, node priority, shutdown |
+| [Indexes](/client/indexes/) | 6 | secondary indexes |
+
+## Creating a client
+
+```csharp
+KurrentClient.Create("kurrentdb://localhost:2113")
+KurrentClient.Create(options)
+KurrentClient.Create("kurrentdb://localhost:2113", opts => { … })
+```
+
+Or through dependency injection:
+
+```csharp
+builder.Services.AddKurrent(kurrent => kurrent
+    .Connection("kurrentdb://admin:changeit@localhost:2113?tls=false"));
+```
+
+## Cluster connections
+
+Under `kurrentdb+discover://`, the client discovers topology through gossip, picks a channel per
+call, and reacts to a leader change without you handling it. `ReadPreference` selects the node:
+`Leader`, `Follower`, `Random` or `ReadOnlyReplica`.
+
+## Errors
+
+Operations throw typed exceptions deriving from `KurrentException`, each carrying an error code.
+There is no result wrapper — catch the exception type you care about:
+
+```csharp
+try {
+    await client.Streams.AppendStream(stream, records, ExpectedStreamState.NoStream);
+}
+catch (StreamAlreadyExistsException) {
+    // the stream was there
+}
+```
+
+## Two protocols, one surface
+
+Append runs on V2 gRPC. Read and manage run on the V1 legacy service. Indexes and connectors use V2
+messages. You call one client; the protocol split is an implementation detail.
