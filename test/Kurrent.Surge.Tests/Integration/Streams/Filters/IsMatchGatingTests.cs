@@ -68,12 +68,19 @@ public class IsMatchGatingTests {
 
         // Act — read $ce-{cat} with link resolution, gated. The category is ours alone, so the only
         // records are the seeded ones. Poll for the eventually-consistent category projection (the
-        // $ce- stream does not exist until it runs).
+        // $ce- stream does not exist until it runs). A wall-clock deadline rather than a fixed
+        // attempt count, matching the sibling test below: a cold server needs well past 10s to
+        // materialize the link stream, and the loop exits the instant it appears.
         var delivered = new List<Record>();
+        var deadline  = DateTime.UtcNow + TimeSpan.FromSeconds(45);
 
-        for (var attempt = 0; attempt < 20 && delivered.Count < seeded; attempt++) {
-            if (attempt > 0)
+        for (var attempt = 0; delivered.Count < seeded; attempt++) {
+            if (attempt > 0) {
+                if (DateTime.UtcNow >= deadline)
+                    break;
+
                 await Task.Delay(500, ct);
+            }
 
             delivered.Clear();
 
