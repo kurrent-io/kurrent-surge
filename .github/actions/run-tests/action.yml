@@ -20,6 +20,12 @@ inputs:
     description: Additional TUnit arguments appended after '--' (e.g., '--maximum-parallel-tests 1').
     required: false
     default: ''
+  report:
+    description: >
+      Publishes a test report for this run. Set false when several runs share one report,
+      and publish once afterwards over the results directories with a glob.
+    required: false
+    default: 'true'
 
 runs:
   using: composite
@@ -83,7 +89,7 @@ runs:
       run: find ${{ steps.config.outputs.results-dir }} -name '*.trx' -exec grep -l 'total="0"' {} + | xargs -r rm || true
 
     - name: ${{ steps.config.outputs.report-name }} report
-      if: '!cancelled()'
+      if: ${{ !cancelled() && inputs.report == 'true' }}
       uses: dorny/test-reporter@v3
       with:
         name: ${{ steps.config.outputs.report-name }}

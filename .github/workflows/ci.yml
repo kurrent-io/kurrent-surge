@@ -167,6 +167,7 @@ jobs:
         uses: ./.github/actions/run-tests
         with:
           category: integration
+          report: 'false'
           report-name: Integration — Streams
           filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Streams/*/*[Category=Integration]
 
@@ -175,6 +176,7 @@ jobs:
         uses: ./.github/actions/run-tests
         with:
           category: integration
+          report: 'false'
           report-name: Integration — Registry
           filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Registry/*/*[Category=Integration]
 
@@ -183,6 +185,7 @@ jobs:
         uses: ./.github/actions/run-tests
         with:
           category: integration
+          report: 'false'
           report-name: Integration — Indexes
           filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Indexes/*/*[Category=Integration]
 
@@ -191,6 +194,7 @@ jobs:
         uses: ./.github/actions/run-tests
         with:
           category: integration
+          report: 'false'
           report-name: Integration — Connectors
           filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Connectors/*/*[Category=Integration]
 
@@ -199,6 +203,7 @@ jobs:
         uses: ./.github/actions/run-tests
         with:
           category: integration
+          report: 'false'
           report-name: Integration — Client
           filter: /Kurrent.Surge.Tests/Kurrent.Surge.Tests.Client*/*/*[Category=Integration]
 
@@ -207,6 +212,7 @@ jobs:
         uses: ./.github/actions/run-tests
         with:
           category: integration
+          report: 'false'
           report-name: Integration — Streaming
           filter: /Kurrent.Surge.Streaming.Tests/*/*/*[Category=Integration]
 
@@ -215,8 +221,26 @@ jobs:
         uses: ./.github/actions/run-tests
         with:
           category: integration
+          report: 'false'
           report-name: Integration — Aspire Host
           filter: /Aspire.Hosting.KurrentDB.Tests/*/*/*[Category=Integration]
+
+      # One report over every group. dorny/test-reporter takes a comma-separated list of paths
+      # and expands wildcards through fast-glob, so the per-group directories collect into a
+      # single check. Runs even when a group failed, so the groups that did run still report.
+      - name: Integration Tests report
+        if: ${{ !cancelled() && steps.changes.outputs.build == 'true' && github.event.pull_request.draft != true }}
+        uses: dorny/test-reporter@v3
+        with:
+          name: Integration Tests
+          path: .artifacts/test-results/integration-*/**/*.trx
+          reporter: dotnet-trx
+          fail-on-error: false
+          fail-on-empty: false
+          only-summary: true
+          max-annotations: 50
+          badge-title: integration
+          report-title: Integration Tests
 
       # Runs after tests so no Aspire session is active on this runner; reaping
       # mid-session corrupts DCP state. Skipped on cancellation — a superseding
