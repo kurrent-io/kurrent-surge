@@ -41,6 +41,7 @@ One client reaches every module. Appends are transactional, reads are lazy, and 
 the types you declared above rather than bytes. See [Streams](/streams/).
 
 ```csharp
+// tls=false is the local development mode. Production drops it: /client/security/
 await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
 await client.Streams.AppendStream("order-123", [
@@ -67,12 +68,27 @@ public sealed class OrderProcessor : IRecordProcessor {
 
 ## How it is designed
 
-Four decisions shape everything above.
+**Built for Native AOT.** Catalogs, discriminated unions and Avro codecs come from source generators.
+All four packages are `IsAotCompatible` and `IsTrimmable`, trim and AOT analysis runs unsuppressed
+across the repository, and both the map from CLR type to schema name and the table of codecs are
+frozen dictionaries built once at startup. JSON goes through a source-generated
+`JsonSerializerContext`, with the reflection fallback behind a feature switch the linker removes.
 
-**Compile time over runtime.** Catalogs, discriminated unions and Avro codecs come from source
-generators. Every publishable package is `IsAotCompatible`, and nothing resolves a type, a codec or a
-mapping by reflection. A mistake surfaces when you build rather than on the first append in
-production.
+**Serialization happens for you, in three formats.** You append a declared type and the SDK encodes
+it. Every record carries its own format on the wire, so a reader picks the codec from the record
+instead of from configuration, and a producer moving to Protobuf does not break a consumer. JSON is
+the default, Protobuf and Avro are a property on the record you append, and raw bytes skip the layer
+entirely. See [Formats](/schema/formats/).
+
+**Resilience is configured on both halves.** The client retries at the gRPC channel, declared in the
+service config so the transport enforces it rather than a loop above it. Processors retry inside the
+runtime, on a pipeline you can extend or replace outright. The same vocabulary on both sides, and a
+hand-rolled retry loop on neither. See [Configuring the client](/client/configuring-the-client/) and
+[Error handling](/processors/error-handling/).
+
+**Routing is a gRPC policy, not a wrapper.** Discovery, node ranking, connection replacement and
+leader-change following all run inside the channel, as a load balancing policy registered on it. See
+[Load balancing](/client/load-balancing/).
 
 **One surface over two protocols.** Appends run on the V2 gRPC service. Reads and stream management
 run on the V1 legacy service. Indexes and connectors use V2 messages. You call one client, and the
@@ -83,12 +99,12 @@ result wrapper to unpack, and no single catch-all to inspect for a reason string
 
 **Install only what you need.** There is no meta-package.
 
-| Package | What it is |
-|---|---|
-| `Kurrent.Surge` | The client and the processors. What you install |
-| `Kurrent.Surge.Core` | Contracts and value types. No gRPC, no transport |
-| `Kurrent.Surge.Schema.Catalogs` | Message declaration and the catalog generator |
-| `Kurrent.Surge.Codecs.Avro` | The opt-in Avro codec |
+| Package | What it is | Links |
+|---|---|---|
+| `Kurrent.Surge` | The client and the processors. What you install | [Docs](/client/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge) · [Source](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/src/Kurrent.Surge) |
+| `Kurrent.Surge.Core` | Contracts and value types. No gRPC, no transport. Arrives with the client | [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Core) · [Source](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/src/Kurrent.Surge.Core) |
+| `Kurrent.Surge.Schema.Catalogs` | Message declaration and the catalog generator | [Docs](/schema/catalogs/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Schema.Catalogs) · [Source](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/src/Kurrent.Surge.Schema.Catalogs) |
+| `Kurrent.Surge.Codecs.Avro` | The opt-in Avro codec | [Docs](/schema/formats/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Codecs.Avro) · [Source](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/src/Kurrent.Surge.Codecs.Avro) |
 
 ## What changed from the v1 client
 

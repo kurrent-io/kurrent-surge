@@ -30,8 +30,8 @@ const sections = [
   {
     num: "02",
     label: "SCHEMA",
-    title: "Declare your message\ntypes once.",
-    body: "A catalog maps a CLR type to a schema name, in JSON, Protobuf or Avro. Turn the registry on and Kurrent Surge registers and validates against it.",
+    title: "Declare once.\nSerialized for you.",
+    body: "A catalog maps a CLR type to a schema name. JSON, Protobuf or Avro, chosen per record and read back from the record itself, so a producer can change format without breaking a consumer.",
     link: { href: "/schema/", text: "See the schema layer" },
   },
   {
@@ -43,10 +43,24 @@ const sections = [
   },
   {
     num: "04",
+    label: "LOAD BALANCING",
+    title: "Routing runs inside\nthe channel.",
+    body: "A gRPC load balancing policy of our own, not a wrapper around one address. Gossip discovery, nodes ranked by preference, and a leader change followed without a reconnect you write.",
+    link: { href: "/client/load-balancing/", text: "See how it routes" },
+  },
+  {
+    num: "05",
+    label: "RESILIENCE",
+    title: "Retries on the client\nand the processor.",
+    body: "The client retries at the gRPC channel, declared in the service config so the transport enforces it. Processors retry in the runtime, on a pipeline you can extend or replace. A retry loop of your own on neither.",
+    link: { href: "/client/configuring-the-client/", text: "Configure resilience" },
+  },
+  {
+    num: "06",
     label: "AOT",
-    title: "Source generators,\nnot reflection.",
-    body: "Every packable project is IsAotCompatible. Catalogs, unions and Avro codecs are generated at compile time, so nothing resolves at runtime.",
-    link: { href: "/schema/formats/", text: "See the formats" },
+    title: "Built for\nNative AOT.",
+    body: "Catalogs, unions and Avro codecs are generated at compile time. All four packages are IsAotCompatible and IsTrimmable, and trim analysis runs unsuppressed on every build.",
+    link: { href: "/what-is-surge/", text: "How it is designed" },
   },
 ];
 ---
@@ -132,7 +146,7 @@ await KurrentProcessor.Create(new TemperatureMonitor(), opts =&gt; &#123;
       display: grid; grid-template-columns: repeat(2, 1fr);
       border: 1px solid var(--border); margin-top: 28px;">
       {sections.map((s, i) => (
-        <div style={`padding: 32px; border-right: ${i % 2 === 0 ? "1px solid var(--border)" : "none"}; border-bottom: ${i < 2 ? "1px solid var(--border)" : "none"};`}>
+        <div style={`padding: 32px; border-right: ${i % 2 === 0 ? "1px solid var(--border)" : "none"}; border-bottom: ${i < sections.length - 2 ? "1px solid var(--border)" : "none"};`}>
           <p class="mono" style="font-size: 11px; letter-spacing: 0.16em; margin: 0 0 18px;">
             <span style="color: var(--coral);">{s.num}</span>
             <span style="color: var(--fg-dim); margin-left: 10px;">{s.label}</span>
