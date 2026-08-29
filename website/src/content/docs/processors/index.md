@@ -73,7 +73,7 @@ Configured through `ProcessorOptions`:
 | Batch shape | `Batching` |
 | Failure handling | `Resilience` |
 | Concurrency | `MaxParallelism`, default 1 |
-| Observability | `Observers`, `MeterFactory`, `TrackSourceLag` |
+| [Observability](/processors/observability/) | `Observers`, `MeterFactory`, `TrackSourceLag` |
 
 Read on for [writing a processor](/processors/writing-a-processor/),
 [checkpointing](/processors/checkpointing/), [partitioning](/processors/partitioning/) and

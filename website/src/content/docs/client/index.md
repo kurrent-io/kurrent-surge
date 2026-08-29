@@ -1,6 +1,6 @@
 ---
 title: Client
-description: Five modules and 46 operations. Streams, registry, indexes, connectors and administration.
+description: Five modules. Streams, registry, indexes, connectors and administration.
 ---
 
 `KurrentClient` is the entry point. It exposes five feature modules as properties.
@@ -15,15 +15,15 @@ await client.Connectors.Start(...);
 await client.Admin.StartScavenge(...);
 ```
 
-| Module | Operations | Covers |
-|---|---|---|
-| [Streams](/client/streams/) | 14 | [append](/client/streams/append/), [read](/client/streams/read/), [manage](/client/streams/manage/) |
-| [Connectors](/client/connectors/) | 10 | create, configure, start, stop |
-| [Registry](/client/registry/) | 8 | schemas and versions |
-| [Admin](/client/admin/) | 8 | scavenge, node priority, shutdown |
-| [Indexes](/client/indexes/) | 6 | secondary indexes |
+| Module | Covers |
+|---|---|
+| [Streams](/client/streams/) | [Append](/client/streams/append/), [read](/client/streams/read/), [manage](/client/streams/manage/), [filter](/client/streams/filters/), [record metadata](/client/streams/metadata/) |
+| [Connectors](/client/connectors/) | Create, configure, start, stop |
+| [Registry](/client/registry/) | Schemas and versions |
+| [Admin](/client/admin/) | Scavenge, node priority, shutdown |
+| [Indexes](/client/indexes/) | Secondary indexes |
 
-Counts are distinct operations. Each page lists every overload.
+Each page lists every operation the module carries, with its overloads.
 
 ## Creating a client
 

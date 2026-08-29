@@ -159,6 +159,7 @@ export default defineConfig({
             { label: 'Partitioning', slug: 'processors/partitioning' },
             { label: 'Batching', slug: 'processors/batching' },
             { label: 'Error handling', slug: 'processors/error-handling' },
+            { label: 'Observability', slug: 'processors/observability' },
           ],
         },
         {
