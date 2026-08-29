@@ -75,8 +75,14 @@ expression, not text.
 ```csharp
 RecordFilter.ByExpression(
     "stream = @stream AND revision > @from",
-    new FilterParameters { ["stream"] = "order-123", ["from"] = 100 });
+    new FilterParameters()
+        .Add("stream", "order-123")
+        .Add("from", 100));
 ```
+
+`Add` is typed. There are overloads for `string`, the numeric types, `Guid`, `Enum`, and for the
+domain types `StreamName`, `LogPosition`, `Revision` and `RecordId`, so a value binds as itself
+rather than as its text.
 
 ## Where a filter runs
 
