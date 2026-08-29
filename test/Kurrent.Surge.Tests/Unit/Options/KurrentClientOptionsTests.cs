@@ -738,7 +738,7 @@ public class KurrentClientOptionsTests {
     // The bare unit is fixed per parameter by the published cross-SDK tables, not chosen by Surge.
     public class BareDurationUnits : TestCaseGenerator<string, string, TimeSpan> {
         protected override IEnumerable<(string, string, TimeSpan)> Data() => [
-            // KeepAliveInterval stays above the default 30s KeepAliveTimeout, which the
+            // KeepAliveInterval stays at or above the default KeepAliveTimeout, which the
             // validator requires when only one of the pair is supplied.
             ("keepAliveInterval", "45",   TimeSpan.FromSeconds(45)),
             ("keepAliveTimeout",  "10",   TimeSpan.FromSeconds(10)),

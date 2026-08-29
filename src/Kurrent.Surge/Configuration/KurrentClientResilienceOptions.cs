@@ -31,10 +31,10 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// devices from closing idle connections.
     /// </para>
     /// <para>
-    /// Default value is 60 seconds, which aligns with gRPC best practices.
+    /// Default value is 10 seconds, matching every other KurrentDB SDK.
     /// </para>
     /// </remarks>
-    public TimeSpan KeepAliveInterval { get; set; } = TimeSpan.FromSeconds(60);
+    public TimeSpan KeepAliveInterval { get; set; } = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// The amount of time to wait after which a sent keepalive ping is considered timed out.
@@ -45,10 +45,10 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// is considered dead, and operations will fail with a connectivity error.
     /// </para>
     /// <para>
-    /// Default value is 30 seconds.
+    /// Default value is 10 seconds, matching every other KurrentDB SDK.
     /// </para>
     /// </remarks>
-    public TimeSpan KeepAliveTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    public TimeSpan KeepAliveTimeout { get; set; } = TimeSpan.FromSeconds(10);
 
     /// <summary>
     /// Maximum time to wait for a response for a gRPC call.
@@ -95,7 +95,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// <remarks>
     /// <para>Application: General use for most reads and common idempotent writes.
     /// Biased towards resilience, allowing operations to complete without client-side time limits.</para>
-    /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
+    /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 10s, timeout: 10s).</para>
     /// <para>Retries: 3 attempts with moderate exponential backoff (250ms initial, up to 10s, 1.5x multiplier).</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance with default settings.</returns>
@@ -117,7 +117,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// <remarks>
     /// <para>Application: Use when no client-side resilience (retries or specific deadlines) is desired.
     /// Relies entirely on server behavior, network stability, or external resilience mechanisms.</para>
-    /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
+    /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 10s, timeout: 10s).</para>
     /// <para>Retries: Disabled.</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance with retries disabled and an infinite deadline.</returns>
@@ -132,7 +132,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// </summary>
     /// <remarks>
     /// <para>Application: For operations where an immediate response (success or failure) is critical, typically UI-facing actions.</para>
-    /// <para>Call Deadline: 5 seconds. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
+    /// <para>Call Deadline: 5 seconds. Keepalive pings help detect idle connection issues (ping interval: 10s, timeout: 10s).</para>
     /// <para>Retries: Disabled.</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance optimized for failing fast.</returns>
@@ -147,7 +147,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// </summary>
     /// <remarks>
     /// <para>Application: Critical reads or highly critical idempotent writes that must eventually succeed and can tolerate long retry periods.</para>
-    /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
+    /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 10s, timeout: 10s).</para>
     /// <para>Retries: Infinite attempts with aggressive exponential backoff (100ms initial, up to 30s, 2.0x multiplier).</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance with unlimited retry attempts.</returns>
@@ -168,7 +168,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// </summary>
     /// <remarks>
     /// <para>Application: Long-running streaming reads that need to remain connected and recover from transient issues.</para>
-    /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
+    /// <para>Call Deadline: Infinite. Keepalive pings help detect idle connection issues (ping interval: 10s, timeout: 10s).</para>
     /// <para>Retries: 8 attempts with aggressive exponential backoff (100ms initial, up to 15s, 2.0x multiplier).</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance optimized for subscriptions.</returns>
@@ -189,7 +189,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// </summary>
     /// <remarks>
     /// <para>Application: Reads or idempotent writes requiring fast, predictable retry attempts within a moderate, fixed deadline.</para>
-    /// <para>Call Deadline: 30 seconds. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
+    /// <para>Call Deadline: 30 seconds. Keepalive pings help detect idle connection issues (ping interval: 10s, timeout: 10s).</para>
     /// <para>Retries: 5 attempts with fixed 200ms backoff interval.</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance with high-availability settings.</returns>
@@ -210,7 +210,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// </summary>
     /// <remarks>
     /// <para>Application: Write operations where idempotency isn't guaranteed, or to explicitly avoid retrying on client-side timeouts.</para>
-    /// <para>Call Deadline: 60 seconds. Keepalive pings help detect idle connection issues (ping interval: 60s, timeout: 30s).</para>
+    /// <para>Call Deadline: 60 seconds. Keepalive pings help detect idle connection issues (ping interval: 10s, timeout: 10s).</para>
     /// <para>Retries: 3 attempts with moderate exponential backoff (500ms initial, up to 15s, 1.5x multiplier).</para>
     /// </remarks>
     /// <returns>A new <see cref="KurrentClientResilienceOptions"/> instance for cautious writes.</returns>
