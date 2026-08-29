@@ -1,0 +1,25 @@
+/* Loaded ONLY into the headless browser that renders mermaid at build time —
+   never shipped to a reader. It exists so the renderer measures label widths in
+   the same face the page paints them in.
+
+   Without it, the headless browser has no Work Sans, measures each label in a
+   fallback, sizes the node box to that, and the real font then overflows it —
+   "Commit position" renders clipped as "Commit positior".
+
+   The src is relative to THIS file, not to the site root, because the renderer
+   loads it through a file:// URL on a blank page where /fonts/… resolves to
+   nothing. Keep it relative so it works on any machine and in CI. */
+
+@font-face {
+  font-family: "Work Sans";
+  src: url("../../public/fonts/WorkSans-Variable.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../../public/fonts/JetBrainsMono-Variable.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+}
