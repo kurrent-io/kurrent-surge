@@ -684,6 +684,49 @@ public class DroneLifecycleTests {
 
 	[Test]
 	[Timeout(15_000)]
+	public async ValueTask process_record_failure_commits_tracked_frontier(CancellationToken ct) {
+		// Arrange — auto-track off; the record processor tracks record 1 then throws on record 2. A
+		// ProcessRecord failure must raise the shutdown barrier for the same reason a ProcessBatch failure
+		// does: the frontier tracked before the throw is durable intent and must survive the failure.
+		var records      = RecordsAt(3);
+		var prefixUpTo   = records[0].Position;     // log position 1
+		var prefixLogPos = prefixUpTo.LogPosition;
+
+		var processor = new TestableRecordProcessor {
+			OnProcessRecord = ctx => {
+				if (ctx.Record.Position.LogPosition.Value == prefixLogPos.Value) {
+					ctx.Track(ctx.Record);
+					return ValueTask.CompletedTask;
+				}
+
+				throw new InvalidOperationException("process record boom");
+			}
+		};
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Checkpoint.AutoTrack         = false;
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		foreach (var record in records)
+			subscription.EmitRecord(record);
+		subscription.Complete();
+
+		// Act — the run faults (ProcessRecord threw), but must flush the tracked prefix on the way out.
+		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+
+		// Assert — a shutdown barrier committed exactly the tracked prefix.
+		var shutdownCheckpoints = processor.Checkpoints
+			.Where(c => c.Trigger == CheckpointTrigger.Shutdown)
+			.ToList();
+
+		await Assert.That(shutdownCheckpoints.Count).IsGreaterThanOrEqualTo(1);
+		await Assert.That(shutdownCheckpoints[^1].Positions.Max(p => p.LogPosition.Value)).IsEqualTo(prefixLogPos.Value);
+	}
+
+	[Test]
+	[Timeout(15_000)]
 	public async ValueTask on_checkpoint_failure_does_not_recommit(CancellationToken ct) {
 		// Arrange — auto-track on; a stop raises the shutdown barrier whose OnCheckpoint throws. With
 		// FailurePolicy.Fail the throw is fatal. The drone must NOT re-raise the final checkpoint on an

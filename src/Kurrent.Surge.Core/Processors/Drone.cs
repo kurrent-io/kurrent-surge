@@ -346,12 +346,15 @@ sealed class Drone : IDrone {
         // If the user stopped, the Shutdown barrier already committed pending positions.
         // If the subscription ended naturally, pending positions may remain.
         //
-        // Run the final barrier on a clean exit OR a ProcessBatch failure: a processing failure must still
+        // Run the final barrier on a clean exit OR a processing failure: a processing failure must still
         // flush the frontier the user transparently tracked before throwing — OnCheckpoint runs and those
         // positions commit — instead of dropping the user's durable intent and replaying the whole batch.
-        // Do NOT run it on an OnCheckpoint failure: the hook just threw, so re-running it would only fault
-        // again. The discriminator is the PROCESS_BATCH_FAILED code carried by the wrapping DroneException.
-        var isProcessFailure = fatalError is DroneException { ErrorDetails.ErrorCode.Value: "PROCESS_BATCH_FAILED" };
+        // Both dispatcher shapes qualify; the record path tracks a prefix before throwing exactly as the
+        // batch path does. Do NOT run it on an OnCheckpoint failure: the hook just threw, so re-running it
+        // would only fault again. The discriminator is the code carried by the wrapping DroneException.
+        var isProcessFailure = fatalError is DroneException {
+            ErrorDetails.ErrorCode.Value: "PROCESS_BATCH_FAILED" or "PROCESS_RECORD_FAILED"
+        };
 
         if ((fatalError is null || isProcessFailure) && _checkpointer.HasPendingPositions) {
             var now = _clock.Now();
