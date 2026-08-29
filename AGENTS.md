@@ -78,6 +78,38 @@ Streams module split across 13 partial class files. Naming convention documented
 
 Sum types use source-generated `IVariant` discriminated unions.
 
+### Two docs trees, one is dead
+
+`website/` is the live documentation site, Astro and Starlight. `docs/` at the repo root is the
+legacy VuePress KurrentDB product site and has nothing to do with the SDK. Reach for `website/`.
+`.github/workflows/docs.yml` still filters on `docs/**`, so it never fires for the live site.
+
+### Examples
+
+Eighteen runnable projects under `examples/`, carried by `examples/Examples.slnx` and by
+`Kurrent.Sdk.slnx`. Read one before hand-writing a usage sample.
+
+```
+examples/streams/     QuickStart (31 lines, the minimal complete program), InventoryManagement
+examples/processors/  WordCount, FraudDetection, IoTMonitoring, Leaderboard, OrderEnrichment,
+                      ClickstreamSessions, WithPostgres, WithRedisCache, FullExample,
+                      AspNetMinimal, Connector.Management
+examples/registry/    Quickstart, OrderManagement
+examples/             PackageTest, PackageTest.Streaming, Transfermarkt.Domain
+```
+
+No example covers indexes, the Avro codec, or the admin API.
+
+`examples/README.md` is not an index. It documents message-catalog naming only and name-drops three
+projects as illustrations. Every example carries its own README except the two `PackageTest`
+projects and `Transfermarkt.Domain`, which are a package-resolution smoke test and a shared domain
+library rather than usage samples.
+
+CI builds them twice: once inside the root solution, then again as
+`dotnet build examples/Examples.slnx -c Release -p:TestPackages=true`, which flips the `PackageTest`
+projects from `ProjectReference` to a real `PackageReference` against the locally packed feed. A
+failure in that second pass means the published package is broken, not the example.
+
 ## Project context
 
 Knowledge base at `.claude/context/` — structure, frontmatter shapes, and rules live in the
