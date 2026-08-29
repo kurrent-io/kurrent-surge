@@ -8,9 +8,9 @@ sees a batch or a record.
 
 ## When to use it
 
-Use a batch processor when the cost is per call rather than per record — a bulk insert, a search
-index update, one outbound request carrying many items. Use a record processor when each record is
-independent work.
+Use a batch processor when the cost is per call rather than per record. A bulk insert, a search
+index update, and one outbound request carrying many items all qualify. Use a record processor when
+each record is independent work.
 
 ## Defaults
 
@@ -38,10 +38,10 @@ public sealed class BulkIndexer : IRecordBatchProcessor {
 ```
 
 The whole batch succeeds or fails together. Throw and the position is not committed past the batch,
-so the entire batch is redelivered — handlers must be idempotent.
+so the entire batch is redelivered. Handlers must be idempotent.
 
 ## Tuning
 
 Larger batches trade latency for throughput. A wider window does the same on a sparse stream. Start
-with the defaults and change one at a time — 500 records at a 100 ms window is already a high
+with the defaults and change one at a time. 500 records at a 100 ms window is already a high
 throughput shape.

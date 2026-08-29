@@ -68,7 +68,7 @@ Configured through `ProcessorOptions`:
 
 | Concern | Option |
 |---|---|
-| What to read | `Subscription` — filter and start position |
+| What to read | `Subscription`, which holds the filter and the start position |
 | Position tracking | `Checkpoint` |
 | Batch shape | `Batching` |
 | Failure handling | `Resilience` |

@@ -16,7 +16,8 @@ opts.Checkpoint.RetentionCount = 3;
 opts.Checkpoint.FailurePolicy  = CheckpointFailurePolicy.Continue;
 ```
 
-With both switches on — the default — you write a handler and never think about position again.
+With both switches on, which is the default, you write a handler and never think about position
+again.
 
 ## The two switches
 
@@ -33,7 +34,7 @@ durable.
 ## Interval
 
 `Interval` is the commit period, 30 seconds by default. A shorter interval means less replay after a
-crash and more writes. It is a recovery-time dial, not a correctness one — at-least-once delivery
+crash and more writes. It is a recovery-time dial, not a correctness one. At-least-once delivery
 holds either way, so a handler must tolerate seeing a record twice.
 
 ## Failure policy

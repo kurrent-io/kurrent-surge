@@ -26,8 +26,8 @@ name through your catalog, so you pattern-match on your own types rather than on
 
 ## The batch shape
 
-Implement `IRecordBatchProcessor` when the work is cheaper per batch — a bulk insert, a single
-outbound call:
+Implement `IRecordBatchProcessor` when the work is cheaper per batch, such as a bulk insert or a
+single outbound call:
 
 ```csharp
 public sealed class BulkIndexer : IRecordBatchProcessor {
@@ -65,8 +65,8 @@ resources opened in `OnInitialize` have somewhere to go.
 
 Throw from a handler and the runtime treats it as a processing failure: the exception is wrapped
 with the operation that failed, resilience policy applies, and the position is not committed past
-the record that threw. Cancellation propagates unwrapped — a stopping processor is not a failing
-one.
+the record that threw. Cancellation propagates unwrapped, because a stopping processor is not a
+failing one.
 
 ## Running it
 

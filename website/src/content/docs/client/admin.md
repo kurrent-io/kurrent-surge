@@ -1,45 +1,120 @@
 ---
 title: Admin
-description: Scavenging, node priority and shutdown.
+description: Control the connected node, and run scavenges.
 ---
 
-Node administration. Operational rather than application-facing.
+`client.Admin` controls the connected node and runs scavenges. These are tools for orchestration
+and maintenance scripts. Application code rarely calls them.
+
+Every operation needs an authenticated connection with sufficient privileges.
+
+
+## Shut down a node
 
 ```csharp
-ValueTask<ScavengeId>       StartScavenge(...)
-ValueTask                   StopScavenge(...)
-ValueTask<ScavengeDetails>  GetScavengeDetails(...)
-ValueTask<IReadOnlyList<…>> ListScavenges(...)
-ValueTask                   ResignNode(...)
-ValueTask                   SetNodePriority(...)
-ValueTask                   ShutdownServer(...)
+await client.Admin.ShutdownServer();
 ```
 
-## Scavenging
+Returns once the server acknowledges. The node finishes its in-flight work and exits. Operations
+against it fail until it restarts.
 
-Scavenging reclaims disk from deleted and expired records. It is I/O heavy and runs for a long time
-on a large database, so start it deliberately rather than on a schedule you have not measured.
+In a cluster, shutting down the leader triggers an election. The remaining nodes keep serving.
+
+## Move leadership
+
+`ResignNode` forces the current leader to step down and starts a new election. Use it before
+maintenance, or to test failover.
 
 ```csharp
-var scavengeId = await client.Admin.StartScavenge();
-var details    = await client.Admin.GetScavengeDetails(scavengeId);
+await client.Admin.ResignNode();
 ```
 
-`StopScavenge` halts a run; progress already made is kept.
+It only acts on the leader. A follower accepts the request and does nothing.
 
-## Cluster control
+`SetNodePriority` biases the next election toward higher-priority nodes. It does not move leadership
+by itself, so pair the two to hand off deliberately:
 
-`ResignNode` makes the current leader step down and triggers an election — the graceful way to move
-leadership before maintenance.
+```csharp
+await client.Admin.SetNodePriority(100);
+await client.Admin.ResignNode();
+```
 
-`SetNodePriority` influences which node is preferred in a future election.
+`nodePriority` must be non-negative. A negative value throws `ArgumentOutOfRangeException`.
 
-## Shutdown
+## Run a scavenge
 
-`ShutdownServer` stops the node. There is no undo through the client — the node has to be restarted
-by whatever supervises it.
+Scavenging reclaims disk by removing soft-deleted records and merging chunk files. It runs per node
+and you start it explicitly.
 
-:::danger
-These operate on the server, not your application. `ShutdownServer` and `ResignNode` change cluster
-state for every client connected to it, not only yours.
-:::
+```csharp
+var response = await client.Admin.StartScavenge();
+
+var response = await client.Admin.StartScavenge(threadCount: 4, startFromChunk: 100);
+```
+
+| Parameter | Default | Constraint |
+|---|---|---|
+| `threadCount` | `1` | positive |
+| `startFromChunk` | `0` | non-negative |
+
+**Returns `ScavengeResponse`:** `ScavengeId` and `Status`, where `Status` is `Started`,
+`AlreadyRunning`, or `StopRequested`.
+
+This is the server's acknowledgement, not the outcome of the run. When a scavenge is already running,
+the server returns `AlreadyRunning` with the existing id rather than starting a second one.
+
+## Stop a scavenge
+
+```csharp
+await client.Admin.StopScavenge(scavengeId);
+await client.Admin.StopCurrentScavenge();
+```
+
+`StopScavenge` requests cancellation; the run moves from `Running` to `Stopped` once the worker
+notices. `StopCurrentScavenge` skips tracking the id, and throws `InvalidOperationException` when
+nothing is running.
+
+## Inspect scavenges
+
+`ListScavenges` streams summaries newest first. It reads the `$scavenges` stream, so it yields
+nothing when no scavenge has ever run.
+
+```csharp
+await foreach (var summary in client.Admin.ListScavenges())
+    Console.WriteLine("{0,-12} {1,-10} {2}", summary.ScavengeId, summary.State, summary.StartedAt);
+```
+
+**`ScavengeSummary`:** `ScavengeId`, `NodeEndpoint`, `State`, `StartedAt`, `CompletedAt`, `Duration`,
+`SpaceSaved`.
+
+`GetScavengeDetails` reads the per-scavenge stream and folds its chunk, merge, and index events into
+one snapshot.
+
+```csharp
+var details = await client.Admin.GetScavengeDetails(scavengeId);
+
+Console.WriteLine("{0} chunks scavenged, {1} merged, {2} bytes saved",
+    details.Progress.ChunksScavenged,
+    details.Progress.ChunksMerged,
+    details.Progress.SpaceSaved);
+```
+
+**`ScavengeDetails`** adds to the summary's fields:
+
+| Member | Type | Meaning |
+|---|---|---|
+| `Error` | `string` | Set when `State` is `Errored` |
+| `Configuration` | `ScavengeConfiguration` | `Threads`, `StartFromChunk`, `MergeChunks` |
+| `Progress` | `ScavengeProgress` | Chunk and index counters |
+
+`Duration` is computed live for a running scavenge. `CompletedAt` stays `default` until it finishes.
+
+### States
+
+| `ScavengeState` | Meaning |
+|---|---|
+| `Running` | In progress |
+| `Completed` | Finished. Serialises as `Success` on the wire |
+| `Stopped` | Stopped before completion |
+| `Errored` | Failed. Read `Error` |
+| `Interrupted` | Cut short by a node restart |

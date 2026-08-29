@@ -1,29 +1,37 @@
 ---
 title: Registration
-description: One dial with three presets — off, automatic, or strict.
+description: One dial with three presets. Off, automatic, or strict.
 ---
 
-Registration decides whether the SDK puts your schemas into the registry, and validation decides
+Registration decides whether Kurrent Surge puts your schemas into the registry, and validation decides
 whether it checks them before use. One options object carries both.
 
 ## The presets
 
 | Preset | Registration | Validation | Use when |
 |---|---|---|---|
-| `Disabled` | manual | off | **default** — the registry is not in your path |
+| `Disabled` | manual | off | **default**. The registry is not in your path |
 | `AutoRegister` | automatic | off | development, and any service that owns its schemas |
 | `Strict` | manual | on | production consumers that must fail fast on drift |
 
 ```csharp
 builder.Services.AddKurrent(kurrent => kurrent
-    .Connection("kurrentdb://localhost:2113")
-    .Schema(KurrentClientSchemaOptions.AutoRegister));
+    .Connection("kurrentdb://localhost:2113", opts =>
+        opts.Schema = KurrentClientSchemaOptions.AutoRegister));
+```
+
+Outside DI, set it the same way on `KurrentClient.Create`:
+
+```csharp
+await using var client = KurrentClient.Create(
+    "kurrentdb://localhost:2113",
+    opts => opts.Schema = KurrentClientSchemaOptions.Strict);
 ```
 
 ## What each does
 
 **Disabled** touches the registry for nothing. Schema names still resolve through your catalog, so
-append and read work — the registry simply is not consulted.
+append and read work. The registry is not consulted at all.
 
 **AutoRegister** walks your catalogs when the client initializes and registers every schema that is
 not there. A schema that already exists is left alone. Nothing is validated, because you are the
@@ -39,11 +47,21 @@ version, fails at initialization rather than at the first append.
 decides how a schema name is derived when the type does not pin one. The three presets are just
 combinations, and you can set them individually.
 
+## What gets registered
+
+Whatever the wire format, the definition sent to the registry is a **JSON Schema exported from your
+CLR type**. A Protobuf-encoded or Avro-encoded record registers the same kind of definition a JSON
+one does.
+
+That is what lets [compatibility modes](/schema/evolution/) work uniformly: one comparable shape per
+schema name, regardless of encoding. The exception is `Bytes`, which never reaches the registry at
+all. See [Formats](/schema/formats/).
+
 ## Timing
 
 The catalog walk runs once, single-flight, on the client's initialization path. Every caller shares
-the same task, faults included — so a registration failure surfaces on the first operation rather
-than being retried per record.
+the same task, faults included. A registration failure therefore surfaces on the first operation
+rather than being retried per record.
 
 :::note
 Registry reads are served by a projection that lags writes by a few hundred milliseconds. The SDK

@@ -22,7 +22,7 @@ given key still goes to one instance in order.
 rebalancing moves large blocks at once.
 
 **Sticky** keeps an instance's existing partitions where it can and moves only what it must. Costlier
-to compute, and far cheaper when instances come and go — which matters if your processor holds
+to compute, and far cheaper when instances come and go. That matters if your processor holds
 per-key state in memory, because a moved partition means that state has to be rebuilt.
 
 ## Ordering
@@ -36,7 +36,7 @@ gives up the ordering you wanted.
 
 ## Concurrency inside one instance
 
-`MaxParallelism` is separate from partitioning and defaults to 1 — a single instance processes one
+`MaxParallelism` is separate from partitioning and defaults to 1, so a single instance processes one
 record at a time. Raising it lets one instance work on several records concurrently, which gives up
 ordering *within* the instance unless your handler tolerates it.
 

@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install the SDK, connect to KurrentDB, append and read your first records.
+description: Install Kurrent Surge, connect to KurrentDB, append and read your first records.
 ---
 
 ## Install
@@ -63,5 +63,5 @@ kurrents://localhost:2113?tls=true&tlsVerifyCert=true    TLS
 
 ## Next
 
-Reading a stream by hand is fine for a query. To *process* a stream continuously — with
-checkpoints, retries and partitioning — use a [processor](/processors/) instead.
+Reading a stream by hand is fine for a query. To *process* a stream continuously, use a
+[processor](/processors/) instead. It owns the checkpoints, the retries and the partitioning.

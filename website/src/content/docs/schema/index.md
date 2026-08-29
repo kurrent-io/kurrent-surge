@@ -1,41 +1,50 @@
 ---
 title: Schema
-description: Declare your message types once, and let the SDK register and validate them.
+description: How Kurrent Surge turns a CLR type into bytes on a stream, and back again.
 ---
 
-The SDK maps CLR types to schema names, encodes records, and talks to the KurrentDB schema registry
-on your behalf.
+Every record on a stream carries a **schema name**, a string identity for its type. Readers use it
+to decide which CLR type to decode into. The registry uses it as the key for storage and
+compatibility rules.
 
-Three parts:
+Four things decide what happens to a message:
 
-| Part | Does |
-|---|---|
-| [Catalogs](/schema/catalogs/) | declare which CLR types are messages and what they are called |
-| [Registration](/schema/registration/) | register and validate those schemas against the registry |
-| [Formats](/schema/formats/) | encode and decode — JSON, Protobuf, Avro |
+| Step | Decides | Page |
+|---|---|---|
+| **Catalog** | Which types this client can append and decode | [Catalogs](/schema/catalogs/) |
+| **Name** | The string identity a record carries on the wire | [Schema names](/schema/names/) |
+| **Format** | How the payload becomes bytes | [Formats](/schema/formats/) |
+| **Registry** | Whether the shape is registered and checked | [Registration](/schema/registration/) |
 
-## The shortest version
+## Nothing is inferred
 
-Declare a catalog:
-
-```csharp
-[assembly: MessageCatalog("Orders.Events", AlwaysActive = true)]
-```
-
-Then append your own types. The SDK resolves the schema name, encodes the payload, and stamps the
-record:
+Kurrent Surge never invents a mapping. The set of types a client speaks is exactly what you
+declared, either with attributes on your contracts or with explicit `Map` calls.
 
 ```csharp
-var records = new[] { AppendRecord.Create(new OrderPlaced("order-123")) };
-await client.Streams.AppendStream("orders-123", records, ExpectedStreamState.NoStream);
+[MessageType<OrderPlaced>("order.placed.v1")]
+public record OrderPlaced(string OrderId);
 ```
 
-On read, the schema name resolves back to the CLR type and `record.Value` is your object.
+Appending a type no catalog maps throws. There is nothing safe to guess a permanent wire name from,
+and a name guessed today is a contract you cannot change tomorrow.
 
-## Why it exists
+Reading is deliberately softer. A record whose schema name has no mapping comes back **raw**, as
+bytes plus the name with no decoded value. An unknown type from a newer producer therefore does not
+kill your subscription.
 
-A stream holds bytes and a name. Without a mapping, every consumer re-implements the same guesswork
-about what those bytes are. The catalog makes the mapping a declaration, the registry makes it
-shared, and validation makes a breaking change fail at registration instead of at read time.
+## The registry is opt-in
 
-Everything is source-generated. No reflection, so it works under Native AOT.
+The default is `KurrentClientSchemaOptions.Disabled`: schema names resolve locally through your
+catalog, and the registry is never consulted. Turn it on when you want registration, validation, or
+both. See [Registration](/schema/registration/).
+
+## One definition format, four wire formats
+
+This is the part that surprises people. Your payload can be JSON, Protobuf or Avro on the wire. But
+whatever the encoding, **the definition stored in the registry is a JSON Schema**, exported from your
+CLR type.
+
+That is deliberate. It gives one comparable shape to run compatibility rules against, no matter how
+the bytes were encoded. [Formats](/schema/formats/) covers what each encoding does and where they
+genuinely differ.

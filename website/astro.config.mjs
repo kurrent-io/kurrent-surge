@@ -3,6 +3,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
+import rehypeMermaid from 'rehype-mermaid';
 
 // GitHub Pages serves from /<repo>/ while Cloudflare serves from /. Setting the base
 // through an env var keeps every internal link correct on both without a code change.
@@ -15,6 +16,50 @@ const site = process.env.SITE_URL ?? 'https://kurrent-io.github.io';
 export default defineConfig({
   site,
   base,
+  markdown: {
+    // Mermaid renders at build time into inline SVG — no mermaid.js reaches the
+    // reader, and the diagram is present with JavaScript disabled. It needs a
+    // headless Chromium, so CI must run `bunx playwright install chromium`.
+    //
+    // `base` rather than `dark`: mermaid's own dark theme is blue-grey and
+    // fights the palette. Driving themeVariables from brand.css keeps a diagram
+    // the same object as the rest of the page.
+    rehypePlugins: [
+      [
+        rehypeMermaid,
+        {
+          strategy: 'inline-svg',
+          // Give the renderer the real font, so it measures labels in the face
+          // the page paints them in. See the file for what breaks without it.
+          css: new URL('./src/styles/mermaid-render-fonts.css', import.meta.url),
+          mermaidConfig: {
+            theme: 'base',
+            themeVariables: {
+              darkMode: true,
+              background: '#0a0a0a',
+              fontFamily: '"Work Sans", ui-sans-serif, system-ui, sans-serif',
+              fontSize: '14px',
+
+              primaryColor: '#1c1a27',
+              primaryTextColor: '#f5f3f0',
+              primaryBorderColor: '#4a4560',
+              secondaryColor: '#2a273f',
+              tertiaryColor: '#13111c',
+
+              lineColor: '#a79ab8',
+              textColor: '#d1d1e0',
+
+              nodeBorder: '#4a4560',
+              clusterBkg: '#13111c',
+              clusterBorder: '#3a3654',
+              titleColor: '#f5f3f0',
+              edgeLabelBackground: '#0a0a0a',
+            },
+          },
+        },
+      ],
+    ],
+  },
   integrations: [
     starlight({
       title: 'Kurrent Surge',
@@ -109,8 +154,10 @@ export default defineConfig({
           items: [
             { label: 'Overview', slug: 'schema' },
             { label: 'Catalogs', slug: 'schema/catalogs' },
-            { label: 'Registration', slug: 'schema/registration' },
+            { label: 'Schema names', slug: 'schema/names' },
             { label: 'Formats', slug: 'schema/formats' },
+            { label: 'Registration', slug: 'schema/registration' },
+            { label: 'Evolution', slug: 'schema/evolution' },
           ],
         },
         {
@@ -118,11 +165,30 @@ export default defineConfig({
           collapsed: true,
           items: [
             { label: 'Overview', slug: 'client' },
-            { label: 'Streams', slug: 'client/streams' },
+            {
+              label: 'Streams',
+              collapsed: true,
+              items: [
+                { label: 'Overview', slug: 'client/streams' },
+                { label: 'Append', slug: 'client/streams/append' },
+                { label: 'Read', slug: 'client/streams/read' },
+                { label: 'Manage', slug: 'client/streams/manage' },
+              ],
+            },
             { label: 'Registry', slug: 'client/registry' },
             { label: 'Indexes', slug: 'client/indexes' },
             { label: 'Connectors', slug: 'client/connectors' },
             { label: 'Admin', slug: 'client/admin' },
+          ],
+        },
+        {
+          label: '05 · MIGRATION',
+          collapsed: true,
+          items: [
+            { label: 'Overview', slug: 'migration' },
+            { label: 'From EventStoreDB', slug: 'migration/from-eventstoredb' },
+            { label: 'From KurrentDB v1', slug: 'migration/from-kurrentdb-v1' },
+            { label: 'Breaking changes', slug: 'migration/breaking-changes' },
           ],
         },
       ],

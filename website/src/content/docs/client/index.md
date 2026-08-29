@@ -1,6 +1,6 @@
 ---
 title: Client
-description: Five modules, 55 operations — streams, registry, indexes, connectors and administration.
+description: Five modules and 46 operations. Streams, registry, indexes, connectors and administration.
 ---
 
 `KurrentClient` is the entry point. It exposes five feature modules as properties.
@@ -17,11 +17,13 @@ await client.Admin.StartScavenge(...);
 
 | Module | Operations | Covers |
 |---|---|---|
-| [Streams](/client/streams/) | 14 | append, read, subscribe, manage |
+| [Streams](/client/streams/) | 14 | [append](/client/streams/append/), [read](/client/streams/read/), [manage](/client/streams/manage/) |
 | [Connectors](/client/connectors/) | 10 | create, configure, start, stop |
 | [Registry](/client/registry/) | 8 | schemas and versions |
-| [Admin](/client/admin/) | 7 | scavenge, node priority, shutdown |
+| [Admin](/client/admin/) | 8 | scavenge, node priority, shutdown |
 | [Indexes](/client/indexes/) | 6 | secondary indexes |
+
+Counts are distinct operations. Each page lists every overload.
 
 ## Creating a client
 
@@ -47,7 +49,7 @@ call, and reacts to a leader change without you handling it. `ReadPreference` se
 ## Errors
 
 Operations throw typed exceptions deriving from `KurrentException`, each carrying an error code.
-There is no result wrapper — catch the exception type you care about:
+There is no result wrapper. Catch the exception type you care about:
 
 ```csharp
 try {
