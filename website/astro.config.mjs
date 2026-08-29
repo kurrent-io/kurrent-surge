@@ -138,7 +138,19 @@ export default defineConfig({
           items: [{ label: 'Getting started', slug: 'getting-started' }],
         },
         {
-          label: '02 · PROCESSORS',
+          label: '02 · CONNECT',
+          collapsed: true,
+          items: [
+            { label: 'Overview', slug: 'connect' },
+            { label: 'Connection strings', slug: 'connect/connection-strings' },
+            { label: 'Configuring the client', slug: 'connect/configuring-the-client' },
+            { label: 'Clusters and discovery', slug: 'connect/clusters-and-discovery' },
+            { label: 'Security', slug: 'connect/security' },
+            { label: 'Troubleshooting', slug: 'connect/troubleshooting' },
+          ],
+        },
+        {
+          label: '03 · PROCESSORS',
           collapsed: true,
           items: [
             { label: 'Overview', slug: 'processors' },
@@ -149,7 +161,7 @@ export default defineConfig({
           ],
         },
         {
-          label: '03 · SCHEMA',
+          label: '04 · SCHEMA',
           collapsed: true,
           items: [
             { label: 'Overview', slug: 'schema' },
@@ -161,7 +173,7 @@ export default defineConfig({
           ],
         },
         {
-          label: '04 · CLIENT',
+          label: '05 · CLIENT',
           collapsed: true,
           items: [
             { label: 'Overview', slug: 'client' },
@@ -182,7 +194,7 @@ export default defineConfig({
           ],
         },
         {
-          label: '05 · MIGRATION',
+          label: '06 · MIGRATION',
           collapsed: true,
           items: [
             { label: 'Overview', slug: 'migration' },

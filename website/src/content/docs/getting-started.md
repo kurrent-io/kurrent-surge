@@ -50,18 +50,10 @@ await foreach (var message in client.Streams.ReadStream("orders-123")) {
 
 `ReadStream` and `Subscribe` return `IAsyncEnumerable<T>` over a channel. Enumerate once.
 
-## Connection strings
-
-```
-kurrentdb://localhost:2113                               single node, insecure
-kurrentdb://admin:changeit@localhost:2113                with credentials
-kurrentdb+discover://node1:2113,node2:2113               cluster discovery
-kurrents://localhost:2113?tls=true&tlsVerifyCert=true    TLS
-```
-
-`ReadPreference` selects the node: `Leader`, `Follower`, `Random` or `ReadOnlyReplica`.
-
 ## Next
 
 Reading a stream by hand is fine for a query. To *process* a stream continuously, use a
 [processor](/processors/) instead. It owns the checkpoints, the retries and the partitioning.
+
+To connect to a cluster, or to configure TLS, discovery or keepalive, see
+[Connection strings](/connect/connection-strings/).
