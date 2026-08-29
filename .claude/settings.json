@@ -55,16 +55,6 @@
             "statusMessage": "Setting up remote environment..."
           }
         ]
-      },
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jbcontext index --silent",
-            "async": true
-          }
-        ]
       }
     ],
     "PreToolUse": [
@@ -77,39 +67,6 @@
             "if": "Bash(git commit*)",
             "timeout": 20,
             "statusMessage": "Checking the commit preserves file history..."
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|Grep",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jbcontext hook pre-tool-use",
-            "timeout": 2
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jbcontext index --silent",
-            "async": true
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jbcontext hook user-prompt-submit",
-            "timeout": 2
           }
         ]
       }
