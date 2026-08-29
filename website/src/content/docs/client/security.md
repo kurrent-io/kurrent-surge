@@ -6,13 +6,36 @@ description: Connect over TLS, trust a private CA, and authenticate with a passw
 TLS is on by default and the server certificate is verified. Everything below is either turning that
 off for local development, or telling the client who to trust and who you are.
 
-## Connect to a secure cluster
+## Development mode and production mode
 
-Nothing to configure. A production cluster with a certificate from a trusted CA needs only the
-address and credentials.
+Every example in these docs connects to a local development node, which is why they carry
+`tls=false`. That is a mode you opted into, not a default. Know which one you are in.
+
+| | Development | Production |
+|---|---|---|
+| Connection string | `kurrentdb://localhost:2113?tls=false` | `kurrentdb+discover://cluster:2113` |
+| Transport | Plain HTTP/2, nothing encrypted | TLS, certificate verified |
+| Server identity | Not checked | Checked against a CA you trust |
+| Credentials | The seeded `admin` account | An identity you created, read from configuration |
+
+:::danger
+`tls=false` turns transport security off completely. Every record you write, every record you read
+and the password in the connection string cross the network in the clear, and the client will talk
+to whatever answers on that port. It exists so a local container works without certificates. Never
+deploy it.
+:::
+
+Production needs no extra parameter. Drop `tls=false` and TLS is on, verified against the system
+trust store.
 
 ```
 kurrentdb+discover://admin:changeit@cluster.example.internal:2113
+```
+
+Read the credentials from configuration rather than a literal, the same as any other secret.
+
+```csharp
+await using var client = KurrentClient.Create(builder.Configuration.GetConnectionString("Kurrent")!);
 ```
 
 ## Trust a private CA

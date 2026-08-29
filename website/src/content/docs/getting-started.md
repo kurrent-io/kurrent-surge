@@ -37,6 +37,7 @@ Without a catalog the client cannot resolve a schema name for your type, and the
 ```csharp
 using Kurrent.Surge.Client;
 
+// tls=false is the local development mode. Production drops it: /client/security/
 await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
 // Append

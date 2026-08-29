@@ -31,6 +31,40 @@ processor stops instead of looping on it forever.
 opts.Resilience.ShouldRetry = ex => ex is not JsonException;
 ```
 
+## No dead-letter queue, by decision
+
+A broker framework answers a poison record with a dead-letter queue and a circuit breaker. Neither
+exists here, and that is a decision rather than a gap, because they solve a problem an ordered log
+does not have.
+
+A broker acknowledges one message at a time. Moving a single failed message aside leaves the rest
+untouched, because nothing ties them together. A processor reads a log, and its progress is one
+position. There is no per-record acknowledgement to withhold, so committing past a failed record is
+the only way to skip it, and that discards the record permanently while telling nobody.
+
+The runtime does the opposite and keeps the position behind the failure.
+
+| Situation | What the position does |
+|---|---|
+| Handler succeeds | Advances past the record |
+| Handler throws | Stays behind it, so the record is retried |
+| `CanProcess` returns `false` | Advances, because nothing claimed the record |
+
+The last row is the deliberate exception. A record your processor never accepts is not a failure, and
+a stream of types you do not handle would otherwise hold the position still forever.
+
+What stands in for the broker's tools:
+
+| Broker answer | The equivalent here |
+|---|---|
+| Dead-letter queue | `ShouldRetry` returns `false` and the processor stops, position intact |
+| Circuit breaker | Backoff up to `MaxDelay`, which waits without giving up or advancing |
+| Discard a poison message | `CanProcess` refuses it before dispatch |
+
+A stopped processor is recoverable and a skipped record is not, so stopping is the safer default.
+Moving past a bad record stays something you decide explicitly: make the handler tolerate it, or
+exclude it with `CanProcess`, then restart.
+
 ## Cancellation is not failure
 
 Cancellation propagates unwrapped, and a stopping processor is not a failing one. Pass

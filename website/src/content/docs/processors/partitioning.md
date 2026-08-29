@@ -6,6 +6,13 @@ description: Spread one stream across several processor instances without losing
 Partitioning lets several instances of the same processor share the work, while every record for a
 given key still goes to one instance in order.
 
+:::caution[Not configurable yet]
+The runtime below is real and runs. The knob that drives it is not finished: the partition key
+selector is not part of the public API, and `MaxParallelism` above 1 requires it. Leave
+`MaxParallelism` at its default of 1 until it lands. See [Concurrency inside one
+instance](#concurrency-inside-one-instance).
+:::
+
 ## The pieces
 
 | Piece | Role |
@@ -37,7 +44,20 @@ gives up the ordering you wanted.
 ## Concurrency inside one instance
 
 `MaxParallelism` is separate from partitioning and defaults to 1, so a single instance processes one
-record at a time. Raising it lets one instance work on several records concurrently, which gives up
+record at a time.
+
+```csharp
+opts.MaxParallelism = 1;   // the default, and the only value that starts today
+```
+
+Raising it needs a partition key selector, and that selector is not on the public surface yet, so a
+processor configured above 1 fails validation before it connects:
+
+```
+Subscription.PartitionKeySelector is required when MaxParallelism is greater than 1.
+```
+
+Once it lands, raising it will let one instance work on several records concurrently, which gives up
 ordering *within* the instance unless your handler tolerates it.
 
 Partitioning scales out across processes. `MaxParallelism` scales up inside one. They compose, and
