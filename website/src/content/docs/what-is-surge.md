@@ -88,7 +88,7 @@ and a hand-rolled reconnect loop on neither. See [Configuring the client](/clien
 
 **Routing is a gRPC policy, not a wrapper.** Discovery, node ranking, connection replacement and
 leader-change following all run inside the channel, as a load balancing policy registered on it. See
-[Load balancing](/client/load-balancing/).
+[Clusters and load balancing](/client/clusters-and-discovery/).
 
 **One surface over two protocols.** Appends run on the V2 gRPC service. Reads and stream management
 run on the V1 legacy service. Indexes and connectors use V2 messages. You call one client, and the

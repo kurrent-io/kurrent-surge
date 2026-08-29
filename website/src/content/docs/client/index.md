@@ -48,8 +48,8 @@ your node preference, and follows a leader change without you handling it. `Read
 the node: `Leader`, `Follower`, `Random` or `ReadOnlyReplica`.
 
 That ranking is enforced by a real gRPC load balancing policy registered on the channel, not by a
-wrapper that resolves an address once. See [Load balancing](/client/load-balancing/) for the
-mechanism and [Clusters and discovery](/client/clusters-and-discovery/) for the settings.
+wrapper that resolves an address once. See
+[Clusters and load balancing](/client/clusters-and-discovery/).
 
 ## Errors
 

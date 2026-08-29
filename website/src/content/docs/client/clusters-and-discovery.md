@@ -1,11 +1,17 @@
 ---
-title: Clusters and discovery
-description: How the client finds nodes, picks one, and follows a leader election.
+title: Clusters and load balancing
+description: How the client discovers nodes, ranks them, holds a connection, and follows a leader election.
 ---
 
 A single-node connection has one address and no decisions to make. A cluster has several, and which
 one a call should go to changes over time, because the leader changes. Discovery is how the client
 answers that question continuously rather than once at startup.
+
+It answers it a level lower than most clients do. Node selection here is a gRPC load balancing policy
+registered on the channel, so the channel itself resolves addresses, ranks them, holds the connection,
+queues calls while it reconnects, and follows an election. Most clients wrap the channel instead:
+resolve an address, construct a `GrpcChannel` for it, and rebuild the whole thing when that address
+stops working.
 
 ## Why discovery rather than a fixed address
 
@@ -37,28 +43,106 @@ the best one available.
 Ranking is a preference, not a filter. When no node of the preferred role is available the client
 still connects, because a degraded connection is more useful than none.
 
+## What runs inside the channel
+
+```mermaid
+flowchart LR
+    C["GrpcChannel<br/>kurrent:///connection-name"]
+    C --> SC["ServiceConfig<br/>LoadBalancingConfigs"]
+    SC --> POL["kurrent-node-preference"]
+    C --> SP["ServiceProvider"]
+    SP --> RF["ResolverFactory"]
+    RF --> GR["GossipResolver<br/>a PollingResolver"]
+    SP --> LF["LoadBalancerFactory"]
+    LF --> LB["KurrentDBLoadBalancer<br/>a LoadBalancer"]
+    C --> INT["Interceptors"]
+    INT --> LCI["LeaderChangeInterceptor"]
+```
+
+| Piece | Type it implements | What it does |
+|---|---|---|
+| `GossipResolver` | `PollingResolver` | Reads gossip and publishes the members, ranked |
+| `KurrentDBLoadBalancer` | `LoadBalancer` | Owns the subchannel and decides when to move it |
+| Four pickers | `SubchannelPicker` | Answer each call: connected, connecting, reconnect, failed |
+| `LeaderChangeInterceptor` | `Interceptor` | Turns a not-leader response into a routing change |
+
+The channel address is `kurrent:///<connection-name>`, a scheme the resolver factory claims. The
+balancer and the resolver live in a service provider private to that one channel, so two clients in
+the same process never share resolver state.
+
+## How an address becomes a connection
+
+The resolver publishes the full membership every pass, ordered by your `nodePreference`, with the rank
+attached to each address. Rank 0 is the routing target. The rest are not idle: they are the fallback
+list the transport already holds.
+
+```mermaid
+flowchart LR
+    G["gossip"] --> R["rank the members"]
+    R --> P["publish rank 0, 1, 2"]
+    P --> S["one subchannel,<br/>given the whole list"]
+    S -->|"rank 0 unreachable"| F["transport tries rank 1"]
+```
+
+The balancer keeps one subchannel at a time, pointed at rank 0 and carrying the whole ranked list.
+When rank 0 changes, because the leader moved or the preferred node went away, the subchannel is
+replaced so traffic follows the new target instead of staying on a connection that still works but is
+no longer the one you asked for.
+
+That is a deliberate shape, not a limit of the policy. Calls are not spread across nodes, because a
+client that writes wants the leader, and one that reads from followers says so with `nodePreference`
+and gets a follower. Spreading writes would only add redirects.
+
+## What a call sees while the connection moves
+
+Each state has a picker, and the picker is what a call actually hits.
+
+| Channel state | Picker | A call is |
+|---|---|---|
+| Ready | `ConnectedPicker` | Sent |
+| Connecting | `QueuePicker` | Queued, not failed |
+| Idle | `RequestConnectionPicker` | Sent, and reconnection is triggered |
+| TransientFailure | `FailurePicker` | Failed with the underlying status |
+
+Queuing is the part worth knowing. A call issued while the balancer is replacing a subchannel waits
+for the new one rather than throwing, so a leader election is not something your code has to catch.
+
+A resolver failure while the channel is connected is logged and ignored. Gossip being briefly
+unreachable is not a reason to drop a working connection.
+
 ## Following an election
 
 An election is not an error, and the client does not surface it as one. When a call reaches a node
-that is no longer the leader, the server says so, and the client learns the new leader from that
-response rather than waiting for the next gossip round.
+that is no longer the leader, the server answers `FailedPrecondition` and names the new one. The
+interceptor hands that endpoint to the resolver, which republishes immediately with the announced
+leader at rank 0 and the previously published members behind it.
 
-```
-call ──▶ node1        "not leader, it is node2"
-                            │
-                            ▼
-                    leader announced, routing updated
-                            │
-call ──▶ node2        succeeds
+```mermaid
+sequenceDiagram
+    participant C as Your call
+    participant I as LeaderChangeInterceptor
+    participant R as GossipResolver
+    participant N1 as node1
+    participant N2 as node2
+
+    C->>N1: append
+    N1-->>I: FailedPrecondition, leader is node2
+    I->>R: AnnounceLeader(node2)
+    R->>R: republish with node2 at rank 0
+    C->>N2: append
+    N2-->>C: succeeds
 ```
 
-That path is why a leader change costs a retry rather than an outage, and why `nodePreference=leader`
-is inexpensive to hold: the client is told when it is wrong instead of discovering it by timing out.
+No gossip query happens on that path, which is why a leader change costs a retry rather than an
+outage, and why `nodePreference=leader` is inexpensive to hold: the client is told when it is wrong
+instead of discovering it by timing out. Discovery resumes on the next scheduled refresh, so an
+announcement is a shortcut rather than a replacement for gossip.
 
 ## Tuning discovery
 
-The defaults suit a cluster on the same network as its clients. Change them when the path between
-them is slower or less reliable than that.
+The policy has no settings of its own. It runs on what discovery gives it, so everything you tune is
+on the connection string. The defaults suit a cluster on the same network as its clients. Change them
+when the path between them is slower or less reliable than that.
 
 | Parameter | Default | Raise it when |
 |---|---|---|
@@ -69,6 +153,10 @@ them is slower or less reliable than that.
 Tune `gossipTimeout` against measured latency. Tune `keepAliveInterval` against the idle timeout of
 whatever sits between the client and the cluster, which is a different question with a different
 answer. See [Connection strings](/client/connection-strings/) for both.
+
+Retries live in the same `ServiceConfig` as the balancing policy, as a gRPC method config, so a retry
+is enforced by the transport rather than by a loop above it. See
+[Configuring the client](/client/configuring-the-client/).
 
 ## Reads and writes on different nodes
 
@@ -86,3 +174,9 @@ reads from followers builds two clients, each with its own connection string.
 They share nothing internally, so the second client costs its own channels and nothing else. Reading
 from a follower means reading data that may lag the leader slightly, which is the trade you are
 making in exchange for keeping read load off it.
+
+## Direct connections use the same path
+
+A single-node `kurrentdb://` connection runs the identical policy with discovery switched off. The
+resolver publishes the seed verbatim, and the balancer, the pickers and the leader interceptor all
+behave the same. A direct connection still follows a leader redirect for that reason.
