@@ -37,7 +37,7 @@ public class ServerFilterExtractorTests {
 
     [Test]
     [StreamExtractionTestCases]
-    public async Task extracts_stream_filter(StreamExtractionTestCase testcase) {
+    public async ValueTask extracts_stream_filter(StreamExtractionTestCase testcase) {
         var expr   = ParseExpression(testcase.Expression);
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -46,7 +46,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task extracts_target_stream_from_equality() {
+    public async ValueTask extracts_target_stream_from_equality() {
         var expr   = ParseExpression("stream = 'Orders-A1B2C3D4E5F6'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -56,7 +56,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task category_prefix_returns_stream_regex_filter() {
+    public async ValueTask category_prefix_returns_stream_regex_filter() {
         var expr   = ParseExpression("stream LIKE 'Orders-%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -64,7 +64,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task in_expression_returns_stream_regex_filter() {
+    public async ValueTask in_expression_returns_stream_regex_filter() {
         var expr   = ParseExpression("stream IN ('Orders-123', 'Payments-456')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -77,7 +77,7 @@ public class ServerFilterExtractorTests {
     #region Server-Side Stream Filters
 
     [Test]
-    public async Task converts_stream_equality_to_stream_name_filter() {
+    public async ValueTask converts_stream_equality_to_stream_name_filter() {
         var expr   = ParseExpression("stream = 'Games-ABC123'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -86,7 +86,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task converts_category_prefix_to_regex() {
+    public async ValueTask converts_category_prefix_to_regex() {
         var expr   = ParseExpression("stream LIKE 'Orders-%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -95,7 +95,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task converts_stream_like_suffix_to_regex() {
+    public async ValueTask converts_stream_like_suffix_to_regex() {
         var expr   = ParseExpression("stream LIKE '%-completed'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -104,7 +104,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task converts_stream_like_contains_to_regex() {
+    public async ValueTask converts_stream_like_contains_to_regex() {
         var expr   = ParseExpression("stream LIKE '%order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -113,7 +113,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task converts_stream_in_to_alternation_regex() {
+    public async ValueTask converts_stream_in_to_alternation_regex() {
         var expr   = ParseExpression("stream IN ('Orders-001', 'Payments-002', 'Refunds-003')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -126,7 +126,7 @@ public class ServerFilterExtractorTests {
     #region Server-Side Schema Filters
 
     [Test]
-    public async Task converts_schema_name_equality_to_idx_et_regex() {
+    public async ValueTask converts_schema_name_equality_to_idx_et_regex() {
         var expr   = ParseExpression("schema_name = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -135,7 +135,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task converts_schema_alias_to_idx_et_regex() {
+    public async ValueTask converts_schema_alias_to_idx_et_regex() {
         var expr   = ParseExpression("schema = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -144,7 +144,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task schema_like_has_no_server_filter() {
+    public async ValueTask schema_like_has_no_server_filter() {
         // LIKE cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("schema_name LIKE 'Order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -153,7 +153,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task schema_in_has_no_server_filter() {
+    public async ValueTask schema_in_has_no_server_filter() {
         // IN cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("schema_name IN ('OrderCreated', 'OrderUpdated')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -166,7 +166,7 @@ public class ServerFilterExtractorTests {
     #region Category Filter Extraction
 
     [Test]
-    public async Task extracts_category_equality_to_idx_ce_stream() {
+    public async ValueTask extracts_category_equality_to_idx_ce_stream() {
         var expr   = ParseExpression("category = 'orders'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -175,7 +175,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task category_in_has_no_server_filter() {
+    public async ValueTask category_in_has_no_server_filter() {
         // IN cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("category IN ('orders', 'payments')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -184,7 +184,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task category_like_has_no_server_filter() {
+    public async ValueTask category_like_has_no_server_filter() {
         // LIKE cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("category LIKE 'order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -193,7 +193,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task category_wins_over_schema() {
+    public async ValueTask category_wins_over_schema() {
         var expr   = ParseExpression("category = 'orders' AND schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -202,7 +202,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task stream_wins_over_category() {
+    public async ValueTask stream_wins_over_category() {
         var expr   = ParseExpression("stream = 'orders-99' AND category = 'orders'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -211,7 +211,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task category_or_schema_has_no_server_filter() {
+    public async ValueTask category_or_schema_has_no_server_filter() {
         var expr   = ParseExpression("category = 'orders' OR schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -225,7 +225,7 @@ public class ServerFilterExtractorTests {
     // An index stream named by value is an ordinary stream predicate. It reaches its index by prefix
     // instead of a direct read, and the rest of the expression still runs client-side.
     [Test]
-    public async Task routes_a_user_index_named_in_a_stream_predicate() {
+    public async ValueTask routes_a_user_index_named_in_a_stream_predicate() {
         var expr = ParseExpression("stream = '$idx-user-orders-by-country' AND created_at > 0");
 
         var (filter, requiresClientEvaluation) = ServerFilterExtractor.Extract(expr);
@@ -236,7 +236,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task routes_a_category_index_named_in_a_stream_predicate() {
+    public async ValueTask routes_a_category_index_named_in_a_stream_predicate() {
         var expr = ParseExpression("stream = '$idx-ce-orders'");
 
         var (filter, requiresClientEvaluation) = ServerFilterExtractor.Extract(expr);
@@ -247,7 +247,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task routes_a_schema_index_named_in_a_stream_predicate() {
+    public async ValueTask routes_a_schema_index_named_in_a_stream_predicate() {
         var expr = ParseExpression("stream = '$idx-et-OrderPlaced'");
 
         var (filter, _) = ServerFilterExtractor.Extract(expr);
@@ -257,7 +257,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task reads_an_ordinary_stream_directly() {
+    public async ValueTask reads_an_ordinary_stream_directly() {
         var expr = ParseExpression("stream = 'orders-1'");
 
         var (filter, _) = ServerFilterExtractor.Extract(expr);
@@ -272,7 +272,7 @@ public class ServerFilterExtractorTests {
     // A user-defined index selects a whole index rather than constraining a column, so it has no
     // expression form. RecordFilter.ByUserIndex reaches it, covered end to end by SubscribeLinqTests.
     [Test]
-    public async Task refuses_index_as_a_column() {
+    public async ValueTask refuses_index_as_a_column() {
         var parsed = RecordFilterSchema.Default.TryParse("index = 'orders-by-country'", out _, out var error);
 
         await Assert.That(parsed).IsFalse();
@@ -284,7 +284,7 @@ public class ServerFilterExtractorTests {
     #region Client-Side Filters (no server filter)
 
     [Test]
-    public async Task timestamp_filter_has_no_server_filter() {
+    public async ValueTask timestamp_filter_has_no_server_filter() {
         var expr   = ParseExpression("timestamp >= epoch_ms(TIMESTAMP '2024-01-01')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -292,7 +292,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task position_filter_has_no_server_filter() {
+    public async ValueTask position_filter_has_no_server_filter() {
         var expr   = ParseExpression("position > 1000");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -300,7 +300,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task properties_filter_has_no_server_filter() {
+    public async ValueTask properties_filter_has_no_server_filter() {
         var expr   = ParseExpression("properties['amount'] > 100");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -308,7 +308,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task revision_filter_has_no_server_filter() {
+    public async ValueTask revision_filter_has_no_server_filter() {
         var expr   = ParseExpression("stream_revision > 10");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -320,7 +320,7 @@ public class ServerFilterExtractorTests {
     #region Combined Server and Client Filters
 
     [Test]
-    public async Task extracts_server_filter_from_combined_expression() {
+    public async ValueTask extracts_server_filter_from_combined_expression() {
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND timestamp >= epoch_ms(TIMESTAMP '2024-01-01')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -330,7 +330,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task extracts_server_filter_with_properties() {
+    public async ValueTask extracts_server_filter_with_properties() {
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -339,7 +339,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task extracts_schema_filter_with_properties() {
+    public async ValueTask extracts_schema_filter_with_properties() {
         var expr   = ParseExpression("schema_name = 'OrderCreated' AND properties['userId'] = 'Users-123'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -348,7 +348,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task extracts_server_filter_with_multiple_client_predicates() {
+    public async ValueTask extracts_server_filter_with_multiple_client_predicates() {
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100 AND timestamp >= epoch_ms(TIMESTAMP '2024-01-01')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -360,7 +360,7 @@ public class ServerFilterExtractorTests {
     #region Negated Expressions
 
     [Test]
-    public async Task negated_stream_filter_has_no_server_filter() {
+    public async ValueTask negated_stream_filter_has_no_server_filter() {
         var expr   = ParseExpression("stream != 'Test-123'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -369,7 +369,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task negated_like_has_no_server_filter() {
+    public async ValueTask negated_like_has_no_server_filter() {
         var expr   = ParseExpression("stream NOT LIKE 'Test-%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -377,7 +377,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task negated_in_has_no_server_filter() {
+    public async ValueTask negated_in_has_no_server_filter() {
         var expr   = ParseExpression("stream NOT IN ('Test-001', 'Demo-002')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -389,7 +389,7 @@ public class ServerFilterExtractorTests {
     #region OR Expressions
 
     [Test]
-    public async Task or_of_stream_predicates_derives_stream_regex_union() {
+    public async ValueTask or_of_stream_predicates_derives_stream_regex_union() {
         var expr   = ParseExpression("stream = 'Orders-001' OR stream = 'Payments-002'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -398,7 +398,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task or_with_non_stream_disjunct_has_no_server_filter() {
+    public async ValueTask or_with_non_stream_disjunct_has_no_server_filter() {
         var expr   = ParseExpression("stream = 'Orders-001' OR schema_name = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -412,7 +412,7 @@ public class ServerFilterExtractorTests {
     #region Mixed Scope Filters
 
     [Test]
-    public async Task stream_and_schema_filters_uses_stream_scope() {
+    public async ValueTask stream_and_schema_filters_uses_stream_scope() {
         // When we have both stream and schema_name filters, stream takes priority
         var expr   = ParseExpression("stream = 'Orders-ABC123' AND schema_name = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -426,7 +426,7 @@ public class ServerFilterExtractorTests {
     #region Edge Cases
 
     [Test]
-    public async Task client_only_expression_has_no_server_filter() {
+    public async ValueTask client_only_expression_has_no_server_filter() {
         // Create a simple expression that doesn't match any server patterns
         var expr   = ParseExpression("position > 0");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -435,7 +435,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task exact_stream_match_preserves_special_characters() {
+    public async ValueTask exact_stream_match_preserves_special_characters() {
         var expr   = ParseExpression("stream = 'Orders.v1-ABC123'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -444,7 +444,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task multiple_category_predicates_combine() {
+    public async ValueTask multiple_category_predicates_combine() {
         // When we have multiple stream predicates in AND, they combine
         var expr   = ParseExpression("stream LIKE 'Orders-%' AND stream LIKE '%-completed'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -462,7 +462,7 @@ public class ServerFilterExtractorTests {
     #region RecordFilter Integration
 
     [Test]
-    public async Task expression_filter_extracts_stream_name_server_filter() {
+    public async ValueTask expression_filter_extracts_stream_name_server_filter() {
         var filter = (ExpressionFilter)RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
 
         await Assert.That(filter.ServerFilter).IsTypeOf<StreamNameFilter>();
@@ -471,7 +471,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task expression_filter_matches_records_correctly() {
+    public async ValueTask expression_filter_matches_records_correctly() {
         // 1704067200000 = 2024-01-01T00:00:00Z in unix millis
         var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND timestamp >= 1704067200000");
 
@@ -512,7 +512,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task stream_filter_matches_category_prefix() {
+    public async ValueTask stream_filter_matches_category_prefix() {
         var filter = RecordFilter.ByStreamPattern("^Orders-");
 
         var matching = new Record {
@@ -544,7 +544,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task expression_filter_with_client_predicate_matches() {
+    public async ValueTask expression_filter_with_client_predicate_matches() {
         var filter = RecordFilter.ByExpression("stream = 'Orders-ABC123' AND properties['amount'] > 100");
 
         var matching = new Record {
@@ -582,7 +582,7 @@ public class ServerFilterExtractorTests {
     #region Schema Negated Expressions
 
     [Test]
-    public async Task negated_schema_equality_has_no_server_filter() {
+    public async ValueTask negated_schema_equality_has_no_server_filter() {
         var expr   = ParseExpression("schema != 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -590,7 +590,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task negated_schema_like_has_no_server_filter() {
+    public async ValueTask negated_schema_like_has_no_server_filter() {
         var expr   = ParseExpression("schema_name NOT LIKE 'Order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -598,7 +598,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task negated_schema_in_has_no_server_filter() {
+    public async ValueTask negated_schema_in_has_no_server_filter() {
         var expr   = ParseExpression("schema NOT IN ('OrderCreated', 'OrderUpdated')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -610,7 +610,7 @@ public class ServerFilterExtractorTests {
     #region Category Negated Expressions
 
     [Test]
-    public async Task negated_category_equality_has_no_server_filter() {
+    public async ValueTask negated_category_equality_has_no_server_filter() {
         var expr   = ParseExpression("category != 'orders'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -618,7 +618,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task negated_category_like_has_no_server_filter() {
+    public async ValueTask negated_category_like_has_no_server_filter() {
         var expr   = ParseExpression("category NOT LIKE 'order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -626,7 +626,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task negated_category_in_has_no_server_filter() {
+    public async ValueTask negated_category_in_has_no_server_filter() {
         var expr   = ParseExpression("category NOT IN ('orders', 'payments')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -638,7 +638,7 @@ public class ServerFilterExtractorTests {
     #region ILIKE Falls Through to Client-Side
 
     [Test]
-    public async Task schema_ilike_has_no_server_filter() {
+    public async ValueTask schema_ilike_has_no_server_filter() {
         // ILIKE is a pattern match — cannot target a single index stream
         var expr   = ParseExpression("schema_name ILIKE 'order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -647,7 +647,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task category_ilike_has_no_server_filter() {
+    public async ValueTask category_ilike_has_no_server_filter() {
         // ILIKE is a pattern match — cannot target a single index stream
         var expr   = ParseExpression("category ILIKE 'order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -660,7 +660,7 @@ public class ServerFilterExtractorTests {
     #region Multiple Predicate Combination
 
     [Test]
-    public async Task multiple_schema_like_predicates_have_no_server_filter() {
+    public async ValueTask multiple_schema_like_predicates_have_no_server_filter() {
         var expr   = ParseExpression("schema LIKE 'Order%' AND schema LIKE '%Created'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -668,7 +668,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task multiple_category_like_predicates_have_no_server_filter() {
+    public async ValueTask multiple_category_like_predicates_have_no_server_filter() {
         var expr   = ParseExpression("category LIKE 'order%' AND category LIKE '%payment%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -680,7 +680,7 @@ public class ServerFilterExtractorTests {
     #region IN with Non-String Values
 
     [Test]
-    public async Task stream_in_with_numeric_values_has_no_server_filter() {
+    public async ValueTask stream_in_with_numeric_values_has_no_server_filter() {
         // IN with non-string values cannot be extracted — TryExtractStringValues rejects them
         var expr   = ParseExpression("stream IN ('orders-1', 'orders-2') AND position > 100");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -690,7 +690,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task schema_in_with_mixed_types_falls_through() {
+    public async ValueTask schema_in_with_mixed_types_falls_through() {
         // If the only server-liftable predicate is IN but has non-string values, no server filter
         var expr   = ParseExpression("position > 100");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -703,7 +703,7 @@ public class ServerFilterExtractorTests {
     #region Priority Chain
 
     [Test]
-    public async Task full_priority_chain_uses_stream() {
+    public async ValueTask full_priority_chain_uses_stream() {
         // Expression with all 3 routable columns — stream wins
         var expr   = ParseExpression("stream = 'orders-99' AND category = 'orders' AND schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -713,7 +713,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task priority_without_stream_uses_category() {
+    public async ValueTask priority_without_stream_uses_category() {
         // No stream predicate — category wins over schema
         var expr   = ParseExpression("category = 'orders' AND schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -727,7 +727,7 @@ public class ServerFilterExtractorTests {
     #region Exact Regex Assertions
 
     [Test]
-    public async Task category_equality_produces_idx_ce_index_name() {
+    public async ValueTask category_equality_produces_idx_ce_index_name() {
         var expr   = ParseExpression("category = 'orders'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -737,7 +737,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task schema_equality_produces_idx_et_index_name() {
+    public async ValueTask schema_equality_produces_idx_et_index_name() {
         var expr   = ParseExpression("schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -751,7 +751,7 @@ public class ServerFilterExtractorTests {
     #region NOT-Wrapped Compound Expressions
 
     [Test]
-    public async Task not_wrapping_compound_has_no_server_filter() {
+    public async ValueTask not_wrapping_compound_has_no_server_filter() {
         var expr   = ParseExpression("NOT (stream = 'orders-1' AND schema = 'OrderPlaced')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -760,7 +760,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task not_wrapping_stream_equality_has_no_server_filter() {
+    public async ValueTask not_wrapping_stream_equality_has_no_server_filter() {
         var expr   = ParseExpression("NOT (stream = 'orders-1')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
@@ -772,7 +772,7 @@ public class ServerFilterExtractorTests {
     #region Deeply Nested AND Flattening
 
     [Test]
-    public async Task flattens_deeply_nested_and_chain() {
+    public async ValueTask flattens_deeply_nested_and_chain() {
         // 5-level AND chain — all conjuncts should be flattened and extractable predicates found
         var expr   = ParseExpression("stream = 'orders-1' AND schema = 'OrderPlaced' AND position > 10 AND revision > 0 AND timestamp >= epoch_ms(TIMESTAMP '2024-01-01')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -782,7 +782,7 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async Task flattens_nested_parenthesized_ands() {
+    public async ValueTask flattens_nested_parenthesized_ands() {
         // Parenthesized grouping that still produces a pure AND tree
         var expr   = ParseExpression("(stream = 'orders-1' AND schema = 'OrderPlaced') AND (position > 10 AND revision > 0)");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;

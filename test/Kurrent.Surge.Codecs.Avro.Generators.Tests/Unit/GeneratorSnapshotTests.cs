@@ -75,7 +75,7 @@ public class GeneratorSnapshotTests {
 
     [Test]
     [OptionCases]
-    public async Task generated_output(string name, Dictionary<string, string> properties) {
+    public async ValueTask generated_output(string name, Dictionary<string, string> properties) {
         // Arrange & Act
         var driver = DriveWith(properties, ("/schemas/Order.avsc", Schema));
 

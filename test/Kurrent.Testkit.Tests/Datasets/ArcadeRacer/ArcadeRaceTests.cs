@@ -30,7 +30,7 @@ public class ArcadeRaceTests {
     #region ->> Start <<-
 
     [Test]
-    public async Task start_emits_race_started() {
+    public async ValueTask start_emits_race_started() {
         var race   = CreateRace();
         var events = race.Start();
 
@@ -43,7 +43,7 @@ public class ArcadeRaceTests {
     #region ->> SimulateLap <<-
 
     [Test]
-    public async Task simulate_lap_emits_lap_completed_per_car() {
+    public async ValueTask simulate_lap_emits_lap_completed_per_car() {
         var race = CreateRace(cars: 4);
         race.Start();
 
@@ -54,7 +54,7 @@ public class ArcadeRaceTests {
     }
 
     [Test]
-    public async Task simulate_lap_lap_times_are_positive() {
+    public async ValueTask simulate_lap_lap_times_are_positive() {
         var race = CreateRace(cars: 4);
         race.Start();
 
@@ -65,7 +65,7 @@ public class ArcadeRaceTests {
     }
 
     [Test]
-    public async Task higher_handling_car_is_faster_on_high_corner_circuit() {
+    public async ValueTask higher_handling_car_is_faster_on_high_corner_circuit() {
         var faker   = new Faker();
         var circuit = new Circuit {
             Id = TestId.New(), Name = "Cornerville", Country = "Test",
@@ -109,7 +109,7 @@ public class ArcadeRaceTests {
     #region ->> CheckIncident <<-
 
     [Test]
-    public async Task check_incident_returns_empty_when_no_incident() {
+    public async ValueTask check_incident_returns_empty_when_no_incident() {
         // Use easy difficulty with day/sunny for lowest incident rate
         var race = CreateRace(cars: 4, difficulty: CircuitDifficulty.Easy);
 
@@ -127,7 +127,7 @@ public class ArcadeRaceTests {
     }
 
     [Test]
-    public async Task car_retired_removes_car_from_race_order() {
+    public async ValueTask car_retired_removes_car_from_race_order() {
         var race = CreateRace(cars: 4);
         race.Start();
 
@@ -148,7 +148,7 @@ public class ArcadeRaceTests {
     }
 
     [Test]
-    public async Task last_car_standing_cannot_retire() {
+    public async ValueTask last_car_standing_cannot_retire() {
         // Start with only 2 cars so one retirement leaves a sole survivor
         var race = CreateRace(cars: 2);
         race.Start();
@@ -173,7 +173,7 @@ public class ArcadeRaceTests {
     #region ->> CheckWeather <<-
 
     [Test]
-    public async Task check_weather_toggles_between_sunny_and_rainy() {
+    public async ValueTask check_weather_toggles_between_sunny_and_rainy() {
         // Force weather change by running many checks on hard difficulty
         var race = CreateRace(cars: 2, difficulty: CircuitDifficulty.Hard);
         race.Start();
@@ -194,7 +194,7 @@ public class ArcadeRaceTests {
     #region ->> Finish <<-
 
     [Test]
-    public async Task finish_emits_single_race_finished_event() {
+    public async ValueTask finish_emits_single_race_finished_event() {
         var race = CreateRace(cars: 4);
         race.Start();
         race.SimulateLap();
@@ -206,7 +206,7 @@ public class ArcadeRaceTests {
     }
 
     [Test]
-    public async Task finish_includes_all_cars_in_results() {
+    public async ValueTask finish_includes_all_cars_in_results() {
         var race = CreateRace(cars: 6);
         race.Start();
         race.SimulateLap();
@@ -218,7 +218,7 @@ public class ArcadeRaceTests {
     }
 
     [Test]
-    public async Task finish_positions_are_sequential() {
+    public async ValueTask finish_positions_are_sequential() {
         var race = CreateRace(cars: 4);
         race.Start();
         race.SimulateLap();
@@ -231,7 +231,7 @@ public class ArcadeRaceTests {
     }
 
     [Test]
-    public async Task finish_leader_has_zero_gap() {
+    public async ValueTask finish_leader_has_zero_gap() {
         var race = CreateRace(cars: 4);
         race.Start();
         race.SimulateLap();

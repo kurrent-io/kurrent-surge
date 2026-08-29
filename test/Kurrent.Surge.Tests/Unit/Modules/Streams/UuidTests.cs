@@ -6,7 +6,7 @@ namespace Kurrent.Surge.Tests.Legacy;
 [Category("Legacy")]
 public class UuidTests {
 	[Test]
-	public async Task to_guid_returns_expected_result() {
+	public async ValueTask to_guid_returns_expected_result() {
 		var guid = Guid.NewGuid();
 		var sut  = Uuid.FromGuid(guid);
 
@@ -14,21 +14,21 @@ public class UuidTests {
 	}
 
 	[Test]
-	public async Task to_string_produces_expected_result() {
+	public async ValueTask to_string_produces_expected_result() {
 		var sut = Uuid.NewUuid();
 
 		await Assert.That(sut.ToString()).IsEqualTo(sut.ToGuid().ToString());
 	}
 
 	[Test]
-	public async Task to_formatted_string_produces_expected_result() {
+	public async ValueTask to_formatted_string_produces_expected_result() {
 		var sut = Uuid.NewUuid();
 
 		await Assert.That(sut.ToString("n")).IsEqualTo(sut.ToGuid().ToString("n"));
 	}
 
 	[Test]
-	public async Task to_dto_returns_expected_result() {
+	public async ValueTask to_dto_returns_expected_result() {
 		var msb = GetRandomInt64();
 		var lsb = GetRandomInt64();
 
@@ -42,7 +42,7 @@ public class UuidTests {
 	}
 
 	[Test]
-	public async Task parse_returns_expected_result() {
+	public async ValueTask parse_returns_expected_result() {
 		var guid = Guid.NewGuid();
 
 		var sut = Uuid.Parse(guid.ToString());
@@ -51,7 +51,7 @@ public class UuidTests {
 	}
 
 	[Test]
-	public async Task from_int64_returns_expected_result() {
+	public async ValueTask from_int64_returns_expected_result() {
 		var guid     = Guid.Parse("65678f9b-d139-4786-8305-b9166922b378");
 		var sut      = Uuid.FromInt64(7306966819824813958L, -9005588373953137800L);
 		var expected = Uuid.FromGuid(guid);

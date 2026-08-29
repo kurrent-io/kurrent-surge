@@ -53,7 +53,7 @@ public class SmartHomeStateTests {
     #region ->> Execute produces correct events <<-
 
     [Test]
-    public async Task execute_record_temperature_produces_temperature_reading() {
+    public async ValueTask execute_record_temperature_produces_temperature_reading() {
         var state = CreateState(MakeThermo());
 
         var cmd = new RecordTemperature {
@@ -71,7 +71,7 @@ public class SmartHomeStateTests {
     }
 
     [Test]
-    public async Task execute_record_light_on_produces_light_turned_on() {
+    public async ValueTask execute_record_light_on_produces_light_turned_on() {
         var state = CreateState(MakeLight());
 
         var cmd = new RecordLightStateChanged {
@@ -93,7 +93,7 @@ public class SmartHomeStateTests {
     #region ->> Apply updates state <<-
 
     [Test]
-    public async Task apply_temperature_reading_updates_current_temperature() {
+    public async ValueTask apply_temperature_reading_updates_current_temperature() {
         var state = CreateState(MakeThermo());
 
         var cmd = new RecordTemperature {
@@ -109,7 +109,7 @@ public class SmartHomeStateTests {
     }
 
     [Test]
-    public async Task apply_light_on_updates_light_state() {
+    public async ValueTask apply_light_on_updates_light_state() {
         var state = CreateState(MakeLight());
 
         var cmd = new RecordLightStateChanged {
@@ -126,7 +126,7 @@ public class SmartHomeStateTests {
     }
 
     [Test]
-    public async Task apply_updates_current_time() {
+    public async ValueTask apply_updates_current_time() {
         var state = CreateState(MakeThermo());
 
         var cmd = new RecordTemperature {
@@ -145,7 +145,7 @@ public class SmartHomeStateTests {
     #region ->> Battery drain <<-
 
     [Test]
-    public async Task battery_drains_on_battery_powered_device() {
+    public async ValueTask battery_drains_on_battery_powered_device() {
         var state   = CreateState(MakeThermo());
         var initial = state.Devices["t1"].BatteryLevel;
 
@@ -161,7 +161,7 @@ public class SmartHomeStateTests {
     }
 
     [Test]
-    public async Task battery_stable_on_mains_powered_device() {
+    public async ValueTask battery_stable_on_mains_powered_device() {
         var state   = CreateState(MakeLight());
         var initial = state.Devices["l1"].BatteryLevel;
 
@@ -182,7 +182,7 @@ public class SmartHomeStateTests {
     #region ->> Error handling <<-
 
     [Test]
-    public async Task execute_rejects_unknown_device_id() {
+    public async ValueTask execute_rejects_unknown_device_id() {
         var state = CreateState(MakeThermo());
 
         var cmd = new RecordTemperature {

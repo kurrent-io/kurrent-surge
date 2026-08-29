@@ -47,7 +47,7 @@ public class SimulationTests {
     #region ->> Basic operation <<-
 
     [Test]
-    public async Task simulation_produces_events() {
+    public async ValueTask simulation_produces_events() {
         var sim = HomeSimulator.NewSimulation()
             .ForHome(TestHome)
             .MaxEvents(50)
@@ -58,7 +58,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task simulation_respects_max_events() {
+    public async ValueTask simulation_respects_max_events() {
         var sim = HomeSimulator.NewSimulation()
             .ForHome(TestHome)
             .MaxEvents(25)
@@ -69,7 +69,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task simulation_runs_fast_without_pacing() {
+    public async ValueTask simulation_runs_fast_without_pacing() {
         var sim = HomeSimulator.NewSimulation()
             .ForHome(TestHome)
             .MaxEvents(100)
@@ -88,7 +88,7 @@ public class SimulationTests {
     #region ->> Infinite mode <<-
 
     [Test]
-    public async Task infinite_mode_runs_until_cancelled() {
+    public async ValueTask infinite_mode_runs_until_cancelled() {
         var sim = HomeSimulator.NewSimulation()
             .ForHome(TestHome)
             .Create();
@@ -109,7 +109,7 @@ public class SimulationTests {
     #region ->> Event quality <<-
 
     [Test]
-    public async Task events_have_increasing_timestamps() {
+    public async ValueTask events_have_increasing_timestamps() {
         var sim = HomeSimulator.NewSimulation()
             .ForHome(TestHome)
             .MaxEvents(50)
@@ -122,7 +122,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task events_reference_valid_devices() {
+    public async ValueTask events_reference_valid_devices() {
         var sim = HomeSimulator.NewSimulation()
             .ForHome(TestHome)
             .MaxEvents(50)
@@ -140,7 +140,7 @@ public class SimulationTests {
     #region ->> Season effects <<-
 
     [Test]
-    public async Task winter_produces_lower_temperatures() {
+    public async ValueTask winter_produces_lower_temperatures() {
         var sim = HomeSimulator.NewSimulation()
             .ForHome(TestHome)
             .WithSeason(SeasonProfile.Winter)
@@ -155,7 +155,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task summer_produces_higher_temperatures() {
+    public async ValueTask summer_produces_higher_temperatures() {
         var sim = HomeSimulator.NewSimulation()
             .ForHome(TestHome)
             .WithSeason(SeasonProfile.Summer)
@@ -174,7 +174,7 @@ public class SimulationTests {
     #region ->> Weather effects <<-
 
     [Test]
-    public async Task stormy_weather_produces_higher_humidity_than_sunny() {
+    public async ValueTask stormy_weather_produces_higher_humidity_than_sunny() {
         var baseSeason = SeasonProfile.Summer with {
             WeatherWeights = new Dictionary<WeatherCondition, double> {
                 [WeatherCondition.Stormy] = 1.0,
@@ -223,7 +223,7 @@ public class SimulationTests {
     #region ->> Battery <<-
 
     [Test]
-    public async Task battery_depletes_over_time_on_battery_devices() {
+    public async ValueTask battery_depletes_over_time_on_battery_devices() {
         var sim = HomeSimulator.NewSimulation()
             .ForHome(TestHome)
             .MaxEvents(500)

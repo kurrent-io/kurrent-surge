@@ -12,7 +12,7 @@ namespace Kurrent.Surge.Tests.Codecs.Json;
 [Category("Codecs")]
 public class JsonSchemaCodecOptionsTests {
     [Test]
-    public async Task default_options_has_camel_case_naming_policy() {
+    public async ValueTask default_options_has_camel_case_naming_policy() {
         // Arrange
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -21,7 +21,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_ignores_null_when_writing() {
+    public async ValueTask default_options_ignores_null_when_writing() {
         // Arrange
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -30,7 +30,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_use_camel_case_dictionary_keys() {
+    public async ValueTask default_options_use_camel_case_dictionary_keys() {
         // Arrange
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -39,7 +39,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_allow_reading_numbers_from_string() {
+    public async ValueTask default_options_allow_reading_numbers_from_string() {
         // Arrange
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -48,7 +48,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_skip_unmapped_members() {
+    public async ValueTask default_options_skip_unmapped_members() {
         // Arrange
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -57,7 +57,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_handle_unknown_object_as_json_node() {
+    public async ValueTask default_options_handle_unknown_object_as_json_node() {
         // Arrange
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -66,7 +66,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_are_case_sensitive() {
+    public async ValueTask default_options_are_case_sensitive() {
         // Arrange
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -75,7 +75,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_has_type_info_resolver_chain() {
+    public async ValueTask default_options_has_type_info_resolver_chain() {
         // Arrange
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -84,7 +84,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_contains_kurrent_json_context_in_chain() {
+    public async ValueTask default_options_contains_kurrent_json_context_in_chain() {
         // Arrange
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -93,7 +93,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_inherit_context_converters() {
+    public async ValueTask default_options_inherit_context_converters() {
         // Arrange — the live options are a copy of the context's options, so their converters match exactly
         var contextConverters = KurrentJsonContext.Default.Options.Converters
             .Select(c => c.GetType())
@@ -107,7 +107,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_context_registers_every_nodatime_converter() {
+    public async ValueTask default_context_registers_every_nodatime_converter() {
         // Arrange — discover every NodaTime wrapper by type so the test cannot drift from the attribute list
         var wrappers = typeof(KurrentJsonContext).Assembly.GetTypes()
             .Where(t => t.BaseType is { IsGenericType: true } b
@@ -125,7 +125,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_has_timespan_converters() {
+    public async ValueTask default_options_has_timespan_converters() {
         // Arrange
         var converters = JsonSchemaCodecOptions.DefaultJsonSerializerOptions.Converters;
 
@@ -135,7 +135,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task json_serializer_options_returns_shared_instance_when_no_user_context() {
+    public async ValueTask json_serializer_options_returns_shared_instance_when_no_user_context() {
         // Arrange
         var sut = new JsonSchemaCodecOptions();
 
@@ -147,7 +147,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task json_serializer_options_creates_new_instance_when_user_context_provided() {
+    public async ValueTask json_serializer_options_creates_new_instance_when_user_context_provided() {
         // Arrange
         var sut = new JsonSchemaCodecOptions {
             UserJsonContexts = [TestJsonContext.Default]
@@ -161,7 +161,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task user_context_is_added_to_resolver_chain() {
+    public async ValueTask user_context_is_added_to_resolver_chain() {
         // Arrange
         var sut = new JsonSchemaCodecOptions {
             UserJsonContexts = [TestJsonContext.Default]
@@ -175,7 +175,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task use_protobuf_formatter_defaults_to_true() {
+    public async ValueTask use_protobuf_formatter_defaults_to_true() {
         // Arrange
         var sut = new JsonSchemaCodecOptions();
 
@@ -184,7 +184,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task user_context_resolves_type_info_for_registered_types() {
+    public async ValueTask user_context_resolves_type_info_for_registered_types() {
         // Arrange
         var sut = new JsonSchemaCodecOptions {
             UserJsonContexts = [TestJsonContext.Default]
@@ -199,7 +199,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task user_context_serializes_and_deserializes_registered_types() {
+    public async ValueTask user_context_serializes_and_deserializes_registered_types() {
         // Arrange
         var sut = new JsonSchemaCodecOptions {
             UserJsonContexts = [TestJsonContext.Default]
@@ -230,7 +230,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task source_gen_options_omit_reflection_resolver() {
+    public async ValueTask source_gen_options_omit_reflection_resolver() {
         // Arrange — the reflection-free base is the shape produced under trimming / Native AOT
         var options = JsonSchemaCodecOptions.CreateSourceGenOptions([]);
 
@@ -242,7 +242,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_include_reflection_fallback_on_jit() {
+    public async ValueTask default_options_include_reflection_fallback_on_jit() {
         // Arrange — on a JIT host reflection is enabled, so BuildOptions appends the reflection fallback resolver
         var options = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
 
@@ -254,7 +254,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task source_gen_options_throw_for_unregistered_type() {
+    public async ValueTask source_gen_options_throw_for_unregistered_type() {
         // Arrange — no reflection fallback, so a type absent from every source-gen context fails loud
         var options = JsonSchemaCodecOptions.CreateSourceGenOptions([]);
         var value   = new UnregisteredProbe("probe");
@@ -265,7 +265,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_serialize_unregistered_type_on_jit() {
+    public async ValueTask default_options_serialize_unregistered_type_on_jit() {
         // Arrange — the JIT reflection fallback serializes a type absent from every source-gen context
         var options  = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;
         var value    = new UnregisteredProbe("probe");
@@ -279,7 +279,7 @@ public class JsonSchemaCodecOptionsTests {
     }
 
     [Test]
-    public async Task default_options_round_trip_nodatime_and_timespan_values() {
+    public async ValueTask default_options_round_trip_nodatime_and_timespan_values() {
         // Arrange — JIT reflection resolves the unregistered holder; its NodaTime/TimeSpan members still
         // route through the wrapper converters carried by the live options.
         var options  = JsonSchemaCodecOptions.DefaultJsonSerializerOptions;

@@ -9,7 +9,7 @@ public class ConfigurationExtensionsTests {
     #region ->> IConfiguration.ToFlatDictionary <<-
 
     [Test]
-    public async Task configuration_to_flat_dictionary_preserves_flat_keys() {
+    public async ValueTask configuration_to_flat_dictionary_preserves_flat_keys() {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection([
                 new("foo", "1"),
@@ -26,7 +26,7 @@ public class ConfigurationExtensionsTests {
     }
 
     [Test]
-    public async Task configuration_to_flat_dictionary_preserves_colon_separated_keys() {
+    public async ValueTask configuration_to_flat_dictionary_preserves_colon_separated_keys() {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection([
                 new("subscription:filter:scope", "stream"),
@@ -41,7 +41,7 @@ public class ConfigurationExtensionsTests {
     }
 
     [Test]
-    public async Task configuration_section_to_flat_dictionary_strips_parent_path() {
+    public async ValueTask configuration_section_to_flat_dictionary_strips_parent_path() {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection([
                 new("settings:foo", "1"),
@@ -59,7 +59,7 @@ public class ConfigurationExtensionsTests {
     }
 
     [Test]
-    public async Task configuration_to_flat_dictionary_filters_null_values() {
+    public async ValueTask configuration_to_flat_dictionary_filters_null_values() {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection([
                 new("present", "value"),
@@ -74,7 +74,7 @@ public class ConfigurationExtensionsTests {
     }
 
     [Test]
-    public async Task empty_configuration_returns_empty_dictionary() {
+    public async ValueTask empty_configuration_returns_empty_dictionary() {
         var config = new ConfigurationBuilder().Build();
 
         var result = config.ToFlatDictionary();
@@ -87,7 +87,7 @@ public class ConfigurationExtensionsTests {
     #region ->> string.ToFlatDictionary (JSON) <<-
 
     [Test]
-    public async Task json_to_flat_dictionary_flattens_nested_objects_with_colons() {
+    public async ValueTask json_to_flat_dictionary_flattens_nested_objects_with_colons() {
         const string json = """
             {
                 "subscription": {
@@ -105,7 +105,7 @@ public class ConfigurationExtensionsTests {
     }
 
     [Test]
-    public async Task json_to_flat_dictionary_uses_numeric_indices_for_arrays() {
+    public async ValueTask json_to_flat_dictionary_uses_numeric_indices_for_arrays() {
         const string json = """
             { "items": ["one", "two", "three"] }
             """;
@@ -118,7 +118,7 @@ public class ConfigurationExtensionsTests {
     }
 
     [Test]
-    public async Task json_to_flat_dictionary_preserves_non_string_primitives_as_strings() {
+    public async ValueTask json_to_flat_dictionary_preserves_non_string_primitives_as_strings() {
         const string json = """
             { "count": 42, "enabled": true, "ratio": 0.5 }
             """;
@@ -132,7 +132,7 @@ public class ConfigurationExtensionsTests {
     }
 
     [Test]
-    public async Task json_to_flat_dictionary_excludes_null_leaves() {
+    public async ValueTask json_to_flat_dictionary_excludes_null_leaves() {
         const string json = """
             { "set": "value", "unset": null }
             """;
@@ -144,14 +144,14 @@ public class ConfigurationExtensionsTests {
     }
 
     [Test]
-    public async Task empty_json_object_returns_empty_dictionary() {
+    public async ValueTask empty_json_object_returns_empty_dictionary() {
         var result = "{}".ToFlatDictionary();
 
         await Assert.That(result).IsEmpty();
     }
 
     [Test]
-    public async Task invalid_json_throws() {
+    public async ValueTask invalid_json_throws() {
         await Assert.That(() => "not json".ToFlatDictionary()).ThrowsException();
     }
 

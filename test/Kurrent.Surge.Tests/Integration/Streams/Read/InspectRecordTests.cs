@@ -10,7 +10,7 @@ public class InspectRecordTests {
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     [Test]
-    public async Task inspects_log_record(CancellationToken ct) {
+    public async ValueTask inspects_log_record(CancellationToken ct) {
         var seeded = await Fixture.SeedTestStream(ct);
 
         var lastRecord = seeded.Records.Last();

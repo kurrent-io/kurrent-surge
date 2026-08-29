@@ -85,7 +85,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     #region . Scalar Columns .
 
     [Test]
-    public async Task validates_all_comparison_operators() => await ValidateExpressions("comparison", [
+    public async ValueTask validates_all_comparison_operators() => await ValidateExpressions("comparison", [
         "stream = 'orders'",
         "stream != 'orders'",
         "stream <> 'orders'",
@@ -101,7 +101,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_logical_operators() => await ValidateExpressions("logical", [
+    public async ValueTask validates_logical_operators() => await ValidateExpressions("logical", [
         "stream = 'orders' AND log_position > 0",
         "stream = 'orders' OR stream = 'payments'",
         "NOT (stream = 'orders')",
@@ -112,7 +112,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_pattern_matching() => await ValidateExpressions("pattern", [
+    public async ValueTask validates_pattern_matching() => await ValidateExpressions("pattern", [
         "stream LIKE 'order%'",
         "stream LIKE '%orders'",
         "stream LIKE '%order%'",
@@ -126,7 +126,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_null_checks() => await ValidateExpressions("null", [
+    public async ValueTask validates_null_checks() => await ValidateExpressions("null", [
         "stream IS NULL",
         "stream IS NOT NULL",
         "schema_id IS NULL",
@@ -138,7 +138,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_set_membership() => await ValidateExpressions("set", [
+    public async ValueTask validates_set_membership() => await ValidateExpressions("set", [
         "stream IN ('orders', 'payments')",
         "stream IN ('orders', 'payments', 'refunds')",
         "stream NOT IN ('test', 'debug')",
@@ -148,7 +148,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_range_operators() => await ValidateExpressions("range", [
+    public async ValueTask validates_range_operators() => await ValidateExpressions("range", [
         "log_position BETWEEN 0 AND 100",
         "log_position NOT BETWEEN 0 AND 100",
         "stream_revision BETWEEN 0 AND 50",
@@ -157,7 +157,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_created_at_as_bigint() => await ValidateExpressions("created_at", [
+    public async ValueTask validates_created_at_as_bigint() => await ValidateExpressions("created_at", [
         "created_at >= 1704067200000",
         "created_at > 0",
         "created_at < 1735689600000",
@@ -173,7 +173,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     #region . JSON Metadata Access .
 
     [Test]
-    public async Task validates_metadata_bracket_access() => await ValidateExpressions("metadata bracket", [
+    public async ValueTask validates_metadata_bracket_access() => await ValidateExpressions("metadata bracket", [
         "metadata['userId'] = 'user-123'",
         "metadata['userId'] IS NOT NULL",
         "metadata['userId'] IS NULL",
@@ -187,7 +187,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_metadata_arrow_access() => await ValidateExpressions("metadata arrow", [
+    public async ValueTask validates_metadata_arrow_access() => await ValidateExpressions("metadata arrow", [
         "metadata->>'userId' = 'user-123'",
         "metadata->>'userId' IS NOT NULL",
         "metadata->>'userId' IS NULL",
@@ -201,7 +201,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     // Dot access is client syntax, not SQL: DuckDB cannot descend into a VARCHAR column, so only
     // the rendered form is checked against it.
     [Test]
-    public async Task validates_metadata_dot_access() => await ValidateExpressions("metadata dot", [
+    public async ValueTask validates_metadata_dot_access() => await ValidateExpressions("metadata dot", [
         "metadata.region = 'us-east'",
         "metadata.region IS NOT NULL",
         "metadata.region IS NULL",
@@ -215,7 +215,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     #region . JSON Data Access .
 
     [Test]
-    public async Task validates_data_bracket_access() => await ValidateExpressions("data bracket", [
+    public async ValueTask validates_data_bracket_access() => await ValidateExpressions("data bracket", [
         "data['region'] = 'us-east'",
         "data['region'] IS NOT NULL",
         "data['region'] IS NULL",
@@ -224,7 +224,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_data_arrow_access() => await ValidateExpressions("data arrow", [
+    public async ValueTask validates_data_arrow_access() => await ValidateExpressions("data arrow", [
         "data->>'region' = 'us-east'",
         "data->>'tags' IS NOT NULL",
         "data->>'amount' > '100'",
@@ -235,7 +235,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_data_arrow_with_jsonpath() => await ValidateExpressions("data JSONPath", [
+    public async ValueTask validates_data_arrow_with_jsonpath() => await ValidateExpressions("data JSONPath", [
         "data->>'$.region' = 'us-east'",
         "data->>'$.tags' IS NOT NULL"
     ]);
@@ -247,7 +247,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     // Dot access is client syntax, not SQL: DuckDB cannot descend into a VARCHAR column, so only
     // the rendered form is checked against it.
     [Test]
-    public async Task validates_data_dot_access() => await ValidateExpressions("data dot", [
+    public async ValueTask validates_data_dot_access() => await ValidateExpressions("data dot", [
         "data.region = 'us-east'",
         "data.region IS NOT NULL",
         "data.region IS NULL",
@@ -257,7 +257,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     // Dot access is client syntax, not SQL: DuckDB cannot descend into a VARCHAR column, so only
     // the rendered form is checked against it.
     [Test]
-    public async Task validates_data_nested_dot_access() => await ValidateExpressions("data nested dot", [
+    public async ValueTask validates_data_nested_dot_access() => await ValidateExpressions("data nested dot", [
         "data.address.city = 'NYC'",
         "data.address.city IS NOT NULL",
         "data.user.profile.name = 'Alice'"
@@ -268,7 +268,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     #region . Complex Queries .
 
     [Test]
-    public async Task validates_cross_column_filters() => await ValidateExpressions("cross-column", [
+    public async ValueTask validates_cross_column_filters() => await ValidateExpressions("cross-column", [
         "stream = 'orders' AND metadata->>'region' IN ('us-east', 'us-west')",
         "schema_name = 'OrderCreated' AND data->>'amount' > '100'",
         "stream LIKE 'order%' AND data->>'region' = 'us-east'",
@@ -277,7 +277,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_business_logic_queries() => await ValidateExpressions("business logic", [
+    public async ValueTask validates_business_logic_queries() => await ValidateExpressions("business logic", [
         // multi-predicate AND chain
         "stream = 'orders' AND metadata->>'amount' > '100' AND metadata->>'region' IN ('us-east', 'us-west') AND metadata->>'customerType' != 'internal'",
         // OR with grouping
@@ -297,7 +297,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
     ]);
 
     [Test]
-    public async Task validates_negated_operators() => await ValidateExpressions("negated", [
+    public async ValueTask validates_negated_operators() => await ValidateExpressions("negated", [
         "stream NOT LIKE 'test%'",
         "stream NOT ILIKE 'SYSTEM%'",
         "stream NOT IN ('$all', '$settings')",
@@ -330,7 +330,7 @@ public class ExpressionFilterDuckDbValidationTests : IDisposable {
 
     [Test]
     [RenderCases]
-    public async Task renders_aliases_to_columns_the_table_carries(string written, string rendered) {
+    public async ValueTask renders_aliases_to_columns_the_table_carries(string written, string rendered) {
         // Arrange
         var filter = RecordFilterSchema.Default.Parse(written);
 

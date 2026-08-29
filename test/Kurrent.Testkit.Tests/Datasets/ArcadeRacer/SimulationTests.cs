@@ -13,7 +13,7 @@ public class SimulationTests {
     #region ->> Pre-computed (Simulate) <<-
 
     [Test]
-    public async Task simulate_returns_completed_race() {
+    public async ValueTask simulate_returns_completed_race() {
         // Arrange & Act
         var race = ArcadeRaceSimulator.NewRace()
             .WithCars(6)
@@ -29,7 +29,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task simulate_winner_is_first_position() {
+    public async ValueTask simulate_winner_is_first_position() {
         // Arrange & Act
         var race = ArcadeRaceSimulator.NewRace()
             .WithCars(4)
@@ -43,7 +43,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task simulate_logbook_contains_setup_and_finish() {
+    public async ValueTask simulate_logbook_contains_setup_and_finish() {
         // Arrange & Act
         var race = ArcadeRaceSimulator.NewRace()
             .WithCars(4)
@@ -61,7 +61,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task simulate_rejects_endless_laps() {
+    public async ValueTask simulate_rejects_endless_laps() {
         // Arrange
         var builder = ArcadeRaceSimulator.NewRace().WithLaps(0);
 
@@ -74,7 +74,7 @@ public class SimulationTests {
     #region ->> Streaming <<-
 
     [Test]
-    public async Task streaming_produces_events() {
+    public async ValueTask streaming_produces_events() {
         // Arrange
         using var cts = new CancellationTokenSource();
         await using var sim = ArcadeRaceSimulator.NewStreamingRace()
@@ -90,7 +90,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task streaming_starts_with_grid_formed_then_race_started() {
+    public async ValueTask streaming_starts_with_grid_formed_then_race_started() {
         // Arrange
         using var cts = new CancellationTokenSource();
         await using var sim = ArcadeRaceSimulator.NewStreamingRace()
@@ -107,7 +107,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task streaming_contains_lap_completed_events() {
+    public async ValueTask streaming_contains_lap_completed_events() {
         // Arrange
         using var cts = new CancellationTokenSource();
         await using var sim = ArcadeRaceSimulator.NewStreamingRace()
@@ -124,7 +124,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task streaming_with_race_finished_on_cancellation() {
+    public async ValueTask streaming_with_race_finished_on_cancellation() {
         // Arrange
         using var cts = new CancellationTokenSource();
         await using var sim = ArcadeRaceSimulator.NewStreamingRace()
@@ -154,7 +154,7 @@ public class SimulationTests {
     }
 
     [Test]
-    public async Task streaming_without_race_finished_on_cancellation() {
+    public async ValueTask streaming_without_race_finished_on_cancellation() {
         // Arrange
         using var cts = new CancellationTokenSource();
         await using var sim = ArcadeRaceSimulator.NewStreamingRace()
@@ -175,7 +175,7 @@ public class SimulationTests {
     #region ->> Conditions <<-
 
     [Test]
-    public async Task race_with_night_and_rain_has_incidents() {
+    public async ValueTask race_with_night_and_rain_has_incidents() {
         // Arrange & Act
         var race = ArcadeRaceSimulator.NewRace()
             .WithCars(8)

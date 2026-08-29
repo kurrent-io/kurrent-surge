@@ -8,7 +8,7 @@ namespace Kurrent.Testkit.Tests.Datasets.ArcadeRacer;
 [Category("ArcadeRacer")]
 public class DifficultyProfileTests {
     [Test]
-    public async Task night_reduces_handling_effectiveness() {
+    public async ValueTask night_reduces_handling_effectiveness() {
         var day   = DifficultyProfile.For(CircuitDifficulty.Medium, new RaceConditions { TimeOfDay = TimeOfDay.Day, Weather = Weather.Sunny });
         var night = DifficultyProfile.For(CircuitDifficulty.Medium, new RaceConditions { TimeOfDay = TimeOfDay.Night, Weather = Weather.Sunny });
 
@@ -16,7 +16,7 @@ public class DifficultyProfileTests {
     }
 
     [Test]
-    public async Task rain_reduces_top_speed_effectiveness() {
+    public async ValueTask rain_reduces_top_speed_effectiveness() {
         var sunny = DifficultyProfile.For(CircuitDifficulty.Medium, new RaceConditions { TimeOfDay = TimeOfDay.Day, Weather = Weather.Sunny });
         var rainy = DifficultyProfile.For(CircuitDifficulty.Medium, new RaceConditions { TimeOfDay = TimeOfDay.Day, Weather = Weather.Rainy });
 
@@ -24,7 +24,7 @@ public class DifficultyProfileTests {
     }
 
     [Test]
-    public async Task hard_difficulty_has_higher_incident_rate_than_easy() {
+    public async ValueTask hard_difficulty_has_higher_incident_rate_than_easy() {
         var conditions = new RaceConditions { TimeOfDay = TimeOfDay.Day, Weather = Weather.Sunny };
         var easy       = DifficultyProfile.For(CircuitDifficulty.Easy, conditions);
         var hard       = DifficultyProfile.For(CircuitDifficulty.Hard, conditions);

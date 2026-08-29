@@ -11,7 +11,7 @@ public class ModelTests {
     static Room MakeRoom() => new() { RoomId = TestId.New(), Name = "Test Room", Type = RoomType.LivingRoom, Devices = [] };
 
     [Test]
-    public async Task device_creates_device_info_with_battery() {
+    public async ValueTask device_creates_device_info_with_battery() {
         var room = MakeRoom();
         var dev = new Thermostat {
             Id                   = "t1",
@@ -36,7 +36,7 @@ public class ModelTests {
     }
 
     [Test]
-    public async Task device_creates_device_info_without_battery_for_mains_powered() {
+    public async ValueTask device_creates_device_info_without_battery_for_mains_powered() {
         var room = MakeRoom();
         var dev = new SmartLight {
             Id                     = "l1",
@@ -60,7 +60,7 @@ public class ModelTests {
     #region ->> Device Faker Tests <<-
 
     [Test]
-    public async Task thermostat_faker_generates_valid_device() {
+    public async ValueTask thermostat_faker_generates_valid_device() {
         var device = ThermostatFaker.Instance.Generate();
         await Assert.That(device.Id).IsNotNull();
         await Assert.That(device.MinOperatingTemp).IsLessThan(device.MaxOperatingTemp);
@@ -69,7 +69,7 @@ public class ModelTests {
     }
 
     [Test]
-    public async Task motion_sensor_faker_generates_valid_device() {
+    public async ValueTask motion_sensor_faker_generates_valid_device() {
         var device = MotionSensorFaker.Instance.Generate();
         await Assert.That(device.Id).IsNotNull();
         await Assert.That(device.ZoneCount).IsBetween(2, 6);
@@ -78,7 +78,7 @@ public class ModelTests {
     }
 
     [Test]
-    public async Task smart_light_faker_generates_valid_device() {
+    public async ValueTask smart_light_faker_generates_valid_device() {
         var device = SmartLightFaker.Instance.Generate();
         await Assert.That(device.Id).IsNotNull();
         await Assert.That(device.MaxBrightness).IsGreaterThan(0);
@@ -87,14 +87,14 @@ public class ModelTests {
     }
 
     [Test]
-    public async Task door_lock_faker_generates_valid_device() {
+    public async ValueTask door_lock_faker_generates_valid_device() {
         var device = DoorLockFaker.Instance.Generate();
         await Assert.That(device.Id).IsNotNull();
         await Assert.That(device.IsBatteryPowered).IsFalse();
     }
 
     [Test]
-    public async Task smoke_detector_faker_generates_valid_device() {
+    public async ValueTask smoke_detector_faker_generates_valid_device() {
         var device = SmokeDetectorFaker.Instance.Generate();
         await Assert.That(device.Id).IsNotNull();
         await Assert.That(device.SensorType).IsNotNull();
@@ -103,7 +103,7 @@ public class ModelTests {
     }
 
     [Test]
-    public async Task humidity_sensor_faker_generates_valid_device() {
+    public async ValueTask humidity_sensor_faker_generates_valid_device() {
         var device = HumiditySensorFaker.Instance.Generate();
         await Assert.That(device.Id).IsNotNull();
         await Assert.That(device.MeasurementTolerance).IsGreaterThanOrEqualTo(1.0);
@@ -112,14 +112,14 @@ public class ModelTests {
     }
 
     [Test]
-    public async Task window_sensor_faker_generates_valid_device() {
+    public async ValueTask window_sensor_faker_generates_valid_device() {
         var device = WindowSensorFaker.Instance.Generate();
         await Assert.That(device.Id).IsNotNull();
         await Assert.That(device.IsBatteryPowered).IsTrue();
     }
 
     [Test]
-    public async Task water_sensor_faker_generates_valid_device() {
+    public async ValueTask water_sensor_faker_generates_valid_device() {
         var device = WaterSensorFaker.Instance.Generate();
         await Assert.That(device.Id).IsNotNull();
         await Assert.That(device.MoistureThreshold).IsBetween(30, 70);

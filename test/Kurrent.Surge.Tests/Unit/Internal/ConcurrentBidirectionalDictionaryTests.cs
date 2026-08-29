@@ -8,7 +8,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     public void Dispose() => _sut.Dispose();
 
     [Test]
-    public async Task constructor_with_capacity_and_concurrency_should_initialize_correctly() {
+    public async ValueTask constructor_with_capacity_and_concurrency_should_initialize_correctly() {
         // Arrange
         var concurrencyLevel = 2;
         var capacity         = 100;
@@ -23,7 +23,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task add_single_item_should_succeed_and_be_retrievable() {
+    public async ValueTask add_single_item_should_succeed_and_be_retrievable() {
         // Arrange
         var key   = "one";
         var value = 1;
@@ -47,7 +47,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task add_multiple_items_should_succeed_and_be_retrievable() {
+    public async ValueTask add_multiple_items_should_succeed_and_be_retrievable() {
         // Arrange & Act
         _sut.Add("one", 1);
         _sut.Add("two", 2);
@@ -64,7 +64,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task try_add_new_item_should_succeed_and_return_true() {
+    public async ValueTask try_add_new_item_should_succeed_and_return_true() {
         // Arrange
         var key   = "one";
         var value = 1;
@@ -80,7 +80,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task remove_existing_item_by_key_should_succeed_and_remove_both_mappings() {
+    public async ValueTask remove_existing_item_by_key_should_succeed_and_remove_both_mappings() {
         // Arrange
         _sut.Add("one", 1);
         _sut.Add("two", 2);
@@ -98,7 +98,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task remove_existing_item_by_value_should_succeed_and_remove_both_mappings() {
+    public async ValueTask remove_existing_item_by_value_should_succeed_and_remove_both_mappings() {
         // Arrange
         _sut.Add("one", 1);
         _sut.Add("two", 2);
@@ -116,7 +116,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task remove_non_existing_item_by_key_should_return_false() {
+    public async ValueTask remove_non_existing_item_by_key_should_return_false() {
         // Arrange
         _sut.Add("one", 1);
 
@@ -129,7 +129,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task remove_by_value_non_existing_item_should_return_false() {
+    public async ValueTask remove_by_value_non_existing_item_should_return_false() {
         // Arrange
         _sut.Add("one", 1);
 
@@ -142,7 +142,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task indexer_set_add_new_item_should_succeed() {
+    public async ValueTask indexer_set_add_new_item_should_succeed() {
         // Arrange
         var key   = "ten";
         var value = 10;
@@ -157,7 +157,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task indexer_set_update_existing_item_should_update_both_mappings() {
+    public async ValueTask indexer_set_update_existing_item_should_update_both_mappings() {
         // Arrange
         _sut.Add("ten", 10);
         _sut.Add("twenty", 20);
@@ -177,7 +177,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task indexer_set_update_existing_item_with_value_already_mapped_should_throw_argument_exception() {
+    public async ValueTask indexer_set_update_existing_item_with_value_already_mapped_should_throw_argument_exception() {
         // Arrange
         _sut.Add("ten", 10);
         _sut.Add("twenty", 20);
@@ -195,7 +195,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task indexer_get_existing_item_should_return_value() {
+    public async ValueTask indexer_get_existing_item_should_return_value() {
         // Arrange
         _sut.Add("one", 1);
 
@@ -207,13 +207,13 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task indexer_get_non_existing_item_should_throw_key_not_found_exception() {
+    public async ValueTask indexer_get_non_existing_item_should_throw_key_not_found_exception() {
         // Arrange & Act & Assert
         await Assert.That(() => _sut["one"]).ThrowsExactly<KeyNotFoundException>();
     }
 
     [Test]
-    public async Task get_key_by_value_existing_item_should_return_key() {
+    public async ValueTask get_key_by_value_existing_item_should_return_key() {
         // Arrange
         _sut.Add("one", 1);
 
@@ -225,13 +225,13 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task get_key_by_value_non_existing_item_should_throw_key_not_found_exception() {
+    public async ValueTask get_key_by_value_non_existing_item_should_throw_key_not_found_exception() {
         // Arrange & Act & Assert
         await Assert.That(() => _sut.GetKeyByValue(1)).ThrowsExactly<KeyNotFoundException>();
     }
 
     [Test]
-    public async Task add_duplicate_key_should_throw_argument_exception() {
+    public async ValueTask add_duplicate_key_should_throw_argument_exception() {
         // Arrange
         _sut.Add("one", 1);
 
@@ -246,7 +246,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task add_duplicate_value_should_throw_argument_exception() {
+    public async ValueTask add_duplicate_value_should_throw_argument_exception() {
         // Arrange
         _sut.Add("one", 1);
 
@@ -261,7 +261,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task try_add_duplicate_key_should_return_false() {
+    public async ValueTask try_add_duplicate_key_should_return_false() {
         // Arrange
         _sut.Add("one", 1);
 
@@ -275,7 +275,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task try_add_duplicate_value_should_return_false() {
+    public async ValueTask try_add_duplicate_value_should_return_false() {
         // Arrange
         _sut.Add("one", 1);
 
@@ -291,29 +291,29 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     // Test for adding null key is removed as it's now enforced by 'notnull' constraint at compile time.
 
     [Test]
-    public async Task contains_key_existing_key_should_return_true() {
+    public async ValueTask contains_key_existing_key_should_return_true() {
         _sut.Add("a", 1);
         await Assert.That(_sut.ContainsKey("a")).IsTrue();
     }
 
     [Test]
-    public async Task contains_key_non_existing_key_should_return_false() {
+    public async ValueTask contains_key_non_existing_key_should_return_false() {
         await Assert.That(_sut.ContainsKey("a")).IsFalse();
     }
 
     [Test]
-    public async Task contains_value_existing_value_should_return_true() {
+    public async ValueTask contains_value_existing_value_should_return_true() {
         _sut.Add("a", 1);
         await Assert.That(_sut.ContainsValue(1)).IsTrue();
     }
 
     [Test]
-    public async Task contains_value_non_existing_value_should_return_false() {
+    public async ValueTask contains_value_non_existing_value_should_return_false() {
         await Assert.That(_sut.ContainsValue(1)).IsFalse();
     }
 
     [Test]
-    public async Task try_get_value_existing_key_should_return_true_and_value() {
+    public async ValueTask try_get_value_existing_key_should_return_true_and_value() {
         _sut.Add("a", 1);
         var result = _sut.TryGetValue("a", out var value);
         await Assert.That(result).IsTrue();
@@ -321,14 +321,14 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task try_get_value_non_existing_key_should_return_false_and_default_value() {
+    public async ValueTask try_get_value_non_existing_key_should_return_false_and_default_value() {
         var result = _sut.TryGetValue("a", out var value);
         await Assert.That(result).IsFalse();
         await Assert.That(value).IsEqualTo(default(int)); // 0 for int
     }
 
     [Test]
-    public async Task try_get_key_existing_value_should_return_true_and_key() {
+    public async ValueTask try_get_key_existing_value_should_return_true_and_key() {
         _sut.Add("a", 1);
         var result = _sut.TryGetKey(1, out var key);
         await Assert.That(result).IsTrue();
@@ -336,14 +336,14 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task try_get_key_non_existing_value_should_return_false_and_default_key() {
+    public async ValueTask try_get_key_non_existing_value_should_return_false_and_default_key() {
         var result = _sut.TryGetKey(1, out var key);
         await Assert.That(result).IsFalse();
         await Assert.That(key).IsNull();
     }
 
     [Test]
-    public async Task clear_non_empty_dictionary_should_remove_all_items() {
+    public async ValueTask clear_non_empty_dictionary_should_remove_all_items() {
         // Arrange
         _sut.Add("one", 1);
         _sut.Add("two", 2);
@@ -361,7 +361,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task count_should_reflect_number_of_items() {
+    public async ValueTask count_should_reflect_number_of_items() {
         await Assert.That(_sut.Count).IsEqualTo(0);
         _sut.Add("a", 1);
         await Assert.That(_sut.Count).IsEqualTo(1);
@@ -374,7 +374,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task keys_should_return_all_keys() {
+    public async ValueTask keys_should_return_all_keys() {
         _sut.Add("one", 1);
         _sut.Add("two", 2);
         _sut.Add("three", 3);
@@ -386,7 +386,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task values_should_return_all_values() {
+    public async ValueTask values_should_return_all_values() {
         _sut.Add("one", 1);
         _sut.Add("two", 2);
         _sut.Add("three", 3);
@@ -398,7 +398,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task get_enumerator_should_iterate_over_all_pairs() {
+    public async ValueTask get_enumerator_should_iterate_over_all_pairs() {
         _sut.Add("one", 1);
         _sut.Add("two", 2);
         _sut.Add("three", 3);
@@ -413,7 +413,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task custom_comparers_case_insensitive_should_work_correctly() {
+    public async ValueTask custom_comparers_case_insensitive_should_work_correctly() {
         // Arrange
         using var sutCi = new ConcurrentBidirectionalDictionary<string, string>(
             StringComparer.OrdinalIgnoreCase,
@@ -469,7 +469,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task icollection_add_should_work() {
+    public async ValueTask icollection_add_should_work() {
         ICollection<KeyValuePair<string, int>> coll = _sut;
         coll.Add(new KeyValuePair<string, int>("a", 1));
 
@@ -478,28 +478,28 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task icollection_contains_existing_item_should_return_true() {
+    public async ValueTask icollection_contains_existing_item_should_return_true() {
         _sut.Add("a", 1);
         ICollection<KeyValuePair<string, int>> coll = _sut;
         await Assert.That(coll.Contains(new KeyValuePair<string, int>("a", 1))).IsTrue();
     }
 
     [Test]
-    public async Task icollection_contains_non_existing_key_should_return_false() {
+    public async ValueTask icollection_contains_non_existing_key_should_return_false() {
         _sut.Add("a", 1);
         ICollection<KeyValuePair<string, int>> coll = _sut;
         await Assert.That(coll.Contains(new KeyValuePair<string, int>("b", 1))).IsFalse();
     }
 
     [Test]
-    public async Task icollection_contains_key_exists_but_wrong_value_should_return_false() {
+    public async ValueTask icollection_contains_key_exists_but_wrong_value_should_return_false() {
         _sut.Add("a", 1);
         ICollection<KeyValuePair<string, int>> coll = _sut;
         await Assert.That(coll.Contains(new KeyValuePair<string, int>("a", 2))).IsFalse();
     }
 
     [Test]
-    public async Task icollection_remove_existing_item_should_succeed() {
+    public async ValueTask icollection_remove_existing_item_should_succeed() {
         _sut.Add("a", 1);
         _sut.Add("b", 2);
         ICollection<KeyValuePair<string, int>> coll = _sut;
@@ -514,7 +514,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task icollection_remove_item_with_wrong_value_should_return_false() {
+    public async ValueTask icollection_remove_item_with_wrong_value_should_return_false() {
         _sut.Add("a", 1);
         _sut.Add("b", 2);
         ICollection<KeyValuePair<string, int>> coll = _sut;
@@ -528,7 +528,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task icollection_remove_non_existing_item_should_return_false() {
+    public async ValueTask icollection_remove_non_existing_item_should_return_false() {
         _sut.Add("a", 1);
         ICollection<KeyValuePair<string, int>> coll = _sut;
 
@@ -539,7 +539,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task icollection_copy_to_should_copy_all_items() {
+    public async ValueTask icollection_copy_to_should_copy_all_items() {
         _sut.Add("one", 1);
         _sut.Add("two", 2);
         _sut.Add("three", 3);
@@ -554,13 +554,13 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task icollection_copy_to_throws_on_null_array() {
+    public async ValueTask icollection_copy_to_throws_on_null_array() {
         ICollection<KeyValuePair<string, int>> coll = _sut;
         await Assert.That(() => coll.CopyTo(null!, 0)).ThrowsExactly<NullReferenceException>();
     }
 
     [Test]
-    public async Task icollection_copy_to_throws_on_negative_index() {
+    public async ValueTask icollection_copy_to_throws_on_negative_index() {
         _sut.Add("a", 1);
 
         ICollection<KeyValuePair<string, int>> coll = _sut;
@@ -570,7 +570,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task icollection_copy_to_throws_on_insufficient_space() {
+    public async ValueTask icollection_copy_to_throws_on_insufficient_space() {
         _sut.Add("a", 1);
         _sut.Add("b", 2);
 
@@ -582,13 +582,13 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task icollection_is_read_only_should_be_false() {
+    public async ValueTask icollection_is_read_only_should_be_false() {
         ICollection<KeyValuePair<string, int>> coll = _sut;
         await Assert.That(coll.IsReadOnly).IsFalse();
     }
 
     [Test]
-    public async Task concurrent_adds_should_maintain_consistency() {
+    public async ValueTask concurrent_adds_should_maintain_consistency() {
         // Arrange
         var numTasks     = 20;
         var itemsPerTask = 1000;
@@ -628,7 +628,7 @@ public class ConcurrentBidirectionalDictionaryTests : IDisposable {
     }
 
     [Test]
-    public async Task concurrent_add_remove_update_should_maintain_consistency() {
+    public async ValueTask concurrent_add_remove_update_should_maintain_consistency() {
         // Arrange
         var numWriterTasks    = 10;
         var operationsPerTask = 500;

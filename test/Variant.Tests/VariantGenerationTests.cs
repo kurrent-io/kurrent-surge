@@ -33,45 +33,45 @@ readonly record struct InternalSignal(int Code);
 [Category("Variant")]
 public class VariantGenerationTests {
     [Test]
-    public async Task is_string_should_be_true_when_value_is_string() {
+    public async ValueTask is_string_should_be_true_when_value_is_string() {
         TestVariantResult result = "hello";
         await Assert.That(result.IsString).IsTrue();
         await Assert.That(result.IsInt).IsFalse();
     }
 
     [Test]
-    public async Task as_string_should_return_string_value_when_value_is_string() {
+    public async ValueTask as_string_should_return_string_value_when_value_is_string() {
         TestVariantResult result = "hello";
         await Assert.That(result.AsString).IsEqualTo("hello");
     }
 
     [Test]
-    public async Task as_string_should_throw_when_value_is_not_string() {
+    public async ValueTask as_string_should_throw_when_value_is_not_string() {
         TestVariantResult result = 123; // int value
         await Assert.That(() => result.AsString).ThrowsExactly<InvalidOperationException>();
     }
 
     [Test]
-    public async Task is_int_should_be_true_when_value_is_int() {
+    public async ValueTask is_int_should_be_true_when_value_is_int() {
         TestVariantResult result = 123;
         await Assert.That(result.IsInt).IsTrue();
         await Assert.That(result.IsString).IsFalse();
     }
 
     [Test]
-    public async Task as_int_should_return_int_value_when_value_is_int() {
+    public async ValueTask as_int_should_return_int_value_when_value_is_int() {
         TestVariantResult result = 123;
         await Assert.That(result.AsInt).IsEqualTo(123);
     }
 
     [Test]
-    public async Task as_int_should_throw_when_value_is_not_int() {
+    public async ValueTask as_int_should_throw_when_value_is_not_int() {
         TestVariantResult result = "not an int";
         await Assert.That(() => result.AsInt).ThrowsExactly<InvalidOperationException>();
     }
 
     [Test]
-    public async Task value_property_should_return_correct_object() {
+    public async ValueTask value_property_should_return_correct_object() {
         TestVariantResult resultString = "test";
         await Assert.That(resultString.Value).IsEqualTo("test");
         await Assert.That(resultString.Value).IsTypeOf<string>();
@@ -82,7 +82,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task index_property_should_return_correct_index() {
+    public async ValueTask index_property_should_return_correct_index() {
         TestVariantResult resultString = "test";
         await Assert.That(resultString.Index).IsEqualTo(0);
 
@@ -91,7 +91,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task to_string_should_return_underlying_value_to_string() {
+    public async ValueTask to_string_should_return_underlying_value_to_string() {
         TestVariantResult resultString = "test";
         await Assert.That(resultString.ToString()).IsEqualTo("test");
 
@@ -100,28 +100,28 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task equals_should_return_true_for_same_value_and_type() {
+    public async ValueTask equals_should_return_true_for_same_value_and_type() {
         TestVariantResult result1A = "hello";
         TestVariantResult result1B = "hello";
         await Assert.That(result1A.Equals(result1B)).IsTrue();
     }
 
     [Test]
-    public async Task equals_should_return_false_for_different_value_same_type() {
+    public async ValueTask equals_should_return_false_for_different_value_same_type() {
         TestVariantResult result1A = "hello";
         TestVariantResult result1B = "world";
         await Assert.That(result1A.Equals(result1B)).IsFalse();
     }
 
     [Test]
-    public async Task equals_should_return_false_for_different_type() {
+    public async ValueTask equals_should_return_false_for_different_type() {
         TestVariantResult result1A = "hello";
         TestVariantResult result2  = 123;
         await Assert.That(result1A.Equals(result2)).IsFalse();
     }
 
     [Test]
-    public async Task equals_operator_should_work_correctly() {
+    public async ValueTask equals_operator_should_work_correctly() {
         TestVariantResult  result1A   = "hello";
         TestVariantResult  result1B   = "hello";
         TestVariantResult  result2    = "world";
@@ -140,7 +140,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task not_equals_operator_should_work_correctly() {
+    public async ValueTask not_equals_operator_should_work_correctly() {
         TestVariantResult  result1A   = "hello";
         TestVariantResult  result1B   = "hello";
         TestVariantResult  result2    = "world";
@@ -153,7 +153,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task get_hash_code_should_be_consistent_for_equal_objects() {
+    public async ValueTask get_hash_code_should_be_consistent_for_equal_objects() {
         TestVariantResult result1A = "hello";
         TestVariantResult result1B = "hello";
         await Assert.That(result1A.GetHashCode()).IsEqualTo(result1B.GetHashCode());
@@ -164,7 +164,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task get_hash_code_should_generally_be_different_for_unequal_objects() {
+    public async ValueTask get_hash_code_should_generally_be_different_for_unequal_objects() {
         TestVariantResult result1 = "hello";
         TestVariantResult result2 = "world";
         TestVariantResult result3 = 123;
@@ -175,21 +175,21 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task implicit_conversion_from_string_should_work() {
+    public async ValueTask implicit_conversion_from_string_should_work() {
         TestVariantResult result = "implicit";
         await Assert.That(result.IsString).IsTrue();
         await Assert.That(result.AsString).IsEqualTo("implicit");
     }
 
     [Test]
-    public async Task implicit_conversion_from_int_should_work() {
+    public async ValueTask implicit_conversion_from_int_should_work() {
         TestVariantResult result = 789;
         await Assert.That(result.IsInt).IsTrue();
         await Assert.That(result.AsInt).IsEqualTo(789);
     }
 
     [Test]
-    public async Task switch_should_execute_correct_action_for_string() {
+    public async ValueTask switch_should_execute_correct_action_for_string() {
         TestVariantResult result = "switch_me";
 
         var stringActionCalled = false;
@@ -205,7 +205,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task switch_should_execute_correct_action_for_int() {
+    public async ValueTask switch_should_execute_correct_action_for_int() {
         TestVariantResult result = 555;
 
         var stringActionCalled = false;
@@ -221,7 +221,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task match_should_return_correct_value_for_string() {
+    public async ValueTask match_should_return_correct_value_for_string() {
         TestVariantResult result = "match_me";
         var outcome = result.Match(
             s => $"String: {s}",
@@ -232,7 +232,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task match_should_return_correct_value_for_int() {
+    public async ValueTask match_should_return_correct_value_for_int() {
         TestVariantResult result = 777;
         var outcome = result.Match(
             s => $"String: {s}",
@@ -267,7 +267,7 @@ public class VariantGenerationTests {
     // }
 
     [Test]
-    public async Task complex_type_generation_is_my_error_should_be_true() {
+    public async ValueTask complex_type_generation_is_my_error_should_be_true() {
         var error = new MyError("E01", "Test Error");
 
         TestVariantComplexResult result = error;
@@ -279,7 +279,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task complex_type_generation_is_my_success_should_be_true() {
+    public async ValueTask complex_type_generation_is_my_success_should_be_true() {
         var success = new MySuccess(Guid.NewGuid());
 
         TestVariantComplexResult result = success;
@@ -291,12 +291,12 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task constructor_should_throw_argument_null_exception_for_null_reference_type() {
+    public async ValueTask constructor_should_throw_argument_null_exception_for_null_reference_type() {
         await Assert.That(() => new TestVariantResult(null!)).ThrowsExactly<ArgumentNullException>();
     }
 
     [Test]
-    public async Task constructor_should_not_throw_for_value_type_default() {
+    public async ValueTask constructor_should_not_throw_for_value_type_default() {
         // This test is tricky because int default is 0, which is valid.
         // The generator's null check is `if (parameterName == null)`, which doesn't apply to non-nullable value types.
         // So, this test effectively checks that the constructor for int doesn't throw.
@@ -306,20 +306,20 @@ public class VariantGenerationTests {
 
     // Case enum tests
     [Test]
-    public async Task case_property_should_return_correct_enum_value_for_string() {
+    public async ValueTask case_property_should_return_correct_enum_value_for_string() {
         TestVariantResult result = "test";
         await Assert.That(result.Case).IsEqualTo(TestVariantResult.TestVariantResultCase.String);
     }
 
     [Test]
-    public async Task case_property_should_return_correct_enum_value_for_int() {
+    public async ValueTask case_property_should_return_correct_enum_value_for_int() {
         TestVariantResult result = 123;
         await Assert.That(result.Case).IsEqualTo(TestVariantResult.TestVariantResultCase.Int);
     }
 
     // Async Switch tests
     [Test]
-    public async Task switch_async_should_execute_correct_action_for_string() {
+    public async ValueTask switch_async_should_execute_correct_action_for_string() {
         TestVariantResult result = "async_test";
         var stringActionCalled = false;
         var intActionCalled = false;
@@ -335,7 +335,7 @@ public class VariantGenerationTests {
 
     // Async Match tests
     [Test]
-    public async Task match_async_should_return_correct_value_for_string() {
+    public async ValueTask match_async_should_return_correct_value_for_string() {
         TestVariantResult result = "async_match";
         var outcome = await result.MatchAsync(
             async s => { await ValueTask.CompletedTask; return $"String: {s}"; },
@@ -347,7 +347,7 @@ public class VariantGenerationTests {
 
     // State parameter tests
     [Test]
-    public async Task switch_with_state_should_pass_state_correctly() {
+    public async ValueTask switch_with_state_should_pass_state_correctly() {
         TestVariantResult result = "state_test";
         var capturedState = "";
         var state = "test_state";
@@ -365,7 +365,7 @@ public class VariantGenerationTests {
     // the test assembly only builds if the generated partial and its members
     // honor the user's `internal` modifier (no CS0262/CS0051).
     [Test]
-    public async Task internal_variant_carries_serialized_case() {
+    public async ValueTask internal_variant_carries_serialized_case() {
         InternalVariant variant = new InternalSerialized("payload");
 
         await Assert.That(variant.IsInternalSerialized).IsTrue();
@@ -374,7 +374,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task internal_variant_carries_signal_case() {
+    public async ValueTask internal_variant_carries_signal_case() {
         InternalVariant variant = new InternalSignal(42);
 
         await Assert.That(variant.IsInternalSignal).IsTrue();
@@ -383,7 +383,7 @@ public class VariantGenerationTests {
     }
 
     [Test]
-    public async Task internal_variant_match_returns_correct_value() {
+    public async ValueTask internal_variant_match_returns_correct_value() {
         InternalVariant variant = new InternalSignal(7);
 
         var outcome = variant.Match(
