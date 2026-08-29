@@ -57,8 +57,9 @@ processor configured above 1 fails validation before it connects:
 Subscription.PartitionKeySelector is required when MaxParallelism is greater than 1.
 ```
 
-Once it lands, raising it will let one instance work on several records concurrently, which gives up
-ordering *within* the instance unless your handler tolerates it.
+What it controls today is the number of partitions the checkpoint bookkeeping keeps, not the number
+of records in flight. Dispatch is sequential either way: a batch is walked one record at a time, and
+nothing runs your handler concurrently with itself.
 
-Partitioning scales out across processes. `MaxParallelism` scales up inside one. They compose, and
-they cost different guarantees.
+Partitioning scales out across processes. Concurrency inside one process is not something this knob
+gives you yet.

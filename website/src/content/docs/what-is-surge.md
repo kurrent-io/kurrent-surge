@@ -81,9 +81,9 @@ the default, Protobuf and Avro are a property on the record you append, and raw 
 entirely. See [Formats](/schema/formats/).
 
 **Resilience is configured on both halves.** The client retries at the gRPC channel, declared in the
-service config so the transport enforces it rather than a loop above it. Processors retry inside the
-runtime, on a pipeline you can extend or replace outright. The same vocabulary on both sides, and a
-hand-rolled retry loop on neither. See [Configuring the client](/client/configuring-the-client/) and
+service config so the transport enforces it rather than a loop above it. A processor reconnects its
+own subscription on a pipeline you can extend or replace outright. The same vocabulary on both sides,
+and a hand-rolled reconnect loop on neither. See [Configuring the client](/client/configuring-the-client/) and
 [Error handling](/processors/error-handling/).
 
 **Routing is a gRPC policy, not a wrapper.** Discovery, node ranking, connection replacement and

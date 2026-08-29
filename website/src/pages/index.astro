@@ -52,7 +52,7 @@ const sections = [
     num: "05",
     label: "RESILIENCE",
     title: "Retries on the client\nand the processor.",
-    body: "The client retries at the gRPC channel, declared in the service config so the transport enforces it. Processors retry in the runtime, on a pipeline you can extend or replace. A retry loop of your own on neither.",
+    body: "The client retries at the gRPC channel, declared in the service config so the transport enforces it. A processor reconnects its subscription on a pipeline you can extend or replace. Two layers, one vocabulary, no reconnect loop of your own.",
     link: { href: "/client/configuring-the-client/", text: "Configure resilience" },
   },
   {

@@ -3,32 +3,46 @@ title: Error handling
 description: What happens when a handler throws, what the runtime retries, and where a position stops.
 ---
 
-Throwing from a handler is how you report failure. The runtime wraps the exception with the operation
-that failed, applies the resilience policy, and does not commit a position past the record that threw.
+Throwing from a handler is how you report failure, and it ends the run. The runtime wraps the
+exception, stops the processor, and faults the task you awaited with an `AggregateException` carrying
+a `DroneException`. Records later in the batch are never dispatched.
 
-The guarantee that matters: **a failed record is not checkpointed past.** After a restart, processing
-resumes at or before it, so the work is retried rather than skipped.
+The guarantee that matters: **a failed record is not checkpointed past.** Restart and processing
+resumes at or before it, so the work is retried rather than skipped. Restarting is your job, or your
+host's.
 
-## What the runtime retries
+## What the runtime retries, and what it does not
+
+The resilience options govern the **subscription**, not your handler. They decide how the client
+recovers when the transport drops, the server is not ready, or a leader moves.
 
 ```csharp
 opts.Resilience.MaxRetryAttempts = int.MaxValue;              // the default
 opts.Resilience.BaseDelay        = TimeSpan.FromMilliseconds(500);
 opts.Resilience.MaxDelay         = TimeSpan.FromSeconds(30);
-opts.Resilience.ShouldRetry      = ex => ex is not ValidationException;
 ```
 
-Retries are unlimited by default, with exponential backoff between 500 ms and 30 seconds. A processor
-is a long-lived background worker, so giving up permanently on a transient fault is usually worse than
-waiting.
+Reconnection is unlimited by default, with exponential backoff between 500 ms and 30 seconds. A
+processor is a long-lived background worker, so giving up permanently on a transient transport fault
+is usually worse than waiting.
 
-`ShouldRetry` narrows that. Return `false` for an exception that retrying cannot fix, and the
-processor stops instead of looping on it forever.
+`ShouldRetry` classifies those transport exceptions. It is never asked about one your handler threw.
+
+| Failure | What handles it |
+|---|---|
+| The subscription drops | The resilience pipeline reconnects, keeping position |
+| The leader moves | The same pipeline, after the client re-resolves |
+| Your handler throws | Nothing. The processor stops |
+
+So a handler that can fail transiently owns its own retry. Put the policy inside the handler, where
+you know what is worth retrying.
 
 ```csharp
-// A malformed record will be malformed on every attempt. Retrying it forever
-// stalls the partition behind it.
-opts.Resilience.ShouldRetry = ex => ex is not JsonException;
+public async ValueTask ProcessRecord(ProcessRecordContext context) {
+    await _pipeline.ExecuteAsync(
+        async ct => await _http.PostAsync(url, content, ct),
+        context.CancellationToken);
+}
 ```
 
 ## No dead-letter queue, by decision
@@ -47,22 +61,22 @@ The runtime does the opposite and keeps the position behind the failure.
 | Situation | What the position does |
 |---|---|
 | Handler succeeds | Advances past the record |
-| Handler throws | Stays behind it, so the record is retried |
+| Handler throws | Stays behind it, so a restart resumes at that record |
 | `CanProcess` returns `false` | Advances, because nothing claimed the record |
 
 The last row is the deliberate exception. A record your processor never accepts is not a failure, and
 a stream of types you do not handle would otherwise hold the position still forever.
 
-What stands in for the broker's tools:
+What that leaves you:
 
-| Broker answer | The equivalent here |
+| Broker answer | Here |
 |---|---|
-| Dead-letter queue | `ShouldRetry` returns `false` and the processor stops, position intact |
-| Circuit breaker | Backoff up to `MaxDelay`, which waits without giving up or advancing |
-| Discard a poison message | `CanProcess` refuses it before dispatch |
+| Dead-letter a poison message | Nothing. The processor stops with the position behind the record |
+| Refuse a message before it is handled | `CanProcess` returns `false` and the record is never dispatched |
+| Retry a message in place | Your handler's own policy, inside `ProcessRecord` |
 
 A stopped processor is recoverable and a skipped record is not, so stopping is the safer default.
-Moving past a bad record stays something you decide explicitly: make the handler tolerate it, or
+Moving past a bad record stays a decision you make explicitly: make the handler tolerate it, or
 exclude it with `CanProcess`, then restart.
 
 ## Cancellation is not failure

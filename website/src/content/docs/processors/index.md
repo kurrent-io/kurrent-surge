@@ -71,8 +71,8 @@ Configured through `ProcessorOptions`:
 | What to read | `Subscription`, which holds the filter and the start position |
 | Position tracking | `Checkpoint` |
 | Batch shape | `Batching` |
-| Failure handling | `Resilience` |
-| Concurrency | `MaxParallelism`, default 1 |
+| Reconnecting a dropped subscription | `Resilience` |
+| Checkpoint partition count | `MaxParallelism`, default 1 |
 | [Observability](/processors/observability/) | `Observers`, `MeterFactory`, `TrackSourceLag` |
 
 Read on for [writing a processor](/processors/writing-a-processor/),
