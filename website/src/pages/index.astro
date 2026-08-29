@@ -31,14 +31,14 @@ const sections = [
     num: "02",
     label: "SCHEMA",
     title: "Declare your message\ntypes once.",
-    body: "A catalog maps a CLR type to a schema name. The SDK registers and validates it against the registry, in JSON, Protobuf or Avro.",
+    body: "A catalog maps a CLR type to a schema name, in JSON, Protobuf or Avro. Turn the registry on and Kurrent Surge registers and validates against it.",
     link: { href: "/schema/", text: "See the schema layer" },
   },
   {
     num: "03",
     label: "CLIENT",
-    title: "Five modules,\n55 operations.",
-    body: "Streams, schema registry, secondary indexes, connectors and node administration. One surface over two gRPC protocols.",
+    title: "Five modules,\none surface.",
+    body: "Streams, schema registry, secondary indexes, connectors and node administration. One client over two gRPC protocols.",
     link: { href: "/client/", text: "Browse the client" },
   },
   {
@@ -56,8 +56,8 @@ const sections = [
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kurrent Surge — the .NET SDK for the Kurrent Platform</title>
-  <meta name="description" content="Connect to KurrentDB, and process what is in it without writing subscription plumbing." />
+  <title>Kurrent Surge, the state-of-the-art .NET SDK for the Kurrent Platform</title>
+  <meta name="description" content="Kurrent Surge is the brand-new .NET SDK for KurrentDB and the Kurrent Platform. Connect, append, read, and process your streams without writing subscription plumbing." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <script is:inline>document.documentElement.dataset.theme = "dark";</script>
 </head>
@@ -65,17 +65,20 @@ const sections = [
 
 <section class="hero">
   <div class="wrap">
-    <h1 class="hero__h1">The .NET SDK for the Kurrent Platform.</h1>
+    <h1 class="hero__h1 hero__h1--name">Kurrent Surge</h1>
+
+    <p class="hero__lede">
+      The state&#8209;of&#8209;the&#8209;art .NET SDK for KurrentDB and the Kurrent Platform.
+    </p>
 
     <p class="hero__sub">
-      Connect to KurrentDB, and process what is in it <b>without writing subscription
-      plumbing</b>. Kurrent Surge carries the Kurrent client and adds the thing the
-      client alone does not give you: processors.
+      Brand new. Connect, append and read, then process what is in your streams
+      <b>without writing subscription plumbing</b>.
     </p>
 
     <div class="hero__cta">
       <a class="btn-primary" href={DOCS_HREF}>Get started &rarr;</a>
-      <a class="btn-secondary" href={PROCESSORS_HREF}>Read the docs</a>
+      <a class="btn-secondary" href={PROCESSORS_HREF}>See processors</a>
     </div>
 
     <div class="hero__install">
@@ -94,7 +97,7 @@ const sections = [
 <section class="sect">
   <div class="wrap">
     <p class="sect__lbl">A COMPLETE STREAM PROCESSOR</p>
-    <h2 class="sect__h">Two methods. That is the program.</h2>
+    <h2 class="sect__h">One method. That is the program.</h2>
 
     <pre class="mono" style="
       margin: 24px 0 0; padding: 22px 24px;
@@ -163,9 +166,8 @@ await KurrentProcessor.Create(new TemperatureMonitor(), opts =&gt; &#123;
 <footer class="sect" style="padding-bottom: 96px;">
   <div class="wrap">
     <p style="color: var(--fg-fade); font-size: 14px;">
-      Kurrent Surge is the .NET SDK for the Kurrent Platform. Today almost everything it
-      reaches is KurrentDB, and the SDK is built to grow into the other platform services
-      without a second SDK.
+      Kurrent Surge is the .NET SDK for KurrentDB and the Kurrent Platform. It is new, and it is
+      built to grow into the rest of the platform without anyone needing a second SDK.
     </p>
   </div>
 </footer>
