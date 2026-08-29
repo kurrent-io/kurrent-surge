@@ -158,6 +158,7 @@ export default defineConfig({
             { label: 'Checkpointing', slug: 'processors/checkpointing' },
             { label: 'Partitioning', slug: 'processors/partitioning' },
             { label: 'Batching', slug: 'processors/batching' },
+            { label: 'Error handling', slug: 'processors/error-handling' },
           ],
         },
         {
@@ -185,6 +186,8 @@ export default defineConfig({
                 { label: 'Append', slug: 'client/streams/append' },
                 { label: 'Read', slug: 'client/streams/read' },
                 { label: 'Manage', slug: 'client/streams/manage' },
+                { label: 'Filters', slug: 'client/streams/filters' },
+                { label: 'Record metadata', slug: 'client/streams/metadata' },
               ],
             },
             { label: 'Registry', slug: 'client/registry' },

@@ -79,9 +79,9 @@ await foreach (var item in client.Streams.ReadRecords(LogPosition.Earliest)) { â
 Start at `Earliest` to replay history, `Latest` to pick up only what comes next, or `From(position)`
 to resume from where you stopped. The same shaping settings apply as for a single stream.
 
-Reading the whole log unfiltered is expensive. When you want a slice of it, a filter narrows it
-server-side rather than shipping everything to you. A slice is one category, one schema type, or one
-indexed field.
+Reading the whole log unfiltered is expensive. When you want a slice of it, a
+[filter](/client/streams/filters/) narrows it server-side rather than shipping everything to you. A
+slice is one category, one schema type, or one indexed field.
 
 ## Fetch a single record
 
