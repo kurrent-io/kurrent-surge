@@ -90,16 +90,37 @@ is work the processor is not doing. Keep them to recording a value or enqueuing 
 and never block on I/O inside one.
 :::
 
-## Trace correlation
+## Tracing
 
-A record carries `$traceId` and `$spanId` in its [metadata](/streams/metadata/) when the
-producer set them, which lets a consumer correlate its work back to whatever caused the record.
+A processor emits spans through `System.Diagnostics`, so any OpenTelemetry setup picks them up by
+subscribing to the source.
+
+```
+ActivitySource: Kurrent.Surge.Streaming
+```
+
+```csharp
+builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing
+    .AddSource("Kurrent.Surge.Streaming")
+    .AddOtlpExporter());
+```
+
+| Span | Covers |
+|---|---|
+| `processor.process_record` | One record through your handler |
+| `processor.process_batch` | One batch through your handler |
+| `process {stream}` | A record, named by the stream it came from |
+
+Spans start only when something is listening, so an application with no tracing configured pays
+nothing.
+
+### Correlation across a stream
+
+A record carries `$traceId` and `$spanId` in its [metadata](/streams/metadata/) when the producer set
+them. That links a consumer's work back to whatever caused the record, across process boundaries and
+across time, which a span alone cannot do once the producing process is gone.
 
 ```csharp
 if (context.Record.Metadata.TryGetValue<string>("$traceId", out var traceId))
     using var scope = context.Logger.BeginScope("{TraceId}", traceId);
 ```
-
-That is correlation through metadata, not distributed tracing. The SDK does not currently create an
-`ActivitySource` or emit spans of its own, so a span covering an append or a read is something your
-application starts, not something you will find already in the trace.
