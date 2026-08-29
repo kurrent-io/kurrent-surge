@@ -148,6 +148,7 @@ export default defineConfig({
             { label: 'Connection strings', slug: 'client/connection-strings' },
             { label: 'Configuring the client', slug: 'client/configuring-the-client' },
             { label: 'Clusters and discovery', slug: 'client/clusters-and-discovery' },
+            { label: 'Load balancing', slug: 'client/load-balancing' },
             { label: 'Security', slug: 'client/security' },
             { label: 'Troubleshooting', slug: 'client/troubleshooting' },
             { label: 'Registry', slug: 'client/registry' },

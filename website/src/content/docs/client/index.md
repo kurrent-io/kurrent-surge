@@ -6,6 +6,7 @@ description: Five modules. Streams, registry, indexes, connectors and administra
 `KurrentClient` is the entry point. It exposes five feature modules as properties.
 
 ```csharp
+// tls=false is the local development mode. Production drops it: /client/security/
 await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
 await client.Streams.AppendStream(...);
@@ -42,9 +43,13 @@ builder.Services.AddKurrent(kurrent => kurrent
 
 ## Cluster connections
 
-Under `kurrentdb+discover://`, the client discovers topology through gossip, picks a channel per
-call, and reacts to a leader change without you handling it. `ReadPreference` selects the node:
-`Leader`, `Follower`, `Random` or `ReadOnlyReplica`.
+Under `kurrentdb+discover://`, the client discovers topology through gossip, ranks the members by
+your node preference, and follows a leader change without you handling it. `ReadPreference` selects
+the node: `Leader`, `Follower`, `Random` or `ReadOnlyReplica`.
+
+That ranking is enforced by a real gRPC load balancing policy registered on the channel, not by a
+wrapper that resolves an address once. See [Load balancing](/client/load-balancing/) for the
+mechanism and [Clusters and discovery](/client/clusters-and-discovery/) for the settings.
 
 ## Errors
 
