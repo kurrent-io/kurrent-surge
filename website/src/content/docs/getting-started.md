@@ -3,13 +3,17 @@ title: Getting started
 description: Install Kurrent Surge, connect to KurrentDB, append and read your first records.
 ---
 
+This gets a record into KurrentDB and reads it back. For what Surge is and how it is designed, read
+[What is Kurrent Surge](/what-is-surge/) first.
+
 ## Install
 
 ```shell
 dotnet add package Kurrent.Surge
 ```
 
-Requires .NET 10.0 or a subsequent version.
+Requires .NET 10.0 or a subsequent version. `Kurrent.Surge` carries the client and the processors;
+the [other three packages](/what-is-surge/) are opt in.
 
 ## Declare your messages
 
@@ -56,4 +60,4 @@ Reading a stream by hand is fine for a query. To *process* a stream continuously
 [processor](/processors/) instead. It owns the checkpoints, the retries and the partitioning.
 
 To connect to a cluster, or to configure TLS, discovery or keepalive, see
-[Connection strings](/connect/connection-strings/).
+[Connection strings](/client/connection-strings/).

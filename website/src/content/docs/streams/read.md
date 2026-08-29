@@ -80,7 +80,7 @@ Start at `Earliest` to replay history, `Latest` to pick up only what comes next,
 to resume from where you stopped. The same shaping settings apply as for a single stream.
 
 Reading the whole log unfiltered is expensive. When you want a slice of it, a
-[filter](/client/streams/filters/) narrows it server-side rather than shipping everything to you. A
+[filter](/streams/filters/) narrows it server-side rather than shipping everything to you. A
 slice is one category, one schema type, or one indexed field.
 
 ## Fetch a single record
@@ -99,7 +99,7 @@ gave you a position and you want to see what it points at.
 
 `FirstRecord` and `LastRecord` give you the edges of a stream. `LastRecord` is the one you will
 actually use: it is how you find the current revision before an append that needs
-[optimistic concurrency](/client/streams/append/#guarding-against-concurrent-writes).
+[optimistic concurrency](/streams/append/#guarding-against-concurrent-writes).
 
 Pass no stream and you get the edges of the whole log:
 
@@ -121,8 +121,38 @@ restart, reconnecting when the server goes away, and not reprocessing everything
 That is what a [processor](/processors/) is. It owns the subscription, the checkpoints, and the
 reconnection, and leaves you writing a handler.
 
-Use `Subscribe` directly when you genuinely want the raw stream and will handle position tracking
-yourself. Reach for a processor otherwise.
+**Use a processor.** `Subscribe` is the primitive underneath it, and it is documented here so you can
+see what a processor is doing for you, not as the recommended path.
+
+```csharp
+var options = new SubscribeOptions {
+    Start  = LogPosition.Latest,
+    Filter = RecordFilter.ByCategory("orders")
+};
+
+await foreach (var item in client.Streams.Subscribe(options)) {
+    item.Switch(
+        connected  => { },   // the subscription is live
+        record     => Handle(record),
+        checkpoint => { });  // progress, including caught-up
+}
+```
+
+A subscription yields three things rather than two. `Connected` arrives once when the subscription is
+established, `Record` is your data, and `Checkpoint` carries progress.
+
+| Setting | What it decides |
+|---|---|
+| `Start` | Where to begin. Defaults to `Latest`, so history is skipped unless you ask for it |
+| `Filter` | Which records the subscription delivers |
+| `SkipDecoding` | Leave payloads as raw bytes |
+| `ResolveLinks` | Resolve link records to their targets. Default true |
+| `ThrowOnUnresolved` | Fail on a schema name with no mapped type, rather than passing it through raw |
+| `MaxSearchWindow` | Records scanned per filter page before a checkpoint is emitted |
+
+What you take on by using it directly: storing the position yourself, resuming from it after a
+restart, reconnecting when the server goes away, and making sure a redeploy does not replay from the
+beginning. None of that is provided here.
 
 ## When things go wrong
 

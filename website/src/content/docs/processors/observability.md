@@ -92,7 +92,7 @@ and never block on I/O inside one.
 
 ## Trace correlation
 
-A record carries `$traceId` and `$spanId` in its [metadata](/client/streams/metadata/) when the
+A record carries `$traceId` and `$spanId` in its [metadata](/streams/metadata/) when the
 producer set them, which lets a consumer correlate its work back to whatever caused the record.
 
 ```csharp

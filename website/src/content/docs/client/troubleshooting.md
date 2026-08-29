@@ -102,6 +102,6 @@ Split them into two clients, one per preference, rather than compromising on one
 
 | Symptom | Where it belongs |
 |---|---|
-| `StreamRevisionConflictException` after a retry | [Append](/client/streams/append/), optimistic concurrency |
+| `StreamRevisionConflictException` after a retry | [Append](/streams/append/), optimistic concurrency |
 | A schema fails to resolve or validate | [Registration](/schema/registration/) |
 | A leader election that never converges | Server-side. Cluster health, not client configuration |

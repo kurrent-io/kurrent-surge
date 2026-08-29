@@ -8,9 +8,9 @@ here, and it divides into three:
 
 | | What you do there |
 |---|---|
-| [Append](/client/streams/append/) | Write records to a stream, and decide what happens when another writer races you |
-| [Read](/client/streams/read/) | Read one stream, read everything, fetch a single record, or follow a live tail |
-| [Manage](/client/streams/manage/) | Inspect a stream, remove it or its events, and set retention and metadata |
+| [Append](/streams/append/) | Write records to a stream, and decide what happens when another writer races you |
+| [Read](/streams/read/) | Read one stream, read everything, fetch a single record, or follow a live tail |
+| [Manage](/streams/manage/) | Inspect a stream, remove it or its events, and set retention and metadata |
 
 All three come off the same `client.Streams`:
 

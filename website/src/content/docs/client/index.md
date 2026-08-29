@@ -17,7 +17,7 @@ await client.Admin.StartScavenge(...);
 
 | Module | Covers |
 |---|---|
-| [Streams](/client/streams/) | [Append](/client/streams/append/), [read](/client/streams/read/), [manage](/client/streams/manage/), [filter](/client/streams/filters/), [record metadata](/client/streams/metadata/) |
+| [Streams](/streams/) | [Append](/streams/append/), [read](/streams/read/), [manage](/streams/manage/), [filter](/streams/filters/), [record metadata](/streams/metadata/) |
 | [Connectors](/client/connectors/) | Create, configure, start, stop |
 | [Registry](/client/registry/) | Schemas and versions |
 | [Admin](/client/admin/) | Scavenge, node priority, shutdown |
