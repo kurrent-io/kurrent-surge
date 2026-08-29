@@ -64,6 +64,23 @@ a.sl-link-button.secondary:hover {
   border-color: var(--border-strong);
 }
 
+/* ---- Framed code blocks ------------------------------------------------ */
+/* A framed block — a terminal, or any block with a title — is one object. The
+   header owns the top corners and the line under itself, so the body must not
+   repeat either.
+
+   The ported theme rounds every `pre` to 10px and gives it a border on all four
+   sides. That is right for a bare block and wrong for a framed one: the header's
+   bottom border and the body's top border stack, the body re-rounds corners the
+   header already rounded, and the two halves read as separate boxes with a seam
+   between them. kcap's own docs never hit it because they use no framed blocks;
+   every ```bash block here becomes one. */
+.expressive-code .frame:is(.is-terminal, .has-title) pre {
+  border-top: none;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
 /* ---- Code scrollbars --------------------------------------------------- */
 /* A long code line leaves a horizontal scrollbar in the browser's default
    colours, which land blue against the near-black frame. */
