@@ -6,6 +6,20 @@
 
 ## Glossary
 
+### Product
+
+**Kurrent Surge**:
+The product, written as two words with no dot — in prose, headings, docs, commit messages, and issue
+text. It is the .NET SDK for the Kurrent Platform and KurrentDB, but "SDK" is what it *is*, not what
+it is *called*: use the descriptor to explain it once, then refer to it by name.
+_Avoid_: Surge on its own, the SDK, the .NET SDK, the client (as a name for the whole product —
+`KurrentClient` is one type inside it).
+
+**`Kurrent.Surge`**:
+The NuGet package and the root namespace — dotted, and only ever in code, a package reference, or a
+`using`. The dotted form is never the product's name in prose. "Install `Kurrent.Surge`" is right;
+"Kurrent.Surge is the SDK" is not — that is Kurrent Surge.
+
 ### Streaming pipeline
 
 **Stream**:
