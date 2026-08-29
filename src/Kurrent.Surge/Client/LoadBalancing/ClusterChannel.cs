@@ -152,13 +152,19 @@ sealed class ClusterChannel : IAsyncDisposable {
             logger: options.LoggerFactory.CreateLogger<LeaderChangeInterceptor>()
         );
 
-        Interceptor[] interceptors = options.Compression.Enabled
-            ? [..options.Interceptors, headersInterceptor, leaderChangeInterceptor, new CompressionInterceptor(options.Compression.Algorithm)]
-            : [..options.Interceptors, headersInterceptor, leaderChangeInterceptor];
+        // Infinite is the "no deadline" sentinel: without a value there is nothing to apply, and
+        // a deadline on a subscription would bound the stream rather than the first response.
+        List<Interceptor> interceptors = [..options.Interceptors, headersInterceptor, leaderChangeInterceptor];
+
+        if (options.Resilience.Deadline != Timeout.InfiniteTimeSpan)
+            interceptors.Add(new CallDeadlineInterceptor(options.Resilience.Deadline));
+
+        if (options.Compression.Enabled)
+            interceptors.Add(new CompressionInterceptor(options.Compression.Algorithm));
 
         var callInvoker = channel
             .CreateCallInvoker()
-            .Intercept(interceptors);
+            .Intercept([..interceptors]);
 
         return new(
             channel: channel,

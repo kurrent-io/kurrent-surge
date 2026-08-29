@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Net;
 using System.Text;
 using Kurrent.Surge.Client.Streams;
@@ -21,8 +22,15 @@ namespace Kurrent.Surge.Client;
 /// </remarks>
 [PublicAPI]
 public record KurrentClientOptions : SelfValidating<KurrentClientOptions, KurrentClientOptions.Validator>, IKurrentClientOptions {
-    public static KurrentClientOptions Parse(string connectionString) =>
-        KurrentConnectionString.Parse(connectionString).ToClientOptions();
+    public static KurrentClientOptions Parse(string connectionString) {
+        var options = KurrentConnectionString.Parse(connectionString).ToClientOptions();
+
+        // A connection string is user input, so it is checked here rather than reaching a live
+        // channel unvalidated. Constructing the options in code stays opt-in through EnsureValid.
+        options.EnsureValid();
+
+        return options;
+    }
 
     public static readonly string DefaultConnectionString = "kurrentdb://admin:changeit@localhost:2113?tls=false&tlsVerifyCert=false";
 
@@ -128,7 +136,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// Controls how the client handles transient failures and recovery strategies.
     /// </para>
     /// </remarks>
-    public KurrentClientResilienceOptions Resilience { get; set; } = KurrentClientResilienceOptions.NoResilience;
+    public KurrentClientResilienceOptions Resilience { get; set; } = KurrentClientResilienceOptions.Default;
 
     /// <summary>
     /// Schema configuration options.
@@ -216,7 +224,18 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
         return this;
     }
 
-    public override string ToString() => GenerateConnectionString(this);
+    /// <summary>
+    /// Renders these options as a connection string.
+    /// </summary>
+    /// <param name="legacy">
+    /// When <c>true</c>, durations are written as bare numbers in the unit the other KurrentDB
+    /// SDKs expect, so the result parses in every client. Sub-second values round down. When
+    /// <c>false</c>, durations carry an explicit <c>ms</c> or <c>s</c> suffix, which is exact but
+    /// only Surge reads it.
+    /// </param>
+    public string ToConnectionString(bool legacy = false) => GenerateConnectionString(this, legacy);
+
+    public override string ToString() => ToConnectionString();
 
     public class Validator : Validator<Validator, KurrentClientOptions> {
         public Validator() {
@@ -306,7 +325,7 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
     /// </para>
     /// </remarks>
     /// <returns>A connection string that can be used to connect to KurrentDB.</returns>
-    static string GenerateConnectionString(KurrentClientOptions options) {
+    static string GenerateConnectionString(KurrentClientOptions options, bool legacy) {
         var builder = new StringBuilder();
 
         // Add scheme
@@ -381,30 +400,29 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
             parameters.Add($"connectionName={Uri.EscapeDataString(options.ConnectionName)}");
 
         // Gossip parameters
-        if (options.Gossip.ReadPreference != NodeReadPreference.Random)
+        if (options.Gossip.ReadPreference != KurrentClientGossipOptions.Default.ReadPreference)
             parameters.Add($"nodePreference={options.Gossip.ReadPreference.ToString().ToLowerInvariant()}");
 
         if (options.Gossip.MaxDiscoverAttempts != KurrentClientGossipOptions.Default.MaxDiscoverAttempts)
             parameters.Add($"maxDiscoverAttempts={options.Gossip.MaxDiscoverAttempts}");
 
         if (options.Gossip.DiscoveryInterval != KurrentClientGossipOptions.Default.DiscoveryInterval)
-            parameters.Add($"discoveryInterval={(int)options.Gossip.DiscoveryInterval.TotalMilliseconds}");
+            parameters.Add($"discoveryInterval={FormatMilliseconds(options.Gossip.DiscoveryInterval)}");
 
         if (options.Gossip.Timeout != KurrentClientGossipOptions.Default.Timeout)
-            parameters.Add($"gossipTimeout={(int)options.Gossip.Timeout.TotalSeconds}");
+            parameters.Add($"gossipTimeout={FormatSeconds(options.Gossip.Timeout)}");
 
         // Resilience parameters
         if (options.Resilience.KeepAliveInterval != KurrentClientResilienceOptions.Default.KeepAliveInterval &&
             options.Resilience.KeepAliveInterval != Timeout.InfiniteTimeSpan)
-            parameters.Add($"keepAliveInterval={(int)options.Resilience.KeepAliveInterval.TotalSeconds}");
+            parameters.Add($"keepAliveInterval={FormatSeconds(options.Resilience.KeepAliveInterval)}");
 
         if (options.Resilience.KeepAliveTimeout != KurrentClientResilienceOptions.Default.KeepAliveTimeout &&
             options.Resilience.KeepAliveTimeout != Timeout.InfiniteTimeSpan)
-            parameters.Add($"keepAliveTimeout={(int)options.Resilience.KeepAliveTimeout.TotalSeconds}");
+            parameters.Add($"keepAliveTimeout={FormatSeconds(options.Resilience.KeepAliveTimeout)}");
 
-        if (options.Resilience.Deadline.HasValue &&
-            options.Resilience.Deadline.Value != Timeout.InfiniteTimeSpan)
-            parameters.Add($"defaultDeadline={(int)options.Resilience.Deadline.Value.TotalMilliseconds}");
+        if (options.Resilience.Deadline != Timeout.InfiniteTimeSpan)
+            parameters.Add($"defaultDeadline={FormatMilliseconds(options.Resilience.Deadline)}");
 
         // Append query parameters if any
         if (parameters.Count > 0) {
@@ -413,6 +431,23 @@ public record KurrentClientOptions : SelfValidating<KurrentClientOptions, Kurren
         }
 
         return builder.ToString();
+
+        // Legacy form is a bare number in the unit the other SDKs read for that parameter, which
+        // costs the sub-second part. The suffixed form is exact and only Surge parses it.
+        string FormatSeconds(TimeSpan duration) =>
+            legacy
+                ? ((int)duration.TotalSeconds).ToString(CultureInfo.InvariantCulture)
+                : Format(duration);
+
+        string FormatMilliseconds(TimeSpan duration) =>
+            legacy
+                ? ((int)duration.TotalMilliseconds).ToString(CultureInfo.InvariantCulture)
+                : Format(duration);
+
+        static string Format(TimeSpan duration) =>
+            duration.TotalMilliseconds % 1000 == 0
+                ? $"{(long)duration.TotalSeconds}s"
+                : $"{(long)duration.TotalMilliseconds}ms";
     }
 }
 
@@ -498,41 +533,90 @@ file static class Extensions {
             }
 
             KurrentClientResilienceOptions ConfigureResilienceOptions() {
-                var keepAliveIntervalMs = GetParameterValue(source.Options, "KeepAliveInterval", 60000);
-                var keepAliveTimeoutMs  = GetParameterValue(source.Options, "KeepAliveTimeout", 30000);
-                var defaultDeadlineMs   = GetParameterValue(source.Options, "DefaultDeadline", 30000);
+                // Only a key the connection string actually carries may override the profile.
+                // Writing every value unconditionally silently discarded the rest of the profile,
+                // which is how a parsed connection string used to re-enable retries.
+                var resilience = KurrentClientResilienceOptions.Default;
 
-                var keepAliveInterval = keepAliveIntervalMs == -1 ? Timeout.InfiniteTimeSpan : FromMilliseconds(keepAliveIntervalMs);
-                var keepAliveTimeout  = keepAliveTimeoutMs  == -1 ? Timeout.InfiniteTimeSpan : FromMilliseconds(keepAliveTimeoutMs);
-                var deadline          = defaultDeadlineMs   == -1 ? Timeout.InfiniteTimeSpan : FromMilliseconds(defaultDeadlineMs);
+                if (TryGetSeconds(source.Options, "KeepAliveInterval", out var keepAliveInterval))
+                    resilience.KeepAliveInterval = keepAliveInterval;
 
-                return new() {
-                    KeepAliveInterval = keepAliveInterval,
-                    KeepAliveTimeout  = keepAliveTimeout,
-                    Deadline          = deadline
-                };
+                if (TryGetSeconds(source.Options, "KeepAliveTimeout", out var keepAliveTimeout))
+                    resilience.KeepAliveTimeout = keepAliveTimeout;
+
+                if (TryGetMilliseconds(source.Options, "DefaultDeadline", out var deadline))
+                    resilience.Deadline = deadline;
+
+                return resilience;
             }
 
             KurrentClientGossipOptions ConfigureGossipOptions() {
-                var maxDiscoverAttempts = GetParameterValue(source.Options, "MaxDiscoverAttempts", 10);
-                var discoveryInterval   = GetParameterValue(source.Options, "DiscoveryInterval", 100);
-                var gossipTimeout       = GetParameterValue(source.Options, "GossipTimeout", 5000);
+                var gossip = KurrentClientGossipOptions.Default;
+
+                if (source.Options.ContainsKey("MaxDiscoverAttempts"))
+                    gossip.MaxDiscoverAttempts = GetParameterValue(source.Options, "MaxDiscoverAttempts", 0);
+
+                if (TryGetMilliseconds(source.Options, "DiscoveryInterval", out var discoveryInterval))
+                    gossip.DiscoveryInterval = discoveryInterval;
+
+                if (TryGetSeconds(source.Options, "GossipTimeout", out var gossipTimeout))
+                    gossip.Timeout = gossipTimeout;
 
                 // ReadPreference is the name going forward across every SDK; NodePreference is
                 // the current cross-SDK spelling every client still documents and emits. Accept
                 // both, ReadPreference wins if a connection string somehow carries both.
-                var readPreference = GetParameterValue(
-                    source.Options, "ReadPreference",
-                    GetParameterValue(source.Options, "NodePreference", NodeReadPreference.Random));
+                if (source.Options.ContainsKey("ReadPreference") || source.Options.ContainsKey("NodePreference"))
+                    gossip.ReadPreference = GetParameterValue(
+                        source.Options, "ReadPreference",
+                        GetParameterValue(source.Options, "NodePreference", gossip.ReadPreference));
 
-                return new() {
-                    MaxDiscoverAttempts = maxDiscoverAttempts,
-                    DiscoveryInterval   = FromMilliseconds(discoveryInterval),
-                    Timeout             = FromMilliseconds(gossipTimeout),
-                    ReadPreference      = readPreference
-                };
+                return gossip;
             }
         }
+    }
+
+    /// <summary>
+    /// Reads a duration whose bare form is expressed in seconds.
+    /// </summary>
+    static bool TryGetSeconds(Dictionary<string, string> source, string key, out TimeSpan value) =>
+        TryGetDuration(source, key, secondsWhenBare: true, out value);
+
+    /// <summary>
+    /// Reads a duration whose bare form is expressed in milliseconds.
+    /// </summary>
+    static bool TryGetMilliseconds(Dictionary<string, string> source, string key, out TimeSpan value) =>
+        TryGetDuration(source, key, secondsWhenBare: false, out value);
+
+    // A bare number carries the unit the connection-string format assigns to its parameter:
+    // seconds for keepAlive* and gossipTimeout, milliseconds for discoveryInterval and
+    // defaultDeadline. That split is the published contract every KurrentDB SDK implements,
+    // so a string written for another client means the same thing here.
+    // An explicit "ms" or "s" suffix is a Surge extension and overrides the bare unit.
+    // "-1" is the cross-SDK sentinel for "no limit" and carries no unit.
+    static bool TryGetDuration(Dictionary<string, string> source, string key, bool secondsWhenBare, out TimeSpan value) {
+        value = default;
+
+        if (!source.TryGetValue(key, out var raw))
+            return false;
+
+        raw = raw.Trim();
+
+        if (raw == "-1") {
+            value = Timeout.InfiniteTimeSpan;
+            return true;
+        }
+
+        // "ms" must be tested before "s", since it also ends in "s".
+        var (number, inSeconds) =
+            raw.EndsWith("ms", StringComparison.OrdinalIgnoreCase) ? (raw[..^2], false)
+            : raw.EndsWith("s", StringComparison.OrdinalIgnoreCase) ? (raw[..^1], true)
+            : (raw, secondsWhenBare);
+
+        if (!double.TryParse(number.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var amount))
+            throw new FormatException($"Connection string parameter '{key}' has value '{raw}', which is not a duration.");
+
+        value = inSeconds ? FromSeconds(amount) : FromMilliseconds(amount);
+        return true;
     }
 
     static T GetParameterValue<T>(Dictionary<string, string> source, string key, T defaultValue) {

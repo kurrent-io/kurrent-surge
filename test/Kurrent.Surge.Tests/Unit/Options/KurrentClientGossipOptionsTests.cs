@@ -2,7 +2,7 @@ namespace Kurrent.Surge.Tests.Options;
 
 public class KurrentClientGossipOptionsTests {
     [Test]
-    public async Task default_gossip_options_have_expected_values() {
+    public async ValueTask default_gossip_options_have_expected_values() {
         // Create default options
         var options = KurrentClientGossipOptions.Default;
 
@@ -10,11 +10,11 @@ public class KurrentClientGossipOptionsTests {
         await Assert.That(options.MaxDiscoverAttempts).IsEqualTo(10);
         await Assert.That(options.DiscoveryInterval).IsEqualTo(TimeSpan.FromMilliseconds(100));
         await Assert.That(options.Timeout).IsEqualTo(TimeSpan.FromSeconds(5));
-        await Assert.That(options.ReadPreference).IsEqualTo(NodeReadPreference.Random);
+        await Assert.That(options.ReadPreference).IsEqualTo(NodeReadPreference.Leader);
     }
 
     [Test]
-    public async Task creating_custom_gossip_options_stores_expected_values() {
+    public async ValueTask creating_custom_gossip_options_stores_expected_values() {
         // Create custom gossip options
         var options = new KurrentClientGossipOptions {
             MaxDiscoverAttempts = 15,
@@ -31,7 +31,7 @@ public class KurrentClientGossipOptionsTests {
     }
 
     [Test]
-    public async Task gossip_options_with_small_timeout_are_valid() {
+    public async ValueTask gossip_options_with_small_timeout_are_valid() {
         // Create options with minimal timeouts
         var options = new KurrentClientGossipOptions {
             DiscoveryInterval = TimeSpan.FromMilliseconds(10),
@@ -44,7 +44,7 @@ public class KurrentClientGossipOptionsTests {
     }
 
     [Test]
-    public async Task default_constructor_creates_same_values_as_default_property() {
+    public async ValueTask default_constructor_creates_same_values_as_default_property() {
         // Create with default constructor
         var constructedOptions = new KurrentClientGossipOptions();
 

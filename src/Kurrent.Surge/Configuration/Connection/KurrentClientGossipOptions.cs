@@ -73,7 +73,7 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
     ///   <item><description><see cref="NodeReadPreference.ReadOnlyReplica"/> - Prefer read-only replica nodes</description></item>
     /// </list>
     /// </remarks>
-    public NodeReadPreference ReadPreference { get; set; } = NodeReadPreference.Random;
+    public NodeReadPreference ReadPreference { get; set; } = NodeReadPreference.Leader;
 
     /// <summary>
     /// The default gossip configuration settings.
@@ -85,14 +85,14 @@ public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOpt
     ///   <item><description>MaxDiscoverAttempts = 10</description></item>
     ///   <item><description>DiscoveryInterval = 100ms</description></item>
     ///   <item><description>Timeout = 5s</description></item>
-    ///   <item><description>ReadPreference = Random</description></item>
+    ///   <item><description>ReadPreference = Leader</description></item>
     /// </list>
     /// </remarks>
     public static KurrentClientGossipOptions Default => new() {
         MaxDiscoverAttempts = 10,
         DiscoveryInterval   = TimeSpan.FromMilliseconds(100),
         Timeout             = TimeSpan.FromSeconds(5),
-        ReadPreference      = NodeReadPreference.Random
+        ReadPreference      = NodeReadPreference.Leader
     };
 
     public class Validator : Validator<Validator, KurrentClientGossipOptions> {

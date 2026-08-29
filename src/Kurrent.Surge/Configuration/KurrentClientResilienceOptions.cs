@@ -73,7 +73,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// Specific profiles may override this.
     /// </para>
     /// </remarks>
-    public TimeSpan? Deadline { get; set; }
+    public TimeSpan Deadline { get; set; } = Timeout.InfiniteTimeSpan;
 
     /// <summary>
     /// Retry configuration options.
@@ -331,9 +331,10 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
 
             // KeepAliveTimeout validation
             When(options => options.KeepAliveTimeout != Timeout.InfiniteTimeSpan && options.KeepAliveInterval != Timeout.InfiniteTimeSpan, () => {
+                // Equal values are the cross-SDK default (10s/10s), so the bound is inclusive.
                 RuleFor(options => options.KeepAliveTimeout)
-                    .LessThan(options => options.KeepAliveInterval)
-                    .WithMessage("KeepAliveTimeout must be less than KeepAliveInterval.");
+                    .LessThanOrEqualTo(options => options.KeepAliveInterval)
+                    .WithMessage("KeepAliveTimeout must not be greater than KeepAliveInterval.");
             });
 
             // RetryOptions validation
@@ -356,14 +357,13 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
 
             // Deadline consistency warning
             When(options =>
-                options.Deadline.HasValue &&
-                options.Deadline.Value != Timeout.InfiniteTimeSpan &&
+                options.Deadline != Timeout.InfiniteTimeSpan &&
                 options.KeepAliveTimeout != Timeout.InfiniteTimeSpan, () =>
             {
                 RuleFor(options => options.Deadline)
-                    .Must((options, deadline) => deadline!.Value >= options.KeepAliveTimeout,
+                    .Must((options, deadline) => deadline >= options.KeepAliveTimeout,
                         "Deadline is less than KeepAliveTimeout.")
-                    .WithMessage(options => $"Deadline ({options.Deadline!.Value:g}) is less than KeepAliveTimeout ({options.KeepAliveTimeout:g}). This may result in operations failing before keepalive detection occurs.")
+                    .WithMessage(options => $"Deadline ({options.Deadline:g}) is less than KeepAliveTimeout ({options.KeepAliveTimeout:g}). This may result in operations failing before keepalive detection occurs.")
                     .WithSeverity(RuleSeverity.Warning);
             });
         }

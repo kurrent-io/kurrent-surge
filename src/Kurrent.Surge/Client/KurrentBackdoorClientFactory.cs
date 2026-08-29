@@ -92,8 +92,10 @@ class KurrentBackdoorClientFactory : IDisposable {
             }
         };
 
-        if (options.Deadline is { } deadline)
-            httpResilienceOptions.TotalRequestTimeout.Timeout = deadline;
+        // Polly rejects an infinite total-request timeout, and infinite is the "no deadline"
+        // sentinel, so leave its own default in place rather than forwarding the sentinel.
+        if (options.Deadline != Timeout.InfiniteTimeSpan)
+            httpResilienceOptions.TotalRequestTimeout.Timeout = options.Deadline;
 
         return new ResiliencePipelineBuilder<HttpResponseMessage>()
             .AddRateLimiter(httpResilienceOptions.RateLimiter)
