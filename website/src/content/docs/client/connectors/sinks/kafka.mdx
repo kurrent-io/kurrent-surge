@@ -90,7 +90,9 @@ See the [Partitioning](#partitioning-1) section for examples.
 
 #### Resilience
 
-The Kafka sink connector relies on its own Kafka retry mechanism and doesn't include the configuration from [Resilience configuration](/client/connectors/settings/#resilience-configuration).
+The Kafka sink connector relies on its own Kafka retry mechanism. None of the keys in
+[Resilience configuration](/client/connectors/settings/#resilience-configuration) apply to it. The two keys
+below share the `resilience:` prefix, but they are separate settings.
 
 | Name                               | Details                                                                                                                                                                                                    |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

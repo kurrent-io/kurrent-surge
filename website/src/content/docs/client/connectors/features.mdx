@@ -115,7 +115,9 @@ Some connectors support passing extra headers beyond those listed above. See eac
 All sink connectors support filtering events using regular expressions, JsonPath expressions, or prefixes. The expression is first checked as a JsonPath, then as a regex, and if neither, it's used as a prefix for filtering.
 
 :::note
-By default, if no filter is specified, the system will consume from the `$all` stream, excluding system events.
+With neither `subscription:filter:scope` nor `subscription:filter:expression` set, a connector consumes
+`$all`, excluding system events. Setting the scope while leaving the expression empty consumes `$all`
+*including* system events. See [Configure connector](/client/connectors/settings/).
 :::
 
 ### Stream ID Filter
