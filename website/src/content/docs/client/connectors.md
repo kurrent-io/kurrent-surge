@@ -18,27 +18,28 @@ list tracks the **server** version, not the SDK. It is current for KurrentDB 26.
 
 ### Sinks, which move records out
 
-| `instanceTypeName` | Writes to | Since | License |
-|---|---|---|---|
-| [`http-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/http) | Any HTTP endpoint | 24.10 | **Free** |
-| [`serilog-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/serilog) | A Serilog sink: console, file or Seq | 24.10 | **Free** |
-| [`kafka-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/kafka) | A Kafka topic | 24.10 | Required |
-| [`mongo-db-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/mongo) | A MongoDB collection | 24.10 | Required |
-| [`rabbit-mq-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/rabbitmq) | A RabbitMQ exchange | 24.10 | Required |
-| [`elasticsearch-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/elasticsearch) | An Elasticsearch index | 25.0 | Required |
-| [`pulsar-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/pulsar) | A Pulsar topic | 25.1 | Required |
-| [`sql-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/sql) | SQL Server or PostgreSQL | 26.0 | Required |
+| `instanceTypeName` | Writes to | Since |
+|---|---|---|
+| [`http-sink`](/client/connectors/http-sink/) | Any HTTP endpoint | 24.10 |
+| [`serilog-sink`](/client/connectors/serilog-sink/) | A Serilog sink: console, file or Seq | 24.10 |
+| [`kafka-sink`](/client/connectors/kafka-sink/) | A Kafka topic | 24.10 |
+| [`mongo-db-sink`](/client/connectors/mongo-db-sink/) | A MongoDB collection | 24.10 |
+| [`rabbit-mq-sink`](/client/connectors/rabbit-mq-sink/) | A RabbitMQ exchange | 24.10 |
+| [`elasticsearch-sink`](/client/connectors/elasticsearch-sink/) | An Elasticsearch index | 25.0 |
+| [`pulsar-sink`](/client/connectors/pulsar-sink/) | A Pulsar topic | 25.1 |
+| [`sql-sink`](/client/connectors/sql-sink/) | SQL Server or PostgreSQL | 26.0 |
 
 ### Sources, which move records in
 
-| `instanceTypeName` | Reads from | Since | License |
-|---|---|---|---|
-| [`kafka-source`](https://docs.kurrent.io/server/v26.1/features/connectors/sources/kafka) | A Kafka topic | 26.0 | Required |
-| [`webhook-source`](https://docs.kurrent.io/server/v26.1/features/connectors/sources/webhook) | `POST /webhook/{connectorId}` | 26.1 | Unstated |
+| `instanceTypeName` | Reads from | Since |
+|---|---|---|
+| [`kafka-source`](/client/connectors/kafka-source/) | A Kafka topic | 26.0 |
+| [`webhook-source`](/client/connectors/webhook-source/) | `POST /webhook/{connectorId}` | 26.1 |
 
-Two sinks run without a licence key: `http-sink` and `serilog-sink`. Every other connector needs
-one, and the server refuses to start a licensed feature without it. Reach for `serilog-sink` when
-you want to see a connector work before buying anything.
+Each page carries that connector's settings and says whether it needs a licence. Two sinks run
+without a licence key, `http-sink` and `serilog-sink`, and the server refuses to start a licensed
+feature without one. Reach for `serilog-sink` when you want to watch a connector work before buying
+anything.
 
 :::caution
 A source is not a sink with the arrow reversed. Sources take **only** `instanceTypeName` and
