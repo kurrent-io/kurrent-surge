@@ -58,7 +58,7 @@ the [Sink Options](/client/connectors/settings/#sink-options) page.
 
 | Name                   | Details                                                                                                     |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `topic`                | _required_<br/><br/>**Description:**<br/>The Pulsar topic where records are published. to.                     |
+| `topic`                | _required_<br/><br/>**Description:**<br/>The Pulsar topic where records are published to.                     |
 | `url`                  | **Description:**<br/>The service URL for the Pulsar cluster.<br/><br/>**Default**: `"pulsar://localhost:6650"` |
 | `defaultHeaders`       | **Description:**<br/>Headers included in all produced messages.<br/><br/>**Default**: Empty                    |
 | `authentication:token` | **Description:**<br/>A JSON web token for authenticating the connector with Pulsar.                          |
@@ -70,7 +70,7 @@ Partitioning options determine how the connector assigns partition keys, which a
 | Name                                | Details                                                                                                                                                                                                                                                           |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `partitionKeyExtraction:enabled`    | **Description:**<br/>Enables partition key extraction.<br/><br/>**Default**: `"false"`                                                                                                                                                                                      |
-| `partitionKeyExtraction:source`     | **Description:**<br/>The source for extracting the partition key.<br/><br/>**Accepted Values:**`"stream"`, `"streamSuffix"`, `"headers"`<br/><br/>**Default**: `"partitionKey"`                                                                                                   |
+| `partitionKeyExtraction:source`     | **Description:**<br/>The source for extracting the partition key.<br/><br/>**Accepted Values:**`"partitionKey"`, `"stream"`, `"streamSuffix"`, `"headers"`<br/><br/>**Default**: `"partitionKey"`                                                                                                   |
 | `partitionKeyExtraction:expression` | **Description:**<br/>A regex (for `stream` source) or a comma-separated list of header keys (for `headers` source) used to extract or combine values for the partition key. When using headers, values are concatenated with a hyphen (for example, `value1-value2`). |
 
 ### Resilience
@@ -84,7 +84,7 @@ The Pulsar sink connector relies on its own retry mechanism and doesn't include 
 
 ## Headers
 
-The Kafka sink connector lets you include custom headers in the message headers
+The Pulsar sink connector lets you include custom headers in the message headers
 it sends to your topic. To add custom headers, use the `defaultHeaders` setting
 in your connector configuration. Each custom header should be specified with the
 prefix `defaultHeaders:` followed by the header name.

@@ -71,7 +71,7 @@ The RabbitMQ sink can be configured with the following options:
 | `routingKey`                      | **Description:**<br/>Used by the exchange to determine how to route a message to the appropriate queue(s). The routing key is evaluated against the binding rules of the queues associated with the exchange, influencing the message's delivery path.<br/><br/>**Default**: `""` |
 | `host`                            | **Description:**<br/>Hostname of the server.<br/><br/>**Default**: `"localhost"`                                                                                                                                                                                                  |
 | `port`                            | **Description:**<br/>Port number of the server.<br/><br/>**Default**: `"5672"`                                                                                                                                                                                                    |
-| `connectionName`                  | **Description:**<br/>Connection name used for logging and diagnostics. The default value is the connector ID.Connection name used for logging and diagnostics.<br/><br/>**Default**: The connector id                                                                             |
+| `connectionName`                  | **Description:**<br/>Connection name used for logging and diagnostics. The default value is the connector ID.<br/><br/>**Default**: The connector id                                                                             |
 | `virtualHost`                     | **Description:**<br/>Represents the VirtualHost (vhost) used in RabbitMQ. <br/><br/>**Default**: `/`                                                                                                                                                                              |
 | `waitForBrokerAck`                | **Description:**<br/>Whether the channel waits for broker acknowledgment before considering the send operation complete.<br/><br/>**Default**: `"false"`                                                                                                                          |
 | `authentication:username`         | **Description:**<br/>Username for authentication.<br/><br/>**Default**: `"guest"`                                                                                                                                                                                                 |
@@ -91,7 +91,7 @@ The RabbitMQ sink connector relies on its own RabbitMQ retry mechanism and doesn
 
 ## Broker Acknowledgment
 
-By default, the connector waits for broker acknowledgment. Enabling broker acknowledgment ensures that each message sent
+By default, the connector does not wait for broker acknowledgment. Enabling broker acknowledgment ensures that each message sent
 to RabbitMQ is confirmed by the broker before the publish operation is considered complete:
 
 ```http
@@ -100,7 +100,7 @@ Host: localhost:2113
 Content-Type: application/json
 
 {
-  "WaitForBrokerAck": true
+  "waitForBrokerAck": "true"
 }
 ```
 

@@ -139,7 +139,7 @@ prefix `defaultHeaders:` followed by the header name.
 Example:
 
 ```http
-PUT /connectors/{id}
+PUT /connectors/{id}/settings
 Host: localhost:2113
 Content-Type: application/json
 
@@ -264,8 +264,9 @@ Content-Type: application/json
 The Kafka sink connector allows customizing the partition keys that are sent
 with the message. 
 
-By default, it will use `"partitionKey"` and the message will be distributed
-using round-robin partitioning across the available partitions in the topic. 
+`partitionKeyExtraction:enabled` defaults to `"false"`, so no key is extracted
+unless you enable it. Without a key, Kafka distributes messages round-robin across
+the available partitions in the topic. 
 
 **Partition using Stream ID**
 

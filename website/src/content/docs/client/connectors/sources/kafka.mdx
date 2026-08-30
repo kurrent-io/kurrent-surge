@@ -65,13 +65,13 @@ The `Consumer` section accepts standard Confluent Kafka consumer configuration o
 | `consumer:autoCommitIntervalMs` | **Description:** Auto-commit interval in milliseconds.<br/><br/>**Default**: `5000`                                                                         |
 | `consumer:sessionTimeoutMs`     | **Description:** Session timeout in milliseconds.<br/><br/>**Default**: `45000`                                                                             |
 | `consumer:enablePartitionEof`   | **Description:** Enable end-of-partition notifications.<br/><br/>**Default**: `true`                                                                        |
-| `consumer:securityProtocol`     | **Description:** SASL mechanism to use for authentication.<br/><br/>**Accepted Values:**`plaintext`, `ssl`, `saslPlaintext`<br/><br/>**Default**: `plaintext` |
-| `consumer:saslMechanism`        | **Description:** Protocol used to communicate with brokers.<br/><br/>**Accepted Values:**`plain`<br/><br/>**Default**: `""`                                   |
+| `consumer:securityProtocol`     | **Description:** Protocol used to communicate with brokers.<br/><br/>**Accepted Values:**`plaintext`, `ssl`, `saslPlaintext`<br/><br/>**Default**: `plaintext` |
+| `consumer:saslMechanism`        | **Description:** SASL mechanism to use for authentication.<br/><br/>**Accepted Values:**`plain`<br/><br/>**Default**: `""`                                   |
 | `consumer:sslCaPem`             | **Description:** CA certificate string (PEM format) for verifying the broker's key.                                                                       |
 | `consumer:sslCertificatePem`    | **Description:** Client's public key string (PEM format) used for authentication.                                                                         |
 | `consumer:sslKeyPem`            | **Description:** Client's private key string (PEM format) used for authentication.                                                                        |
-| `consumer:saslUsername`         | **Description:** SASL username for use with the PLAIN.                                                                                                    |
-| `consumer:saslPassword`         | **Description:** SASL password for use with the PLAIN.                                                                                                    |
+| `consumer:saslUsername`         | **Description:** SASL username for use with the PLAIN mechanism.                                                                                                    |
+| `consumer:saslPassword`         | **Description:** SASL password for use with the PLAIN mechanism.                                                                                                    |
 
 ### Stream Routing Configuration
 
@@ -85,7 +85,7 @@ The `stream` section configures how Kafka messages are routed to KurrentDB strea
 ### Authentication
 
 The default authentication method is `plaintext`. You can configure the authentication method to use by setting the
-`authentication:securityProtocol` option.
+`consumer:securityProtocol` option.
 
 #### SSL/TLS
 
