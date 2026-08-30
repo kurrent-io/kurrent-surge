@@ -3,9 +3,74 @@ title: Connectors
 description: Create, configure, run and inspect connectors.
 ---
 
-Connectors stream records from KurrentDB into external systems. This module covers their whole
-lifecycle. The connector implementations themselves live on the server; here you manage them.
+Connectors move records between KurrentDB and an external system. Each one runs **on the server**,
+where it holds its own catch-up subscription, filters or transforms what it reads, and pushes the
+result out. That is the point of them: nobody has to host, checkpoint and babysit a subscription
+service of their own.
 
+This module manages their lifecycle. It does not implement them, and it does not validate their
+settings.
+
+## What you can create
+
+`instanceTypeName` picks the implementation. Because the implementations ship with the server, this
+list tracks the **server** version, not the SDK. It is current for KurrentDB 26.1.
+
+### Sinks, which move records out
+
+| `instanceTypeName` | Writes to | Since | License |
+|---|---|---|---|
+| [`http-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/http) | Any HTTP endpoint | 24.10 | **Free** |
+| [`serilog-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/serilog) | A Serilog sink: console, file or Seq | 24.10 | **Free** |
+| [`kafka-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/kafka) | A Kafka topic | 24.10 | Required |
+| [`mongo-db-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/mongo) | A MongoDB collection | 24.10 | Required |
+| [`rabbit-mq-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/rabbitmq) | A RabbitMQ exchange | 24.10 | Required |
+| [`elasticsearch-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/elasticsearch) | An Elasticsearch index | 25.0 | Required |
+| [`pulsar-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/pulsar) | A Pulsar topic | 25.1 | Required |
+| [`sql-sink`](https://docs.kurrent.io/server/v26.1/features/connectors/sinks/sql) | SQL Server or PostgreSQL | 26.0 | Required |
+
+### Sources, which move records in
+
+| `instanceTypeName` | Reads from | Since | License |
+|---|---|---|---|
+| [`kafka-source`](https://docs.kurrent.io/server/v26.1/features/connectors/sources/kafka) | A Kafka topic | 26.0 | Required |
+| [`webhook-source`](https://docs.kurrent.io/server/v26.1/features/connectors/sources/webhook) | `POST /webhook/{connectorId}` | 26.1 | Unstated |
+
+Two sinks run without a licence key: `http-sink` and `serilog-sink`. Every other connector needs
+one, and the server refuses to start a licensed feature without it. Reach for `serilog-sink` when
+you want to see a connector work before buying anything.
+
+:::caution
+A source is not a sink with the arrow reversed. Sources take **only** `instanceTypeName` and
+`logging:enabled`. The subscription, transformer, resilience and autocommit blocks below are
+sink-only, and setting them on a source does nothing.
+:::
+
+## Settings every sink takes
+
+These are independent of which sink you chose. Per-connector keys live on the pages linked above,
+and there are a lot of them, so this page does not mirror them.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `subscription:filter:scope` | | `stream` or `record` |
+| `subscription:filter:filterType` | | `streamId`, `prefix`, `regex` or `jsonPath` |
+| `subscription:filter:expression` | `""` | The filter itself |
+| `subscription:initialPosition` | `latest` | `latest` or `earliest` |
+| `transformer:enabled` | `false` | |
+| `transformer:function` | `""` | Base64 JavaScript. Required when the transformer is on |
+| `resilience:enabled` | `true` | |
+| `autocommit:enabled` | `true` | Whether the connector checkpoints for you |
+| `autocommit:interval` | `5000` | Milliseconds |
+| `autocommit:recordsThreshold` | `1000` | |
+| `logging:enabled` | `true` | |
+
+Retry backoff is three bounds, each a pair: `resilience:firstDelayBound:upperLimitMs` and
+`:delayMs`, then `second`, then `third`. The third bound defaults to `-1`, which means retry
+forever.
+
+`resilience:enabled` is not universal in practice. The Kafka, Pulsar and RabbitMQ sinks carry their
+own retry mechanisms and ignore it, which their own pages say explicitly.
 
 ## Create
 
@@ -14,15 +79,24 @@ options.
 
 ```csharp
 Dictionary<string, string> settings = new() {
-    ["instanceTypeName"]        = "kafka-sink",
-    ["topic"]                   = "orders",
-    ["bootstrapServers"]        = "kafka.internal:9092",
-    ["authentication:username"] = "app",
-    ["authentication:password"] = "secret"
+    ["instanceTypeName"]               = "kafka-sink",
+    ["topic"]                          = "orders",
+    ["bootstrapServers"]               = "kafka.internal:9092",
+    ["authentication:username"]        = "app",
+    ["authentication:password"]        = "secret",
+
+    // shared by every sink, not specific to Kafka
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "prefix",
+    ["subscription:filter:expression"] = "order-",
+    ["subscription:initialPosition"]   = "latest"
 };
 
 await client.Connectors.Create("orders-to-kafka", "Orders to Kafka", settings);
 ```
+
+A working version of this, with partition-key extraction and compression, is in
+[`examples/processors/Connector.Management`](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/examples/processors/Connector.Management).
 
 Omit the name and the id becomes the display name.
 
@@ -37,7 +111,10 @@ await client.Connectors.Create("orders-to-kafka", """
     """);
 ```
 
-The available keys are per connector type and documented with the connector itself.
+**The SDK does not validate any of this.** Settings are copied into the request as you wrote them,
+so a misspelled key is not rejected here. It reaches the server, the connector fails to start, and
+the reason arrives in `ErrorDetails` on the next `List`. Check the key against the connector's own
+page before you deploy it.
 
 ## Reconfigure
 
