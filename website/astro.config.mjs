@@ -141,31 +141,37 @@ export default defineConfig({
           ],
         },
         {
-          label: '02 · CLIENT',
+          label: '02 · CONNECTING',
           collapsed: true,
           items: [
-            { label: 'Overview', slug: 'client' },
             { label: 'Connection strings', slug: 'client/connection-strings' },
             { label: 'Configuring the client', slug: 'client/configuring-the-client' },
             { label: 'Clusters and load balancing', slug: 'client/clusters-and-discovery' },
             { label: 'Security', slug: 'client/security' },
             { label: 'Troubleshooting', slug: 'client/troubleshooting' },
+          ],
+        },
+        {
+          label: '03 · CLIENT',
+          collapsed: true,
+          items: [
+            { label: 'Overview', slug: 'client' },
+            {
+              label: 'Streams',
+              collapsed: true,
+              items: [
+                { label: 'Overview', slug: 'streams' },
+                { label: 'Append', slug: 'streams/append' },
+                { label: 'Read', slug: 'streams/read' },
+                { label: 'Manage', slug: 'streams/manage' },
+                { label: 'Filters', slug: 'streams/filters' },
+                { label: 'Record metadata', slug: 'streams/metadata' },
+              ],
+            },
             { label: 'Registry', slug: 'client/registry' },
             { label: 'Indexes', slug: 'client/indexes' },
             { label: 'Connectors', slug: 'client/connectors' },
             { label: 'Admin', slug: 'client/admin' },
-          ],
-        },
-        {
-          label: '03 · STREAMS',
-          collapsed: true,
-          items: [
-            { label: 'Overview', slug: 'streams' },
-            { label: 'Append', slug: 'streams/append' },
-            { label: 'Read', slug: 'streams/read' },
-            { label: 'Manage', slug: 'streams/manage' },
-            { label: 'Filters', slug: 'streams/filters' },
-            { label: 'Record metadata', slug: 'streams/metadata' },
           ],
         },
         {

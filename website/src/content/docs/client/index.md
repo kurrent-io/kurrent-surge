@@ -26,30 +26,8 @@ await client.Admin.StartScavenge(...);
 
 Each page lists every operation the module carries, with its overloads.
 
-## Creating a client
-
-```csharp
-KurrentClient.Create("kurrentdb://localhost:2113")
-KurrentClient.Create(options)
-KurrentClient.Create("kurrentdb://localhost:2113", opts => { … })
-```
-
-Or through dependency injection:
-
-```csharp
-builder.Services.AddKurrent(kurrent => kurrent
-    .Connection("kurrentdb://admin:changeit@localhost:2113?tls=false"));
-```
-
-## Cluster connections
-
-Under `kurrentdb+discover://`, the client discovers topology through gossip, ranks the members by
-your node preference, and follows a leader change without you handling it. `ReadPreference` selects
-the node: `Leader`, `Follower`, `Random` or `ReadOnlyReplica`.
-
-That ranking is enforced by a real gRPC load balancing policy registered on the channel, not by a
-wrapper that resolves an address once. See
-[Clusters and load balancing](/client/clusters-and-discovery/).
+Building one, pointing it at a cluster, and tuning the transport are all
+[Connecting](/client/connection-strings/). This page is about what you reach once you have one.
 
 ## Errors
 

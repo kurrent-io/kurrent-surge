@@ -16,55 +16,45 @@ Three of those layers, in the order you meet them.
 ## Declare your messages
 
 A record on a stream carries a schema name, a string identity that outlives your code. The v1 client
-took the CLR type name and wrote that, so renaming a class silently broke every consumer. Surge makes
-you say it. A **catalog** maps a type to a name, a source generator turns the declaration into code at
-compile time, and an append of an undeclared type throws rather than writing a name you cannot change
-later. For the full picture, see [Schema](/schema/).
+took the CLR type name and wrote that, so renaming a class silently broke every consumer at the next
+deploy, with no error anywhere to find.
 
-```csharp
-using Kurrent.Surge.Schema.Catalogs;
+Surge makes you say the name. A **catalog** maps a type to one, a source generator turns that
+declaration into code while you build, and appending an undeclared type throws instead of writing a
+name you can never change. The cost is one attribute. What it buys is that a rename is a refactor
+rather than an outage.
 
-[assembly: MessageCatalog("Orders.Events", AlwaysActive = true)]
+Reading is deliberately softer than writing. A record whose schema name has no mapping comes back
+raw rather than throwing, so an unknown type from a newer producer does not kill a running
+subscription. Strict where a mistake is permanent, forgiving where it is not.
 
-namespace Orders.Events;
-
-[MessageType<OrderPlaced>("order.placed.v1")]
-public record OrderPlaced(string OrderId, string Product, int Quantity);
-```
-
-Reading is deliberately softer. A record whose schema name has no mapping comes back raw, so an
-unknown type from a newer producer does not kill your subscription.
+See [Schema](/schema/).
 
 ## Append and read
 
-One client reaches every module. Appends are transactional, reads are lazy, and both work in terms of
-the types you declared above rather than bytes. See [Streams](/streams/).
+One client reaches five modules, and streams is the one you meet first. Appends are transactional
+across streams, with optimistic concurrency you opt into per call. Reads are lazy, so the server
+streams results as you consume them and nothing buffers a whole stream into memory. Both work in
+terms of the types you declared rather than in bytes.
 
-```csharp
-// tls=false is the local development mode. Production drops it: /client/security/
-await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
+The other four modules are the same client and the same shape: the schema registry, secondary
+indexes, connectors, and node administration. There is no second client type to construct and no
+second connection to configure.
 
-await client.Streams.AppendStream("order-123", [
-    AppendRecord.Create(new OrderPlaced("order-123", "Widget", 5))
-]);
-```
+See [Client](/client/) and [Streams](/streams/).
 
 ## Process what arrives
 
-Reading a stream by hand suits a query. A **processor** suits everything else: it owns the
-subscription, the checkpoints, the retries, the batching and the partition assignment, and leaves you
-one method. See [Processors](/processors/).
+Reading by hand suits a question you ask once. Anything continuous wants a **processor**, because
+the hard parts of consuming a log are not the reading. They are the checkpoints, the reconnection
+after a leader moves, the batching, the partition assignment, and doing all of it again correctly
+after a restart. The runtime owns those. You write one method and say which records you want.
 
-```csharp
-public sealed class OrderProcessor : IRecordProcessor {
-    public ValueTask ProcessRecord(ProcessRecordContext context) {
-        if (context.Record.Value is OrderPlaced placed)
-            Handle(placed);
+A processor builds and owns its own client, so it is not something you attach to the client above.
+It is the other way to talk to KurrentDB, and which one you reach for depends on whether you are
+producing or consuming.
 
-        return ValueTask.CompletedTask;
-    }
-}
-```
+See [Processors](/processors/).
 
 ## How it is designed
 
