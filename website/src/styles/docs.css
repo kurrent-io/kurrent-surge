@@ -89,12 +89,12 @@ a.sl-link-button.secondary:hover {
    with the header wash and the row rules stopping short of it.
 
    Restore table layout and fill the box. Cells wrap instead of scrolling, which
-   suits text tables; a table that must scroll needs its own wrapper.
+   suits text tables. A table that must scroll needs its own wrapper.
 
-   `:root` is here for specificity, not for scoping. Starlight's rule has the same
-   weight as ours and is bundled after it, so an equal-specificity override loses
-   silently. */
-:root .sl-markdown-content table:not(:where(.not-content *)) {
+   The rule needs no specificity trick. Starlight's own styles sit inside
+   `@layer starlight.*`, and everything in this file is unlayered, so ours wins
+   whatever the bundle order. Declaring the property at all is the fix. */
+.sl-markdown-content table:not(:where(.not-content *)) {
   display: table;
   width: 100%;
 }
