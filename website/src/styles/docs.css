@@ -81,6 +81,24 @@ a.sl-link-button.secondary:hover {
   border-start-end-radius: 0;
 }
 
+/* ---- Tables ------------------------------------------------------------ */
+/* Starlight sets `display: block; overflow: auto` on markdown tables so a wide
+   one can scroll. That makes the `table` element a block box: it fills the
+   container and carries our border and radius at full width, while the anonymous
+   table box inside it shrinks to its content. The result is a full-width frame
+   with the header wash and the row rules stopping short of it.
+
+   Restore table layout and fill the box. Cells wrap instead of scrolling, which
+   suits text tables; a table that must scroll needs its own wrapper.
+
+   `:root` is here for specificity, not for scoping. Starlight's rule has the same
+   weight as ours and is bundled after it, so an equal-specificity override loses
+   silently. */
+:root .sl-markdown-content table:not(:where(.not-content *)) {
+  display: table;
+  width: 100%;
+}
+
 /* ---- Code scrollbars --------------------------------------------------- */
 /* A long code line leaves a horizontal scrollbar in the browser's default
    colours, which land blue against the near-black frame. */
