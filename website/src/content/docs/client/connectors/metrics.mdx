@@ -11,13 +11,13 @@ and can be used to track different aspects of your connectors.
 
 | Time series                      | Type                                               | Description                              |
 |:---------------------------------|:---------------------------------------------------|:-----------------------------------------|
-| `kurrent_connector_active_total` | [Gauge](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Current number of active data connectors |
+| `kurrent_connector_active_total` | [UpDownCounter](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Current number of active data connectors |
 
 ## Sink
 
 | Time series                          | Type                                                   | Description                                                             |
 |:-------------------------------------|:-------------------------------------------------------|:------------------------------------------------------------------------|
-| `kurrent_sink_written_total_records` | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Total number of records successfully written to the sink                |
+| `kurrent_sink_written_total_records` | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Records written per operation. A batching sink records the batch size, a per-record sink records 1                |
 | `kurrent_sink_errors_total`          | [Counter](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types)   | Total number of errors encountered during sink operations               |
 | `kurrent_sink_transform_duration_s`  | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Duration of data transformation before writing to the sink (in seconds) |
 | `kurrent_sink_write_latency_s`       | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Time between event creation and sink write acknowledgment (in seconds)  |
