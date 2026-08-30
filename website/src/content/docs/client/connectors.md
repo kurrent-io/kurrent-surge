@@ -20,21 +20,21 @@ list tracks the **server** version, not the SDK. It is current for KurrentDB 26.
 
 | `instanceTypeName` | Writes to | Since |
 |---|---|---|
-| [`http-sink`](/client/connectors/http-sink/) | Any HTTP endpoint | 24.10 |
-| [`serilog-sink`](/client/connectors/serilog-sink/) | A Serilog sink: console, file or Seq | 24.10 |
-| [`kafka-sink`](/client/connectors/kafka-sink/) | A Kafka topic | 24.10 |
-| [`mongo-db-sink`](/client/connectors/mongo-db-sink/) | A MongoDB collection | 24.10 |
-| [`rabbit-mq-sink`](/client/connectors/rabbit-mq-sink/) | A RabbitMQ exchange | 24.10 |
-| [`elasticsearch-sink`](/client/connectors/elasticsearch-sink/) | An Elasticsearch index | 25.0 |
-| [`pulsar-sink`](/client/connectors/pulsar-sink/) | A Pulsar topic | 25.1 |
-| [`sql-sink`](/client/connectors/sql-sink/) | SQL Server or PostgreSQL | 26.0 |
+| [`http-sink`](/client/connectors/sinks/http/) | Any HTTP endpoint | 24.10 |
+| [`serilog-sink`](/client/connectors/sinks/serilog/) | A Serilog sink: console, file or Seq | 24.10 |
+| [`kafka-sink`](/client/connectors/sinks/kafka/) | A Kafka topic | 24.10 |
+| [`mongo-db-sink`](/client/connectors/sinks/mongo/) | A MongoDB collection | 24.10 |
+| [`rabbit-mq-sink`](/client/connectors/sinks/rabbitmq/) | A RabbitMQ exchange | 24.10 |
+| [`elasticsearch-sink`](/client/connectors/sinks/elasticsearch/) | An Elasticsearch index | 25.0 |
+| [`pulsar-sink`](/client/connectors/sinks/pulsar/) | A Pulsar topic | 25.1 |
+| [`sql-sink`](/client/connectors/sinks/sql/) | SQL Server or PostgreSQL | 26.0 |
 
 ### Sources, which move records in
 
 | `instanceTypeName` | Reads from | Since |
 |---|---|---|
-| [`kafka-source`](/client/connectors/kafka-source/) | A Kafka topic | 26.0 |
-| [`webhook-source`](/client/connectors/webhook-source/) | `POST /webhook/{connectorId}` | 26.1 |
+| [`kafka-source`](/client/connectors/sources/kafka/) | A Kafka topic | 26.0 |
+| [`webhook-source`](/client/connectors/sources/webhook/) | `POST /webhook/{connectorId}` | 26.1 |
 
 Each page carries that connector's settings and says whether it needs a licence. Two sinks run
 without a licence key, `http-sink` and `serilog-sink`, and the server refuses to start a licensed
