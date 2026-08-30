@@ -1,28 +1,51 @@
 name: Docs
 
-# Fires the Cloudflare build hook: PR previews when docs change, and the
-# post-merge build on main. Trigger-level path filters mean this workflow
-# does not even start for changes outside docs/ — so its check must never
-# be marked required in branch protection (it won't exist on code-only PRs).
+# Builds the Starlight site in website/ and publishes it to GitHub Pages.
+# Pages serves a project site from the repository name, so SITE_BASE must match
+# it: a mismatch still builds green and then 404s on every page.
+
 on:
-  pull_request:
-    branches: [main]
-    paths: ['docs/**']
   push:
     branches: [main]
-    paths: ['docs/**']
+    paths:
+      - 'website/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Pages has one live deployment. Queue pushes instead of racing them, and never
+# cancel a run that is already publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  trigger-build:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
-
-    # Fork PRs receive no secrets, so the hook would be empty — skip instead of
-    # failing. Outside contributors simply don't get doc previews.
-    if: github.event_name == 'push' || !github.event.pull_request.head.repo.fork
-
     steps:
-      - name: Trigger Cloudflare Build
-        run: curl -fsS -X POST -d '{}' "${{ secrets.CLOUDFLARE_BUILD_HOOK }}"
+      - uses: actions/checkout@v7
+
+      # rehype-mermaid renders the diagrams to inline SVG through headless
+      # Chromium at build time. Without the browser the build fails on every
+      # page carrying a ```mermaid block.
+      - uses: withastro/action@v6
+        with:
+          path: website
+          build-cmd: bunx playwright install --with-deps chromium && bun run build
+        env:
+          SITE_BASE: /kurrent-surge/
+          SITE_URL: https://kurrent-io.github.io
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
