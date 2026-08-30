@@ -36,15 +36,16 @@ list tracks the **server** version, not the SDK. It is current for KurrentDB 26.
 | [`kafka-source`](/client/connectors/sources/kafka/) | A Kafka topic | 26.0 |
 | [`webhook-source`](/client/connectors/sources/webhook/) | `POST /webhook/{connectorId}` | 26.1 |
 
-Each page carries that connector's settings and says whether it needs a licence. Two sinks run
-without a licence key, `http-sink` and `serilog-sink`, and the server refuses to start a licensed
+Each page carries that connector's settings and says whether it needs a license. Two sinks run
+without a license key, `http-sink` and `serilog-sink`, and the server refuses to start a licensed
 feature without one. Reach for `serilog-sink` when you want to watch a connector work before buying
 anything.
 
 :::caution
-A source is not a sink with the arrow reversed. Sources take **only** `instanceTypeName` and
-`logging:enabled`. The subscription, transformer, resilience and autocommit blocks below are
-sink-only, and setting them on a source does nothing.
+A source is not a sink with the arrow reversed. Of the shared settings below, a source takes
+`instanceTypeName` and nothing else. The subscription, transformer, resilience and autocommit blocks
+are sink-only, and setting them on a source does nothing. A source still has required settings of
+its own, on its own page.
 :::
 
 ## Settings every sink takes
