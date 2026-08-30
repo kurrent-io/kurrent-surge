@@ -3,30 +3,24 @@ title: Client
 description: Five modules. Streams, registry, indexes, connectors and administration.
 ---
 
-`KurrentClient` is the entry point. It exposes five feature modules as properties.
+`KurrentClient` is one object with five modules hanging off it and **one connection behind all of
+them**. You do not build a client per feature, you do not authenticate five times, and a call into
+any module travels the channel the others already opened.
+
+Almost all of an application's traffic goes through **streams**, where records are written and read.
+The other four are operational and most projects touch them rarely: the **registry** holds schemas
+and their versions, **indexes** builds secondary indexes over the log, **connectors** manages the
+server-side pipelines that move data out of KurrentDB, and **admin** runs scavenges and node
+operations.
 
 ```csharp
-// tls=false is the local development mode. Production drops it: /client/security/
-await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
+await using var client = KurrentClient.Create(connectionString);
 
-await client.Streams.AppendStream(...);
-await client.Registry.CreateSchema(...);
-await client.Indexes.Create(...);
-await client.Connectors.Start(...);
-await client.Admin.StartScavenge(...);
+await client.Streams.AppendStream("order-001", records, ExpectedStreamState.NoStream);
+var schema = await client.Registry.GetSchema("order-placed");
 ```
 
-| Module | Covers |
-|---|---|
-| [Streams](/streams/) | [Append](/streams/append/), [read](/streams/read/), [manage](/streams/manage/), [filter](/streams/filters/), [record metadata](/streams/metadata/) |
-| [Connectors](/client/connectors/) | Create, configure, start, stop |
-| [Registry](/client/registry/) | Schemas and versions |
-| [Admin](/client/admin/) | Scavenge, node priority, shutdown |
-| [Indexes](/client/indexes/) | Secondary indexes |
-
-Each page lists every operation the module carries, with its overloads.
-
-Building one, pointing it at a cluster, and tuning the transport are all
+Building a client, pointing it at a cluster, and tuning the transport are all
 [Connecting](/client/connection-strings/). This page is about what you reach once you have one.
 
 ## Errors
