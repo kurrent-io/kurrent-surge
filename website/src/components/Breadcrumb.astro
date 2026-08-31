@@ -1,0 +1,198 @@
+---
+/**
+ * Breadcrumb trail: inline on desktop, swapping to a native <details>
+ * disclosure on phones so a deep path does not wrap across three lines.
+ */
+import type { BreadcrumbItem } from '../utils/breadcrumbs';
+
+interface Props {
+  crumbs: BreadcrumbItem[];
+}
+
+const { crumbs } = Astro.props;
+const ancestors = crumbs.slice(0, -1);
+const current = crumbs[crumbs.length - 1];
+---
+
+<nav class="breadcrumb not-content" aria-label="Breadcrumb">
+  <div class="bc-inline">
+    {
+      ancestors.map((crumb) => (
+        <>
+          {crumb.href ? <a href={crumb.href}>{crumb.label}</a> : <span>{crumb.label}</span>}
+          <span class="sep" aria-hidden="true">/</span>
+        </>
+      ))
+    }
+    {current && <span class="current">{current.label}</span>}
+  </div>
+
+  <details class="bc-collapse">
+    <summary>
+      <span class="bc-toggle-label">{current?.label}</span>
+      <svg
+        class="bc-chevron"
+        aria-hidden="true"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg
+      >
+    </summary>
+    <div class="bc-dropdown">
+      {
+        ancestors.map((crumb, i) =>
+          crumb.href ? (
+            <a href={crumb.href} style={`--bc-depth: ${i}`}>
+              {crumb.label}
+            </a>
+          ) : (
+            <span style={`--bc-depth: ${i}`}>{crumb.label}</span>
+          )
+        )
+      }
+      {
+        current && (
+          <span class="bc-current" style={`--bc-depth: ${ancestors.length}`}>
+            {current.label}
+          </span>
+        )
+      }
+    </div>
+  </details>
+</nav>
+
+<style>
+  .breadcrumb {
+    font-size: var(--sl-text-sm);
+    margin-bottom: 1.25rem;
+    color: var(--sl-color-gray-3);
+  }
+
+  .bc-collapse {
+    display: none;
+  }
+
+  .bc-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .breadcrumb a {
+    color: var(--sl-color-gray-3);
+    text-decoration: none;
+    transition: color 0.15s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .breadcrumb a:hover {
+    color: var(--sl-color-text-accent);
+  }
+
+  .sep {
+    opacity: 0.35;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .current {
+    color: var(--sl-color-white);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  @media (max-width: 480px) {
+    .bc-inline {
+      display: none;
+    }
+
+    .bc-collapse {
+      display: block;
+    }
+
+    .bc-collapse summary {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      list-style: none;
+      cursor: pointer;
+      border: 1px solid var(--sl-color-hairline-light);
+      border-radius: 0.5rem;
+      padding: 0.35rem 0.6rem;
+      color: var(--sl-color-white);
+      font-weight: 500;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .bc-collapse summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .bc-toggle-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .bc-chevron {
+      flex-shrink: 0;
+      margin-left: auto;
+      transition: transform 0.2s ease;
+    }
+
+    .bc-collapse[open] .bc-chevron {
+      transform: rotate(180deg);
+    }
+
+    .bc-dropdown {
+      display: flex;
+      flex-direction: column;
+      margin-top: 0.35rem;
+      padding: 0.35rem 0;
+      border: 1px solid var(--sl-color-hairline-light);
+      border-radius: 0.5rem;
+      background: var(--sl-color-bg);
+    }
+
+    .bc-dropdown a,
+    .bc-dropdown span {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.4rem 0.75rem;
+      padding-left: calc(0.75rem + var(--bc-depth, 0) * 0.75rem);
+      color: var(--sl-color-gray-3);
+      text-decoration: none;
+    }
+
+    .bc-dropdown a:hover {
+      background: var(--sl-color-gray-6);
+      color: var(--sl-color-text-accent);
+    }
+
+    .bc-current {
+      color: var(--sl-color-white);
+      font-weight: 500;
+      background: color-mix(in srgb, var(--sl-color-text-accent) 10%, transparent);
+    }
+  }
+</style>

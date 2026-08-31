@@ -1,7 +1,10 @@
 ---
-// Puts the search field at the top of the navigation column instead of the
-// header. The header slot is emptied by the Search override; this renders the
+// Puts the search field and a filter box at the top of the navigation column.
+// The header search slot is emptied by the Search override; this renders the
 // real component, so Pagefind and the modal are unchanged.
+//
+// The filter is deliberately not search: search looks inside page content, the
+// filter only narrows the visible nav.
 import Search from '@astrojs/starlight/components/Search.astro';
 import Default from '@astrojs/starlight/components/Sidebar.astro';
 ---
@@ -10,4 +13,193 @@ import Default from '@astrojs/starlight/components/Sidebar.astro';
   <Search />
 </div>
 
+<div class="sidebar-filter">
+  <div class="sidebar-filter-wrap">
+    <svg
+      class="sidebar-filter-icon"
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+    </svg>
+    <label class="sr-only" for="sidebar-filter-input">Filter sidebar</label>
+    <input
+      type="text"
+      id="sidebar-filter-input"
+      class="sidebar-filter-input"
+      placeholder="Filter sidebar…"
+      autocomplete="off"
+      aria-label="Filter sidebar entries"
+    />
+    <button type="button" class="sidebar-filter-clear" aria-label="Clear filter" hidden>
+      <svg
+        aria-hidden="true"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+  <p class="sidebar-filter-empty" hidden>No pages match that filter.</p>
+  <div class="sr-only" aria-live="polite" data-filter-status></div>
+</div>
+
 <Default />
+
+<script>
+  function initSidebarFilter() {
+    const input = document.querySelector<HTMLInputElement>('#sidebar-filter-input');
+    const clear = document.querySelector<HTMLButtonElement>('.sidebar-filter-clear');
+    const empty = document.querySelector<HTMLElement>('.sidebar-filter-empty');
+    const status = document.querySelector<HTMLElement>('[data-filter-status]');
+    const nav = document.querySelector<HTMLElement>('.sidebar-content');
+    if (!input || !clear || !empty || !status || !nav) return;
+
+    const rootList = nav.querySelector('ul');
+    if (!rootList) return;
+    const topItems = [...rootList.children].filter((el): el is HTMLElement => el.tagName === 'LI');
+
+    // A group the filter forced open returns to whatever the reader left it at,
+    // so the initial state is captured once rather than assumed closed.
+    const groups = [...nav.querySelectorAll<HTMLDetailsElement>('details')];
+    const openByDefault = new Map(groups.map((g) => [g, g.open]));
+
+    /** "cs" matches "Connection Strings". */
+    function camelMatch(text: string, query: string): boolean {
+      const initials = text.replace(/[^A-Z]/g, '').toLowerCase();
+      return initials.length >= 2 && initials.includes(query);
+    }
+
+    function matches(text: string, query: string): boolean {
+      const label = text.trim();
+      return label.toLowerCase().includes(query) || camelMatch(label, query);
+    }
+
+    function highlight(el: HTMLElement, query: string) {
+      clearHighlight(el);
+      if (!query) return;
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      const hits: Text[] = [];
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        if ((node.textContent ?? '').toLowerCase().includes(query)) hits.push(node as Text);
+      }
+      hits.forEach((text) => {
+        const index = (text.textContent ?? '').toLowerCase().indexOf(query);
+        if (index < 0) return;
+        const tail = text.splitText(index);
+        tail.splitText(query.length);
+        const mark = document.createElement('mark');
+        mark.className = 'sidebar-filter-hit';
+        tail.replaceWith(mark);
+        mark.append(tail);
+      });
+    }
+
+    function clearHighlight(el: HTMLElement) {
+      el.querySelectorAll('mark.sidebar-filter-hit').forEach((mark) => {
+        mark.replaceWith(document.createTextNode(mark.textContent ?? ''));
+      });
+      el.normalize();
+    }
+
+    function countLeaves(root: HTMLElement): number {
+      return root.querySelectorAll('li > a').length;
+    }
+
+    function showAll(root: HTMLElement) {
+      root.querySelectorAll<HTMLElement>('li').forEach((li) => (li.style.display = ''));
+      root.querySelectorAll<HTMLElement>('li > a').forEach((a) => clearHighlight(a));
+    }
+
+    /** Returns how many leaf links remain visible inside this item. */
+    function filterItem(li: HTMLElement, query: string): number {
+      const details = li.querySelector<HTMLDetailsElement>(':scope > details');
+
+      if (!details) {
+        const link = li.querySelector<HTMLElement>(':scope > a');
+        const hit = !!link && matches(link.textContent ?? '', query);
+        li.style.display = hit ? '' : 'none';
+        if (link) hit && query ? highlight(link, query) : clearHighlight(link);
+        return hit ? 1 : 0;
+      }
+
+      const label = details.querySelector<HTMLElement>(
+        ':scope > summary .group-label .large, :scope > summary .group-label'
+      );
+      const groupHit = !!label && matches(label.textContent ?? '', query);
+
+      const childList = details.querySelector(':scope > ul');
+      const children = childList
+        ? [...childList.children].filter((el): el is HTMLElement => el.tagName === 'LI')
+        : [];
+      let visible = 0;
+      for (const child of children) visible += filterItem(child, query);
+
+      // A matching group label brings its whole subtree with it, which is how a
+      // reader finds a section by name without knowing any page inside it.
+      if (groupHit) {
+        li.style.display = '';
+        if (label) highlight(label, query);
+        showAll(details);
+        details.open = true;
+        return countLeaves(details);
+      }
+
+      if (label) clearHighlight(label);
+      li.style.display = visible > 0 ? '' : 'none';
+      if (visible > 0) details.open = true;
+      return visible;
+    }
+
+    function apply() {
+      const query = input!.value.trim().toLowerCase();
+      clear!.hidden = query.length === 0;
+
+      if (!query) {
+        showAll(nav!);
+        groups.forEach((g) => (g.open = openByDefault.get(g) ?? false));
+        empty!.hidden = true;
+        status!.textContent = '';
+        return;
+      }
+
+      let count = 0;
+      for (const li of topItems) count += filterItem(li, query);
+
+      empty!.hidden = count > 0;
+      status!.textContent = count === 1 ? '1 page matches' : `${count} pages match`;
+    }
+
+    input.addEventListener('input', apply);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        input!.value = '';
+        apply();
+      }
+    });
+    clear.addEventListener('click', () => {
+      input!.value = '';
+      apply();
+      input!.focus();
+    });
+  }
+
+  initSidebarFilter();
+  document.addEventListener('astro:page-load', initSidebarFilter);
+</script>

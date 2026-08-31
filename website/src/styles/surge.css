@@ -5,9 +5,9 @@
      2. Starlight map - our tokens onto the documented --sl-* surface
      3. Treatments    - the few things no Starlight token can express
 
-   Fonts live in fonts.css because Starlight documents @font-face as its own
-   customCss entry. Landing-page-only styles live in primitives.css + home.css
-   and are imported by src/pages/index.astro, not by Starlight. */
+   Typefaces are declared in astro.config.mjs under `fonts` and reach this file
+   as --font-* variables. Landing-page-only styles live in home.css, imported by
+   src/pages/index.astro, not by Starlight. */
 
 /* ============================================================ 1. TOKENS */
 
@@ -58,9 +58,12 @@
   --accent-ring: color-mix(in oklab, var(--accent) 22%, transparent);
   --glow-a: 16%;
 
-  /* Typography. */
-  --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  /* Typography. The families are declared in astro.config.mjs under `fonts`;
+     Astro emits each --font-* variable already carrying its generated
+     metric-matched fallback, so nothing here needs a manual fallback chain. */
+  --font-faces: var(--font-poppins);
+  --font-sans: var(--font-faces);
+  --font-mono: var(--font-fira-code);
 
   /* Overlays. Tints and hairlines that sit on top of the current surface for
      hover states, chips, table rules and code frames. Defined per scope so
@@ -74,6 +77,24 @@
   /* Layout. */
   --maxw: 1080px;
   --maxw-tight: 880px;
+}
+
+/* Dyslexia-friendly typeface, switched by the header control. Independent of
+   the light/dark scope, so the two combine.
+   OpenDyslexic ships 400 and 700 only, while the scale below asks for 300-600.
+   Left alone the browser synthesises the missing weights, which thickens the
+   glyphs and undoes the letter shapes the face exists for — so the whole scale
+   collapses onto the two real weights. Code keeps Fira Code: its glyphs are
+   already disambiguated and OpenDyslexic Mono is a separate package. */
+:root[data-font="dyslexic"] {
+  --font-faces: var(--font-opendyslexic);
+}
+:root[data-font="dyslexic"] :is(h1, h2, h3, h4, h5, h6, strong, b, th),
+:root[data-font="dyslexic"] .sidebar-content a[aria-current="page"] {
+  font-weight: 700;
+}
+:root[data-font="dyslexic"] :is(p, li, td, a, span, div, button, input, summary) {
+  font-weight: 400;
 }
 
 /* Light scope. Values are Starlight's own light palette, measured from a clean
@@ -127,9 +148,11 @@
 :root,
 :root[data-theme="dark"],
 :root[data-theme="light"] {
-  /* Typography */
-  --sl-font: var(--font-sans);
-  --sl-font-system: var(--font-sans);
+  /* Typography. Starlight composes these as
+     `var(--sl-font, var(--sl-font-system)), var(--sl-font-system)`, so setting
+     both to the full stack concatenated it with itself. --sl-font carries only
+     the faces; --sl-font-system keeps Starlight's generic tail. */
+  --sl-font: var(--font-faces);
   --sl-font-system-mono: var(--font-mono);
   /* Whole pixels, not rem, so no step lands on a fraction. Each value is the
      larger of this site, kurrent.io/docs/capacitor and lakehold.dev/docs,
@@ -400,6 +423,66 @@ starlight-toc nav a[aria-current="true"]:hover {
   margin-inline-start: auto;
 }
 
+/* Sidebar filter. Narrows the visible navigation only; search is the separate
+   control above it. */
+.sidebar-filter {
+  padding-block-end: 1rem;
+}
+.sidebar-filter-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--tint);
+  border: 1px solid var(--tint-2);
+  border-radius: 8px;
+  color: var(--fg-fade);
+}
+.sidebar-filter-wrap:focus-within {
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+  color: var(--fg);
+}
+.sidebar-filter-icon {
+  flex-shrink: 0;
+}
+.sidebar-filter-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+.sidebar-filter-input::placeholder {
+  color: var(--fg-fade);
+}
+.sidebar-filter-input:focus {
+  outline: none;
+}
+.sidebar-filter-clear {
+  display: flex;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--fg-fade);
+  cursor: pointer;
+}
+.sidebar-filter-clear:hover {
+  color: var(--accent);
+}
+.sidebar-filter-empty {
+  margin: 0.75rem 0 0;
+  font-size: 13px;
+  color: var(--fg-fade);
+}
+.sidebar-content mark.sidebar-filter-hit {
+  background: color-mix(in oklab, var(--accent) 28%, transparent);
+  color: inherit;
+  border-radius: 2px;
+}
+
 site-search button[data-open-modal] {
   font-family: var(--font-sans);
   font-size: var(--sl-text-sm);
@@ -432,26 +515,24 @@ site-search button[data-open-modal] kbd {
   color: var(--fg-1);
 }
 
-/* Code blocks — a lifted panel, rounder and darker than the page so the
-   sample reads as an object rather than an indent. */
-.expressive-code,
-.sl-markdown-content pre {
-  border-radius: 10px;
-}
-.expressive-code .frame pre,
-.sl-markdown-content pre {
-  background: var(--code-bg);
-  border: 1px solid var(--tint-1);
-}
-.expressive-code .frame.has-title:not(.is-terminal) .header,
-.expressive-code .frame.is-terminal .header {
-  background: var(--tint-faint);
-  border-bottom: 1px solid var(--tint-1);
-}
+/* Code frames take their colours from Expressive Code, configured in
+   ec.config.mjs with useStarlightUiThemeColors. Setting the surfaces here as
+   well flattened the tab, the tab bar and the code area onto one colour, so the
+   frame lost its shape. Only the type is set. */
 .expressive-code code {
   font-family: var(--font-mono);
   font-size: var(--sl-text-code);
   line-height: 1.7;
+}
+/* The glyph is the first child of the title span, so the filename would
+   otherwise sit against it. */
+.expressive-code .code-block-icon {
+  margin-inline-end: 0.5rem;
+}
+.sl-markdown-content pre:not(:where(.expressive-code *)) {
+  background: var(--code-bg);
+  border: 1px solid var(--tint-1);
+  border-radius: 10px;
 }
 
 /* Dashboard screenshots (src/assets/screenshots/, captured by
@@ -586,11 +667,6 @@ body {
    header already rounded, and the two halves read as separate boxes with a seam
    between them. kcap's own docs never hit it because they use no framed blocks;
    every ```bash block here becomes one. */
-.expressive-code .frame:is(.is-terminal, .has-title) pre {
-  border-top: none;
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
-}
 
 /* ---- Tables ------------------------------------------------------------ */
 /* Starlight sets `display: block; overflow: auto` on markdown tables so a wide
@@ -608,6 +684,87 @@ body {
 .sl-markdown-content table:not(:where(.not-content *)) {
   display: table;
   width: 100%;
+}
+
+/* ---- D2 diagram palette ------------------------------------------------ */
+/* D2 bakes its colours into the generated SVG and switches them on
+   `prefers-color-scheme`, which follows the reader's OS rather than Starlight's
+   theme toggle — the two desync the moment anyone overrides. `theme.dark: false`
+   in astro.config.mjs suppresses that block; these rules replace it, keyed to the
+   toggle like everything else.
+
+   D2's per-diagram wrapper class carries a content hash, so these select on the
+   token classes alone, which are stable across regeneration. Only the six the
+   diagrams actually use are defined. */
+.sl-markdown-content svg[data-d2-version] {
+  /* A `width=` capped diagram is narrower than the column and would otherwise
+     sit hard against the left margin. */
+  display: block;
+  margin-inline: auto;
+
+  --d2-text: var(--fg);
+  --d2-text-muted: var(--fg-dim);
+  /* A few percent of accent mixed into the surfaces keeps the boxes reading as
+     part of the warm palette rather than neutral grey. Arrowheads take the
+     accent undiluted: `fill-B1` is the arrowhead alone, so it can carry colour
+     without `stroke-B1` turning every node border amber too. */
+  --d2-surface: color-mix(in oklab, var(--accent) 4%, var(--bg-1));
+  --d2-surface-alt: color-mix(in oklab, var(--accent) 7%, var(--bg-2));
+  --d2-line: var(--fg-dimmer);
+  --d2-arrow: var(--accent);
+}
+
+:root[data-theme="light"] .sl-markdown-content svg[data-d2-version] {
+  --d2-text: var(--ink);
+  --d2-text-muted: var(--ink-dim);
+  --d2-surface: color-mix(in oklab, var(--accent) 6%, #ffffff);
+  --d2-surface-alt: color-mix(in oklab, var(--accent) 14%, #ffffff);
+  --d2-line: #77746e;
+  /* The light scope redefines --accent to blue, so this tracks whichever accent
+     the theme carries; the mix only deepens it enough to hold a small shape. */
+  --d2-arrow: color-mix(in oklab, var(--accent) 70%, var(--ink));
+}
+
+/* The canvas rect carries an inline `fill="#FFFFFF"` presentation attribute.
+   Any CSS declaration outranks a presentation attribute, so this needs no
+   `!important`. Transparent lets the page ground show through. */
+.sl-markdown-content svg[data-d2-version] .fill-N7 {
+  fill: transparent;
+}
+.sl-markdown-content svg[data-d2-version] .fill-N1 {
+  fill: var(--d2-text);
+}
+.sl-markdown-content svg[data-d2-version] .fill-N2 {
+  fill: var(--d2-text-muted);
+}
+.sl-markdown-content svg[data-d2-version] .fill-N4 {
+  fill: var(--d2-surface-alt);
+}
+/* Sequence-diagram group fragments and their title chips. */
+.sl-markdown-content svg[data-d2-version] .fill-N5 {
+  fill: var(--d2-surface-alt);
+}
+/* B4/B5/B6 are a nesting-depth ramp: outermost container, nested container or
+   sequence actor, then the node itself. The outer container reads as a grouping
+   border only, so it stays transparent and the page ground carries through. */
+.sl-markdown-content svg[data-d2-version] .fill-B4 {
+  fill: transparent;
+}
+.sl-markdown-content svg[data-d2-version] .fill-B5 {
+  fill: var(--d2-surface);
+}
+.sl-markdown-content svg[data-d2-version] .fill-B6 {
+  fill: var(--d2-surface);
+}
+/* Sequence-diagram lifelines. */
+.sl-markdown-content svg[data-d2-version] .stroke-B2 {
+  stroke: var(--d2-line);
+}
+.sl-markdown-content svg[data-d2-version] .fill-B1 {
+  fill: var(--d2-arrow);
+}
+.sl-markdown-content svg[data-d2-version] .stroke-B1 {
+  stroke: var(--d2-line);
 }
 
 /* ---- Code scrollbars --------------------------------------------------- */

@@ -1,12 +1,9 @@
 ---
-// The landing page. Deliberately NOT a Starlight Markdown splash: it uses
-// kcap-web's own markup, and those styles target classes (.hero__h1,
-// .hero__sub, .btn-primary, .eyebrow, .wrap) that Markdown cannot emit.
-// Standing outside the collection means it loads its own stylesheets; the
-// first four are the same ones Starlight loads, in the same order.
-import "../styles/fonts.css";
+// The landing page stands outside the Starlight collection, so it imports the
+// stylesheets itself rather than receiving them from customCss. Typefaces come
+// from the <Font /> components in the head below, matching Head.astro.
+import { Font } from "astro:assets";
 import "../styles/surge.css";
-import "../styles/primitives.css";
 import "../styles/home.css";
 
 const DOCS_HREF = "/getting-started/";
@@ -73,6 +70,14 @@ const sections = [
   <title>Kurrent Surge, the state-of-the-art .NET SDK for the Kurrent Platform</title>
   <meta name="description" content="Kurrent Surge is the brand-new .NET SDK for KurrentDB and the Kurrent Platform. Connect, append, read, and process your streams without writing subscription plumbing." />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <Font
+    cssVariable="--font-poppins"
+    preload={[
+      { subset: "latin", style: "normal", weight: "400" },
+      { subset: "latin", style: "normal", weight: "600" },
+    ]}
+  />
+  <Font cssVariable="--font-fira-code" />
   <script is:inline>document.documentElement.dataset.theme = "dark";</script>
 </head>
 <body>

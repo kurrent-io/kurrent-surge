@@ -1,0 +1,14 @@
+---
+// Renders the breadcrumb trail above the page body. A page opts out with
+// `crumbs: false` in its frontmatter.
+import DefaultMarkdownContent from '@astrojs/starlight/components/MarkdownContent.astro';
+import Breadcrumb from './Breadcrumb.astro';
+import { getBreadcrumbs } from '../utils/breadcrumbs';
+
+const routeData = Astro.locals.starlightRoute;
+const pageData = routeData?.entry?.data as { crumbs?: boolean } | undefined;
+const crumbs = pageData?.crumbs === false ? undefined : getBreadcrumbs(routeData?.sidebar as any);
+---
+
+{crumbs && <Breadcrumb crumbs={crumbs} />}
+<DefaultMarkdownContent><slot /></DefaultMarkdownContent>

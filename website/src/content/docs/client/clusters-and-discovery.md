@@ -45,18 +45,25 @@ still connects, because a degraded connection is more useful than none.
 
 ## What runs inside the channel
 
-```mermaid
-flowchart LR
-    C["GrpcChannel<br/>kurrent:///connection-name"]
-    C --> SC["ServiceConfig<br/>LoadBalancingConfigs"]
-    SC --> POL["kurrent-node-preference"]
-    C --> SP["ServiceProvider"]
-    SP --> RF["ResolverFactory"]
-    RF --> GR["GossipResolver<br/>a PollingResolver"]
-    SP --> LF["LoadBalancerFactory"]
-    LF --> LB["KurrentDBLoadBalancer<br/>a LoadBalancer"]
-    C --> INT["Interceptors"]
-    INT --> LCI["LeaderChangeInterceptor"]
+```d2 layout=elk
+direction: down
+
+C: GrpcChannel
+SC: ServiceConfig (LoadBalancingConfigs)
+POL: kurrent-node-preference
+SP: ServiceProvider
+RF: ResolverFactory
+GR: GossipResolver
+LF: LoadBalancerFactory
+LB: KurrentDBLoadBalancer
+INT: Interceptors
+LCI: LeaderChangeInterceptor
+
+C -> SC -> POL
+C -> SP
+SP -> RF -> GR
+SP -> LF -> LB
+C -> INT -> LCI
 ```
 
 | Piece | Type it implements | What it does |
@@ -76,12 +83,17 @@ The resolver publishes the full membership every pass, ordered by your `nodePref
 attached to each address. Rank 0 is the routing target. The rest are not idle: they are the fallback
 list the transport already holds.
 
-```mermaid
-flowchart LR
-    G["gossip"] --> R["rank the members"]
-    R --> P["publish rank 0, 1, 2"]
-    P --> S["one subchannel,<br/>given the whole list"]
-    S -->|"rank 0 unreachable"| F["transport tries rank 1"]
+```d2 width=290
+direction: down
+
+G: gossip
+R: rank the members
+P: "publish rank 0, 1, 2"
+S: one subchannel, whole list
+F: transport tries rank 1
+
+G -> R -> P -> S
+S -> F: rank 0 unreachable
 ```
 
 The balancer keeps one subchannel at a time, pointed at rank 0 and carrying the whole ranked list.
@@ -117,20 +129,21 @@ that is no longer the leader, the server answers `FailedPrecondition` and names 
 interceptor hands that endpoint to the resolver, which republishes immediately with the announced
 leader at rank 0 and the previously published members behind it.
 
-```mermaid
-sequenceDiagram
-    participant C as Your call
-    participant I as LeaderChangeInterceptor
-    participant R as GossipResolver
-    participant N1 as node1
-    participant N2 as node2
+```d2
+shape: sequence_diagram
 
-    C->>N1: append
-    N1-->>I: FailedPrecondition, leader is node2
-    I->>R: AnnounceLeader(node2)
-    R->>R: republish with node2 at rank 0
-    C->>N2: append
-    N2-->>C: succeeds
+C: Your call
+I: LeaderChangeInterceptor
+R: GossipResolver
+N1: node1
+N2: node2
+
+C -> N1.attempt: append
+N1.attempt -> I.handle: FailedPrecondition, leader is node2
+I.handle -> R.republish: AnnounceLeader(node2)
+R.republish.note: rank 0 becomes node2
+C -> N2.retry: append
+N2.retry -> C: succeeds
 ```
 
 No gossip query happens on that path, which is why a leader change costs a retry rather than an

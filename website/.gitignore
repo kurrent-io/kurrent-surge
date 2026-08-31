@@ -6,6 +6,10 @@
 # Build output.
 dist/
 
+# astro-d2 renders every `d2` fence into here on each build. Regenerated from the
+# markdown, so committing it would just be build noise that conflicts on merge.
+public/d2/
+
 # Bun / node.
 node_modules/
 
@@ -13,3 +17,6 @@ node_modules/
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+
+# starlight-plugin-icons generates this from content code-block titles.
+.starlight-icons/

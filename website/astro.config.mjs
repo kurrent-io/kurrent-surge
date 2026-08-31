@@ -1,10 +1,13 @@
 // @ts-check
-import { defineConfig } from 'astro/config';
+import { defineConfig, fontProviders } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import starlightLinksValidator from 'starlight-links-validator';
-import { unified } from '@astrojs/markdown-remark';
-import rehypeMermaid from 'rehype-mermaid';
+import starlightGitHubAlerts from 'starlight-github-alerts';
+import starlightScrollToTop from 'starlight-scroll-to-top';
+import starlightPageActions from 'starlight-page-actions';
+import astroD2 from 'astro-d2';
+import UnoCSS from 'unocss/astro';
 
 // GitHub Pages serves from /<repo>/ while Cloudflare serves from /. Setting the base
 // through an env var keeps every internal link correct on both without a code change.
@@ -17,79 +20,64 @@ const site = process.env.SITE_URL ?? 'https://kurrent-io.github.io';
 export default defineConfig({
   site,
   base,
-  markdown: {
-    processor: unified({
-      rehypePlugins: [
-        [
-          rehypeMermaid,
-          {
-            strategy: 'inline-svg',
-            // The renderer measures labels in the face the page paints them in.
-            css: new URL('./src/styles/mermaid-render-fonts.css', import.meta.url),
-            mermaidConfig: {
-              theme: 'base',
-              themeVariables: {
-                darkMode: true,
-                background: '#0a0a0a',
-                fontFamily: '"Work Sans", ui-sans-serif, system-ui, sans-serif',
-                fontSize: '14px',
-
-                primaryColor: '#1c1a27',
-                primaryTextColor: '#f5f3f0',
-                primaryBorderColor: '#4a4560',
-                secondaryColor: '#2a273f',
-                tertiaryColor: '#13111c',
-
-                lineColor: '#a79ab8',
-                textColor: '#d1d1e0',
-
-                nodeBorder: '#4a4560',
-                clusterBkg: '#13111c',
-                clusterBorder: '#3a3654',
-                titleColor: '#f5f3f0',
-                edgeLabelBackground: '#0a0a0a',
-              },
-            },
-          },
-        ],
-      ],
-    }),
-  },
+  server: { port: 4400 },
+  // Astro downloads these at build time and emits only the declared weights and
+  // subsets. It also generates a metric-matched fallback per family from the
+  // last generic in `fallbacks` (`optimizedFallbacks` is on by default), which is
+  // what stops text re-flowing when the real face swaps in.
+  fonts: [
+    {
+      provider: fontProviders.fontsource(),
+      name: 'Poppins',
+      cssVariable: '--font-poppins',
+      weights: [300, 400, 500, 600, 700],
+      // Body copy carries markdown emphasis across 20 pages, plus two italic
+      // rules in home.css, so the real italics are worth their weight here.
+      styles: ['normal', 'italic'],
+      fallbacks: ['sans-serif'],
+    },
+    {
+      provider: fontProviders.fontsource(),
+      name: 'Fira Code',
+      cssVariable: '--font-fira-code',
+      weights: ['300 700'],
+      // `styles` defaults to normal + italic. Nothing renders italic code, so
+      // the italic files would ship unused.
+      styles: ['normal'],
+      fallbacks: ['monospace'],
+    },
+    {
+      // Reader-selectable alternative; see the [data-font] scope in surge.css.
+      provider: fontProviders.fontsource(),
+      name: 'OpenDyslexic',
+      cssVariable: '--font-opendyslexic',
+      weights: [400, 700],
+      styles: ['normal'],
+      fallbacks: ['sans-serif'],
+    },
+  ],
   integrations: [
+    // Resolves the icon class the code-block header plugin emits.
+    UnoCSS({ injectReset: false }),
+    // Renders `d2` fences to inline SVG at build time into public/d2/.
+    //
+    // `inline` puts the SVG in the DOM so surge.css can paint it from the theme
+    // tokens; as an <img> it would be an isolated document and unreachable.
+    // `theme.dark: false` stops D2 emitting its own `prefers-color-scheme` block,
+    // which keys off the reader's OS and so desyncs from the site's theme toggle.
+    // `useD2js` renders through the bundled WebAssembly build rather than a local
+    // `d2` binary, so no build machine needs one installed.
+    astroD2({
+      inline: true,
+      pad: 20,
+      theme: { dark: false },
+      experimental: { useD2js: true },
+    }),
     starlight({
       title: 'Kurrent Surge',
       description: 'The .NET SDK for the Kurrent Platform.',
-      // Dark-only, as kcap-web does: brand.css defines one palette, and its
-      // Starlight mapping gives the light scope the same values purely as a
-      // fallback. A visible toggle that changes nothing reads as broken.
-      expressiveCode: {
-        themes: ['starlight-dark'],
-        useStarlightDarkModeSwitch: false,
-        // starlight-dark ships a blue-tinted editor ground that fights the
-        // near-black page. The theme file asks for #141414 in CSS, but
-        // expressive-code sets its own background from the theme at a higher
-        // specificity — these are the supported keys that actually win.
-        styleOverrides: {
-          borderRadius: '10px',
-          borderColor: 'rgba(255, 255, 255, 0.06)',
-          codeBackground: '#141414',
-          frames: {
-            editorBackground: '#141414',
-            terminalBackground: '#141414',
-            // The titlebar and tab bar carry their own colours from the theme
-            // and keep starlight-dark's blue tint unless named separately.
-            terminalTitlebarBackground: '#141414',
-            terminalTitlebarForeground: 'var(--fg-dim)',
-            terminalTitlebarBorderBottomColor: 'var(--border)',
-            editorTabBarBackground: '#141414',
-            editorTabBarBorderBottomColor: 'var(--border)',
-            editorActiveTabBackground: '#141414',
-            editorActiveTabForeground: 'var(--fg)',
-            editorActiveTabIndicatorTopColor: 'var(--accent)',
-            frameBoxShadowCssValue: 'none',
-          },
-        },
-      },
+      // Expressive Code is configured entirely in ec.config.mjs. Declaring an
+      // `expressiveCode` key here would make Starlight skip that file.
       components: {
         // The `title` option takes no markup, so colouring "Surge" alone needs
         // the component override.
@@ -100,13 +88,17 @@ export default defineConfig({
         Search: './src/components/Search.astro',
         Sidebar: './src/components/Sidebar.astro',
         SocialIcons: './src/components/SocialIcons.astro',
+        // Renders the breadcrumb trail above the page body.
+        MarkdownContent: './src/components/MarkdownContent.astro',
+        // Shipped by starlight-page-actions; it owns the Copy / Open / Share row.
+        PageTitle: 'starlight-page-actions/overrides/PageTitle.astro',
+        // Adds the typeface picker beside Starlight's theme picker, and the
+        // pre-paint script that restores the reader's choice.
+        ThemeSelect: './src/components/ThemeSelect.astro',
+        Head: './src/components/Head.astro',
       },
-      // Two entries, which is the shape Starlight documents: @font-face in its
-      // own file, everything else in one project stylesheet.
-      customCss: [
-        './src/styles/fonts.css',
-        './src/styles/surge.css',
-      ],
+      // Typefaces are declared in the top-level `fonts` option, not here.
+      customCss: ['./src/styles/surge.css'],
       social: [
         {
           icon: 'github',
@@ -238,6 +230,14 @@ export default defineConfig({
         // Fails the build on a broken internal link. Cheap insurance while the
         // page set is still moving.
         starlightLinksValidator(),
+        // Copy the page as Markdown, or hand it to an agent.
+        starlightPageActions({
+          share: true,
+          actions: { chatgpt: true, claude: true, githubCopilot: true },
+        }),
+        // Renders GitHub's `> [!NOTE]` blockquote syntax as Starlight asides.
+        starlightGitHubAlerts(),
+        starlightScrollToTop({ showTooltip: true, tooltipText: { en: 'Scroll to top' } }),
       ],
     }),
   ],

@@ -4,11 +4,14 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "bunx --bun astro dev",
-    "start": "bunx --bun astro dev",
-    "build": "bunx --bun astro build",
-    "preview": "bunx --bun astro preview",
-    "check": "bunx --bun astro check"
+    "dev": "ASTRO_DEV_BACKGROUND=0 astro dev --force",
+    "start": "ASTRO_DEV_BACKGROUND=0 astro dev --force",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "stop": "astro dev stop; astro preview stop",
+    "clean": "rm -rf dist .astro node_modules/.vite",
+    "fresh": "bun run stop && bun run clean && bun run build && bun run dev"
   },
   "trustedDependencies": [
     "esbuild",
@@ -18,12 +21,22 @@
     "@astrojs/markdown-remark": "^7.2.4",
     "@astrojs/starlight": "^0.41.9",
     "astro": "^7.2.9",
+    "astro-d2": "^0.13.1",
     "sharp": "^0.35.4",
+    "starlight-github-alerts": "^0.4.0",
     "starlight-links-validator": "^0.25.3",
-    "starlight-llms-txt": "^0.11.0"
+    "starlight-llms-txt": "^0.11.0",
+    "starlight-page-actions": "^0.7.1",
+    "starlight-scroll-to-top": "^2.0.0"
   },
   "devDependencies": {
-    "playwright": "^1.62.1",
-    "rehype-mermaid": "^3.0.0"
+    "@astrojs/check": "^0.9.10",
+    "@iconify-json/material-icon-theme": "^1.2.70",
+    "@unocss/astro": "^66.8.1",
+    "typescript": "^6",
+    "unocss": "^66.8.1"
+  },
+  "patchedDependencies": {
+    "astro-d2@0.13.1": "patches/astro-d2@0.13.1.patch"
   }
 }

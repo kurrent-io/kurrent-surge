@@ -27,7 +27,7 @@ the [other three packages](/what-is-surge/) are opt in.
 Both paths need this. The SDK maps a CLR type to a schema name through a **catalog**. Declare one for
 the namespace that holds your events and the client picks it up:
 
-```csharp
+```csharp title="Orders.Events.cs"
 using Kurrent.Surge.Schema.Catalogs;
 
 [assembly: MessageCatalog("Orders.Events", AlwaysActive = true)]
@@ -45,7 +45,7 @@ See [Catalogs](/schema/catalogs/) for the other ways to declare one.
 A producer talks to KurrentDB through `KurrentClient`. One client reaches all five modules, and
 streams is the one you want first.
 
-```csharp
+```csharp title="Program.cs"
 using Kurrent.Surge.Client;
 
 // tls=false is the local development mode. Production drops it: /client/security/
@@ -59,7 +59,7 @@ Console.WriteLine($"Wrote revision {result.Revision}.");
 
 Reading it back is a lazy enumeration, so nothing buffers the whole stream:
 
-```csharp
+```csharp title="Program.cs"
 await foreach (var message in client.Streams.ReadStream("order-001")) {
     if (message.Value is Record record)
         Console.WriteLine(record.Value);

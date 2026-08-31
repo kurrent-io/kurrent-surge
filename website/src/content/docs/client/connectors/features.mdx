@@ -319,28 +319,29 @@ resilience, refer to the connector's individual page.
 
 The default resilience strategy is as follows:
 
-```mermaid
-graph TD
-    style A stroke:#333,stroke-width:1px,font-size:12px;
-    style B stroke:#333,stroke-width:1px,font-size:12px;
-    style C stroke:#333,stroke-width:1px,font-size:12px;
-    style D stroke:#333,stroke-width:1px,font-size:12px;
-    style E stroke:#333,stroke-width:1px,font-size:12px;
-    style F stroke:#333,stroke-width:1px,font-size:12px;
-    style G stroke:#333,stroke-width:1px,font-size:12px;
-    style H stroke:#333,stroke-width:1px,font-size:12px;
-    style I stroke:#333,stroke-width:1px,font-size:12px;
+```d2 layout=elk width=520
+direction: down
 
-    A[Failure Detected] --> B[Retry Begins]
-    B --> C{Phase 1: Small Delay - 5 seconds}
-    C -->|Success| D[Operation Completes]
-    C -->|Failure| E{Phase 2: Exponential Backoff}
-    E -->|Retry with Increasing Delays| F[Several Minutes Delay - 10 minutes]
-    F -->|Failure| G{Phase 3: Long Delay - 1 hour or more}
-    G -->|Success| D
-    G -->|Failure| H[Manual Intervention or Indefinite Delay]
-    D --> I[Operation Completed Successfully]
-    H --> I
+A: Failure detected
+B: Retry begins
+C: Phase 1 — small delay, 5 seconds
+D: Operation completes
+E: Phase 2 — exponential backoff
+F: Several minutes delay, 10 minutes
+G: Phase 3 — long delay, 1 hour or more
+H: Manual intervention or indefinite delay
+I: Operation completed successfully
+
+A -> B
+B -> C
+C -> D: success
+C -> E: failure
+E -> F: retry with increasing delays
+F -> G: failure
+G -> D: success
+G -> H: failure
+D -> I
+H -> I
 ```
 
 ### Automatic Retries and Resilience Strategy

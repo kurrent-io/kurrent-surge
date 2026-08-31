@@ -29,13 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # rehype-mermaid renders the diagrams to inline SVG through headless
-      # Chromium at build time. Without the browser the build fails on every
-      # page carrying a ```mermaid block.
+      # Diagrams need no browser and no `d2` binary: astro-d2 renders them to SVG
+      # at build time through a bundled WebAssembly build of D2.
       - uses: withastro/action@v6
         with:
           path: website
-          build-cmd: bunx playwright install --with-deps chromium && bun run build
         env:
           SITE_BASE: /kurrent-surge/
           SITE_URL: https://kurrent-io.github.io

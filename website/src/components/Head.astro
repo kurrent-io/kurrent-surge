@@ -1,0 +1,32 @@
+---
+import Default from '@astrojs/starlight/components/Head.astro';
+import { Font } from 'astro:assets';
+---
+
+<Default />
+
+{/* Emits the @font-face rules, plus preloads for the two faces that paint above
+    the fold: 400 for body copy and 600 for headings. A bare `preload` covers
+    every weight and both styles — ten files here — which the docs warn against
+    because it competes with the stylesheet it is meant to beat. Italics stay
+    declared but unpreloaded. Fira Code sits in code blocks below the fold, and
+    OpenDyslexic only loads for readers who turn it on. */}
+<Font
+  cssVariable="--font-poppins"
+  preload={[
+    { subset: 'latin', style: 'normal', weight: '400' },
+    { subset: 'latin', style: 'normal', weight: '600' },
+  ]}
+/>
+<Font cssVariable="--font-fira-code" />
+<Font cssVariable="--font-opendyslexic" />
+
+<script is:inline>
+  // Applied before first paint so a reader who chose OpenDyslexic never sees a
+  // frame of the default face. Mirrors how Starlight restores the theme.
+  try {
+    if (localStorage.getItem('surge-font') === 'dyslexic') {
+      document.documentElement.dataset.font = 'dyslexic';
+    }
+  } catch {}
+</script>

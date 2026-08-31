@@ -1,0 +1,22 @@
+diff --git a/libs/markdown.ts b/libs/markdown.ts
+index 8ebc4c59cb21ae89a3751bd754f1b8a51604fc43..8dc6e71f8b7d5657dd00a968278870f76d3a0b58 100644
+--- a/libs/markdown.ts
++++ b/libs/markdown.ts
+@@ -83,7 +83,16 @@ function makeHtmlSvgNode(attributes: DiagramAttributes, diagram?: D2Diagram): Ht
+   const tree = fromHtml(diagram.content, { fragment: true })
+ 
+   visit(tree, 'element', (node) => {
+-    if (node.tagName !== 'svg' || !('d2version' in node.properties)) return CONTINUE
++    // D2 emits `data-d2-version` on the root svg, which hast exposes as the
++    // `dataD2Version` property. Matching only `d2version` never fires, so
++    // `width`, `title` and `data-*` attributes were all silently dropped in
++    // inline mode. Multi-board (animated) output uses the bare `d2Version`
++    // spelling, so accept every form.
++    const isD2Root =
++      'd2version' in node.properties ||
++      'd2Version' in node.properties ||
++      'dataD2Version' in node.properties
++    if (node.tagName !== 'svg' || !isD2Root) return CONTINUE
+ 
+     computeSvgSize(node, attributes, diagram.size)
+     node.properties = { ...node.properties, ...attributes.dataAttributes }
