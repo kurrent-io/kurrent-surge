@@ -98,7 +98,7 @@ await client.Connectors.Create("orders-to-kafka", "Orders to Kafka", settings);
 ```
 
 A working version of this, with partition-key extraction and compression, is in
-[`examples/processors/Connector.Management`](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/examples/processors/Connector.Management).
+[`examples/processors/Connector.Management`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Connector.Management).
 
 Omit the name and the id becomes the display name.
 

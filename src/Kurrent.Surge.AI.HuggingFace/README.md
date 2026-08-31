@@ -273,5 +273,5 @@ ONNX/GGUF/Safetensors model into a runtime is out of scope; pair it with `Micros
 
 - [The surge CLI](../Kurrent.Surge.Cli/README.md)
 - [Documentation](https://kurrent.io/docs)
-- [GitHub Repository](https://github.com/kurrent-io/kurrent-sdk-dotnet)
-- [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-sdk-dotnet/blob/main/LICENSE.md)
+- [GitHub Repository](https://github.com/kurrent-io/kurrent-surge)
+- [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-surge/blob/main/LICENSE.md)

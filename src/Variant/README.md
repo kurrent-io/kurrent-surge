@@ -124,6 +124,6 @@ Variant relies on a Roslyn source generator (`VariantGenerator`) to emit the imp
 that implements `IVariant<…>`. The `partial` keyword is required on the declaration so the generator can add
 the generated half.
 
-- **Repository**: part of the kurrent-sdk monorepo.
+- **Repository**: part of the kurrent-surge monorepo.
 - **Location**: `src/Variant/` (runtime interfaces) and `src/Variant.SourceGenerators/` (the generator).
 - **Target framework**: net10.0. The source generator targets netstandard2.0 (Roslyn requirement).

@@ -74,7 +74,7 @@ jobs:
       - name: Build & Push
         uses: devcontainers/ci@v0.3
         with:
-          imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-sdk
+          imageName: ghcr.io/kurrent-io/devcontainers/repos/kurrent-surge
           imageTag: ${{ steps.tag.outputs.value }}
           push: always
           # runCmd triggers `devcontainer up` (which runs lifecycle commands

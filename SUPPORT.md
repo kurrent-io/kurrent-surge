@@ -13,14 +13,14 @@ channels below for questions and general help.
 - **Discord** — join the community at [discord.gg/Phn9pmCw3t](https://discord.gg/Phn9pmCw3t) for
   real-time help and discussion.
 - **GitHub Discussions** — ask questions and share ideas in
-  [Discussions](https://github.com/kurrent-io/kurrent-sdk-dotnet/discussions).
+  [Discussions](https://github.com/kurrent-io/kurrent-surge/discussions).
 
 ## Reporting bugs and requesting features
 
-- **Bugs** — open a [bug report](https://github.com/kurrent-io/kurrent-sdk-dotnet/issues/new?template=bug_report.yml).
-- **Features** — open a [feature request](https://github.com/kurrent-io/kurrent-sdk-dotnet/issues/new?template=feature_request.yml).
+- **Bugs** — open a [bug report](https://github.com/kurrent-io/kurrent-surge/issues/new?template=bug_report.yml).
+- **Features** — open a [feature request](https://github.com/kurrent-io/kurrent-surge/issues/new?template=feature_request.yml).
 
-Before opening an issue, please search [existing issues](https://github.com/kurrent-io/kurrent-sdk-dotnet/issues)
+Before opening an issue, please search [existing issues](https://github.com/kurrent-io/kurrent-surge/issues)
 to avoid duplicates.
 
 ## Security issues

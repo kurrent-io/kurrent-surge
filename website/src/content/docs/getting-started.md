@@ -67,7 +67,7 @@ await foreach (var message in client.Streams.ReadStream("order-001")) {
 ```
 
 **The whole program runs:**
-[`examples/streams/Streams.QuickStart`](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/examples/streams/Streams.QuickStart)
+[`examples/streams/Streams.QuickStart`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/streams/Streams.QuickStart)
 is 31 lines that append three order events and read them back, with the output it produces.
 
 Next: [Append](/streams/append/) for concurrency control, [Read](/streams/read/) for the live tail,
@@ -108,9 +108,9 @@ Without a filter the processor reads every stream. `RunWithGracefulShutdownAsync
 SIGTERM, so a container stop drains rather than kills.
 
 **The whole program runs:**
-[`examples/processors/Processor.WordCount`](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/examples/processors/Processor.WordCount)
+[`examples/processors/Processor.WordCount`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Processor.WordCount)
 seeds a stream and counts words across it.
-[`Processor.AspNetMinimal`](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/examples/processors/Processor.AspNetMinimal)
+[`Processor.AspNetMinimal`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Processor.AspNetMinimal)
 hosts one as an ASP.NET Core background service, which is how you would deploy it.
 
 Next: [Writing a processor](/processors/writing-a-processor/),
@@ -119,7 +119,7 @@ Next: [Writing a processor](/processors/writing-a-processor/),
 ## More examples
 
 Eighteen runnable projects live in
-[`examples/`](https://github.com/kurrent-io/kurrent-sdk-dotnet/tree/main/examples), covering fraud
+[`examples/`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples), covering fraud
 detection, IoT thresholds, leaderboards, stream-table joins, Postgres and Redis persistence, Kafka
 connectors and the schema registry. Each one has its own README and runs with `dotnet run`.
 

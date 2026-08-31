@@ -75,10 +75,10 @@
 
     <PackageIcon>ouro.png</PackageIcon>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-    <PackageProjectUrl>https://github.com/kurrent-io/kurrent-sdk-dotnet</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/kurrent-io/kurrent-surge</PackageProjectUrl>
     <PackageReleaseNotes>https://kurrent.io/blog/</PackageReleaseNotes>
 
-    <RepositoryUrl>https://github.com/kurrent-io/kurrent-sdk-dotnet</RepositoryUrl>
+    <RepositoryUrl>https://github.com/kurrent-io/kurrent-surge</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 

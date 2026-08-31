@@ -1,7 +1,7 @@
 <!-- devx-linear-workflow-contract: v1 -->
 # Linear Workflow
 
-Coordinates and conventions for tracking `kurrent-sdk` work in Linear. Consumed by the `devx-linear-workflow`
+Coordinates and conventions for tracking `kurrent-surge` work in Linear. Consumed by the `devx-linear-workflow`
 skill and by anyone triaging or filing issues by hand. Generic process (issue-first workflow, worktree-per-
 issue, estimation scale, ATDD/EARS, sitrep) and fixed DevEx facts (team, team id, issue-id shape, sprint
 capacity — the same across every DevEx repo, since Linear scopes cycles to the team, not the project) live

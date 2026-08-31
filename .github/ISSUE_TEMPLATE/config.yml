@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Questions & Ideas
-    url: https://github.com/kurrent-io/kurrent-sdk-dotnet/discussions
+    url: https://github.com/kurrent-io/kurrent-surge/discussions
     about: Ask questions, share what you're building, or discuss the roadmap.
   - name: Security
     url: mailto:security@kurrent.io

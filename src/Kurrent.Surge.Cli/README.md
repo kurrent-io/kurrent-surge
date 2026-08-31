@@ -1,7 +1,7 @@
 # Kurrent.Surge.Cli
 
 `surge` is the Kurrent Surge command-line tool. Its first vertical is `huggingface`: Hugging Face model
-acquisition over [`Kurrent.Surge.AI.HuggingFace`](https://github.com/kurrent-io/kurrent-sdk-dotnet).
+acquisition over [`Kurrent.Surge.AI.HuggingFace`](https://github.com/kurrent-io/kurrent-surge).
 
 Inspect a model's planned bundle, download it with resume and integrity checking, and manage the local
 model cache — all from the terminal.
@@ -111,5 +111,5 @@ only ever touch `models--*` entries, never datasets, spaces, or unrelated files.
 ## Links
 
 - [Documentation](https://kurrent.io/docs)
-- [GitHub Repository](https://github.com/kurrent-io/kurrent-sdk-dotnet)
-- [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-sdk-dotnet/blob/main/LICENSE.md)
+- [GitHub Repository](https://github.com/kurrent-io/kurrent-surge)
+- [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-surge/blob/main/LICENSE.md)

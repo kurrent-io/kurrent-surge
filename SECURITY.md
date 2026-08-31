@@ -24,7 +24,7 @@ Instead, use one of the following private channels:
 
 - **Email** — [security@kurrent.io](mailto:security@kurrent.io)
 - **GitHub Security Advisories** — use
-  [Report a vulnerability](https://github.com/kurrent-io/kurrent-sdk-dotnet/security/advisories/new)
+  [Report a vulnerability](https://github.com/kurrent-io/kurrent-surge/security/advisories/new)
   to open a private advisory.
 - **Security portal** — see [kurrent.io/security](https://www.kurrent.io/security#security)
   for company-wide reporting guidance.

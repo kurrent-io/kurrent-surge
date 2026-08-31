@@ -44,7 +44,7 @@ These settings are baked in. `JsonSchemaCodecOptions` exposes two knobs:
 - `UserJsonContexts`: source-generated `JsonSerializerContext` instances for AOT (see [AOT](#aot)).
 - `UseProtobufFormatter`: formats protobuf messages with the canonical protobuf JSON encoding. Defaults to on.
 
-Runtime overrides for the naming policy, ignore condition, and converters are not exposed today. If you need them, [open an issue](https://github.com/kurrent-io/kurrent-sdk-dotnet/issues).
+Runtime overrides for the naming policy, ignore condition, and converters are not exposed today. If you need them, [open an issue](https://github.com/kurrent-io/kurrent-surge/issues).
 
 ## AOT
 

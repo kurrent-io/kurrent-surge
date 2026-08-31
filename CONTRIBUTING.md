@@ -14,8 +14,8 @@ layout) live in [`AGENTS.md`](AGENTS.md) — read that before writing code.
 ## Getting started
 
 ```bash
-git clone https://github.com/kurrent-io/kurrent-sdk-dotnet.git
-cd kurrent-sdk-dotnet
+git clone https://github.com/kurrent-io/kurrent-surge.git
+cd kurrent-surge
 
 dotnet restore        # restore package dependencies
 dotnet tool restore   # restore local tools used by tools/ and CI

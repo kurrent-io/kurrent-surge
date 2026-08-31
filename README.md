@@ -1,6 +1,6 @@
 # Kurrent .NET SDK
 
-[![Build](https://github.com/kurrent-io/kurrent-sdk-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/kurrent-io/kurrent-sdk-dotnet/actions/workflows/ci.yml)
+[![Build](https://github.com/kurrent-io/kurrent-surge/actions/workflows/ci.yml/badge.svg)](https://github.com/kurrent-io/kurrent-surge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 The .NET SDK for the [Kurrent](https://kurrent.io) platform.
@@ -36,7 +36,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ## Community
 
 - [Discord](https://discord.gg/Phn9pmCw3t)
-- [Discussions](https://github.com/kurrent-io/kurrent-sdk-dotnet/discussions)
+- [Discussions](https://github.com/kurrent-io/kurrent-surge/discussions)
 
 ## License
 

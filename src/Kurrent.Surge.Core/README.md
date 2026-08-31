@@ -28,5 +28,5 @@ dotnet add package Kurrent.Surge.Core
 ## Links
 
 - [Documentation](https://kurrent.io/docs)
-- [GitHub Repository](https://github.com/kurrent-io/kurrent-sdk-dotnet)
-- [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-sdk-dotnet/blob/main/LICENSE.md)
+- [GitHub Repository](https://github.com/kurrent-io/kurrent-surge)
+- [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-surge/blob/main/LICENSE.md)
