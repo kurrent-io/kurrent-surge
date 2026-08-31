@@ -1,0 +1,335 @@
+---
+const GROUPS = [
+  {
+    name: 'Surfaces',
+    tokens: [
+      { n: '--bg', affects: 'Page ground. Starlight --sl-color-bg and --sl-color-bg-sidebar.' },
+      { n: '--bg-1', affects: 'Starlight --sl-color-gray-7. Image backing in prose.' },
+      { n: '--bg-2', affects: 'Inline-code ground, Starlight --sl-color-gray-6.' },
+      { n: '--bg-3', affects: 'Nothing. Retained as an accent candidate.' },
+    ],
+  },
+  {
+    name: 'Text',
+    tokens: [
+      { n: '--fg', affects: 'Headings, page title, bold, active nav row. Starlight --sl-color-white.' },
+      { n: '--fg-1', affects: 'Starlight --sl-color-text. Table cells, aside body, inline code.' },
+      { n: '--fg-dim', affects: 'The whole left sidebar, eyebrows, section labels.' },
+      { n: '--fg-dimmer', affects: 'Starlight --sl-color-gray-4 only.' },
+      { n: '--fg-fade', affects: 'Sidebar group labels, right-rail TOC, footer note.' },
+    ],
+  },
+  {
+    name: 'Lines',
+    tokens: [
+      { n: '--border', affects: 'Starlight hairlines, image frames, landing grid rules.' },
+      { n: '--border-1', affects: 'Secondary button outline, --sl-color-hairline-shade.' },
+      { n: '--border-strong', affects: 'Secondary button hover, code-block scrollbar thumb.' },
+    ],
+  },
+  {
+    name: 'Accent',
+    tokens: [
+      { n: '--accent', affects: 'Prose links, active sidebar rail and wash, TOC current, CTA fill, focus, ::selection, caution asides.' },
+      { n: '--cta-fg', affects: 'Text and icon colour on top of a coral fill.' },
+      { n: '--accent-ring', affects: 'The 4px halo on primary-button hover. Computed from --accent.' },
+      { n: '--glow-a', affects: 'Strength of the ambient wash on body. Its hue comes from --accent.' },
+      { n: '--plum', affects: 'Nothing. Alternate accent candidate.' },
+      { n: '--plum-lift', affects: 'Nothing. Alternate accent candidate.' },
+    ],
+  },
+  {
+    name: 'Light-mode seed',
+    tokens: [
+      { n: '--bone', affects: 'Unused. Ground for a light palette.' },
+      { n: '--pale-blue', affects: 'Unused. Secondary light band.' },
+      { n: '--ink', affects: 'Unused. Heading colour for a light palette.' },
+      { n: '--ink-dim', affects: 'Unused. Body colour for a light palette.' },
+    ],
+  },
+];
+
+const BYPASSES = [
+  { where: 'astro.config.mjs:37-50', what: 'Nine hardcoded hexes in the mermaid themeVariables block.', cost: 'Baked into the SVG at build time, so no runtime change can reach them.' },
+];
+
+const LIGHT = {
+  '--bg': '#f5f3f0', '--bg-1': '#ffffff', '--bg-2': '#e8e4de',
+  '--fg': '#1a1a1a', '--fg-1': '#3a3843', '--fg-dim': '#5c5a66',
+  '--fg-dimmer': '#64626e', '--fg-fade': '#6e6b78',
+  '--border': 'rgba(26, 26, 26, 0.12)', '--border-1': 'rgba(26, 26, 26, 0.20)',
+  '--border-strong': 'rgba(26, 26, 26, 0.38)',
+  '--accent': '#7a4f00', '--cta-fg': '#ffffff', '--glow-a': '22%',
+};
+---
+
+<div class="ti not-content" data-light={JSON.stringify(LIGHT)}>
+
+  <div class="ti__bar">
+    <button type="button" class="ti__btn" data-act="light">Preview light palette</button>
+    <button type="button" class="ti__btn" data-act="reset">Reset</button>
+    <button type="button" class="ti__btn" data-act="copy">Copy CSS</button>
+    <span class="ti__status" data-status role="status" aria-live="polite"></span>
+  </div>
+
+  <section class="ti__controls">
+    <label class="ti__ctl">
+      <span class="ti__ctl-k">Title &amp; headings</span>
+      <span class="ti__ctl-t">--fg</span>
+      <input type="color" data-var="--fg" />
+    </label>
+
+    <label class="ti__ctl">
+      <span class="ti__ctl-k">Accent</span>
+      <span class="ti__ctl-t">--accent</span>
+      <input type="color" data-var="--accent" />
+      <span class="ti__presets">
+        <button type="button" class="ti__chip" data-preset="--accent" data-value="#ff4a80" style="--chip:#ff4a80">coral</button>
+        <button type="button" class="ti__chip" data-preset="--accent" data-value="#2a273f" style="--chip:#2a273f">plum</button>
+        <button type="button" class="ti__chip" data-preset="--accent" data-value="#3a3654" style="--chip:#3a3654">plum-lift</button>
+        <button type="button" class="ti__chip" data-preset="--accent" data-value="#a8134a" style="--chip:#a8134a">coral AA</button>
+      </span>
+    </label>
+
+    <label class="ti__ctl">
+      <span class="ti__ctl-k">Background gradient</span>
+      <span class="ti__ctl-t">--glow-a</span>
+      <input type="range" data-glow-a min="0" max="60" step="1" value="16" />
+      <output data-glow-out>16%</output>
+    </label>
+  </section>
+
+  {GROUPS.map((g) => (
+    <section class="ti__group">
+      <h3 class="ti__group-h">{g.name}</h3>
+      <ul class="ti__list">
+        {g.tokens.map((t) => (
+          <li class="ti__row" data-token={t.n}>
+            <span class="ti__sw" data-sw></span>
+            <code class="ti__name">{t.n}</code>
+            <code class="ti__val" data-val>&nbsp;</code>
+            <span class="ti__aff">{t.affects}</span>
+            <button type="button" class="ti__flash" data-flash={t.n}>Flash</button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+
+  <section class="ti__group">
+    <h3 class="ti__group-h">Will not respond</h3>
+    <p class="ti__note">Four places set a colour literally instead of reading a token. Nothing above moves them.</p>
+    <ul class="ti__list ti__list--bypass">
+      {BYPASSES.map((b) => (
+        <li class="ti__brow">
+          <code class="ti__name">{b.where}</code>
+          <span class="ti__aff">{b.what}</span>
+          <span class="ti__cost">{b.cost}</span>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <pre class="ti__out" data-out></pre>
+</div>
+
+<style>
+  .ti { margin: 24px 0 0; font-size: 0.8125rem; }
+
+  .ti__bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 20px; }
+  .ti__btn {
+    font: inherit; font-family: var(--font-mono); font-size: 0.6875rem;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    background: rgba(127, 127, 127, 0.10); color: var(--fg-1);
+    border: 1px solid var(--border-1); border-radius: 6px;
+    padding: 7px 12px; cursor: pointer;
+    transition: border-color 140ms ease, color 140ms ease;
+  }
+  .ti__btn:hover { color: var(--fg); border-color: var(--accent); }
+  .ti__status { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--accent); }
+
+  .ti__controls {
+    display: grid; gap: 14px;
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 20px; margin-bottom: 28px;
+    background: rgba(127, 127, 127, 0.04);
+  }
+  .ti__ctl { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .ti__ctl-k { min-width: 160px; color: var(--fg); font-weight: 500; }
+  .ti__ctl-t { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-fade); min-width: 96px; }
+  .ti__ctl input[type="color"] {
+    inline-size: 40px; block-size: 26px; padding: 0; cursor: pointer;
+    background: none; border: 1px solid var(--border-1); border-radius: 5px;
+  }
+  .ti__ctl input[type="range"] { inline-size: 140px; accent-color: var(--accent); cursor: pointer; }
+  .ti__ctl output { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-fade); min-width: 34px; }
+
+  .ti__presets { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ti__chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.04em;
+    color: var(--fg-dim); background: none;
+    border: 1px solid var(--border-1); border-radius: 999px;
+    padding: 4px 10px 4px 6px; cursor: pointer;
+  }
+  .ti__chip::before {
+    content: ""; inline-size: 11px; block-size: 11px; border-radius: 50%;
+    background: var(--chip); border: 1px solid var(--border-1);
+  }
+  .ti__chip:hover { color: var(--fg); border-color: var(--accent); }
+
+  .ti__group { margin: 0 0 26px; }
+  .ti__group-h {
+    font-family: var(--font-mono); font-size: 0.625rem; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-fade);
+    margin: 0 0 10px;
+  }
+  .ti__note { color: var(--fg-dim); margin: 0 0 12px; font-size: 0.8125rem; }
+
+  .ti__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+  .ti__row, .ti__brow {
+    display: grid; align-items: center; gap: 12px;
+    grid-template-columns: 22px 130px 128px 1fr auto;
+    padding: 8px 10px; border-radius: 6px;
+  }
+  .ti__brow { grid-template-columns: 200px 1fr 1fr; }
+  .ti__row:hover { background: rgba(127, 127, 127, 0.07); }
+
+  .ti__sw {
+    inline-size: 22px; block-size: 22px; border-radius: 5px;
+    border: 1px solid var(--border-1); background: var(--border);
+  }
+  .ti__name { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg); }
+  .ti__val { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--fg-fade); }
+  .ti__aff { color: var(--fg-dim); line-height: 1.5; }
+  .ti__cost { color: var(--fg-fade); line-height: 1.5; }
+
+  .ti__flash {
+    font-family: var(--font-mono); font-size: 0.625rem; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--fg-fade); background: none;
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 4px 9px; cursor: pointer;
+  }
+  .ti__flash:hover { color: var(--accent); border-color: var(--accent); }
+
+  .ti__out {
+    font-family: var(--font-mono); font-size: 0.6875rem; line-height: 1.7;
+    background: rgba(127, 127, 127, 0.07); color: var(--fg-1);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px 18px; overflow-x: auto; white-space: pre;
+  }
+
+  @media (max-width: 60rem) {
+    .ti__row, .ti__brow { grid-template-columns: 22px 1fr; row-gap: 4px; }
+    .ti__val, .ti__aff, .ti__cost { grid-column: 2; }
+    .ti__flash { grid-column: 2; justify-self: start; }
+    .ti__ctl-k, .ti__ctl-t { min-width: 0; }
+  }
+</style>
+
+<script>
+  const root = document.documentElement;
+  const box = document.querySelector<HTMLElement>('.ti');
+  if (box) {
+    const LIGHT: Record<string, string> = JSON.parse(box.dataset.light ?? '{}');
+    const status = box.querySelector<HTMLElement>('[data-status]')!;
+    const out = box.querySelector<HTMLElement>('[data-out]')!;
+    // Values the reader has changed. Kept apart from the inline style so a flash
+    // can restore an override instead of wiping it back to the stylesheet value.
+    const edits = new Map<string, string>();
+
+    const read = (name: string) =>
+      getComputedStyle(root).getPropertyValue(name).trim();
+
+    const say = (msg: string) => {
+      status.textContent = msg;
+      window.setTimeout(() => { if (status.textContent === msg) status.textContent = ''; }, 2400);
+    };
+
+    const toHex = (value: string) => {
+      const m = value.match(/^rgba?\(([^)]+)\)$/);
+      if (!m) return /^#[0-9a-f]{6}$/i.test(value) ? value : '';
+      const [r, g, b] = m[1].split(',').map((n) => Math.round(parseFloat(n)));
+      return '#' + [r, g, b].map((n) => n.toString(16).padStart(2, '0')).join('');
+    };
+
+    function refresh() {
+      box!.querySelectorAll<HTMLElement>('.ti__row').forEach((row) => {
+        const name = row.dataset.token!;
+        const value = read(name);
+        row.querySelector<HTMLElement>('[data-sw]')!.style.background = value;
+        row.querySelector<HTMLElement>('[data-val]')!.textContent = value || '—';
+      });
+
+      box!.querySelectorAll<HTMLInputElement>('input[data-var]').forEach((input) => {
+        const hex = toHex(read(input.dataset.var!));
+        if (hex) input.value = hex;
+      });
+
+      const pct = read('--glow-a') || '16%';
+      box!.querySelector<HTMLInputElement>('[data-glow-a]')!.value = String(parseFloat(pct));
+      box!.querySelector<HTMLElement>('[data-glow-out]')!.textContent = pct;
+
+      out.textContent = edits.size
+        ? ':root {\n' + [...edits].map(([k, v]) => `  ${k}: ${v};`).join('\n') + '\n}'
+        : 'No changes yet. Move a control above.';
+    }
+
+    function set(name: string, value: string) {
+      edits.set(name, value);
+      root.style.setProperty(name, value);
+      refresh();
+    }
+
+    box.querySelectorAll<HTMLInputElement>('input[data-var]').forEach((input) => {
+      input.addEventListener('input', () => set(input.dataset.var!, input.value));
+    });
+
+    const glowAlpha = box.querySelector<HTMLInputElement>('[data-glow-a]')!;
+
+    // The wash takes its hue from --accent through color-mix, so only its
+    // strength is adjustable here. Changing the accent moves the wash with it.
+    glowAlpha.addEventListener('input', () => set('--glow-a', `${glowAlpha.value}%`));
+
+    box.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((chip) => {
+      chip.addEventListener('click', () => set(chip.dataset.preset!, chip.dataset.value!));
+    });
+
+    box.querySelectorAll<HTMLButtonElement>('[data-flash]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const name = btn.dataset.flash!;
+        const restore = edits.get(name);
+        root.style.setProperty(name, '#00e5ff');
+        window.setTimeout(() => {
+          if (restore === undefined) root.style.removeProperty(name);
+          else root.style.setProperty(name, restore);
+          refresh();
+        }, 1300);
+      });
+    });
+
+    box.querySelector<HTMLButtonElement>('[data-act="light"]')!.addEventListener('click', () => {
+      Object.entries(LIGHT).forEach(([k, v]) => { edits.set(k, v); root.style.setProperty(k, v); });
+      refresh();
+      say('Light palette applied — preview only');
+    });
+
+    box.querySelector<HTMLButtonElement>('[data-act="reset"]')!.addEventListener('click', () => {
+      edits.forEach((_, k) => root.style.removeProperty(k));
+      edits.clear();
+      refresh();
+      say('Reset');
+    });
+
+    box.querySelector<HTMLButtonElement>('[data-act="copy"]')!.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(out.textContent ?? '');
+        say('Copied');
+      } catch {
+        say('Clipboard blocked — select the block below');
+      }
+    });
+
+    refresh();
+  }
+</script>

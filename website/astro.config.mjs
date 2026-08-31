@@ -85,7 +85,7 @@ export default defineConfig({
             editorTabBarBorderBottomColor: 'var(--border)',
             editorActiveTabBackground: '#141414',
             editorActiveTabForeground: 'var(--fg)',
-            editorActiveTabIndicatorTopColor: 'var(--coral)',
+            editorActiveTabIndicatorTopColor: 'var(--accent)',
             frameBoxShadowCssValue: 'none',
           },
         },
@@ -98,25 +98,17 @@ export default defineConfig({
         ThemeProvider: './src/components/DocsThemeProvider.astro',
         ThemeSelect: './src/components/DocsThemeSelect.astro',
       },
-      // Order matters: faces, then tokens, then the primitives that consume
-      // them, then the Starlight mapping. The first four are ported from
-      // kcap-web so the SDK docs and capacitor.kurrent.io read as one brand.
-      // primitives.css is loaded here as well as on the landing page — that is
-      // what puts the brand's buttons, eyebrows and glow on every docs route
-      // rather than on the home page alone.
+      // Two entries, which is the shape Starlight documents: @font-face in its
+      // own file, everything else in one project stylesheet.
       customCss: [
         './src/styles/fonts.css',
-        './src/styles/brand.css',
-        './src/styles/primitives.css',
-        './src/styles/starlight-theme.css',
-        // Ours, not ported — kcap-web's docs have no landing page and no CTA.
-        './src/styles/docs.css',
+        './src/styles/surge.css',
       ],
       social: [
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/kurrent-io/kurrent-sdk-dotnet',
+          href: 'https://github.com/kurrent-io/kurrent-surge',
         },
       ],
       // Native grouped sidebar, not starlight-sidebar-topics. At 16 pages one

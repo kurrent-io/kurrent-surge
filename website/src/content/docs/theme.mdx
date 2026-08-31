@@ -1,0 +1,65 @@
+---
+title: Theme inspector
+description: Every brand token this site paints with, what it affects, and a live preview of changing it.
+tableOfContents: true
+---
+
+import ThemeInspector from '../../components/ThemeInspector.astro';
+
+Internal tool. Not in the sidebar, not linked from anywhere.
+
+Every colour on this site resolves from `src/styles/brand.css`. The swatches below read their
+values from the live page, so they cannot drift from the stylesheet. Every control writes to
+`:root`, so the sidebar, the table of contents, this prose and the code block further down all
+repaint together — you are changing the real page, not a mock of it.
+
+Nothing here is saved. Reload to discard.
+
+**Flash** sets one token to cyan for a moment. That is the fastest way to learn what a token
+owns: press it and watch which parts of the page move.
+
+<ThemeInspector />
+
+## What Starlight gives you by default
+
+Measured on a clean `bun create astro --template starlight` project, Starlight 0.41, read out of
+the browser rather than the docs.
+
+| | Default dark | Default light |
+|---|---|---|
+| Accent | `#3369ff` | `#3d50f5` |
+| Page ground | `#17181c` | `#ffffff` |
+| Sidebar ground | `#23262f` | `#ffffff` |
+| Body text | `#c1c3c8` | `#353841` |
+| Highest-contrast text | `#ffffff` | `#17181c` |
+| Hairline | `#23262f` | `#edeef3` |
+
+Three things follow from that, and all three shape what a light palette here has to do.
+
+The default accent is blue, not purple. Purple ships as `--sl-color-purple-*` and is spent on tip
+asides alone. The purple you see on this site is ours.
+
+Starlight is dark-first. Bare `:root` carries the dark palette; `:root[data-theme='light']`
+overrides it. A theme that writes one set of values into all three scopes — which is what
+`starlight-theme.css` does today — has no light mode, only a toggle that changes nothing.
+
+`--sl-color-white` is a role, not a colour. It means *highest contrast against the current
+ground*: white in dark mode, `#17181c` in light. Pinning it to bone is why the toggle had to be
+locked off.
+
+## Why the light preview shifts the accent
+
+The accent is `#ffc857`. On the dark ground it is excellent — better than the coral it replaced.
+On any light ground it is unusable.
+
+| Pair | Ratio | AA body text |
+|---|---|---|
+| `#ffc857` on `#0a0a0a` | 12.87 | passes |
+| `#000000` on `#ffc857` fill | 13.65 | passes |
+| `#ffffff` on `#ffc857` fill | 1.54 | fails |
+| `#ffc857` on `#f5f3f0` | 1.39 | fails |
+| `#7a4f00` on `#f5f3f0` | 6.44 | passes |
+
+Two rules follow. `--cta-fg` must stay dark, because white on this accent is 1.54. And a light
+palette has to darken the accent hard — to roughly `#7a4f00` — because yellow carries almost no
+contrast against bone. The preview above does exactly that.

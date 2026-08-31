@@ -26,7 +26,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 a { color: inherit; }
-::selection { background: var(--coral); color: #000; }
+::selection { background: var(--accent); color: var(--cta-fg); }
 
 /* ---------- Hero ---------- */
 .hero {
@@ -44,8 +44,8 @@ a { color: inherit; }
   height: 70%;
   background: radial-gradient(
     60% 80% at 50% 0%,
-    rgba(var(--hero-glow), 0.22) 0%,
-    rgba(var(--hero-glow), 0) 70%
+    color-mix(in oklab, var(--accent) 22%, transparent) 0%,
+    transparent 70%
   );
   pointer-events: none;
 }
@@ -89,7 +89,7 @@ a { color: inherit; }
 .hero__h1 em {
   font-style: italic;
   font-weight: 400;
-  color: var(--coral);
+  color: var(--accent);
   white-space: nowrap;
   font-family: var(--font-sans);
 }
@@ -102,12 +102,12 @@ a { color: inherit; }
   max-width: 58ch;
   margin: 0;
   padding-left: 22px;
-  border-left: 2px solid var(--coral);
+  border-left: 2px solid var(--accent);
 }
 .hero__sub b { color: var(--fg); font-weight: 500; }
 .hero__sub em {
   font-style: italic;
-  color: var(--coral);
+  color: var(--accent);
   font-weight: 500;
   font-family: var(--font-sans);
 }

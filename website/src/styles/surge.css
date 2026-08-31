@@ -1,9 +1,84 @@
-/* Ported verbatim from kcap-web src/styles/starlight-theme.css, minus the
-   blocks that style its own DocsHeader/DocsSidebar components.
-   Maps Capacitor brand tokens (brand.css)
-   to Starlight's internal CSS variables so the docs feel like the marketing
-   landing page. Dark-only; the lighter scope inherits the same values for
-   safety in case anything triggers the toggle. */
+/* Kurrent Surge docs theme.
+
+   One file, three sections:
+     1. Tokens        - the only place a value is written
+     2. Starlight map - our tokens onto the documented --sl-* surface
+     3. Treatments    - the few things no Starlight token can express
+
+   Fonts live in fonts.css because Starlight documents @font-face as its own
+   customCss entry. Landing-page-only styles live in primitives.css + home.css
+   and are imported by src/pages/index.astro, not by Starlight. */
+
+/* ============================================================ 1. TOKENS */
+
+
+:root {
+  /* Surfaces — near-black base with warm-neutral lifted panels. */
+  --bg:           #0a0a0a;
+  --bg-1:         #141312;
+  --bg-2:         #1e1c1a;
+  --bg-3:         #2a273f;
+
+  /* Foreground — bone headings over a warm-neutral ramp. Every step keeps
+     R >= B, so no step reads blue against the warm accent. */
+  --fg:           #f5f3f0;
+  --fg-1:         #cdcac5;
+  --fg-dim:       #a3a09a;
+  --fg-dimmer:    #8f8c86;
+  --fg-fade:      #77746e;
+
+  /* Light sections — the redesign introduces bone-colored bands/pages
+     (pricing, get-started, the analytics band). Ink tokens are the text
+     colors used on top of them. */
+  --bone:         #f5f3f0;
+  --pale-blue:    #edf1fc;
+  --ink:          #1a1a1a;
+  --ink-dim:      #525252;
+
+  /* Hairlines. */
+  --border:       rgba(245, 243, 240, 0.10);
+  --border-1:     rgba(245, 243, 240, 0.16);
+  --border-strong:rgba(245, 243, 240, 0.30);
+
+  /* Accent — one hue drives links, the active nav rail, call-to-action fills
+     and the ambient wash. Plum is the alternate candidate. */
+  --accent:       #ffc857;
+  --plum:         #2a273f;
+  --plum-lift:    #3a3654;
+
+  /* Accent derivatives, both computed from --accent so a hue change carries
+     to the hover ring and the ambient wash without a second edit. --glow-a is
+     a percentage because color-mix takes one, not a 0-1 alpha.
+     --cta-fg must stay dark: white on the current accent measures 1.54:1. */
+  --cta-fg:       #000000;
+  --accent-ring:  color-mix(in oklab, var(--accent) 22%, transparent);
+  --glow-a:       16%;
+
+  /* Typography. */
+  --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Layout. */
+  --maxw: 1080px;
+  --maxw-tight: 880px;
+}
+
+/* Respect reduced motion across the whole site. Hover/focus transitions
+   collapse to near-instant; users who opted out get state changes without
+   the slide/glow choreography. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ================================================= 2. STARLIGHT MAP */
+
 
 :root,
 :root[data-theme="dark"],
@@ -26,7 +101,7 @@
   --sl-color-bg-nav: color-mix(in oklab, var(--bg) 82%, transparent);
   --sl-color-bg-sidebar: var(--bg);
   --sl-color-bg-inline-code: var(--bg-2);
-  --sl-color-bg-accent: var(--coral);
+  --sl-color-bg-accent: var(--accent);
 
   /* Hairlines / borders */
   --sl-color-hairline: var(--border);
@@ -44,15 +119,15 @@
   --sl-color-gray-7: var(--bg-1);
   --sl-color-text: var(--fg-1);
   --sl-color-text-accent: var(--fg);
-  --sl-color-text-invert: #0a0710;
+  --sl-color-text-invert: var(--cta-fg);
 
   /* Accent (links, focus rings, primary CTA) */
-  --sl-color-accent-low: color-mix(in oklab, var(--coral) 18%, transparent);
-  --sl-color-accent: var(--coral);
+  --sl-color-accent-low: color-mix(in oklab, var(--accent) 18%, transparent);
+  --sl-color-accent: var(--accent);
   --sl-color-accent-high: var(--fg);
 
   /* Asides */
-  --sl-color-asides-text-accent: var(--coral);
+  --sl-color-asides-text-accent: var(--accent);
 }
 
 /* Heading hierarchy follows the marketing landing's editorial register:
@@ -84,7 +159,7 @@
    pages run heavier because their paragraphs are short. */
 .sl-markdown-content :is(p, li) {
   font-weight: 300;
-  color: #b8b9c1;
+  color: var(--fg-1);
 }
 .sl-markdown-content strong {
   font-weight: 600;
@@ -93,7 +168,7 @@
 /* Prose links are coral here (marketing keeps coral for CTAs only) — in a
    dense docs page an underline-only link is easy to miss. */
 .sl-markdown-content :is(p, li) > a {
-  color: var(--coral);
+  color: var(--accent);
   text-decoration: none;
 }
 .sl-markdown-content :is(p, li) > a:hover {
@@ -188,8 +263,8 @@
 }
 .sidebar-content a[aria-current="page"] {
   color: var(--fg);
-  background: color-mix(in oklab, var(--coral) 8%, transparent);
-  border-left-color: var(--coral);
+  background: color-mix(in oklab, var(--accent) 8%, transparent);
+  border-left-color: var(--accent);
   font-weight: 500;
 }
 
@@ -223,7 +298,7 @@ starlight-toc nav > h2,
 }
 .right-sidebar-panel starlight-toc nav a[aria-current="true"],
 .right-sidebar-panel starlight-toc nav a[aria-current="true"]:hover {
-  color: var(--coral);
+  color: var(--accent);
   font-weight: 400;
 }
 
@@ -240,7 +315,7 @@ site-search button[data-open-modal] {
 }
 site-search button[data-open-modal]:hover {
   background: rgba(255, 255, 255, 0.06);
-  border-color: color-mix(in oklab, var(--coral) 40%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 40%, transparent);
   color: var(--fg);
 }
 site-search button[data-open-modal] kbd {
@@ -309,9 +384,9 @@ site-search button[data-open-modal] kbd {
 }
 .sl-markdown-content .starlight-aside--caution,
 .sl-markdown-content .starlight-aside--danger {
-  --sl-color-asides-text-accent: var(--coral);
-  background: color-mix(in oklab, var(--coral) 6%, transparent);
-  border-color: color-mix(in oklab, var(--coral) 12%, transparent);
+  --sl-color-asides-text-accent: var(--accent);
+  background: color-mix(in oklab, var(--accent) 6%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 12%, transparent);
 }
 .sl-markdown-content .starlight-aside--note,
 .sl-markdown-content .starlight-aside--tip {
@@ -380,6 +455,77 @@ site-search button[data-open-modal] kbd {
 
 /* Selection — keep the marketing site's coral selection across docs. */
 ::selection {
-  background: var(--coral);
-  color: #0b0809;
+  background: var(--accent);
+  color: var(--cta-fg);
+}
+
+/* ==================================================== 3. TREATMENTS */
+
+
+/* ---- Ambient glow ------------------------------------------------------ */
+/* The same single radial the hero uses, weaker, anchored to the top of the
+   viewport. Painted as a background layer on `body` rather than a
+   pseudo-element: it composites over the background colour and under every
+   descendant with no stacking context to reason about, and it cannot
+   intercept a pointer event. `fixed` keeps it still while the page scrolls. */
+body {
+  background-image: radial-gradient(
+    70% 100% at 50% 0%,
+    color-mix(in oklab, var(--accent) var(--glow-a), transparent) 0%,
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: 100% 60vh;
+  background-position: top center;
+}
+
+/* ---- Framed code blocks ------------------------------------------------ */
+/* A framed block — a terminal, or any block with a title — is one object. The
+   header owns the top corners and the line under itself, so the body must not
+   repeat either.
+
+   The ported theme rounds every `pre` to 10px and gives it a border on all four
+   sides. That is right for a bare block and wrong for a framed one: the header's
+   bottom border and the body's top border stack, the body re-rounds corners the
+   header already rounded, and the two halves read as separate boxes with a seam
+   between them. kcap's own docs never hit it because they use no framed blocks;
+   every ```bash block here becomes one. */
+.expressive-code .frame:is(.is-terminal, .has-title) pre {
+  border-top: none;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}
+
+/* ---- Tables ------------------------------------------------------------ */
+/* Starlight sets `display: block; overflow: auto` on markdown tables so a wide
+   one can scroll. That makes the `table` element a block box: it fills the
+   container and carries our border and radius at full width, while the anonymous
+   table box inside it shrinks to its content. The result is a full-width frame
+   with the header wash and the row rules stopping short of it.
+
+   Restore table layout and fill the box. Cells wrap instead of scrolling, which
+   suits text tables. A table that must scroll needs its own wrapper.
+
+   The rule needs no specificity trick. Starlight's own styles sit inside
+   `@layer starlight.*`, and everything in this file is unlayered, so ours wins
+   whatever the bundle order. Declaring the property at all is the fix. */
+.sl-markdown-content table:not(:where(.not-content *)) {
+  display: table;
+  width: 100%;
+}
+
+/* ---- Code scrollbars --------------------------------------------------- */
+/* A long code line leaves a horizontal scrollbar in the browser's default
+   colours, which land blue against the near-black frame. */
+.expressive-code pre {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ---- Prose measure ----------------------------------------------------- */
+/* Starlight caps the content column by viewport, not by measure, so on a wide
+   window a paragraph runs past a comfortable line length. */
+.sl-markdown-content {
+  max-width: 74ch;
 }

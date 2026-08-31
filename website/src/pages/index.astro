@@ -5,7 +5,7 @@
 // Standing outside the collection means it loads its own stylesheets; the
 // first four are the same ones Starlight loads, in the same order.
 import "../styles/fonts.css";
-import "../styles/brand.css";
+import "../styles/surge.css";
 import "../styles/primitives.css";
 import "../styles/home.css";
 
@@ -148,7 +148,7 @@ await KurrentProcessor.Create(new TemperatureMonitor(), opts =&gt; &#123;
       {sections.map((s, i) => (
         <div style={`padding: 32px; border-right: ${i % 2 === 0 ? "1px solid var(--border)" : "none"}; border-bottom: ${i < sections.length - 2 ? "1px solid var(--border)" : "none"};`}>
           <p class="mono" style="font-size: 11px; letter-spacing: 0.16em; margin: 0 0 18px;">
-            <span style="color: var(--coral);">{s.num}</span>
+            <span style="color: var(--accent);">{s.num}</span>
             <span style="color: var(--fg-dim); margin-left: 10px;">{s.label}</span>
           </p>
           <h3 style="font-family: var(--font-sans); font-weight: 500; font-size: 22px; line-height: 1.25; margin: 0 0 14px; color: var(--fg); white-space: pre-line;">{s.title}</h3>
