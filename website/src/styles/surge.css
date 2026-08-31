@@ -118,13 +118,15 @@
   --sl-color-gray-6: var(--bg-2);
   --sl-color-gray-7: var(--bg-1);
   --sl-color-text: var(--fg-1);
-  --sl-color-text-accent: var(--fg);
+  /* Starlight colours prose links from text-accent, which defaults to
+     accent-high. Both point at the accent so no link rule is needed here. */
+  --sl-color-text-accent: var(--accent);
   --sl-color-text-invert: var(--cta-fg);
 
   /* Accent (links, focus rings, primary CTA) */
   --sl-color-accent-low: color-mix(in oklab, var(--accent) 18%, transparent);
   --sl-color-accent: var(--accent);
-  --sl-color-accent-high: var(--fg);
+  --sl-color-accent-high: var(--accent);
 
   /* Asides */
   --sl-color-asides-text-accent: var(--accent);
@@ -155,20 +157,20 @@
   margin-bottom: 12px;
 }
 
-/* Prose — 300 weight at this size keeps long pages light; the marketing
-   pages run heavier because their paragraphs are short. */
+/* Prose — 300 weight at this size keeps long pages light. Colour comes from
+   --sl-color-text; only the weight needs a rule. */
 .sl-markdown-content :is(p, li) {
   font-weight: 300;
-  color: var(--fg-1);
 }
+/* Starlight leaves strong at the body colour, so the lift to the
+   highest-contrast token has to be declared. */
 .sl-markdown-content strong {
   font-weight: 600;
-  color: var(--fg);
+  color: var(--sl-color-white);
 }
-/* Prose links are coral here (marketing keeps coral for CTAs only) — in a
-   dense docs page an underline-only link is easy to miss. */
+/* Link colour is --sl-color-text-accent. Only the undecorated resting state
+   and the dimmed hover need declaring. */
 .sl-markdown-content :is(p, li) > a {
-  color: var(--accent);
   text-decoration: none;
 }
 .sl-markdown-content :is(p, li) > a:hover {
@@ -226,10 +228,9 @@
   border-top: 0;
 }
 
-/* Body copy weight to match the marketing page (Solina 450). */
+/* Body copy weight. Colour comes from --sl-color-text. */
 .sl-markdown-content {
   font-weight: 450;
-  color: var(--fg-1);
 }
 
 /* Sidebar group labels — mono eyebrow, quieter and tighter than the
@@ -280,12 +281,7 @@ starlight-toc nav > h2,
   text-transform: uppercase;
   color: var(--fg-fade);
 }
-/* `.right-sidebar-panel` is carried only for specificity. Starlight scopes its
-   own panel rule as `.right-sidebar-panel:where(.astro-hash) :where(a)`, which
-   is (0,1,0); a bare `starlight-toc nav a` is (0,0,3) and loses, leaving the
-   TOC at --sl-color-gray-3 — the same tone as the left sidebar. The TOC is
-   meant to read one step quieter than the nav. */
-.right-sidebar-panel starlight-toc nav a {
+starlight-toc nav a {
   font-family: var(--font-sans);
   font-size: 0.75rem;
   font-weight: 400;
@@ -293,11 +289,11 @@ starlight-toc nav > h2,
   border-inline-start: none;
   padding-block: 4px;
 }
-.right-sidebar-panel starlight-toc nav a:hover {
+starlight-toc nav a:hover {
   color: var(--fg);
 }
-.right-sidebar-panel starlight-toc nav a[aria-current="true"],
-.right-sidebar-panel starlight-toc nav a[aria-current="true"]:hover {
+starlight-toc nav a[aria-current="true"],
+starlight-toc nav a[aria-current="true"]:hover {
   color: var(--accent);
   font-weight: 400;
 }
