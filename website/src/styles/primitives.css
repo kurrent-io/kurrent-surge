@@ -6,9 +6,20 @@
    Source line references are kept so a future sync can diff against theirs. */
 
 /* ---------- Layout helpers ---------- marketing.css:66-68 */
-.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 32px; }
-.wrap-tight { max-width: var(--maxw-tight); margin: 0 auto; padding: 0 32px; }
-.mono { font-family: var(--font-mono); font-feature-settings: "ss01", "ss02"; }
+.wrap {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 32px;
+}
+.wrap-tight {
+  max-width: var(--maxw-tight);
+  margin: 0 auto;
+  padding: 0 32px;
+}
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "ss01", "ss02";
+}
 
 /* ---------- Eyebrow ---------- marketing.css:69-77 */
 .eyebrow {
@@ -21,7 +32,9 @@
 }
 
 /* ---------- Section rhythm ---------- marketing.css:602-620 */
-.sect { margin: 0 0 32px 0; }
+.sect {
+  margin: 0 0 32px 0;
+}
 .sect__lbl {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -68,11 +81,19 @@
   border-radius: 4px;
   text-decoration: none;
   border: 1px solid var(--accent);
-  transition: transform 120ms ease, box-shadow 160ms ease;
+  transition:
+    transform 120ms ease,
+    box-shadow 160ms ease;
 }
-.btn-primary:hover { box-shadow: 0 0 0 4px var(--accent-ring); }
-.btn-primary:active { transform: translateY(1px); }
-.btn-primary svg { color: var(--cta-fg); }
+.btn-primary:hover {
+  box-shadow: 0 0 0 4px var(--accent-ring);
+}
+.btn-primary:active {
+  transform: translateY(1px);
+}
+.btn-primary svg {
+  color: var(--cta-fg);
+}
 
 .btn-secondary {
   display: inline-flex;
@@ -86,9 +107,14 @@
   border-radius: 4px;
   text-decoration: none;
   border: 1px solid var(--border-1);
-  transition: border-color 160ms ease, color 160ms ease;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease;
 }
-.btn-secondary:hover { color: var(--fg); border-color: var(--border-strong); }
+.btn-secondary:hover {
+  color: var(--fg);
+  border-color: var(--border-strong);
+}
 
 .btn-tertiary {
   display: inline-flex;
@@ -104,8 +130,18 @@
   border: none;
   border-bottom: 1px dotted var(--fg-fade);
   border-radius: 0;
-  transition: color 160ms ease, border-color 160ms ease;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
 }
-.btn-tertiary:hover { color: var(--fg-1); border-bottom-color: var(--fg-dim); }
-.btn-tertiary .arrow { font-family: var(--font-mono); transition: transform 160ms ease; }
-.btn-tertiary:hover .arrow { transform: translateX(2px); }
+.btn-tertiary:hover {
+  color: var(--fg-1);
+  border-bottom-color: var(--fg-dim);
+}
+.btn-tertiary .arrow {
+  font-family: var(--font-mono);
+  transition: transform 160ms ease;
+}
+.btn-tertiary:hover .arrow {
+  transform: translateX(2px);
+}

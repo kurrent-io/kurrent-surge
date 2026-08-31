@@ -1,0 +1,13 @@
+---
+// Puts the search field at the top of the navigation column instead of the
+// header. The header slot is emptied by the Search override; this renders the
+// real component, so Pagefind and the modal are unchanged.
+import Search from '@astrojs/starlight/components/Search.astro';
+import Default from '@astrojs/starlight/components/Sidebar.astro';
+---
+
+<div class="sidebar-search">
+  <Search />
+</div>
+
+<Default />

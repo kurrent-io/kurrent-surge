@@ -11,56 +11,101 @@
 
 /* ============================================================ 1. TOKENS */
 
-
 :root {
+  /* Every Starlight size token is expressed in rem, so the root size is the
+     single lever that scales the whole type system — headings, prose, sidebar,
+     table of contents and code — in proportion. Browser default is 16px. */
+  font-size: 17px;
+
   /* Surfaces — near-black base with warm-neutral lifted panels. */
-  --bg:           #0a0a0a;
-  --bg-1:         #141312;
-  --bg-2:         #1e1c1a;
-  --bg-3:         #2a273f;
+  --bg: #0a0a0a;
+  --bg-1: #141312;
+  --bg-2: #1e1c1a;
+  --bg-3: #2a273f;
 
   /* Foreground — bone headings over a warm-neutral ramp. Every step keeps
      R >= B, so no step reads blue against the warm accent. */
-  --fg:           #f5f3f0;
-  --fg-1:         #cdcac5;
-  --fg-dim:       #a3a09a;
-  --fg-dimmer:    #8f8c86;
-  --fg-fade:      #77746e;
+  --fg: #f5f3f0;
+  --fg-1: #cdcac5;
+  --fg-dim: #a3a09a;
+  --fg-dimmer: #8f8c86;
+  --fg-fade: #77746e;
 
   /* Light sections — the redesign introduces bone-colored bands/pages
      (pricing, get-started, the analytics band). Ink tokens are the text
      colors used on top of them. */
-  --bone:         #f5f3f0;
-  --pale-blue:    #edf1fc;
-  --ink:          #1a1a1a;
-  --ink-dim:      #525252;
+  --bone: #f5f3f0;
+  --pale-blue: #edf1fc;
+  --ink: #1a1a1a;
+  --ink-dim: #525252;
 
   /* Hairlines. */
-  --border:       rgba(245, 243, 240, 0.10);
-  --border-1:     rgba(245, 243, 240, 0.16);
-  --border-strong:rgba(245, 243, 240, 0.30);
+  --border: rgba(245, 243, 240, 0.1);
+  --border-1: rgba(245, 243, 240, 0.16);
+  --border-strong: rgba(245, 243, 240, 0.3);
 
   /* Accent — one hue drives links, the active nav rail, call-to-action fills
      and the ambient wash. Plum is the alternate candidate. */
-  --accent:       #ffc857;
-  --plum:         #2a273f;
-  --plum-lift:    #3a3654;
+  --accent: #ffc857;
+  --plum: #2a273f;
+  --plum-lift: #3a3654;
 
   /* Accent derivatives, both computed from --accent so a hue change carries
      to the hover ring and the ambient wash without a second edit. --glow-a is
      a percentage because color-mix takes one, not a 0-1 alpha.
      --cta-fg must stay dark: white on the current accent measures 1.54:1. */
-  --cta-fg:       #000000;
-  --accent-ring:  color-mix(in oklab, var(--accent) 22%, transparent);
-  --glow-a:       16%;
+  --cta-fg: #000000;
+  --accent-ring: color-mix(in oklab, var(--accent) 22%, transparent);
+  --glow-a: 16%;
 
   /* Typography. */
   --font-sans: "Work Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
 
+  /* Overlays. Tints and hairlines that sit on top of the current surface for
+     hover states, chips, table rules and code frames. Defined per scope so
+     they invert with the palette instead of painting white onto white. */
+  --tint-faint: rgba(255, 255, 255, 0.02);
+  --tint: rgba(255, 255, 255, 0.04);
+  --tint-1: rgba(255, 255, 255, 0.06);
+  --tint-2: rgba(255, 255, 255, 0.08);
+  --code-bg: #141414;
+
   /* Layout. */
   --maxw: 1080px;
   --maxw-tight: 880px;
+}
+
+/* Light scope. Values are Starlight's own light palette, measured from a clean
+   `bun create astro --template starlight` build, wired through our token names
+   so every rule below follows without being rewritten. Customise from here. */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-1: #f6f7f9;
+  --bg-2: #edeef3;
+
+  --fg: #17181c;
+  --fg-1: #353841;
+  --fg-dim: #555962;
+  --fg-dimmer: #888c96;
+  --fg-fade: #888c96;
+
+  --border: rgba(23, 24, 28, 0.12);
+  --border-1: rgba(23, 24, 28, 0.2);
+  --border-strong: rgba(23, 24, 28, 0.38);
+
+  --accent: #3d50f5;
+  --cta-fg: #ffffff;
+  --glow-a: 10%;
+
+  --tint-faint: rgba(23, 24, 28, 0.02);
+  --tint: rgba(23, 24, 28, 0.04);
+  --tint-1: rgba(23, 24, 28, 0.05);
+  --tint-2: rgba(23, 24, 28, 0.1);
+  /* Code frames stay dark in both themes: expressiveCode resolves its own
+     colours from a single build-time theme, so a light variant needs a second
+     theme in astro.config, not a CSS token. */
+  --code-bg: #141414;
 }
 
 /* Respect reduced motion across the whole site. Hover/focus transitions
@@ -79,7 +124,6 @@
 
 /* ================================================= 2. STARLIGHT MAP */
 
-
 :root,
 :root[data-theme="dark"],
 :root[data-theme="light"] {
@@ -87,14 +131,23 @@
   --sl-font: var(--font-sans);
   --sl-font-system: var(--font-sans);
   --sl-font-system-mono: var(--font-mono);
-  /* Type scale from the redesign's docs: 40 / 26 / 18px, with prose at 15px
-     and a long 1.7 leading. Docs run longer than marketing copy, so the
-     body sits a step smaller and looser than the landing pages. */
-  --sl-text-h1: 2.5rem;
-  --sl-text-h2: 1.625rem;
-  --sl-text-h3: 1.125rem;
-  --sl-text-body: 0.9375rem;
+  /* Whole pixels, not rem, so no step lands on a fraction. Each value is the
+     larger of this site, kurrent.io/docs/capacitor and lakehold.dev/docs,
+     measured rather than estimated. Prose is 17px from the root size above. */
+  --sl-text-h1: 48px;
+  --sl-text-h2: 28px;
+  --sl-text-h3: 20px;
+  --sl-text-h4: 18px;
+  --sl-text-h5: 17px;
+  --sl-text-body: 17px;
+  --sl-text-code: 14px;
+  /* Carried by the search field, the site title and the KurrentDB link. */
+  --sl-text-sm: 15px;
   --sl-line-height: 1.7;
+
+  /* Reading column. Starlight's default is 45rem; this lands at 935px here.
+     It is the only lever for the column, so no CSS max-width competes with it. */
+  --sl-content-width: 55rem;
 
   /* Surfaces */
   --sl-color-bg: var(--bg);
@@ -239,11 +292,10 @@
 .sidebar-content .group-label > *,
 .sidebar-content .group-label .large {
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--fg-fade);
 }
 
 /* Sidebar entries — a soft pill that fills on hover, and an active row
@@ -251,7 +303,7 @@
    surface, so the selected page reads without boxing itself off. */
 .sidebar-content a {
   font-family: var(--font-sans);
-  font-size: 0.8125rem;
+  font-size: 14px;
   font-weight: 400;
   color: var(--fg-dim);
   padding: 6px 12px;
@@ -260,12 +312,15 @@
 }
 .sidebar-content a:hover {
   color: var(--fg);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--tint);
 }
+/* Square corners on the current row: the 6px radius used for the hover pill
+   also rounded the 3px marker, which read as a curve rather than a rule. */
 .sidebar-content a[aria-current="page"] {
-  color: var(--fg);
+  color: var(--accent);
   background: color-mix(in oklab, var(--accent) 8%, transparent);
   border-left-color: var(--accent);
+  border-radius: 0;
   font-weight: 500;
 }
 
@@ -275,7 +330,7 @@
 starlight-toc nav > h2,
 .right-sidebar h2 {
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -283,7 +338,7 @@ starlight-toc nav > h2,
 }
 starlight-toc nav a {
   font-family: var(--font-sans);
-  font-size: 0.75rem;
+  font-size: 13px;
   font-weight: 400;
   color: var(--fg-fade);
   border-inline-start: none;
@@ -300,17 +355,62 @@ starlight-toc nav a[aria-current="true"]:hover {
 
 /* Search — a filled, rounded field rather than a hairline chip, with a
    coral focus ring (designer's .docs-search-input-wrap). */
+/* TwoColumnContent sets --sl-content-margin-inline: auto 0 when both sidebars
+   are present, which pins the reading column to the right edge of the main pane
+   and puts every pixel of slack on the left — 233px against 26px at a 1920
+   viewport. Widening the column does not close it, because the pane width is
+   itself derived from --sl-content-width and grows with it. Zeroing the margin
+   is what moves the text back beside the navigation. */
+.main-pane {
+  --sl-content-margin-inline: 0;
+}
+
+/* Previous/Next — Starlight takes the label and the arrow from
+   --sl-color-gray-2, the same token as body text, so the accent needs stating.
+   The arrow is fill="currentColor", so one declaration carries both. The page
+   name keeps its own --sl-color-white rule and stays bone. */
+.pagination-links a {
+  color: var(--accent);
+}
+.pagination-links a:hover {
+  border-color: var(--accent);
+}
+
+/* Starlight draws a 1px divider after the social icons to separate them from
+   the theme select. The KurrentDB link carries its own accent divider, and the
+   theme select renders nothing, so the default is a trailing rule to nowhere. */
+.social-icons::after {
+  content: none;
+}
+
+/* Search sits at the top of the navigation column and spans it. The sidebar
+   pane already applies --sl-sidebar-pad-x, so repeating it here would inset
+   the field twice and leave it narrower than the links below. */
+.sidebar-search {
+  padding-block-end: 1rem;
+}
+.sidebar-search site-search button[data-open-modal] {
+  width: 100%;
+  max-width: none;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+}
+.sidebar-search site-search button[data-open-modal] kbd {
+  margin-inline-start: auto;
+}
+
 site-search button[data-open-modal] {
   font-family: var(--font-sans);
-  font-size: 0.8125rem;
+  font-size: var(--sl-text-sm);
   letter-spacing: normal;
   color: var(--fg-fade);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  background: var(--tint);
+  border: 1px solid var(--tint-2);
+  border-radius: 8px;
 }
 site-search button[data-open-modal]:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tint-1);
   border-color: color-mix(in oklab, var(--accent) 40%, transparent);
   color: var(--fg);
 }
@@ -324,10 +424,10 @@ site-search button[data-open-modal] kbd {
    rhythm: slightly smaller than the prose, hairline border, no heavy fill. */
 .sl-markdown-content :not(pre) > code {
   font-family: var(--font-mono);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--tint-1);
+  border: 1px solid var(--tint-2);
   border-radius: 4px;
-  font-size: 0.83em;
+  font-size: 15px;
   padding: 0.12em 0.42em;
   color: var(--fg-1);
 }
@@ -340,17 +440,17 @@ site-search button[data-open-modal] kbd {
 }
 .expressive-code .frame pre,
 .sl-markdown-content pre {
-  background: #141414;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--code-bg);
+  border: 1px solid var(--tint-1);
 }
 .expressive-code .frame.has-title:not(.is-terminal) .header,
 .expressive-code .frame.is-terminal .header {
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--tint-faint);
+  border-bottom: 1px solid var(--tint-1);
 }
 .expressive-code code {
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: var(--sl-text-code);
   line-height: 1.7;
 }
 
@@ -397,7 +497,7 @@ site-search button[data-open-modal] kbd {
 }
 .sl-markdown-content .starlight-aside__title {
   font-family: var(--font-sans);
-  font-size: 0.875rem;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0;
   gap: 8px;
@@ -411,7 +511,7 @@ site-search button[data-open-modal] kbd {
 }
 .sl-markdown-content .starlight-aside__content,
 .sl-markdown-content .starlight-aside__content :is(p, li) {
-  font-size: 0.875rem;
+  font-size: 15px;
   line-height: 1.65;
   color: var(--fg-1);
 }
@@ -420,19 +520,19 @@ site-search button[data-open-modal] kbd {
    the head is a faint wash rather than a rule. */
 .sl-markdown-content table {
   font-family: var(--font-sans);
-  font-size: 0.875rem;
+  font-size: 15px;
   border-collapse: collapse;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--tint-2);
   border-radius: 8px;
   overflow: hidden;
   margin: 16px 0 24px;
 }
 .sl-markdown-content thead {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--tint);
 }
 .sl-markdown-content :is(th, td) {
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--tint-2);
   padding: 10px 14px;
 }
 .sl-markdown-content th {
@@ -456,7 +556,6 @@ site-search button[data-open-modal] kbd {
 }
 
 /* ==================================================== 3. TREATMENTS */
-
 
 /* ---- Ambient glow ------------------------------------------------------ */
 /* The same single radial the hero uses, weaker, anchored to the top of the
@@ -517,11 +616,4 @@ body {
 .expressive-code pre {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
-}
-
-/* ---- Prose measure ----------------------------------------------------- */
-/* Starlight caps the content column by viewport, not by measure, so on a wide
-   window a paragraph runs past a comfortable line length. */
-.sl-markdown-content {
-  max-width: 74ch;
 }

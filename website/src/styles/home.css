@@ -12,9 +12,17 @@
 /* The landing page stands outside the Starlight collection, so it gets no
    reset and no body styles from anywhere else. Scoped to this file rather
    than primitives.css for exactly that reason: Starlight brings its own. */
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-html { background: var(--bg); }
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+html {
+  background: var(--bg);
+}
 body {
   font-family: var(--font-sans);
   color: var(--fg-1);
@@ -25,8 +33,13 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-a { color: inherit; }
-::selection { background: var(--accent); color: var(--cta-fg); }
+a {
+  color: inherit;
+}
+::selection {
+  background: var(--accent);
+  color: var(--cta-fg);
+}
 
 /* ---------- Hero ---------- */
 .hero {
@@ -104,7 +117,10 @@ a { color: inherit; }
   padding-left: 22px;
   border-left: 2px solid var(--accent);
 }
-.hero__sub b { color: var(--fg); font-weight: 500; }
+.hero__sub b {
+  color: var(--fg);
+  font-weight: 500;
+}
 .hero__sub em {
   font-style: italic;
   color: var(--accent);

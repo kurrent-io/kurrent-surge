@@ -1,0 +1,27 @@
+---
+// Extends the default social icons with a link out to the KurrentDB site.
+// SocialIcons is the only header slot Starlight exposes for arbitrary links,
+// so the link and its divider live here rather than in the stylesheet.
+import Default from '@astrojs/starlight/components/SocialIcons.astro';
+---
+
+<Default />
+
+<a href="https://kurrentdb.kurrent.io/" class="site-link">KurrentDB</a>
+
+<style>
+  .site-link {
+    /* The divider is the link's own leading border, so it sits at the text
+       height without a spacer element. */
+    border-inline-start: 3px solid var(--accent);
+    padding-inline-start: 16px;
+    font-size: var(--sl-text-sm);
+    font-weight: 500;
+    color: var(--sl-color-white);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .site-link:hover {
+    color: var(--accent);
+  }
+</style>

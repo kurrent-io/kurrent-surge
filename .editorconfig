@@ -36,6 +36,15 @@ trim_trailing_whitespace = false
 indent_size = 2
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Web - CSS, Astro, JavaScript, TypeScript - 2-space indentation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Prettier reads these values, so they set the formatter for website/.
+[*.{css,astro,mjs,cjs,js,ts,tsx,jsx}]
+indent_size = 2
+max_line_length = 100
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # C# / .NET
 # ═══════════════════════════════════════════════════════════════════════════════
 

@@ -91,12 +91,15 @@ export default defineConfig({
         },
       },
       components: {
-        // Hiding the toggle is not enough on its own: Starlight's default
-        // ThemeProvider still reads localStorage and prefers-color-scheme, so a
-        // visitor whose system is light would land on the light palette the
-        // brand does not define. These two overrides lock it.
-        ThemeProvider: './src/components/DocsThemeProvider.astro',
-        ThemeSelect: './src/components/DocsThemeSelect.astro',
+        // The `title` option takes no markup, so colouring "Surge" alone needs
+        // the component override.
+        SiteTitle: './src/components/SiteTitle.astro',
+        // Search moves out of the header and into the sidebar: the pair has to
+        // change together, because Header always fills its search slot while
+        // Pagefind is enabled.
+        Search: './src/components/Search.astro',
+        Sidebar: './src/components/Sidebar.astro',
+        SocialIcons: './src/components/SocialIcons.astro',
       },
       // Two entries, which is the shape Starlight documents: @font-face in its
       // own file, everything else in one project stylesheet.

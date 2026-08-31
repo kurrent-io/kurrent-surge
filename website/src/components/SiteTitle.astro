@@ -1,0 +1,36 @@
+---
+// Splits the configured site title so the last word carries the accent.
+// Starlight's own SiteTitle renders the title as one escaped string, and the
+// `title` config option takes no markup, so a component override is the only
+// supported way to colour part of it.
+const { siteTitle, siteTitleHref } = Astro.locals.starlightRoute;
+
+const split = siteTitle.lastIndexOf(' ');
+const lead = split === -1 ? '' : siteTitle.slice(0, split + 1);
+const tail = split === -1 ? siteTitle : siteTitle.slice(split + 1);
+---
+
+<a href={siteTitleHref} class="site-title sl-flex">
+  <span translate="no">{lead}<span class="site-title__accent">{tail}</span></span>
+</a>
+
+<style>
+  /* Mirrors Starlight's own .site-title rule, which lives in
+     `@layer starlight.core` and is replaced wholesale by this override. */
+  .site-title {
+    align-items: center;
+    gap: var(--sl-nav-gap);
+    font-size: var(--sl-text-h4);
+    font-weight: 600;
+    color: var(--sl-color-white);
+    text-decoration: none;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  span {
+    overflow: hidden;
+  }
+  .site-title__accent {
+    color: var(--accent);
+  }
+</style>
