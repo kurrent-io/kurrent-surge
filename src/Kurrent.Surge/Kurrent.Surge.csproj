@@ -34,7 +34,7 @@
     <!-- The contract layer: client interfaces + the data types they accept/return. A normal package
          dependency (not bundled) — Kurrent.Surge.Client.nupkg depends on Kurrent.Abstractions.nupkg. -->
     <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
-    <ProjectReference Include="..\Kurrent.Surge.SourceGenerators\Kurrent.Surge.SourceGenerators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <!-- The message declaration layer (SchemaName, catalogs, resolver, naming) lives here now.
          PrivateAssets="none" so the nuspec dependency carries ALL assets: the catalog generator ships

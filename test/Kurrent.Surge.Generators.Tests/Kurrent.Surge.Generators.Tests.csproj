@@ -13,7 +13,7 @@
   <ItemGroup>
     <!-- The generator under test, referenced as a plain library so the CSharpGeneratorDriver harness
          can instantiate it directly. NOT wired as an analyzer here — these tests drive it by hand. -->
-    <ProjectReference Include="..\..\src\Kurrent.Surge.SourceGenerators\Kurrent.Surge.SourceGenerators.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" />
     <!-- UniqueIdentifierAttribute and IUniqueIdentifier live here — needed for the hand-built
          compilations to bind, and for MetadataReference.CreateFromFile(typeof(...).Assembly.Location). -->
     <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />

@@ -1,9 +1,9 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Kurrent.Surge;
-using Kurrent.Surge.SourceGenerators;
+using Kurrent.Surge.Generators;
 
-namespace Kurrent.Surge.SourceGenerators.Tests.Unit;
+namespace Kurrent.Surge.Generators.Tests.Unit;
 
 /// <summary>
 /// Drives <see cref="UniqueIdentifierGenerator"/> directly over hand-built compilations — the

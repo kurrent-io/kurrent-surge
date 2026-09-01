@@ -6,7 +6,7 @@ area-client:
       - src/Kurrent.Surge.Schema.Catalogs/**
       - src/Kurrent.Surge.Schema.Catalogs.Generators/**
       - src/Kurrent.Surge.Arrow/**
-      - src/Kurrent.Surge.SourceGenerators/**
+      - src/Kurrent.Surge.Generators/**
       - src/Kurrent.CodeAnalysis/**
       - src/Variant/**
       - src/Variant.SourceGenerators/**

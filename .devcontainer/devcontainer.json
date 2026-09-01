@@ -67,7 +67,7 @@
           "onAutoForward": "ignore"
         },
         
-        "dotnet.defaultSolution": "Kurrent.Sdk.slnx",
+        "dotnet.defaultSolution": "Kurrent.Surge.slnx",
         "dotnet.testWindow.useTestingPlatformProtocol": true,
         
         "terminal.integrated.defaultProfile.linux": "zsh",
@@ -88,7 +88,7 @@
     "jetbrains": {
       "backend": "Rider",
       "settings": {
-        "dotnet.defaultSolution": "Kurrent.Sdk.slnx"
+        "dotnet.defaultSolution": "Kurrent.Surge.slnx"
       },
       "plugins": []
     }

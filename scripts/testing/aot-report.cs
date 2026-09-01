@@ -337,7 +337,7 @@ static string RelLink(string repoRelativeFile, string linkBaseDir, string repoRo
 }
 
 static string SolutionTitle(string repoRoot) {
-    // Derive the report title from the solution file name (Kurrent.Sdk.slnx -> "Kurrent SDK").
+    // Derive the report title from the solution file name (Kurrent.Surge.slnx -> "Kurrent Surge").
     // Falls back to the repo directory name when no solution is present.
     var solution = Directory.EnumerateFiles(repoRoot, "*.slnx")
         .Concat(Directory.EnumerateFiles(repoRoot, "*.sln"))

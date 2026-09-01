@@ -28,7 +28,7 @@
          Variant ships bundled (not a standalone package), so its runtime assembly flows inside
          this package and transitively to Kurrent.Surge.Client. -->
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
-    <ProjectReference Include="..\Kurrent.Surge.SourceGenerators\Kurrent.Surge.SourceGenerators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
     <!-- The filter engine behind RecordFilter/ExpressionFilter. Bundled rather than referenced as a
          package: it is not published on its own, so its assembly ships inside this one. -->

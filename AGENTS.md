@@ -6,6 +6,26 @@ This file documents only what breaks convention. If a senior developer would gue
 does not belong here. Do not add standard patterns, paraphrased docs, or facts discoverable from a single config file.
 When editing, preserve this bar.
 
+## Working rules
+
+Earned the hard way. Each one cost a session.
+
+- **Read the reference before designing.** When a site, repo, or product is named as the thing to
+  match, read its source config first. Clone it if needed. Never reverse-engineer it from a
+  screenshot — the answer is usually a dozen lines someone already wrote.
+- **Check the skills list before the first edit in a domain**, not after failing. Same for the
+  framework's own docs and its source in `node_modules`.
+- **Solve the stated problem.** Do not invent requirements, and do not build a mechanism beside the
+  framework when configuring the framework would do.
+- **UI changes are verified in a browser**, by measuring the rendered elements. A green build, a
+  passing grep, or correct markup in `dist/` is not verification.
+- **A probe returning "missing" is unproven** until it shows it queried the right element. Return a
+  control value beside the value under test. Never change code on a negative result alone.
+- **One environment, named once.** Confirm which URL and which server the reader is on before
+  reporting anything about it.
+- **An earlier recommendation never outranks a current instruction.** If they conflict, say so in one
+  line and follow the instruction.
+
 ## Stack
 
 Targets net10.0 only. Use the latest net10 APIs. Source generators are the exception — they target
@@ -68,7 +88,7 @@ Kurrent.Surge.Codecs.Avro      ← opt-in Avro codec
 
 Verify the live list with `grep -l "IsPackable>true" src/*/*.csproj`.
 
-Solution-level shared libraries — `Variant`, `Kurrent.Surge.SourceGenerators`,
+Solution-level shared libraries — `Variant`, `Kurrent.Surge.Generators`,
 `Kurrent.CodeAnalysis` — are not published as NuGet packages.
 
 `Kurrent.Surge` contains a `Client/Legacy/` folder with V1 gRPC compatibility — not a separate package.
@@ -87,7 +107,7 @@ legacy VuePress KurrentDB product site and has nothing to do with the SDK. Reach
 ### Examples
 
 Eighteen runnable projects under `examples/`, carried by `examples/Examples.slnx` and by
-`Kurrent.Sdk.slnx`. Read one before hand-writing a usage sample.
+`Kurrent.Surge.slnx`. Read one before hand-writing a usage sample.
 
 ```
 examples/streams/     QuickStart (31 lines, the minimal complete program), InventoryManagement

@@ -8,7 +8,7 @@ using Kurrent.CodeAnalysis.Emission;
 using Kurrent.CodeAnalysis.Pipeline;
 using TypeKind = Kurrent.CodeAnalysis.TypeKind;
 
-namespace Kurrent.Surge.SourceGenerators;
+namespace Kurrent.Surge.Generators;
 
 [Generator]
 [SuppressMessage("MicrosoftCodeAnalysisReleaseTracking", "RS2008:Enable analyzer release tracking")]

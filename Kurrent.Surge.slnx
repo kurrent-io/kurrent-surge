@@ -83,12 +83,12 @@
     <Project Path="test\Kurrent.Surge.Codecs.Avro.NodaTime.Tests\Kurrent.Surge.Codecs.Avro.NodaTime.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.Tests\Kurrent.Surge.Codecs.Avro.Tests.csproj" />
   </Folder>
-  <Project Path="src/Kurrent.Surge.SourceGenerators/Kurrent.Surge.SourceGenerators.csproj" />
   <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />
   <Project Path="src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+  <Project Path="src\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" />
   <Project Path="test/Kurrent.Surge.Codecs.Avro.Generators.Tests/Kurrent.Surge.Codecs.Avro.Generators.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Core.Tests/Kurrent.Surge.Core.Tests.csproj" />
-  <Project Path="test/Kurrent.Surge.SourceGenerators.Tests/Kurrent.Surge.SourceGenerators.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Streaming.Tests/Kurrent.Surge.Streaming.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Tests/Kurrent.Surge.Tests.csproj" />
+  <Project Path="test\Kurrent.Surge.Generators.Tests\Kurrent.Surge.Generators.Tests.csproj" />
 </Solution>
