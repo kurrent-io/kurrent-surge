@@ -5,7 +5,7 @@
     <IsPackable>true</IsPackable>
     <Title>Kurrent Surge</Title>
     <Product>Kurrent Surge</Product>
-    <Description>The official .NET SDK for the Kurrent platform: the gRPC client (streams, registry, connectors, indexes, admin) and the stream-processing runtime (processors, projectors, checkpointing). Get the open source or commercial versions of KurrentDB from https://kurrent.io/</Description>
+    <Description>The official .NET SDK for the Kurrent platform: the gRPC client (streams, registry, connectors, indexes, admin) and the stream-processing runtime (processors, projectors, checkpointing). Get KurrentDB from https://kurrent.io/</Description>
     <PackageTags>kurrent kurrentdb surge client sdk eventstore event-sourcing stream-processing processors</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeHttpRuleProtos>true</IncludeHttpRuleProtos>
