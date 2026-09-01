@@ -20,7 +20,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro\Kurrent.Surge.Codecs.Avro.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
     <!-- Analyzers are not transitive through a ProjectReference; a NuGet consumer gets the generator
          from analyzers/dotnet/cs instead. -->
     <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" Analyzer="true" />
@@ -40,6 +40,9 @@
 
   <ItemGroup>
     <PackageReference Include="TUnit" />
+    <!-- Apache is the parity oracle these tests assert against. The codec package itself no longer
+         references it, so the oracle is a test-side dependency. -->
+    <PackageReference Include="Apache.Avro" />
   </ItemGroup>
 
   <ItemGroup>

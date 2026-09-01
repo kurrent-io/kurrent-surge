@@ -179,7 +179,7 @@ public sealed class AvroCodecGenerator : IIncrementalGenerator {
 
         foreach (var emission in codecs) context.AddSource($"{emission.CodecClassName}.g.cs", emission.CodecSource);
 
-        if (codecs.Count > 0) EmitRegistry(context, codecs);
+        if (codecs.Count > 0) EmitRegistry(context, codecs, options);
     }
 
     static void EmitTypes(SourceProductionContext context, ImmutableArray<SchemaEmission> emissions) {
@@ -203,7 +203,13 @@ public sealed class AvroCodecGenerator : IIncrementalGenerator {
         }
     }
 
-    static void EmitRegistry(SourceProductionContext context, IReadOnlyList<SchemaEmission> emissions) {
+    static void EmitRegistry(SourceProductionContext context, IReadOnlyList<SchemaEmission> emissions, AvroGeneratorOptions options) {
+        // Only Apache's readers and writers parse schema text, and Apache's built-in 'uuid' rejects a
+        // fixed(16) base — so the widened logical type is registered, and emitted as source so the codec
+        // package needs no Apache.Avro reference, only for interop-On assemblies that declare one.
+        var needsUuidLogicalType = options.EmitsApacheInterop
+            && emissions.Any(static emission => emission.NeedsUuidLogicalType);
+
         var writer = new CodeWriter();
 
         writer.Lines(Templates.FileHeader);
@@ -213,11 +219,8 @@ public sealed class AvroCodecGenerator : IIncrementalGenerator {
             writer.Line("[global::System.Runtime.CompilerServices.ModuleInitializer]");
 
             using (writer.Block("internal static void Register()")) {
-                // Emitted only when a schema in this compilation needs it: the registration replaces
-                // Apache's 'uuid' logical type for the whole process, so an assembly that declares no
-                // such schema does not pay for it.
-                if (emissions.Any(static emission => emission.NeedsUuidLogicalType)) {
-                    writer.Line("global::Kurrent.Surge.Codecs.Avro.UuidLogicalType.Enable();");
+                if (needsUuidLogicalType) {
+                    writer.Line("global::Kurrent.Surge.Codecs.Avro.Generated.UuidLogicalType.Enable();");
                     writer.Line();
                 }
 
@@ -234,5 +237,7 @@ public sealed class AvroCodecGenerator : IIncrementalGenerator {
         }
 
         context.AddSource("AvroGeneratedCodecRegistration.g.cs", writer.ToString());
+
+        if (needsUuidLogicalType) context.AddSource("UuidLogicalType.g.cs", Templates.UuidLogicalType);
     }
 }

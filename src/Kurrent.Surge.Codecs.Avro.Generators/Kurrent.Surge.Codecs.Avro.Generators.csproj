@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <!-- Ships to consumers inside the Kurrent.Surge.Codecs.Avro package (analyzers/dotnet/cs) so
+    <!-- Ships to consumers inside the Kurrent.Surge.Core package (analyzers/dotnet/cs) so
          Avro codecs are generated in THEIR compilations. Packing is orchestrated by
-         Kurrent.Surge.Codecs.Avro.csproj; this project is not independently packable. -->
+         Kurrent.Surge.Core.csproj; this project is not independently packable. -->
     <IsPackable>false</IsPackable>
     <IsRoslynComponent>true</IsRoslynComponent>
     <IncludeBuildOutput>false</IncludeBuildOutput>

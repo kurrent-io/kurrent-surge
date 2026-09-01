@@ -6,7 +6,7 @@
     <RootNamespace>Kurrent.Surge</RootNamespace>
     <Title>Kurrent .NET Abstractions</Title>
     <Product>Kurrent .NET Abstractions</Product>
-    <Description>The contract layer for the Kurrent .NET SDK: the client and stream-processing interfaces and the data types they exchange — options, results, value objects, filters, and the streaming wire contracts — with no gRPC client or transport. Reference this to depend on the Kurrent contracts without the implementation.</Description>
+    <Description>The contract layer for the Kurrent .NET SDK: the client and stream-processing interfaces and the data types they exchange — options, results, value objects, filters, and the streaming wire contracts — plus the built-in JSON, Protobuf, and Avro codecs and the compile-time Avro codec generator, with no gRPC client or transport. Reference this to depend on the Kurrent contracts without the implementation.</Description>
     <PackageTags>kurrent kurrentdb abstractions contracts sdk event-sourcing stream-processing</PackageTags>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 
@@ -39,6 +39,27 @@
          without it), and the nuspec dependency carries all assets so consumers get the generator
          too (analyzers are excluded on dependency edges by default). -->
     <ProjectReference Include="..\Kurrent.Surge.Schema.Catalogs\Kurrent.Surge.Schema.Catalogs.csproj" PrivateAssets="none" />
+    <!-- Emits the message types and the AOT-safe encode/decode code for each .avsc AdditionalFile.
+         Referenced directly rather than added to @(PackedAnalyzerProject) — that list is shared, so
+         adding it there would ship this generator inside every other packed package too. -->
+    <ProjectReference Include="..\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" PackedAnalyzer="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- NuGet imports build/{PackageId}.props into the consumer's build automatically, which is what
+         makes the KurrentAvro* properties visible to the codec generator. -->
+    <None Include="build\**" Pack="true" PackagePath="build" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The Avro schema model and its parser are shared with the codec generator rather than
+         reimplemented. AvroJsonWriter reads a schema at run time, the generator reads the same schema
+         at compile time, and a second parser would be a second reading of the Avro specification to
+         keep in step. These files depend on nothing but the BCL, so they compile here as they do
+         under netstandard2.0. -->
+    <Compile Include="..\Kurrent.Surge.Codecs.Avro.Generators\Json\JsonValue.cs" Link="Schema\Codecs\Avro\Schema\JsonValue.cs" />
+    <Compile Include="..\Kurrent.Surge.Codecs.Avro.Generators\Model\AvroSchema.cs" Link="Schema\Codecs\Avro\Schema\AvroSchema.cs" />
+    <Compile Include="..\Kurrent.Surge.Codecs.Avro.Generators\Model\AvroSchemaParser.cs" Link="Schema\Codecs\Avro\Schema\AvroSchemaParser.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,6 +76,10 @@
     <PackageReference Include="Microsoft.Extensions.Resilience" />
 
     <PackageReference Include="NJsonSchema" />
+    <!-- Public dependency: NanoInstantExtensions exposes NodaTime.Instant, and the NodaTime time model
+         emits its types into the consumer's generated code. A public surface must not rest on the
+         transitive reference NodaTime.Serialization.SystemTextJson happens to carry. -->
+    <PackageReference Include="NodaTime" />
     <PackageReference Include="NodaTime.Serialization.SystemTextJson" />
 
     <PackageReference Include="Ulid" />
@@ -79,6 +104,9 @@
     <!-- Moved contract types carry internal members the implementation writes (e.g. Record.Value
          has an internal set; the Internal/Validation infra is internal). The assemblies that touch
          those internals are granted access here. -->
+    <!-- The AvroJsonSchema round-trip gate compares parsed schema models, and the model and its
+         parser are internal. -->
+    <InternalsVisibleTo Include="Kurrent.Surge.Codecs.Avro.Tests" />
     <InternalsVisibleTo Include="Aspire.Hosting.KurrentDB" />
     <InternalsVisibleTo Include="Kurrent.Surge" />
     <InternalsVisibleTo Include="Kurrent.Surge.Arrow" />

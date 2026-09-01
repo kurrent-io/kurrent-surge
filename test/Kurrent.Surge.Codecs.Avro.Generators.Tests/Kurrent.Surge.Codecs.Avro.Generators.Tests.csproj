@@ -12,6 +12,10 @@
          shows up as a reviewable diff, rather than as whichever substrings someone thought to assert. -->
     <PackageReference Include="Verify.TUnit" />
     <PackageReference Include="Verify.SourceGenerators" />
+    <!-- The harness compiles generated output against this test process's TRUSTED_PLATFORM_ASSEMBLIES,
+         and interop-On output references Avro types — so Avro.dll must be in this project's closure.
+         The codec package itself no longer references it. -->
+    <PackageReference Include="Apache.Avro" />
   </ItemGroup>
 
   <ItemGroup>
@@ -19,9 +23,9 @@
          can instantiate it directly. NOT wired as an analyzer here — these tests drive it by hand. -->
     <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" />
     <!-- Not for the tests' own code — for the compilation they build. Generated output references
-         AvroBinaryEncoder, AvroDecimal and AvroFixedValue, so the runtime assembly has to be resolvable
-         or "does it compile" cannot be asked. -->
-    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro\Kurrent.Surge.Codecs.Avro.csproj" />
+         AvroBinaryEncoder, AvroDecimal and AvroFixedValue, which live in Core since the codec folded
+         in, so that assembly has to be resolvable or "does it compile" cannot be asked. -->
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
     <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 

@@ -78,7 +78,6 @@
   </Folder>
   <Folder Name="/Extensions/Codecs/">
     <Project Path="src/Kurrent.Surge.Codecs.Avro.Generators/Kurrent.Surge.Codecs.Avro.Generators.csproj" />
-    <Project Path="src\Kurrent.Surge.Codecs.Avro\Kurrent.Surge.Codecs.Avro.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.AotProbe\Kurrent.Surge.Codecs.Avro.AotProbe.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.NodaTime.Tests\Kurrent.Surge.Codecs.Avro.NodaTime.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.Tests\Kurrent.Surge.Codecs.Avro.Tests.csproj" />

@@ -540,7 +540,9 @@ sealed class AvroCodecEmitter(AvroSchemaDocument document, AvroGeneratorOptions 
             }
 
             _writer.Line("default:");
-            _writer.Line($"    throw new global::Avro.AvroException(\"Union index out of range for field '{site.Field}'.\");");
+            // InvalidDataException matches AvroBinaryDecoder's own malformed-payload convention, and an
+            // Apache exception type here would put Apache surface into interop-Off output.
+            _writer.Line($"    throw new global::System.IO.InvalidDataException(\"Union index out of range for field '{site.Field}'.\");");
         }
     }
 

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro\Kurrent.Surge.Codecs.Avro.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
     <!-- Analyzers are not transitive through a ProjectReference, so referencing the codec by source
          does not bring its packed generator the way a NuGet consumer would get it from
          analyzers/dotnet/cs. Wire it explicitly so these tests exercise the generated codec. -->
@@ -26,6 +26,9 @@
 
   <ItemGroup>
     <PackageReference Include="TUnit" />
+    <!-- Apache is the parity oracle these tests assert against. The codec package itself no longer
+         references it, so the oracle is a test-side dependency. -->
+    <PackageReference Include="Apache.Avro" />
   </ItemGroup>
 
   <ItemGroup>

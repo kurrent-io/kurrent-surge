@@ -33,7 +33,10 @@
   <ItemGroup>
     <!-- The contract layer: client interfaces + the data types they accept/return. A normal package
          dependency (not bundled) — Kurrent.Surge.Client.nupkg depends on Kurrent.Abstractions.nupkg. -->
-    <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+    <!-- PrivateAssets="none": the nuspec dependency carries ALL assets so a consumer installing only
+         this package still receives Core's packed Avro codec generator and its build/*.props knobs —
+         analyzers and build assets are excluded on dependency edges by default. -->
+    <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" PrivateAssets="none" />
     <ProjectReference Include="..\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <!-- The message declaration layer (SchemaName, catalogs, resolver, naming) lives here now.

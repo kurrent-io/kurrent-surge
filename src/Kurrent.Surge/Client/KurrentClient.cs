@@ -7,6 +7,7 @@ using Kurrent.Surge.Client.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.LoadBalancing;
 using Kurrent.Surge.Codecs;
+using Kurrent.Surge.Codecs.Avro;
 using Kurrent.Surge.Codecs.Json;
 using Kurrent.Surge.Codecs.Protobuf;
 using Kurrent.Surge.Schema.Catalogs;
@@ -60,6 +61,7 @@ public class KurrentClient : IKurrentClient {
         var codecs = new SchemaCodecProvider([
             new JsonSchemaCodec(options.Messages.Json),
             new ProtobufSchemaCodec(),
+            new AvroSchemaCodec(),
             ..options.Messages.Codecs
         ]);
 

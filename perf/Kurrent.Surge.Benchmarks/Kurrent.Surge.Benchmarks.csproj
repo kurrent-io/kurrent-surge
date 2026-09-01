@@ -10,12 +10,13 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
+    <!-- The Apache comparison arms. The codec package itself no longer references Apache.Avro. -->
+    <PackageReference Include="Apache.Avro" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
     <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
-    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro\Kurrent.Surge.Codecs.Avro.csproj" />
     <ProjectReference Include="..\..\src\Kurrent.Surge.RecordFilters\Kurrent.Surge.RecordFilters.csproj" />
     <!-- Analyzers are not transitive through a ProjectReference, so the codec generator is wired
          explicitly; a NuGet consumer receives it from analyzers/dotnet/cs. -->
