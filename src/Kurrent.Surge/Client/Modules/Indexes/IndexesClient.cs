@@ -6,7 +6,7 @@ using Contracts = KurrentDB.Protocol.V2.Indexes;
 namespace Kurrent.Surge.Client.Indexes;
 
 [PublicAPI]
-public class IndexesClient : ClientModuleBase, IIndexesClient {
+public sealed class IndexesClient : ClientModuleBase, IIndexesClient {
     internal IndexesClient(KurrentClient client) : base(client) =>
         ServiceClient = new(client.CallInvoker);
 

@@ -3,7 +3,7 @@ using static KurrentDB.Connectors.Management.Contracts.Queries.ConnectorsQuerySe
 
 namespace Kurrent.Surge.Client.Connectors;
 
-public partial class ConnectorsClient : ClientModuleBase, IConnectorsClient {
+public sealed partial class ConnectorsClient : ClientModuleBase, IConnectorsClient {
     internal ConnectorsClient(KurrentClient client) : base(client) {
         CommandServiceClient = new(client.CallInvoker);
         QueryServiceClient   = new(client.CallInvoker);

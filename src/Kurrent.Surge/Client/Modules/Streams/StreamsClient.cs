@@ -4,7 +4,7 @@ using static KurrentDB.Protocol.V2.Streams.StreamsService;
 
 namespace Kurrent.Surge.Client.Streams;
 
-public partial class StreamsClient : ClientModuleBase, IStreamsClient {
+public sealed partial class StreamsClient : ClientModuleBase, IStreamsClient {
     internal StreamsClient(KurrentClient client) : base(client) {
         // System mappings ($metadata, $>, scavenge events) live in SystemMessageCatalog:
         // the resolver snapshot is taken at client construction, before modules exist.
