@@ -617,14 +617,17 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
-                "Processors": {
-                  "TestableRecordProcessor": {
-                    "ProcessorId": "config-processor",
-                    "Batching": { "MaxBatchSize": 2000 },
-                    "Checkpoint": {
-                      "Interval": 15000
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "ProcessorId": "config-processor",
+                      "Batching": { "MaxBatchSize": 2000 },
+                      "Checkpoint": {
+                        "Interval": 15000
+                      }
                     }
                   }
+              
                 }
               },
               "ConnectionStrings": {
@@ -645,17 +648,20 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
-                "Processors": {
-                  "TestableRecordProcessor": {
-                    "processorId": "camel-processor",
-                    "batching": { "maxBatchSize": 1500 },
-                    "checkpoint": {
-                      "interval": 20000
-                    },
-                    "subscription": {
-                      "initialPosition": "Earliest"
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "processorId": "camel-processor",
+                      "batching": { "maxBatchSize": 1500 },
+                      "checkpoint": {
+                        "interval": 20000
+                      },
+                      "subscription": {
+                        "initialPosition": "Earliest"
+                      }
                     }
                   }
+              
                 }
               },
               "ConnectionStrings": {
@@ -678,12 +684,15 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
-                "Processors": {
-                  "TestableRecordProcessor": {
-                    "processor_id": "snake-processor",
-                    "max_parallelism": 4,
-                    "batching": { "max_batch_size": 1500 }
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "processor_id": "snake-processor",
+                      "max_parallelism": 4,
+                      "batching": { "max_batch_size": 1500 }
+                    }
                   }
+              
                 }
               },
               "ConnectionStrings": {
@@ -707,11 +716,14 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
-                "Processors": {
-                  "TestableRecordProcessor": {
-                    "ProcessorId": "config-processor",
-                    "Batching": { "MaxBatchSize": 2000 }
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "ProcessorId": "config-processor",
+                      "Batching": { "MaxBatchSize": 2000 }
+                    }
                   }
+              
                 }
               },
               "ConnectionStrings": {
@@ -753,14 +765,17 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
-                "Processors": {
-                  "TestableRecordProcessor": {
-                    "ProcessorId": "test-processor",
-                    "MaxParallelism": 1,
-                    "Subscription": {
-                      "InitialPosition": "Earliest"
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "ProcessorId": "test-processor",
+                      "MaxParallelism": 1,
+                      "Subscription": {
+                        "InitialPosition": "Earliest"
+                      }
                     }
                   }
+              
                 }
               },
               "ConnectionStrings": {
@@ -779,10 +794,13 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
-                "Processors": {
-                  "TestableRecordProcessor": {
-                    "Batching": { "MaxBatchSize": 3000 }
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "Batching": { "MaxBatchSize": 3000 }
+                    }
                   }
+              
                 }
               },
               "ConnectionStrings": {
@@ -839,10 +857,13 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
-                "Processors": {
-                  "TestableRecordProcessor": {
-                    "Batching": { "MaxBatchSize": 2000 }
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "Batching": { "MaxBatchSize": 2000 }
+                    }
                   }
+              
                 }
               },
               "ConnectionStrings": {
@@ -862,10 +883,13 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
-                "Processors": {
-                  "TestableRecordProcessor": {
-                    "ProcessorId": "my-custom-id"
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "ProcessorId": "my-custom-id"
+                    }
                   }
+              
                 }
               },
               "ConnectionStrings": {
@@ -877,6 +901,97 @@ public class ConfigurationTests {
         var settings = ResolveProcessorOptions(configuration);
 
         await Assert.That(settings.ProcessorId).IsEqualTo("my-custom-id");
+    }
+
+    [Test]
+    public async ValueTask unusable_configuration_value_fails_drone_materialization() {
+        // Arrange
+        var configuration = BuildJsonConfiguration("""
+            {
+              "Kurrent": {
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "Checkpoint": { "Interval": "not-a-duration" }
+                    }
+                  }
+                }
+              },
+              "ConnectionStrings": {
+                "kurrentdb": "kurrentdb://localhost:2113"
+              }
+            }
+            """);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(configuration);
+        services.AddLogging();
+        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor()));
+
+        var provider = services.BuildServiceProvider();
+
+        // Act & Assert
+        await Assert.That(() => provider.GetServices<IHostedService>().ToList()).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async ValueTask id_named_section_applies_as_deployment_override_when_configure_sets_custom_processor_id() {
+        // Arrange
+        var configuration = BuildJsonConfiguration("""
+            {
+              "Kurrent": {
+                "Surge": {
+                  "Processors": {
+                    "fraud-eu": {
+                      "Batching": { "MaxBatchSize": 2500 }
+                    }
+                  }
+                }
+              },
+              "ConnectionStrings": {
+                "kurrentdb": "kurrentdb://localhost:2113"
+              }
+            }
+            """);
+
+        var expectedBatchSize = 2500;
+
+        // Act
+        var settings = ResolveProcessorOptions(configuration, configure: opts => {
+            opts.ProcessorId           = "fraud-eu";
+            opts.Batching.MaxBatchSize = 100;
+        });
+
+        // Assert
+        await Assert.That(settings.ProcessorId).IsEqualTo("fraud-eu");
+        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(expectedBatchSize);
+    }
+
+    [Test]
+    public async ValueTask id_named_section_connection_does_not_override_connection_set_in_code() {
+        // Arrange
+        var configuration = BuildJsonConfiguration("""
+            {
+              "Kurrent": {
+                "Surge": {
+                  "Processors": {
+                    "fraud-eu": {
+                      "ConnectionString": "kurrentdb://other-host:2113"
+                    }
+                  }
+                }
+              }
+            }
+            """);
+
+        // Act
+        var settings = ResolveProcessorOptions(configuration, configure: opts => {
+            opts.ProcessorId = "fraud-eu";
+            opts.Connection(TestConnectionString);
+        });
+
+        // Assert
+        await Assert.That(((KurrentClientOptions)settings.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
     }
 
     static IConfiguration BuildJsonConfiguration(string json) {
@@ -1049,11 +1164,14 @@ public class ConfigurationTests {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
-                "Processors": {
-                  "TestableBatchProcessor": {
-                    "ProcessorId": "batch-config-processor",
-                    "Batching": { "MaxBatchSize": 2000 }
+                "Surge": {
+                  "Processors": {
+                    "TestableBatchProcessor": {
+                      "ProcessorId": "batch-config-processor",
+                      "Batching": { "MaxBatchSize": 2000 }
+                    }
                   }
+              
                 }
               },
               "ConnectionStrings": {

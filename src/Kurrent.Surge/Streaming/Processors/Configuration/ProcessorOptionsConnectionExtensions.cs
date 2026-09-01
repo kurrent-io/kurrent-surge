@@ -39,26 +39,25 @@ public static class ProcessorOptionsConnectionExtensions {
             options.ClientOptions = clientOptions;
 
         /// <summary>
-        /// Loads options from an <see cref="IConfiguration"/> section.
-        /// Section path: <c>Kurrent:Processors:{sectionName}</c>.
-        /// Values loaded from config can be overridden by subsequent property assignments.
+        /// Loads options from <c>Kurrent:Surge:Processors:{sectionName}</c>.
         /// </summary>
+        /// <remarks>
+        /// Settings already assigned survive when configuration does not mention them, so this can
+        /// run before or after the caller's own configuration without losing either.
+        /// </remarks>
         /// <param name="configuration">The configuration root.</param>
         /// <param name="sectionName">
-        /// The section name under <c>Kurrent:Processors</c>.
-        /// If ProcessorId is not set in config, it will be auto-generated from this name.
+        /// The processor's section name. PascalCase, kebab-case and snake_case all reach the same
+        /// section. When configuration sets no processor id, it is derived from this name.
         /// </param>
-        public void FromConfiguration(IConfiguration configuration, string sectionName) {
-            var sectionPath = $"Kurrent:Processors:{sectionName}";
-            var section     = configuration.GetSection(sectionPath);
+        /// <returns>The options, together with anything configuration could not supply.</returns>
+        public ConfigurationReadResult<ProcessorOptions> FromConfiguration(IConfiguration configuration, string sectionName) {
+            var result = KurrentSurgeConfigurationReader.ReadProcessorOptions(configuration, sectionName, options);
 
-            if (!section.Exists()) return;
-
-            section.Bind(options);
-
-            // Auto-generate ProcessorId from section name if not set in config
             if (string.IsNullOrEmpty(options.ProcessorId))
                 options.ProcessorId = sectionName.ToKebabCase();
+
+            return result;
         }
     }
 

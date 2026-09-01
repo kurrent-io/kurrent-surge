@@ -9,6 +9,7 @@ using Kurrent.Surge.Streaming.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kurrent.Surge;
 
@@ -52,10 +53,7 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
     }
 
     static KurrentClientOptions SeedFromConfiguration(IServiceProvider sp) =>
-        sp.GetService<IConfiguration>() is { } configuration
-     && ResolveConnectionString(configuration) is { } connectionString
-            ? KurrentClientOptions.Parse(connectionString)
-            : new KurrentClientOptions();
+        OptionsFromConfiguration(sp) ?? new KurrentClientOptions();
 
     void RegisterClient() =>
         Services.Replace(ServiceDescriptor.Singleton(sp =>
@@ -84,11 +82,23 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
             return KurrentClient.Create(options);
         });
 
-    static KurrentClientOptions? OptionsFromConfiguration(IServiceProvider sp) =>
-        sp.GetService<IConfiguration>() is { } configuration
-     && ResolveConnectionString(configuration) is { } connectionString
+    /// <summary>
+    /// Builds client options from configuration: the <c>Kurrent:Surge</c> section first, then the
+    /// shared <c>ConnectionStrings</c> entries when that section supplied no connection.
+    /// </summary>
+    static KurrentClientOptions? OptionsFromConfiguration(IServiceProvider sp) {
+        if (sp.GetService<IConfiguration>() is not { } configuration)
+            return null;
+
+        var section = configuration.GetSection(KurrentSurgeConfigurationReader.SectionPath);
+
+        if (section.Exists())
+            return KurrentSurgeConfigurationReader.ReadClientOptions(configuration).EnsureValid(ConfigurationLogger(sp));
+
+        return ResolveConnectionString(configuration) is { } connectionString
             ? KurrentClientOptions.Parse(connectionString)
             : null;
+    }
 
     /// <summary>
     /// Applies container-resolved services to the options as overrides. Each only applies when
@@ -202,16 +212,30 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
     ) {
         var configuration = sp.GetService<IConfiguration>();
         var options       = new ProcessorOptions();
+        var logger        = ConfigurationLogger(sp);
 
-        // Bind config under Kurrent:Processors:{TypeName} first, so user configuration overrides it.
+        // Read Kurrent:Surge:Processors:{TypeName} first, so the configure delegate overrides it.
         if (configuration is not null)
-            options.FromConfiguration(configuration, typeof(TProcessor).Name);
+            options.FromConfiguration(configuration, typeof(TProcessor).Name).EnsureValid(logger);
 
         configure(options, sp);
 
-        // ProcessorId has to be settled before connection strings are resolved by id.
-        if (string.IsNullOrWhiteSpace(options.ProcessorId))
+        // ProcessorId has to be settled before configuration and connection strings are matched by id.
+        if (string.IsNullOrWhiteSpace(options.ProcessorId)) {
             options.ProcessorId = typeof(TProcessor).Name.ToKebabCase();
+        }
+        else if (configuration is not null && !NamesMatch(options.ProcessorId, typeof(TProcessor).Name)) {
+            // A section named by a custom processor id can only be matched after the configure
+            // delegate settles that id. It is a deliberate per-deployment override, so it applies
+            // over code — except the connection, where an explicit Connection() call stays first in
+            // the documented precedence chain.
+            var explicitConnection = options.ClientOptions;
+
+            options.FromConfiguration(configuration, options.ProcessorId).EnsureValid(logger);
+
+            if (explicitConnection is not null)
+                options.ClientOptions = explicitConnection;
+        }
 
         // Precedence, most specific first: a connection set on the options, then this processor's
         // own configuration key, then the scope's connection, then the shared configuration keys.
@@ -256,16 +280,24 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
     /// </remarks>
     static string? FindConnectionString(IConfiguration configuration, string name) {
         foreach (var entry in configuration.GetSection("ConnectionStrings").GetChildren()) {
-            if (!Matches(entry.Key, name))
+            if (!NamesMatch(entry.Key, name))
                 continue;
 
             return string.IsNullOrWhiteSpace(entry.Value) ? null : entry.Value;
         }
 
         return null;
+    }
 
-        static bool Matches(string key, string name) =>
-            Strip(key).Equals(Strip(name), StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// Logger for configuration problems found while building options. Warnings are logged and
+    /// errors throw, mirroring how options validation behaves on the same path.
+    /// </summary>
+    static ILogger ConfigurationLogger(IServiceProvider sp) =>
+        sp.GetService<ILoggerFactory>()?.CreateLogger<KurrentSurgeBuilder>() ?? NullLogger<KurrentSurgeBuilder>.Instance;
+
+    static bool NamesMatch(string left, string right) {
+        return Strip(left).Equals(Strip(right), StringComparison.OrdinalIgnoreCase);
 
         static string Strip(string value) => value.Replace("-", "").Replace("_", "");
     }

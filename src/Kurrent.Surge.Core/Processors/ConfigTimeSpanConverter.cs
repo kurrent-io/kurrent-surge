@@ -22,23 +22,19 @@ sealed class ConfigTimeSpanConverter : TypeConverter {
         sourceType == typeof(string) || base.CanConvertFrom(context, sourceType);
 
     public override object ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value) {
-        if (value is string s) {
-            if (long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ms))
-                return TimeSpan.FromMilliseconds(ms);
+        if (value is not string text)
+            return base.ConvertFrom(context, culture, value)!;
 
-            if (TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out var ts))
-                return ts;
+        if (DurationSyntax.TryParse(text, out var duration))
+            return duration;
 
-            throw new FormatException(
-                $"Cannot convert '{s}' to TimeSpan. Use milliseconds (e.g., 30000) or TimeSpan format (e.g., 00:00:30).");
-        }
-
-        return base.ConvertFrom(context, culture, value)!;
+        throw new FormatException(
+            $"Cannot convert '{text}' to TimeSpan. Use milliseconds (e.g., 30000) or TimeSpan format (e.g., 00:00:30).");
     }
 
     public override object ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value, Type destinationType) {
-        if (destinationType == typeof(string) && value is TimeSpan ts)
-            return ((long)ts.TotalMilliseconds).ToString(CultureInfo.InvariantCulture);
+        if (destinationType == typeof(string) && value is TimeSpan duration)
+            return DurationSyntax.ToText(duration);
 
         return base.ConvertTo(context, culture, value, destinationType)!;
     }
