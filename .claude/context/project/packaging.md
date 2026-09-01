@@ -122,8 +122,8 @@ validate with `verify-package.py` if you introduce one.
 `Analyzer="true"` wires the project as a Roslyn source generator that runs while building **this** project
 only. `Directory.Build.targets` expands it to `OutputItemType="Analyzer" ReferenceOutputAssembly="false"
 PrivateAssets="all"` — so the generator runs, its DLL is not copied to output, and it never appears in the
-package or its nuspec. Use for SDK-internal generators (e.g. `Variant.SourceGenerators`,
-`Kurrent.Surge.SourceGenerators`) that consumers do not need.
+package or its nuspec. Use for SDK-internal generators (e.g. `Variant.SourceGenerators`) that
+consumers do not need.
 
 ### Packed generator (shipped in `analyzers/dotnet/cs/`)
 
@@ -212,7 +212,7 @@ Kurrent.Surge.Core.nupkg
 │   ├── Kurrent.Variant.dll                         ← Bundle (_CollectVendoredAndBundledFiles)
 │   └── Kurrent.Surge.RecordFilters.dll             ← Bundle (_CollectVendoredAndBundledFiles)
 ├── analyzers/dotnet/cs/
-│   └── Kurrent.Surge.Codecs.Avro.Generators.dll    ← PackedAnalyzer (_CollectPackedAnalyzers)
+│   └── Kurrent.Surge.Generators.dll                ← PackedAnalyzer (_CollectPackedAnalyzers)
 ├── build/
 │   └── Kurrent.Surge.Core.props                    ← KurrentAvro* generator knobs (NuGet auto-import)
 
@@ -223,8 +223,9 @@ Kurrent.Surge.Schema.Catalogs.nupkg
     └── Kurrent.Surge.Schema.Catalogs.Generators.dll  ← PackedAnalyzer (_CollectPackedAnalyzers)
 ```
 
-`Variant.SourceGenerators` and `Kurrent.Surge.SourceGenerators` are `Analyzer="true"` (SDK-internal) — they
-run while building `Kurrent.Surge` but ship **nothing**. The nuspec lists only the real external
+`Variant.SourceGenerators` is `Analyzer="true"` (SDK-internal) — it runs while building
+`Kurrent.Surge` but ships **nothing**. `Kurrent.Surge.Generators` is `PackedAnalyzer="true"` on
+Core — it ships to consumers. The nuspec lists only the real external
 dependencies (`Google.*`, `Grpc.*`, `Microsoft.Extensions.*`, `NJsonSchema`, …); `Kurrent.Variant` and the
 generators are absent.
 

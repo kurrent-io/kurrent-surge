@@ -23,7 +23,7 @@
     <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
     <!-- Analyzers are not transitive through a ProjectReference; a NuGet consumer gets the generator
          from analyzers/dotnet/cs instead. -->
-    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 

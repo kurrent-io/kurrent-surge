@@ -77,7 +77,6 @@
     <Project Path="test\Kurrent.Surge.AI.Mcp.Tests\Kurrent.Surge.AI.Mcp.Tests.csproj" />
   </Folder>
   <Folder Name="/Extensions/Codecs/">
-    <Project Path="src/Kurrent.Surge.Codecs.Avro.Generators/Kurrent.Surge.Codecs.Avro.Generators.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.AotProbe\Kurrent.Surge.Codecs.Avro.AotProbe.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.NodaTime.Tests\Kurrent.Surge.Codecs.Avro.NodaTime.Tests.csproj" />
     <Project Path="test\Kurrent.Surge.Codecs.Avro.Tests\Kurrent.Surge.Codecs.Avro.Tests.csproj" />
@@ -85,7 +84,6 @@
   <Project Path="src/Kurrent.Surge/Kurrent.Surge.csproj" />
   <Project Path="src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
   <Project Path="src\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" />
-  <Project Path="test/Kurrent.Surge.Codecs.Avro.Generators.Tests/Kurrent.Surge.Codecs.Avro.Generators.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Core.Tests/Kurrent.Surge.Core.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Streaming.Tests/Kurrent.Surge.Streaming.Tests.csproj" />
   <Project Path="test/Kurrent.Surge.Tests/Kurrent.Surge.Tests.csproj" />

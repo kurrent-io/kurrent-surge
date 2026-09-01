@@ -8,6 +8,14 @@
   <ItemGroup>
     <PackageReference Include="TUnit" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <!-- Snapshot testing: the full generated output is committed as .verified.cs and any change to it
+         shows up as a reviewable diff, rather than as whichever substrings someone thought to assert. -->
+    <PackageReference Include="Verify.TUnit" />
+    <PackageReference Include="Verify.SourceGenerators" />
+    <!-- The harness compiles generated output against this test process's TRUSTED_PLATFORM_ASSEMBLIES,
+         and interop-On output references Avro types — so Avro.dll must be in this project's closure.
+         The codec package no longer references it. -->
+    <PackageReference Include="Apache.Avro" />
   </ItemGroup>
 
   <ItemGroup>

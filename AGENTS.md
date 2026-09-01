@@ -87,8 +87,9 @@ Kurrent.Surge.Schema.Catalogs  ← message declaration layer; ships the catalog 
 
 Verify the live list with `grep -l "IsPackable>true" src/*/*.csproj`.
 
-Solution-level shared libraries — `Variant`, `Kurrent.Surge.Generators`,
-`Kurrent.CodeAnalysis` — are not published as NuGet packages.
+Solution-level shared libraries — `Variant` and `Kurrent.CodeAnalysis` — are not published as
+NuGet packages. `Kurrent.Surge.Generators` (unique identifiers + the Avro codec generator) is not a
+package either, but its DLL ships inside `Kurrent.Surge.Core` under `analyzers/dotnet/cs/`.
 
 `Kurrent.Surge` contains a `Client/Legacy/` folder with V1 gRPC compatibility — not a separate package.
 

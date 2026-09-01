@@ -28,7 +28,12 @@
          Variant ships bundled (not a standalone package), so its runtime assembly flows inside
          this package and transitively to Kurrent.Surge.Client. -->
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
-    <ProjectReference Include="..\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" Analyzer="true" />
+    <!-- One merged generator assembly: unique identifiers from [UniqueIdentifier], and the Avro
+         message types and AOT-safe codecs from .avsc AdditionalFiles. Packed so both run in
+         consumer compilations. Referenced directly rather than added to @(PackedAnalyzerProject) —
+         that list is shared, so adding it there would ship this generator inside every other
+         packed package too. -->
+    <ProjectReference Include="..\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" PackedAnalyzer="true" />
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />
     <!-- The filter engine behind RecordFilter/ExpressionFilter. Bundled rather than referenced as a
          package: it is not published on its own, so its assembly ships inside this one. -->
@@ -39,10 +44,6 @@
          without it), and the nuspec dependency carries all assets so consumers get the generator
          too (analyzers are excluded on dependency edges by default). -->
     <ProjectReference Include="..\Kurrent.Surge.Schema.Catalogs\Kurrent.Surge.Schema.Catalogs.csproj" PrivateAssets="none" />
-    <!-- Emits the message types and the AOT-safe encode/decode code for each .avsc AdditionalFile.
-         Referenced directly rather than added to @(PackedAnalyzerProject) — that list is shared, so
-         adding it there would ship this generator inside every other packed package too. -->
-    <ProjectReference Include="..\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" PackedAnalyzer="true" />
   </ItemGroup>
 
   <ItemGroup>
@@ -57,9 +58,9 @@
          at compile time, and a second parser would be a second reading of the Avro specification to
          keep in step. These files depend on nothing but the BCL, so they compile here as they do
          under netstandard2.0. -->
-    <Compile Include="..\Kurrent.Surge.Codecs.Avro.Generators\Json\JsonValue.cs" Link="Schema\Codecs\Avro\Schema\JsonValue.cs" />
-    <Compile Include="..\Kurrent.Surge.Codecs.Avro.Generators\Model\AvroSchema.cs" Link="Schema\Codecs\Avro\Schema\AvroSchema.cs" />
-    <Compile Include="..\Kurrent.Surge.Codecs.Avro.Generators\Model\AvroSchemaParser.cs" Link="Schema\Codecs\Avro\Schema\AvroSchemaParser.cs" />
+    <Compile Include="..\Kurrent.Surge.Generators\Json\JsonValue.cs" Link="Schema\Codecs\Avro\Schema\JsonValue.cs" />
+    <Compile Include="..\Kurrent.Surge.Generators\Model\AvroSchema.cs" Link="Schema\Codecs\Avro\Schema\AvroSchema.cs" />
+    <Compile Include="..\Kurrent.Surge.Generators\Model\AvroSchemaParser.cs" Link="Schema\Codecs\Avro\Schema\AvroSchemaParser.cs" />
   </ItemGroup>
 
   <ItemGroup>

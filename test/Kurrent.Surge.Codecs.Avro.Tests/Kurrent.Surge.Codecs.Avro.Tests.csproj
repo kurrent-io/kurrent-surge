@@ -4,7 +4,7 @@
     <!-- Analyzers are not transitive through a ProjectReference, so referencing the codec by source
          does not bring its packed generator the way a NuGet consumer would get it from
          analyzers/dotnet/cs. Wire it explicitly so these tests exercise the generated codec. -->
-    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" Analyzer="true" />
     <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
     <!-- Carries the 2020-12 validator the exported document is asserted against, so a transcoded payload
          is checked by a real validator rather than by a second reading of the same mapping. -->

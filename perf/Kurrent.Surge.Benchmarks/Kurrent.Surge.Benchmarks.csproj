@@ -20,7 +20,7 @@
     <ProjectReference Include="..\..\src\Kurrent.Surge.RecordFilters\Kurrent.Surge.RecordFilters.csproj" />
     <!-- Analyzers are not transitive through a ProjectReference, so the codec generator is wired
          explicitly; a NuGet consumer receives it from analyzers/dotnet/cs. -->
-    <ProjectReference Include="..\..\src\Kurrent.Surge.Codecs.Avro.Generators\Kurrent.Surge.Codecs.Avro.Generators.csproj" Analyzer="true" />
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Generators\Kurrent.Surge.Generators.csproj" Analyzer="true" />
     <!-- Carries the probe schema and the protoc-generated types the typed ceiling is measured with. -->
     <ProjectReference Include="..\..\test\Kurrent.Surge.Core.Tests\Kurrent.Surge.Core.Tests.csproj" />
     <ProjectReference Include="..\..\test\Kurrent.Surge.Tests\Kurrent.Surge.Tests.csproj" />
