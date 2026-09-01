@@ -77,13 +77,12 @@ The V2 read path is commented out; those RPCs do not exist in the proto yet. Pro
 
 ## Structure
 
-Four publishable packages:
+Three publishable packages:
 
 ```
 Kurrent.Surge                  ← gRPC client (streams, registry, indexes, connectors, admin)
-Kurrent.Surge.Core             ← contracts and shared foundation
+Kurrent.Surge.Core             ← contracts and shared foundation; JSON, Protobuf, and Avro codecs; ships the Avro codec generator
 Kurrent.Surge.Schema.Catalogs  ← message declaration layer; ships the catalog generator
-Kurrent.Surge.Codecs.Avro      ← opt-in Avro codec
 ```
 
 Verify the live list with `grep -l "IsPackable>true" src/*/*.csproj`.

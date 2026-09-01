@@ -10,7 +10,7 @@ name, and the pair tells the read path which codec to use and which CLR type to 
 |---|---|---|---|---|
 | `Json` | built in, **default** | `application/json` | yes | yes |
 | `Protobuf` | built in | `application/vnd.google.protobuf` | yes | yes |
-| `Avro` | opt in with `UseAvro()` | `application/vnd.apache.avro+json` | yes | yes |
+| `Avro` | built in | `application/vnd.apache.avro+json` | yes | yes |
 | `Bytes` | none | `application/octet-stream` | **no** | **no** |
 
 ## The registry stores JSON Schema, whatever the wire format
@@ -85,17 +85,8 @@ The codec is built in. There is no extra package and no opt-in call.
 
 ## Avro
 
-Opt in, because it ships in its own package.
-
-```bash
-dotnet add package Kurrent.Surge.Codecs.Avro
-```
-
-```csharp
-await using var client = KurrentClient.Create(
-    "kurrentdb://localhost:2113",
-    opts => opts.Messages.UseAvro());
-```
+The codec is built in — it ships inside `Kurrent.Surge.Core` with its compile-time generator. There
+is no extra package and no opt-in call.
 
 ```csharp
 var record = AppendRecord.Create(orderPlaced, r => {

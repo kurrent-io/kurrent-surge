@@ -1,11 +1,13 @@
-# Kurrent.Surge.Codecs.Avro
+# Avro Codec
 
-An [Apache Avro](https://avro.apache.org/) codec for the [Kurrent](https://kurrent.io) .NET SDK, built on the official
-[Apache.Avro](https://github.com/apache/avro/tree/main/lang/csharp) library.
+An [Apache Avro](https://avro.apache.org/) codec for the [Kurrent](https://kurrent.io) .NET SDK, with its own AOT-safe
+binary encoding and no Apache.Avro dependency. It ships inside `Kurrent.Surge.Core`, next to the built-in JSON and
+Protobuf codecs. Interop with the official
+[Apache.Avro](https://github.com/apache/avro/tree/main/lang/csharp) library is an opt-in knob.
 
-## What this package does
+## What this codec does
 
-Kurrent Surge serializes messages through a pluggable `ISchemaCodec`. This package adds Avro next to the SDK's built-in
+Kurrent Surge serializes messages through a pluggable `ISchemaCodec`. The Avro codec sits next to the SDK's built-in
 JSON and Protobuf codecs, and reuses the same registration model and the same read and write path.
 
 You write `.avsc` schema files. A build-time generator turns each one into a C# message type and the code that encodes
@@ -17,13 +19,12 @@ Avro gives you a compact binary format with a real schema behind every message. 
 rules, for payloads smaller than JSON, or to interoperate with the wider Avro and Kafka ecosystem.
 
 Avro is schema-first. Your message type takes its shape from a schema definition and not from a class, and that is what
-separates this package from the built-in codecs, which derive their schema from the CLR type.
+separates Avro from the JSON and Protobuf codecs, which derive their schema from the CLR type.
 
 ## Installation
 
-```shell
-dotnet add package Kurrent.Surge.Codecs.Avro
-```
+Nothing to install. The codec and its compile-time generator ship inside `Kurrent.Surge.Core`, which arrives with
+`Kurrent.Surge`.
 
 Targets .NET 10.0.
 
@@ -65,22 +66,21 @@ public sealed partial record OrderPlaced {
 Register it like any other message type:
 
 ```csharp
-using Kurrent.Surge.Codecs.Avro;
-
 var client = KurrentClient.Create(connectionString, options => {
-    options.Messages.UseAvro();
     options.Messages.MapMessage<Acme.Orders.OrderPlaced>();
 });
 ```
 
-Installing this package is the only reference you need. The generator ships inside it.
+The codec registers automatically, exactly like JSON and Protobuf.
+
+No extra reference is needed. The generator ships inside `Kurrent.Surge.Core`.
 
 A type whose `.avsc` never reached `AdditionalFiles` has no generated codec. Encoding or decoding it throws
 `AvroCodecNotGeneratedException`, which names the type and the item group to add.
 
 ## Generator options
 
-Set these MSBuild properties in your `.csproj` or in `Directory.Build.props`. The package ships the
+Set these MSBuild properties in your `.csproj` or in `Directory.Build.props`. `Kurrent.Surge.Core` ships the
 `CompilerVisibleProperty` entries that carry them to the generator.
 
 | Property                          | Values                | Default  |
@@ -101,10 +101,10 @@ either way, because Avro's contract is the encoding and not the CLR shape.
 
 ## Native AOT and trimming
 
-This package sets `IsAotCompatible` and `IsTrimmable`, and publishes clean under `PublishAot`.
+`Kurrent.Surge.Core` sets `IsAotCompatible` and `IsTrimmable`, and the codec publishes clean under `PublishAot`.
 
-The generator writes encode and decode into your assembly at compile time, so nothing resolves a type at run time. This
-package deliberately avoids Apache's `SpecificDatumReader<T>` and `SpecificDatumWriter<T>`: they walk the schema through
+The generator writes encode and decode into your assembly at compile time, so nothing resolves a type at run time. The
+codec deliberately avoids Apache's `SpecificDatumReader<T>` and `SpecificDatumWriter<T>`: they walk the schema through
 `Avro.Specific.ObjectCreator`, which calls `Type.GetType(string)` and `MakeGenericType` and needs a JIT.
 
 Under the default, a generated type holds no schema text at all, so nothing roots `Avro.Schema.Parse`. That call pulls
@@ -339,7 +339,7 @@ point on the global timeline and a reading with no zone attached.
 | `timestamp-nanos`        | `long`      | `long`                  | `NodaTime.Instant`       |
 | `duration`               | `fixed(12)` | the fixed class         | `NodaTime.Period`        |
 
-`AvroDecimal` is this package's own struct, which holds an unscaled value and a scale and does not overflow past 96
+`AvroDecimal` is the codec's own struct, which holds an unscaled value and a scale and does not overflow past 96
 bits. With Apache interop on it is `Avro.AvroDecimal` instead, because that is the type Apache's readers and writers
 expect to see.
 
@@ -380,11 +380,12 @@ The specification has allowed `uuid` on `fixed(16)` since Avro 1.12, and Java su
 implementation rejects it, and rejects it early enough that `Schema.Parse` throws before the unknown-logical-type
 fallback can catch it.
 
-This package ships `UuidLogicalType`, which widens Apache's built-in through `LogicalTypeFactory.Instance.Register` —
-Apache's own extension point. A `string` base behaves exactly as before.
+With Apache interop on, the generator emits `UuidLogicalType`, which widens Apache's built-in through
+`LogicalTypeFactory.Instance.Register` — Apache's own extension point. A `string` base behaves exactly as before.
 
-Registration replaces the built-in for the whole process, so **the generator emits the registration only into assemblies
-that declare such a schema**. An assembly without one pays nothing.
+Registration replaces the built-in for the whole process, so **the generator emits the type and its registration only
+into interop-On assemblies that declare such a schema**. An assembly without one pays nothing, and with interop off
+nothing parses schema text, so neither the type nor the registration is needed.
 
 The codec writes the bytes in RFC 4122 order. `Guid.ToByteArray()` without an argument is little-endian across the first
 three fields and swaps every value, so the generated code passes `bigEndian: true` in both directions.
@@ -664,7 +665,7 @@ keyword to hold it, so the export drops it:
 
 The document is therefore a view of the schema, in one direction. You cannot rebuild the Avro schema from it.
 
-## What this package does not support
+## What this codec does not support
 
 ### Other schema file formats
 
@@ -674,7 +675,7 @@ The document is therefore a view of the schema, in one direction. You cannot reb
 
 ### Schema resolution and evolution
 
-The reader schema always equals the writer schema. This package decodes with the same schema it encoded with, and
+The reader schema always equals the writer schema. The codec decodes with the same schema it encoded with, and
 implements none of Avro's resolution rules: no field reordering, no defaults for fields the writer omitted, no numeric
 promotion.
 
@@ -714,15 +715,19 @@ all three the first time anything reads a generated type's `Schema` property.
 This section applies with `KurrentAvroApacheInterop` set to `On`. Off, a generated type carries no Apache surface, so
 neither limitation below can reach you.
 
+Interop-On generated code references Apache types, and `Kurrent.Surge.Core` does not depend on Apache.Avro — **a
+project that turns interop on must reference the [Apache.Avro](https://www.nuget.org/packages/Apache.Avro) package
+itself**.
+
 Two upstream limitations surface as exceptions and not as wrong data.
 
 **Apache's Specific writer cannot encode a logical type backed by a fixed.** Its conversion produces a
 `GenericFixed`, and `SpecificDatumWriter.WriteFixed` accepts only a `SpecificFixed`. This affects `decimal` on `fixed`
-and `uuid` on `fixed`. Use `GenericDatumWriter` for those, or this package's own codec, which writes the bytes directly
+and `uuid` on `fixed`. Use `GenericDatumWriter` for those, or this codec, which writes the bytes directly
 and is unaffected.
 
 **A known logical type on an invalid base throws in Apache's parser.** `{"type":"long","logicalType":"date"}`
-declares `date`, which the specification defines on `int`. This package erases the annotation and uses the base type,
+declares `date`, which the specification defines on `int`. The codec erases the annotation and uses the base type,
 as the specification instructs and as Java does. Apache.Avro throws instead, so reading `Schema` on such a type raises
 `AvroTypeException` even though the codec itself works.
 

@@ -92,9 +92,8 @@ result wrapper to unpack, and no single catch-all to inspect for a reason string
 | Package | What it is | Links |
 |---|---|---|
 | `Kurrent.Surge` | The client and the processors. What you install | [Docs](/client/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge) |
-| `Kurrent.Surge.Core` | Contracts and value types. No gRPC, no transport. Arrives with the client | [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Core) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge.Core) |
+| `Kurrent.Surge.Core` | Contracts, value types, and the JSON, Protobuf, and Avro codecs. No gRPC, no transport. Arrives with the client | [Docs](/schema/formats/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Core) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge.Core) |
 | `Kurrent.Surge.Schema.Catalogs` | Message declaration and the catalog generator | [Docs](/schema/catalogs/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Schema.Catalogs) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge.Schema.Catalogs) |
-| `Kurrent.Surge.Codecs.Avro` | The opt-in Avro codec | [Docs](/schema/formats/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Codecs.Avro) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge.Codecs.Avro) |
 
 ## What changed from the v1 client
 

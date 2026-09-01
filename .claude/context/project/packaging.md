@@ -62,8 +62,7 @@ detects `IsPackable=true` and wires the pack pipeline (`_CollectVendoredAndBundl
 `_CollectPackedAnalyzers`) automatically. There are no per-project `PackProjectDependencies` /
 `PackSourceGenerators` targets to copy anymore; everything is centralized.
 
-Currently packable: `Kurrent.Surge`, `Kurrent.Surge.Core`, `Kurrent.Surge.Schema.Catalogs`,
-`Kurrent.Surge.Codecs.Avro`.
+Currently packable: `Kurrent.Surge`, `Kurrent.Surge.Core`, `Kurrent.Surge.Schema.Catalogs`.
 
 How a reference is treated is controlled by **metadata flags** on the `<ProjectReference>` /
 `<PackageReference>` item. The next section covers each flag; [How Suppression Works](#how-suppression-works)
@@ -212,6 +211,10 @@ Kurrent.Surge.Core.nupkg
 │   ├── Kurrent.Surge.Core.dll                      ← main assembly (SDK default)
 │   ├── Kurrent.Variant.dll                         ← Bundle (_CollectVendoredAndBundledFiles)
 │   └── Kurrent.Surge.RecordFilters.dll             ← Bundle (_CollectVendoredAndBundledFiles)
+├── analyzers/dotnet/cs/
+│   └── Kurrent.Surge.Codecs.Avro.Generators.dll    ← PackedAnalyzer (_CollectPackedAnalyzers)
+├── build/
+│   └── Kurrent.Surge.Core.props                    ← KurrentAvro* generator knobs (NuGet auto-import)
 
 Kurrent.Surge.Schema.Catalogs.nupkg
 ├── lib/net10.0/

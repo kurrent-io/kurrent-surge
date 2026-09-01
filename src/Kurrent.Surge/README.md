@@ -67,7 +67,7 @@ kurrentdb+discover://node1:2113,node2:2113,node3:2113
 |---|---|---|---|---|
 | JSON | built in | Yes | From the CLR type | Not necessary. The payload is JSON |
 | Protobuf | built in | Yes | From the CLR type, or from `.proto` text | Yes, from `.proto` text |
-| Avro | `Kurrent.Surge.Codecs.Avro` | Yes | From the CLR type, or from `.avsc` text | Yes, from `.avsc` text |
+| Avro | built in | Yes | From the CLR type, or from `.avsc` text | Yes, from `.avsc` text |
 | Bytes | built in | Passthrough | None | No |
 
 Each format has a schema, and the registry validates a payload against it. The SDK makes that schema

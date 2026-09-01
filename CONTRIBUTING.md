@@ -93,9 +93,8 @@ Publishable packages (no meta-package — consumers install only what they need)
 | Package                                                             | What it does                                                       |
 |---------------------------------------------------------------------|--------------------------------------------------------------------|
 | [Kurrent.Surge](src/Kurrent.Surge/)                                 | gRPC client and stream processing — streams, schema registry, indexes, connectors, admin |
-| [Kurrent.Surge.Core](src/Kurrent.Surge.Core/)                       | The contract layer, with no transport dependencies                 |
+| [Kurrent.Surge.Core](src/Kurrent.Surge.Core/)                       | The contract layer and the JSON, Protobuf, and Avro codecs, with no transport dependencies |
 | [Kurrent.Surge.Schema.Catalogs](src/Kurrent.Surge.Schema.Catalogs/) | Message declaration, naming, and the catalog generator             |
-| [Kurrent.Surge.Codecs.Avro](src/Kurrent.Surge.Codecs.Avro/)         | The opt-in Avro codec                                              |
 
 Everything else under `src/` (source generators, `Variant`, `Kurrent.CodeAnalysis`) is shared
 solution infrastructure, not shipped as standalone packages. Proto definitions live in
