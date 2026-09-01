@@ -318,7 +318,10 @@ static List<string> DiscoverAotProjects(string repoRoot) {
 static string FindRepoRoot(string startDir) {
     var dir = startDir;
     while (dir is not null) {
-        if (Directory.Exists(Path.Combine(dir, ".git"))) return dir;
+        // A git worktree has a .git FILE, not a directory — without the file check the walk
+        // escapes a worktree and resolves the main checkout instead.
+        var marker = Path.Combine(dir, ".git");
+        if (Directory.Exists(marker) || File.Exists(marker)) return dir;
         dir = Path.GetDirectoryName(dir);
     }
     return startDir;

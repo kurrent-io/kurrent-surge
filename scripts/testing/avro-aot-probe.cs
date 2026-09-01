@@ -202,7 +202,11 @@ static string? FindBinary(string publishDir) =>
 static string FindRepoRoot(string start) {
     var directory = new DirectoryInfo(start);
 
-    while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, ".git")))
+    // A git worktree has a .git FILE, not a directory — without the file check the walk
+    // escapes a worktree and resolves the main checkout instead.
+    while (directory is not null
+        && !Directory.Exists(Path.Combine(directory.FullName, ".git"))
+        && !File.Exists(Path.Combine(directory.FullName, ".git")))
         directory = directory.Parent;
 
     return directory?.FullName ?? throw new InvalidOperationException("not inside a git repository");
