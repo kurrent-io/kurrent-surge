@@ -1,3 +1,4 @@
+using Kurrent.Surge;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Registry;
 using Registry.OrderManagement;
@@ -15,7 +16,7 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddKurrent(kurrent => kurrent.Connection(
+    builder.Services.AddKurrentSurge(surge => surge.Connection(
         "kurrentdb://admin:changeit@localhost:2113?tls=false",
         opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister));
 

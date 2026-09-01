@@ -1,4 +1,5 @@
 using Connector.Management;
+using Kurrent.Surge;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Connectors;
 using Kurrent.Surge.Client.Exceptions;
@@ -17,7 +18,7 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddKurrent(kurrent => kurrent
+    builder.Services.AddKurrentSurge(surge => surge
         .Connection("kurrentdb://admin:changeit@localhost:2113?tls=false"));
     builder.Services.AddHostedService<PaymentPlanService>();
 

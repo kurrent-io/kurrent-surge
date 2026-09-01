@@ -1,6 +1,6 @@
 using System;
 using System.Linq;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Streaming.Models;
@@ -29,9 +29,9 @@ try {
     // Register processor as hosted service
     builder.Services.AddSingleton<PlayerCacheProcessor>();
 
-    builder.Services.AddKurrent(kurrent => {
-        kurrent.Connection("kurrentdb://localhost:2113");
-        kurrent.AddProcessor<PlayerCacheProcessor>(opts => {
+    builder.Services.AddKurrentSurge(surge => {
+        surge.Connection("kurrentdb://localhost:2113");
+        surge.AddProcessor<PlayerCacheProcessor>(opts => {
             opts.ProcessorId = "PlayerCacheProcessor-001";
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
             opts.Checkpoint.Interval = TimeSpan.FromSeconds(5);

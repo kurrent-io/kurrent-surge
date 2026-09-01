@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Microsoft.AspNetCore.Builder;
@@ -39,9 +39,9 @@ try {
 
     // Register processor as hosted service
     builder.Services.AddSingleton<TransferAnalyticsProcessor>();
-    builder.Services.AddKurrent(kurrent => {
-        kurrent.Connection("kurrentdb://localhost:2113");
-        kurrent.AddProcessor<TransferAnalyticsProcessor>(opts => {
+    builder.Services.AddKurrentSurge(surge => {
+        surge.Connection("kurrentdb://localhost:2113");
+        surge.AddProcessor<TransferAnalyticsProcessor>(opts => {
             opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
             opts.Checkpointing(c => c.IntervalFrom(10_000));
         });

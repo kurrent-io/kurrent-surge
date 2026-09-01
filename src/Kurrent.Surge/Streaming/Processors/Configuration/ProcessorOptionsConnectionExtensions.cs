@@ -54,18 +54,11 @@ public static class ProcessorOptionsConnectionExtensions {
 
             if (!section.Exists()) return;
 
-            section.Bind(options, o => o.BindNonPublicProperties = true);
+            section.Bind(options);
 
             // Auto-generate ProcessorId from section name if not set in config
             if (string.IsNullOrEmpty(options.ProcessorId))
                 options.ProcessorId = sectionName.ToKebabCase();
-
-            // Check for connection string: ConnectionStrings:{sectionName} or ConnectionStrings:Default
-            var connectionString = configuration.GetConnectionString(sectionName)
-                                ?? configuration.GetConnectionString("Default");
-
-            if (connectionString is not null)
-                options.Connection(connectionString);
         }
     }
 

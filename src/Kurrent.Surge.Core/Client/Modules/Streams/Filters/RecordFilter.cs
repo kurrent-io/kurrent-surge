@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Kurrent.Surge.RecordFilters;
 
 namespace Kurrent.Surge.Client.Streams;
@@ -6,11 +7,40 @@ namespace Kurrent.Surge.Client.Streams;
 /// Base type for all record filters. Use the static factory methods to create filters.
 /// </summary>
 [PublicAPI]
-public abstract record RecordFilter {
+public abstract record RecordFilter : IParsable<RecordFilter> {
     /// <summary>
     /// A filter that matches all records.
     /// </summary>
     public static readonly RecordFilter None = new EmptyFilter();
+
+    /// <summary>
+    /// Parses a filter expression. Empty input yields <see cref="None"/>.
+    /// </summary>
+    /// <remarks>
+    /// Present so a filter can be written as its expression wherever a scalar is expected —
+    /// configuration binding above all. Every filter shape reduces to an expression, so the
+    /// expression is the lossless text form.
+    /// </remarks>
+    /// <param name="s">The filter expression.</param>
+    /// <param name="provider">Unused. Filter expressions are culture-invariant.</param>
+    public static RecordFilter Parse(string s, IFormatProvider? provider) =>
+        string.IsNullOrWhiteSpace(s) ? None : ByExpression(s);
+
+    /// <inheritdoc cref="Parse"/>
+    public static bool TryParse(
+        [NotNullWhen(true)] string? s,
+        IFormatProvider? provider,
+        [MaybeNullWhen(false)] out RecordFilter result
+    ) {
+        try {
+            result = Parse(s ?? "", provider);
+            return true;
+        }
+        catch (Exception) {
+            result = null;
+            return false;
+        }
+    }
 
     /// <summary>
     /// The original filter expression.

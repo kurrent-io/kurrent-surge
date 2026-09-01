@@ -1,6 +1,6 @@
 using System;
 using Dapper;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Microsoft.AspNetCore.Builder;
@@ -27,9 +27,9 @@ try {
 
     // Register processor as hosted service
     builder.Services.AddSingleton<ClubSpendingProcessor>();
-    builder.Services.AddKurrent(kurrent => {
-        kurrent.Connection("kurrentdb://localhost:2113");
-        kurrent.AddProcessor<ClubSpendingProcessor>(opts =>
+    builder.Services.AddKurrentSurge(surge => {
+        surge.Connection("kurrentdb://localhost:2113");
+        surge.AddProcessor<ClubSpendingProcessor>(opts =>
             opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'PlayerTransferred'"));
     });
 

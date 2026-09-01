@@ -1,5 +1,5 @@
 using System;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Streaming.Models;
@@ -17,10 +17,10 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddKurrent(kurrent => {
-        kurrent.Connection("kurrentdb://admin:changeit@127.0.0.1:32769?tls=false");
+    builder.Services.AddKurrentSurge(surge => {
+        surge.Connection("kurrentdb://admin:changeit@127.0.0.1:32769?tls=false");
 
-        kurrent.AddProcessor(new LiveTransferProcessor(), prx => {
+        surge.AddProcessor(new LiveTransferProcessor(), prx => {
             prx.ProcessorId                  = $"live-transfer-processor-{Guid.NewGuid().ToString()[..8]}";
             prx.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
             prx.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");

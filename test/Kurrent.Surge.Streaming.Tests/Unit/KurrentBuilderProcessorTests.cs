@@ -1,5 +1,4 @@
 using Kurrent.Surge.Client;
-using Kurrent.Processors.Configuration;
 using Kurrent.Surge.Streaming.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,12 +6,12 @@ using Microsoft.Extensions.Hosting;
 namespace Kurrent.Surge.Streaming.Tests;
 
 /// <summary>
-/// Unit tests for processor registration through the <c>AddKurrent</c> builder scope.
-/// Delegation semantics (dedup, options resolution) are covered by <see cref="ConfigurationTests"/>;
+/// Unit tests for processor registration through the <c>AddKurrentSurge</c> builder scope.
+/// Drone construction and options resolution are covered by <see cref="ConfigurationTests"/>;
 /// these verify the builder surface wires into the same pipeline.
 /// </summary>
 [Category("Processors")]
-public class KurrentBuilderProcessorTests {
+public class KurrentSurgeBuilderProcessorTests {
     const string TestConnectionString = "kurrentdb://localhost:2113";
 
     [Test]
@@ -20,8 +19,8 @@ public class KurrentBuilderProcessorTests {
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddKurrent(kurrent =>
-            kurrent.AddProcessor(new TestableRecordProcessor(), opts => {
+        services.AddKurrentSurge(surge =>
+            surge.AddProcessor(new TestableRecordProcessor(), opts => {
                 opts.Connection(TestConnectionString);
                 opts.ProcessorId = "builder-processor";
             }));
@@ -37,7 +36,7 @@ public class KurrentBuilderProcessorTests {
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddKurrent(kurrent => kurrent
+        services.AddKurrentSurge(surge => surge
             .Connection(TestConnectionString)
             .AddProcessor(new TestableRecordProcessor(), opts => opts.ProcessorId = "scope-inherited"));
 
@@ -53,7 +52,7 @@ public class KurrentBuilderProcessorTests {
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddKurrent(kurrent => kurrent
+        services.AddKurrentSurge(surge => surge
             .Connection("kurrentdb://other-host:2113")
             .AddProcessor(new TestableRecordProcessor(), opts => {
                 opts.ProcessorId = "explicit-wins";
@@ -67,25 +66,28 @@ public class KurrentBuilderProcessorTests {
     }
 
     [Test]
-    public async ValueTask builder_and_service_collection_registrations_dedupe() {
+    public async ValueTask repeated_registrations_of_the_same_processor_dedupe() {
         var services = new ServiceCollection();
+        services.AddLogging();
 
-        services.AddKurrentProcessor(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "first";
-        });
+        services.AddKurrentSurge(surge =>
+            surge.AddProcessor(new TestableRecordProcessor(), opts => {
+                opts.Connection(TestConnectionString);
+                opts.ProcessorId = "first";
+            }));
 
-        services.AddKurrent(kurrent =>
-            kurrent.AddProcessor(new TestableRecordProcessor(), opts => {
+        services.AddKurrentSurge(surge =>
+            surge.AddProcessor(new TestableRecordProcessor(), opts => {
                 opts.Connection(TestConnectionString);
                 opts.ProcessorId = "second";
             }));
 
-        var hostedServiceCount = services.Count(d =>
-            d.ServiceType == typeof(IHostedService) &&
-            d.ImplementationFactory is not null);
+        var provider      = services.BuildServiceProvider();
+        var droneServices = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().ToList();
 
-        await Assert.That(hostedServiceCount).IsEqualTo(1);
+        // Dedup keys on the closed DroneService<T> type, so the first registration wins.
+        await Assert.That(droneServices.Count).IsEqualTo(1);
+        await Assert.That(droneServices[0].Drone.Options.ProcessorId).IsEqualTo("first");
     }
 
     [Test]
@@ -93,8 +95,8 @@ public class KurrentBuilderProcessorTests {
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddKurrent(kurrent =>
-            kurrent.AddBatchProcessor(new TestableBatchProcessor(), opts => {
+        services.AddKurrentSurge(surge =>
+            surge.AddBatchProcessor(new TestableBatchProcessor(), opts => {
                 opts.Connection(TestConnectionString);
                 opts.ProcessorId = "builder-batch-processor";
             }));
