@@ -9,7 +9,7 @@ using Polly;
 namespace Kurrent.Surge.Streaming.Gateway;
 
 
-public sealed class KdbDataSourceOptions {
+sealed class KdbDataSourceOptions {
     public RecordFilter                Filter               { get; set; } = RecordFilter.None;
     public bool                        SkipDecoding         { get; set; } = false;
     public bool                        ResolveLinks         { get; set; } = true;
@@ -21,7 +21,7 @@ public sealed class KdbDataSourceOptions {
     public ResiliencePipeline          ResiliencePipeline   { get; set; } = ResiliencePipeline.Empty;
 }
 
-public class KdbDataSource : IDataSource {
+class KdbDataSource : IDataSource {
     readonly KdbDataSourceOptions   _options;
     readonly IStreamsClient         _client;
     readonly ILoggerFactory         _loggerFactory;
