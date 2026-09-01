@@ -41,7 +41,7 @@ namespace Kurrent.Processors.Configuration;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record CheckpointOptions {
+public sealed class CheckpointOptions {
     /// <summary>
     /// Gates all automatic position tracking. Default: <c>true</c>.
     /// <para>

@@ -4,7 +4,7 @@ using Kurrent.Validation;
 namespace Kurrent.Surge.Client.Registry;
 
 [PublicAPI]
-public record CreateSchemaOptions : SelfValidating<CreateSchemaOptions, CreateSchemaOptions.Validator> {
+public sealed class CreateSchemaOptions : SelfValidatingClass<CreateSchemaOptions, CreateSchemaOptions.Validator> {
     /// <summary>Unique name of the schema to create.</summary>
     public SchemaName SchemaName { get; set; } = SchemaName.Unset;
 

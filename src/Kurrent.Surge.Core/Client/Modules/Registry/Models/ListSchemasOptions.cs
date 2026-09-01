@@ -3,7 +3,7 @@ using Kurrent.Validation;
 namespace Kurrent.Surge.Client.Registry;
 
 [PublicAPI]
-public record ListSchemasOptions : SelfValidating<ListSchemasOptions, ListSchemasOptions.Validator> {
+public sealed class ListSchemasOptions : SelfValidatingClass<ListSchemasOptions, ListSchemasOptions.Validator> {
     /// <summary>
     /// Prefix to filter schemas by name. Only schemas whose names start with this prefix are returned.
     /// Empty means no prefix filter.

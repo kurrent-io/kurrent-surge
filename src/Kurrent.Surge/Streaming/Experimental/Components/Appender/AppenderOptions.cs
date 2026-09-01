@@ -8,7 +8,7 @@ namespace Kurrent.Surge.Experimental;
 /// Configuration for the <see cref="Appender"/>. Controls batching thresholds,
 /// backpressure behavior, and the connection to KurrentDB.
 /// </summary>
-sealed record AppenderOptions : SelfValidating<AppenderOptions, AppenderOptions.Validator> {
+sealed class AppenderOptions : SelfValidatingClass<AppenderOptions, AppenderOptions.Validator> {
     /// <summary>
     /// Maximum number of records per batch. The flush loop sends a batch when this
     /// count is reached, even if the byte threshold hasn't been hit.

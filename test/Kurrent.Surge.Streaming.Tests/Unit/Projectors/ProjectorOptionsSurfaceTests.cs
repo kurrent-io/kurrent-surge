@@ -21,9 +21,8 @@ public class ProjectorOptionsSurfaceTests {
     /// from both this list and the projector surface is an oversight.
     /// </summary>
     static readonly Dictionary<string, string> DeliberatelyAbsent = new() {
-        ["ProcessorId"]    = "named ProjectionId on a projection, and mapped onto this",
-        ["DroneId"]        = "named InstanceId on a projection, and mapped onto this",
-        ["MaxParallelism"] = "a projection commits its rows and its positions in one transaction — single writer"
+        ["ProcessorId"] = "named ProjectionId on a projection, and mapped onto this",
+        ["DroneId"]     = "named InstanceId on a projection, and mapped onto this"
     };
 
     #region ->> Surface <<-

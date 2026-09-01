@@ -106,13 +106,13 @@ public readonly partial record struct SubscribeMessage : IVariant<Connected, Rec
 
 public readonly record struct Connected(SessionId SessionId);
 
-public record SubscribeOptions {
-    public RecordFilter   Filter { get; init; } = RecordFilter.None;
-    public RecordPosition Start  { get; init; } = RecordPosition.Latest;
+public class SubscribeOptions {
+    public RecordFilter   Filter { get; set; } = RecordFilter.None;
+    public RecordPosition Start  { get; set; } = RecordPosition.Latest;
 
-    public bool SkipDecoding    { get; init; }
-    public bool ResolveLinks    { get; init; } = true;
-    public uint MaxSearchWindow { get; init; } = StreamDefaults.DefaultMaxSearchWindow;
+    public bool SkipDecoding    { get; set; }
+    public bool ResolveLinks    { get; set; } = true;
+    public uint MaxSearchWindow { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
 
     /// <summary>
     /// When true, a record whose schema name has no mapped type fails the subscription
@@ -120,5 +120,5 @@ public record SubscribeOptions {
     /// fallback handlers, not a crashed subscription. Has no effect when
     /// <see cref="SkipDecoding"/> is set.
     /// </summary>
-    public bool ThrowOnUnresolved { get; init; }
+    public bool ThrowOnUnresolved { get; set; }
 }

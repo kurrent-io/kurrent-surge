@@ -21,7 +21,7 @@ namespace Kurrent.Surge.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResilienceOptions, KurrentClientResilienceOptions.Validator> {
+public sealed class KurrentClientResilienceOptions : SelfValidatingClass<KurrentClientResilienceOptions, KurrentClientResilienceOptions.Validator> {
     /// <summary>
     /// The amount of time to wait after which a keepalive ping is sent on the transport.
     /// </summary>
@@ -55,7 +55,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// </summary>
     /// <remarks>
     /// <para>
-    /// If set to <see cref="Timeout.InfiniteTimeSpan"/> (the default for this record) or <see langword="null"/>,
+    /// If set to <see cref="Timeout.InfiniteTimeSpan"/> (the default for this type) or <see langword="null"/>,
     /// no client-side deadline will be applied to the call. The call might still be affected by server-side timeouts
     /// or transport-level timeouts (like keepalive).
     /// </para>
@@ -239,7 +239,7 @@ public record KurrentClientResilienceOptions : SelfValidating<KurrentClientResil
     /// </para>
     /// </remarks>
     [SuppressMessage("ReSharper", "MemberHidesStaticFromOuterClass")]
-    public record RetryOptions {
+    public sealed class RetryOptions {
         /// <summary>
         /// Whether retry is enabled.
         /// </summary>

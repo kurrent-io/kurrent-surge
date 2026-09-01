@@ -14,7 +14,7 @@ public readonly partial record struct ReadMessage : IVariant<Record, Checkpoint>
 /// Options for reading records from the global log.
 /// </summary>
 [PublicAPI]
-public record ReadRecordsOptions : SelfValidating<ReadRecordsOptions, ReadRecordsOptions.Validator> {
+public sealed class ReadRecordsOptions : SelfValidatingClass<ReadRecordsOptions, ReadRecordsOptions.Validator> {
     /// <summary>
     /// Starting position for the read. Accepts a bare <see cref="LogPosition"/> (implicit) or a
     /// full <see cref="RecordPosition"/>. When the filter routes the read to a single stream,
@@ -26,41 +26,41 @@ public record ReadRecordsOptions : SelfValidating<ReadRecordsOptions, ReadRecord
     /// natural edge for the <see cref="Direction"/>: the beginning when reading forwards, the end
     /// when reading backwards.
     /// </summary>
-    public RecordPosition Start { get; init; } = RecordPosition.Unset;
+    public RecordPosition Start { get; set; } = RecordPosition.Unset;
 
     /// <summary>
     /// Maximum number of records to read in this operation.
     /// </summary>
-    public long Limit { get; init; } = long.MaxValue;
+    public long Limit { get; set; } = long.MaxValue;
 
     /// <summary>
     /// Record filtering criteria to apply during read operations.
     /// </summary>
-    public RecordFilter Filter { get; init; } = RecordFilter.None;
+    public RecordFilter Filter { get; set; } = RecordFilter.None;
 
     /// <summary>
     /// Number of raw log records the server scans per filter page before emitting a
     /// <see cref="FilterCheckpoint"/> and returning results. Only applies when a server-side
     /// filter routes the read through <c>$all</c>. Default matches the SDK-wide scan window.
     /// </summary>
-    public int FilterMaxSearchWindow { get; init; } = (int)StreamDefaults.DefaultMaxSearchWindow;
+    public int FilterMaxSearchWindow { get; set; } = (int)StreamDefaults.DefaultMaxSearchWindow;
     
     /// <summary>
     /// Direction for reading records through the log.
     /// </summary>
-    public ReadDirection Direction { get; init; } = ReadDirection.Forwards;
+    public ReadDirection Direction { get; set; } = ReadDirection.Forwards;
 
     /// <summary>
     /// Skip record data deserialization for performance-critical scenarios.
     /// </summary>
-    public bool SkipDecoding { get; init; }
+    public bool SkipDecoding { get; set; }
 
     /// <summary>
     /// When true, a record whose schema name has no mapped type fails the read instead of
     /// passing through raw. Default false: a forward-unknown type is data for fallback
     /// handlers, not an error. Has no effect when <see cref="SkipDecoding"/> is set.
     /// </summary>
-    public bool ThrowOnUnresolved { get; init; }
+    public bool ThrowOnUnresolved { get; set; }
 
     /// <summary>
     /// Resolve link records (<c>$&gt;</c>) to their target events. Index streams (<c>$ce-*</c>,
@@ -68,7 +68,7 @@ public record ReadRecordsOptions : SelfValidating<ReadRecordsOptions, ReadRecord
     /// instead of the underlying events. Default <c>true</c>. Set <c>false</c> for low-level
     /// inspection of index/projection streams.
     /// </summary>
-    public bool ResolveLinks { get; init; } = true;
+    public bool ResolveLinks { get; set; } = true;
     
     public class Validator : Validator<Validator, ReadRecordsOptions> {
         public Validator() {
@@ -88,20 +88,20 @@ public record ReadRecordsOptions : SelfValidating<ReadRecordsOptions, ReadRecord
 /// separately to the read operation, so it is not part of these options.
 /// </summary>
 [PublicAPI]
-public record ReadStreamOptions : SelfValidating<ReadStreamOptions, ReadStreamOptions.Validator> {
+public sealed class ReadStreamOptions : SelfValidatingClass<ReadStreamOptions, ReadStreamOptions.Validator> {
     /// <summary>
     /// Starting revision within the stream to begin reading from. Defaults to
     /// <see cref="Revision.Unset"/> — "no revision given", which resolves to the natural edge for
     /// the <see cref="Direction"/>: <see cref="Revision.Min"/> when reading forwards,
     /// <see cref="Revision.Max"/> when reading backwards.
     /// </summary>
-    public Revision Start { get; init; } = Revision.Unset;
+    public Revision Start { get; set; } = Revision.Unset;
 
     /// <summary>Maximum number of records to read in this operation.</summary>
-    public long Limit { get; init; } = long.MaxValue;
+    public long Limit { get; set; } = long.MaxValue;
 
     /// <summary>Record filtering criteria to apply during read operations.</summary>
-    public RecordFilter Filter { get; init; } = RecordFilter.None;
+    public RecordFilter Filter { get; set; } = RecordFilter.None;
 
     /// <summary>
     /// Number of raw log records the server scans per filter page before emitting a
@@ -109,27 +109,27 @@ public record ReadStreamOptions : SelfValidating<ReadStreamOptions, ReadStreamOp
     /// <see cref="Filter"/> re-routes the read through <c>$all</c>; a direct stream read ignores it.
     /// Default matches the SDK-wide scan window.
     /// </summary>
-    public int FilterMaxSearchWindow { get; init; } = (int)StreamDefaults.DefaultMaxSearchWindow;
+    public int FilterMaxSearchWindow { get; set; } = (int)StreamDefaults.DefaultMaxSearchWindow;
 
     /// <summary>Direction for reading records through the stream.</summary>
-    public ReadDirection Direction { get; init; } = ReadDirection.Forwards;
+    public ReadDirection Direction { get; set; } = ReadDirection.Forwards;
 
     /// <summary>Skip record data deserialization for performance-critical scenarios.</summary>
-    public bool SkipDecoding { get; init; }
+    public bool SkipDecoding { get; set; }
 
     /// <summary>
     /// When true, a record whose schema name has no mapped type fails the read instead of
     /// passing through raw. Default false: a forward-unknown type is data for fallback
     /// handlers, not an error. Has no effect when <see cref="SkipDecoding"/> is set.
     /// </summary>
-    public bool ThrowOnUnresolved { get; init; }
+    public bool ThrowOnUnresolved { get; set; }
 
     /// <summary>
     /// Resolve link records (<c>$&gt;</c>) to their target events. Default <c>true</c>.
     /// Set <c>false</c> when inspecting an index/projection stream and you want the raw
     /// link records instead of their resolved targets.
     /// </summary>
-    public bool ResolveLinks { get; init; } = true;
+    public bool ResolveLinks { get; set; } = true;
 
     public class Validator : Validator<Validator, ReadStreamOptions> {
         public Validator() {

@@ -168,7 +168,7 @@ public partial class StreamsClient {
             if (start.IsUnset)
                 yield break;
 
-            var request = Requests.CreateReadRecordsRequest(options with { Start = start });
+            var request = Requests.CreateReadRecordsRequest(options, start);
 
             await foreach (var msg in ReadCore(request, options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, (uint)options.FilterMaxSearchWindow, ct).ConfigureAwait(false))
                 yield return msg;

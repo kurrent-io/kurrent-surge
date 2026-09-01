@@ -11,7 +11,7 @@ namespace Kurrent.Surge.Client.Streams;
 /// requiring record materialization.
 /// </summary>
 [PublicAPI]
-public record AppendRecordsOptions {
+public sealed class AppendRecordsOptions {
     /// <summary>
     /// Default maximum serialized size, in bytes, of a single record. Mirrors the server's hard
     /// ceiling (<c>TFConsts.MaxLogRecordSize</c>, 16 MiB): a record larger than this can never be
@@ -29,44 +29,42 @@ public record AppendRecordsOptions {
     /// <summary>
     /// Pre-commit consistency checks evaluated before any records are written.
     /// </summary>
-    public IReadOnlyList<ConsistencyCheck> Checks { get; init; } = [];
+    public IReadOnlyList<ConsistencyCheck> Checks { get; set; } = [];
 
     /// <summary>
     /// Key-value pairs merged into every record's metadata. Empty by default.
     /// </summary>
-    public Metadata Metadata { get; init; } = new();
+    public Metadata Metadata { get; set; } = new();
 
     /// <summary>
     /// Maximum serialized size, in bytes, allowed for a single record before the append is
     /// rejected client-side. Defaults to <see cref="DefaultMaxRecordSize"/>.
     /// </summary>
-    internal int MaxRecordSize { get; init; } = DefaultMaxRecordSize;
+    internal int MaxRecordSize { get; set; } = DefaultMaxRecordSize;
 
     /// <summary>
     /// Maximum serialized size, in bytes, allowed for the whole transaction before the append is
     /// rejected client-side. Defaults to <see cref="DefaultMaxTransactionSize"/>.
     /// </summary>
-    internal int MaxTransactionSize { get; init; } = DefaultMaxTransactionSize;
+    internal int MaxTransactionSize { get; set; } = DefaultMaxTransactionSize;
 
     /// <summary>
-    /// Returns a copy of these options with the given consistency checks appended.
+    /// Appends the given consistency checks and returns these options.
     /// </summary>
-    public AppendRecordsOptions AddChecks(params ConsistencyCheck[] checks) =>
-        this with { Checks = [..Checks, ..checks] };
+    public AppendRecordsOptions AddChecks(params ConsistencyCheck[] checks) {
+        Checks = [..Checks, ..checks];
+        return this;
+    }
 
     /// <summary>
-    /// Returns a copy of these options with the given key-value pair merged into the batch metadata overlay.
+    /// Merges the given key-value pair into the batch metadata overlay and returns these options.
     /// </summary>
-    public AppendRecordsOptions AddMetadata(string key, object value) =>
-        this with { Metadata = new Metadata(Metadata).With(key, value) };
-    
-    // // its a hack and evil cause record should be immutable.
-    // public AppendRecordsOptions AddMetadata(string key, object value) {
-    //     Metadata.With(key, value);
-    //     return this;
-    // }
-    
-    public bool SkipValidation { get; init; }
+    public AppendRecordsOptions AddMetadata(string key, object value) {
+        Metadata = new Metadata(Metadata).With(key, value);
+        return this;
+    }
+
+    public bool SkipValidation { get; set; }
 }
 
 /// <summary>

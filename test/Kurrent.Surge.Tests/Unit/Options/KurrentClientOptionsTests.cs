@@ -89,7 +89,7 @@ public class KurrentClientOptionsTests {
 
         await Assert.That(options.HttpUriScheme).IsEqualTo(Uri.UriSchemeHttps);
 
-        options = options with { Security = KurrentClientSecurityOptions.Insecure };
+        options.Security = KurrentClientSecurityOptions.Insecure;
         await Assert.That(options.HttpUriScheme).IsEqualTo(Uri.UriSchemeHttp);
     }
 

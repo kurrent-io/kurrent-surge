@@ -17,7 +17,7 @@ namespace Kurrent.Surge.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientSecurityOptions : SelfValidating<KurrentClientSecurityOptions, KurrentClientSecurityOptions.Validator> {
+public sealed class KurrentClientSecurityOptions : SelfValidatingClass<KurrentClientSecurityOptions, KurrentClientSecurityOptions.Validator> {
     /// <summary>
     /// Transport layer security settings.
     /// </summary>

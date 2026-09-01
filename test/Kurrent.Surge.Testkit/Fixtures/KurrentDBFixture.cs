@@ -22,10 +22,8 @@ public class KurrentDBFixture : AspireFixture {
     protected virtual TimeSpan StartupTimeout => TimeSpan.FromSeconds(30);
 
     public KurrentDBFixture() {
-        Options = Options with {
-            ShouldWaitForResource = r => r is KurrentDBResource,
-            StartupTimeout        = this.StartupTimeout
-        };
+        Options.ShouldWaitForResource = r => r is KurrentDBResource;
+        Options.StartupTimeout        = StartupTimeout;
 
         ConfigureBuilder = builder => {
             var settings = builder.Configuration.GetSection("KurrentDB")

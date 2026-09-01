@@ -10,7 +10,7 @@ using Polly;
 namespace Kurrent.Projectors;
 
 /// <summary>
-/// Options for running a projection. A backend supplies its own record over this one and nothing else:
+/// Options for running a projection. A backend supplies its own class over this one and nothing else:
 /// <c>{Backend}ProjectorOptions : ProjectorOptions&lt;TClient&gt;</c>.
 /// </summary>
 /// <remarks>
@@ -30,7 +30,7 @@ namespace Kurrent.Projectors;
 /// </remarks>
 /// <typeparam name="TClient">The backend's client type.</typeparam>
 [PublicAPI]
-public record ProjectorOptions<TClient> : SelfValidating<ProjectorOptions<TClient>, ProjectorOptions<TClient>.Validator>
+public class ProjectorOptions<TClient> : SelfValidatingClass<ProjectorOptions<TClient>, ProjectorOptions<TClient>.Validator>
     where TClient : IAsyncDisposable {
     /// <summary>
     /// Identifies this projection's rows in its checkpoint storage, and the group its resume position
@@ -51,19 +51,19 @@ public record ProjectorOptions<TClient> : SelfValidating<ProjectorOptions<TClien
     public TimeProvider Time { get; set; } = TimeProvider.System;
 
     /// <summary>Subscription configuration (filter, initial position).</summary>
-    public SubscriptionOptions Subscription { get; init; } = new();
+    public SubscriptionOptions Subscription { get; set; } = new();
 
     /// <summary>Batch-read tuning (batch size, window, buffer multiplier).</summary>
-    public BatchOptions Batching { get; init; } = new();
+    public BatchOptions Batching { get; set; } = new();
 
     /// <summary>
     /// Checkpoint configuration. The interval decides how much a crash replays and how large a folding
     /// shape's working set grows before it drains.
     /// </summary>
-    public ProjectorCheckpointOptions Checkpoint { get; init; } = new();
+    public ProjectorCheckpointOptions Checkpoint { get; set; } = new();
 
     /// <summary>Knobs for the SDK's default reconnection pipeline.</summary>
-    public ProcessorResilienceOptions Resilience { get; init; } = new();
+    public ProcessorResilienceOptions Resilience { get; set; } = new();
 
     /// <summary>When true, all exceptions are re-thrown and additional diagnostic information is generated.</summary>
     public bool Debug { get; set; }
@@ -87,7 +87,7 @@ public record ProjectorOptions<TClient> : SelfValidating<ProjectorOptions<TClien
     public IMeterFactory? MeterFactory { get; set; }
 
     /// <summary>Observers registered on the lifecycle seam, in registration order.</summary>
-    public List<IProcessorObserver> Observers { get; init; } = [];
+    public List<IProcessorObserver> Observers { get; set; } = [];
 
     /// <summary>
     /// Client options used to build the projection's source client. Set via one of the
@@ -214,7 +214,7 @@ public record ProjectorOptions<TClient> : SelfValidating<ProjectorOptions<TClien
 /// are absent by construction — see <see cref="ProjectorOptions{TClient}.ToProcessorOptions"/>.
 /// </summary>
 [PublicAPI]
-public record ProjectorCheckpointOptions {
+public sealed class ProjectorCheckpointOptions {
     /// <summary>
     /// Time between checkpoints, and so how long the transaction between them stays open. Default: 30 seconds.
     /// </summary>

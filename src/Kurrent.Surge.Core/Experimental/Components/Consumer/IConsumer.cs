@@ -6,7 +6,7 @@ interface IConsumer : IAsyncDisposable {
     IAsyncEnumerable<Record> Consume(ConsumerOptions options, CancellationToken ct = default);
 }
 
-record ConsumerOptions : SubscribeOptions;
+sealed class ConsumerOptions : SubscribeOptions;
 
 // interface IConsumerCheckpointController : IAsyncDisposable {
 //     // public ValueTask<RecordPosition[]> Track(Record record, CancellationToken ct = default);

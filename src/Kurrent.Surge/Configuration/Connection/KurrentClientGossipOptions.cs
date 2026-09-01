@@ -16,7 +16,7 @@ namespace Kurrent.Surge.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientGossipOptions : SelfValidating<KurrentClientGossipOptions, KurrentClientGossipOptions.Validator> {
+public sealed class KurrentClientGossipOptions : SelfValidatingClass<KurrentClientGossipOptions, KurrentClientGossipOptions.Validator> {
     /// <summary>
     /// The maximum number of times to attempt node discovery.
     /// </summary>

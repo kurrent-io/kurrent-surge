@@ -4,18 +4,18 @@ using Kurrent.Surge.LoadBalancing.Gossip;
 
 namespace Kurrent.Surge.Client.LoadBalancing;
 
-sealed record GossipResolverOptions {
-    public required ClusterEndpoint[] Seeds { get; init; }
+sealed class GossipResolverOptions {
+    public required ClusterEndpoint[] Seeds { get; set; }
 
-    public NodeReadPreference NodeReadPreference  { get; init; } = NodeReadPreference.Leader;
-    public int                MaxDiscoverAttempts { get; init; } = 10;
-    public TimeSpan           DiscoveryInterval   { get; init; } = TimeSpan.FromMilliseconds(100);
+    public NodeReadPreference NodeReadPreference  { get; set; } = NodeReadPreference.Leader;
+    public int                MaxDiscoverAttempts { get; set; } = 10;
+    public TimeSpan           DiscoveryInterval   { get; set; } = TimeSpan.FromMilliseconds(100);
 
     /// <summary>
     /// When false the resolver publishes the seeds verbatim without querying gossip.
     /// Used for direct single-node connections, which still follow leader redirects.
     /// </summary>
-    public bool DiscoveryEnabled { get; init; } = true;
+    public bool DiscoveryEnabled { get; set; } = true;
 }
 
 /// <summary>

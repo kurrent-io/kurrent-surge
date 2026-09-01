@@ -15,7 +15,7 @@ namespace Kurrent.Surge.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientCompressionOptions : SelfValidating<KurrentClientCompressionOptions, KurrentClientCompressionOptions.Validator> {
+public sealed class KurrentClientCompressionOptions : SelfValidatingClass<KurrentClientCompressionOptions, KurrentClientCompressionOptions.Validator> {
     /// <summary>
     /// Whether outgoing calls request compression.
     /// </summary>

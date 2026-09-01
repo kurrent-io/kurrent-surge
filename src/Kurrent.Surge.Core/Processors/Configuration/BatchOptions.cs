@@ -7,7 +7,7 @@ namespace Kurrent.Processors.Configuration;
 /// read/throughput concern — it does not change delivery guarantees.
 /// </summary>
 [PublicAPI]
-public record BatchOptions {
+public sealed class BatchOptions {
     /// <summary>
     /// Maximum records per read batch. Default: 500. Range: 1–10,000. A record processor still sees
     /// one record at a time; this only sets how many are read per channel pull.

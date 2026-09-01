@@ -1,6 +1,6 @@
 namespace Kurrent.Surge.Codecs.Protobuf;
 
-public record ProtobufSchemaCodecOptions : SchemaCodecOptions {
+public sealed class ProtobufSchemaCodecOptions : SchemaCodecOptions {
 	public static ProtobufSchemaCodecOptions Default => new();
 
 	/// <summary>

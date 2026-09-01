@@ -4,7 +4,7 @@ using Kurrent.Validation;
 namespace Kurrent.Surge.Client.Registry;
 
 [PublicAPI]
-public record CheckSchemaCompatibilityOptions : SelfValidating<CheckSchemaCompatibilityOptions, CheckSchemaCompatibilityOptions.Validator> {
+public sealed class CheckSchemaCompatibilityOptions : SelfValidatingClass<CheckSchemaCompatibilityOptions, CheckSchemaCompatibilityOptions.Validator> {
     /// <summary>Schema identifier (either a schema name or a schema version id) to check compatibility against.</summary>
     public SchemaIdentifier Identifier { get; set; }
 

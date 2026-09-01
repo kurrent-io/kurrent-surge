@@ -5,7 +5,7 @@ using System.Text.Json.Serialization.Metadata;
 namespace Kurrent.Surge.Codecs.Json;
 
 [PublicAPI]
-public record JsonSchemaCodecOptions : SchemaCodecOptions {
+public sealed class JsonSchemaCodecOptions : SchemaCodecOptions {
     public static JsonSchemaCodecOptions Default => new();
 
     public static readonly JsonSerializerOptions DefaultJsonSerializerOptions = BuildOptions([]);

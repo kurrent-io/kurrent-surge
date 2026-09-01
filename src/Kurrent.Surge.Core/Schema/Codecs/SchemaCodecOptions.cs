@@ -1,3 +1,3 @@
 namespace Kurrent.Surge.Codecs;
 
-public record SchemaCodecOptions;
+public class SchemaCodecOptions;

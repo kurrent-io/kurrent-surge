@@ -21,7 +21,7 @@ namespace Kurrent.Surge.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public record KurrentClientOptions : SelfValidating<KurrentClientOptions, KurrentClientOptions.Validator>, IKurrentClientOptions {
+public sealed class KurrentClientOptions : SelfValidatingClass<KurrentClientOptions, KurrentClientOptions.Validator>, IKurrentClientOptions {
     public static KurrentClientOptions Parse(string connectionString) {
         var options = KurrentConnectionString.Parse(connectionString).ToClientOptions();
 

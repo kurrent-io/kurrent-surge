@@ -7,7 +7,7 @@ namespace Kurrent.Surge.Client;
 /// Defines schema settings for a KurrentDB client: registration, validation, and naming.
 /// </summary>
 [PublicAPI]
-public record KurrentClientSchemaOptions : SelfValidating<KurrentClientSchemaOptions, KurrentClientSchemaOptions.Validator> {
+public sealed class KurrentClientSchemaOptions : SelfValidatingClass<KurrentClientSchemaOptions, KurrentClientSchemaOptions.Validator> {
 	/// <summary>
 	/// Controls schema registration behavior.
 	/// Defaults to <see cref="SchemaRegistrationMode.Manual"/>.

@@ -56,12 +56,12 @@ static partial class StreamsClientMapping {
         }
 
         /// <summary>
-        /// Creates a request to read records based on the provided options. The start arrives
-        /// pre-resolved by the client routing (see <c>StreamsClient.ReadRecordsCore</c>):
+        /// Creates a request to read records based on the provided options. <paramref name="start"/>
+        /// arrives pre-resolved by the client routing (see <c>StreamsClient.ReadRecordsCore</c>):
         /// <see cref="RouteByFilter"/> consumes the half matching the branch it picks —
         /// the revision for a stream target, the log position for the log.
         /// </summary>
-        public static Contracts.ReadReq CreateReadRecordsRequest(ReadRecordsOptions options) {
+        public static Contracts.ReadReq CreateReadRecordsRequest(ReadRecordsOptions options, RecordPosition start) {
             var req = new Contracts.ReadReq { Options = new() {
                 UuidOption    = DefaultUuidOptions,
                 ControlOption = DefaultControlOption,
@@ -70,7 +70,7 @@ static partial class StreamsClientMapping {
                 ResolveLinks  = options.ResolveLinks,
             }};
 
-            RouteByFilter(req.Options, options.Filter, options.Start, (uint)options.FilterMaxSearchWindow);
+            RouteByFilter(req.Options, options.Filter, start, (uint)options.FilterMaxSearchWindow);
 
             return req;
         }

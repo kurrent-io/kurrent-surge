@@ -7,7 +7,7 @@ namespace Kurrent.Processors.Configuration;
 /// Subscription configuration — what to read and where to start.
 /// </summary>
 [PublicAPI]
-public record SubscriptionOptions {
+public sealed class SubscriptionOptions {
     /// <summary>
     /// Record filter. Use <see cref="RecordFilter"/> factory methods
     /// (e.g., <c>RecordFilter.ByStream("orders")</c>) or construct an <see cref="ExpressionFilter"/>

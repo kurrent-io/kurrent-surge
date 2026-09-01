@@ -333,28 +333,28 @@ public abstract class AspireFixture<T> : AspireFixtureBase {
     ) => DistributedApplicationTestingBuilder.CreateAsync<T>([], configure);
 }
 
-public sealed record AspireFixtureOptions {
+public sealed class AspireFixtureOptions {
     /// <summary>
     /// Maximum time allowed for the application to start and all resources to become ready.
     /// Default: 30 seconds.
     /// </summary>
-    public TimeSpan StartupTimeout { get; init; } = TimeSpan.FromSeconds(30);
-    
+    public TimeSpan StartupTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
     /// <summary>
     /// How to wait for resources.
     /// </summary>
-    public ResourceWaitBehavior WaitBehavior { get; init; } = ResourceWaitBehavior.AllHealthy;
+    public ResourceWaitBehavior WaitBehavior { get; set; } = ResourceWaitBehavior.AllHealthy;
 
     /// <summary>
     /// Predicate to determine which resources should be waited for.
     /// Defaults to all compute resources.
     /// </summary>
-    public Func<IResource, bool> ShouldWaitForResource { get; init; } = r => r is IComputeResource and not IResourceWithParent;
+    public Func<IResource, bool> ShouldWaitForResource { get; set; } = r => r is IComputeResource and not IResourceWithParent;
 
     /// <summary>
     /// Resource log collection settings.
     /// </summary>
-    public ResourceLoggingOptions ResourceLogging { get; init; } = new();
+    public ResourceLoggingOptions ResourceLogging { get; set; } = new();
 }
 
 public sealed record ResourceLoggingOptions {

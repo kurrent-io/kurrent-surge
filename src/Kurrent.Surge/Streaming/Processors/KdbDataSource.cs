@@ -9,16 +9,16 @@ using Polly;
 namespace Kurrent.Surge.Streaming.Gateway;
 
 
-public record KdbDataSourceOptions {
-    public RecordFilter                Filter               { get; init; } = RecordFilter.None;
-    public bool                        SkipDecoding         { get; init; } = false;
-    public bool                        ResolveLinks         { get; init; } = true;
-    public uint                        MaxSearchWindow      { get; init; } = StreamDefaults.DefaultMaxSearchWindow;
-    public string                      PartitionKeySelector { get; set; }  = "";
-    public int                         MaxParallelism       { get; set; }  = 1;
+public sealed class KdbDataSourceOptions {
+    public RecordFilter                Filter               { get; set; } = RecordFilter.None;
+    public bool                        SkipDecoding         { get; set; } = false;
+    public bool                        ResolveLinks         { get; set; } = true;
+    public uint                        MaxSearchWindow      { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
+    public string                      PartitionKeySelector { get; set; } = "";
+    public int                         MaxParallelism       { get; set; } = 1;
     // Safe no-op default so default construction can't NRE in Connect (which executes the
     // pipeline unconditionally). The real pipeline is injected by the processor builder.
-    public ResiliencePipeline          ResiliencePipeline   { get; init; } = ResiliencePipeline.Empty;
+    public ResiliencePipeline          ResiliencePipeline   { get; set; } = ResiliencePipeline.Empty;
 }
 
 public class KdbDataSource : IDataSource {
@@ -69,7 +69,9 @@ public class KdbDataSource : IDataSource {
 
         try {
             await _options.ResiliencePipeline.ExecuteAsync(async ctx => {
-                await foreach (var msg in _client.Subscribe(defaultOptions with { Start = cursor }, ctx.CancellationToken)) {
+                defaultOptions.Start = cursor;
+
+                await foreach (var msg in _client.Subscribe(defaultOptions, ctx.CancellationToken)) {
                     switch (msg.Value) {
                         case Connected: {
                             // Forward the subscription-established marker so the drone fires OnConnected. The

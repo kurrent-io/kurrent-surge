@@ -26,7 +26,7 @@ namespace Kurrent.Processors.Configuration;
 /// </code>
 /// </example>
 [PublicAPI]
-public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptions.Validator> {
+public sealed class ProcessorOptions : SelfValidatingClass<ProcessorOptions, ProcessorOptions.Validator> {
     /// <summary>
     /// Unique identifier for the processor group. Used for checkpoint coordination.
     /// When not set, auto-derived from the processor type name.
@@ -90,28 +90,28 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// <summary>
     /// Observers registered on the processor's lifecycle seam, in registration order.
     /// </summary>
-    public List<IProcessorObserver> Observers { get; init; } = [];
+    public List<IProcessorObserver> Observers { get; set; } = [];
     
     /// <summary>
     /// Maximum number of partitions (key groups). Range: 1-32768.
     /// Reserved for partitioned processing — not yet exposed as a public knob.
     /// </summary>
-    public int MaxParallelism { get; set; } = 1;
+    internal int MaxParallelism { get; set; } = 1;
     
     /// <summary>
     /// Subscription configuration (filter, initial position).
     /// </summary>
-    public SubscriptionOptions Subscription { get; init; } = new();
+    public SubscriptionOptions Subscription { get; set; } = new();
 
     /// <summary>
     /// Checkpoint configuration (interval, failure policy).
     /// </summary>
-    public CheckpointOptions Checkpoint { get; init; } = new();
+    public CheckpointOptions Checkpoint { get; set; } = new();
 
     /// <summary>
     /// Batch-read tuning (batch size, window, buffer multiplier).
     /// </summary>
-    public BatchOptions Batching { get; init; } = new();
+    public BatchOptions Batching { get; set; } = new();
 
     /// <summary>
     /// Knobs for the SDK's default reconnection pipeline. Tweak via
@@ -119,7 +119,7 @@ public record ProcessorOptions : SelfValidating<ProcessorOptions, ProcessorOptio
     /// configuration; ignored when the pipeline is replaced via
     /// <see cref="ConfigureResilience(Action{ResiliencePipelineBuilder})"/>.
     /// </summary>
-    public ProcessorResilienceOptions Resilience { get; init; } = new();
+    public ProcessorResilienceOptions Resilience { get; set; } = new();
 
     /// <summary>
     /// Client options used to build the processor's client. Set via one of the

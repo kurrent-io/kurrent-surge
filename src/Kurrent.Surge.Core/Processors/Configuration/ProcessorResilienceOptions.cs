@@ -12,7 +12,7 @@ namespace Kurrent.Processors.Configuration;
 /// (stream deleted, position not found, cancellation) propagate immediately.
 /// </remarks>
 [PublicAPI]
-public record ProcessorResilienceOptions {
+public sealed class ProcessorResilienceOptions {
     /// <summary>
     /// Maximum number of reconnection attempts before giving up. Defaults to
     /// <see cref="int.MaxValue"/> — retry indefinitely, keeping a long-running subscription

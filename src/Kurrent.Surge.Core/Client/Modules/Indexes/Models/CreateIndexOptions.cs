@@ -3,7 +3,7 @@ using Kurrent.Validation;
 namespace Kurrent.Surge.Client.Indexes;
 
 [PublicAPI]
-public record CreateIndexOptions : SelfValidating<CreateIndexOptions, CreateIndexOptions.Validator> {
+public sealed class CreateIndexOptions : SelfValidatingClass<CreateIndexOptions, CreateIndexOptions.Validator> {
     /// <summary>Unique name of the index to create.</summary>
     public IndexName Name { get; set; } = IndexName.Unset;
 
