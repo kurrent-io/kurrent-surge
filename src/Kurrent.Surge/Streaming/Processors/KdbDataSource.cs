@@ -3,7 +3,7 @@ using System.Threading.Channels;
 using Grpc.Core;
 using Kurrent.Surge.Client.Processors.Partitioning;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Options;
+using Kurrent.Surge.Processors.Configuration;
 using Polly;
 
 namespace Kurrent.Surge.Streaming.Gateway;

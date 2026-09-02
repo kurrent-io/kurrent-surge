@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Streaming.Models;
 
-namespace Kurrent.Surge.Streaming.Checkpointing;
+namespace Kurrent.Surge.Checkpointing;
 
 public interface ICheckpointStore {
     /// <summary>Loads the latest checkpoint for this processor.</summary>

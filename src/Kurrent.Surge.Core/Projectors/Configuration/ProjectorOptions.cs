@@ -1,5 +1,5 @@
 using System.Diagnostics.Metrics;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Projectors.Transactional;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Streaming;

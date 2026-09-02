@@ -1,7 +1,7 @@
 using System.Text;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Streaming.Hosting;
 using Kurrent.Surge.Streaming.Models;
 using Kurrent.Validation;

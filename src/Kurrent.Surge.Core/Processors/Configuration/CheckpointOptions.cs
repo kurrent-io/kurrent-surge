@@ -1,4 +1,4 @@
-namespace Kurrent.Processors.Configuration;
+namespace Kurrent.Surge.Processors.Configuration;
 
 /// <summary>
 /// Checkpoint configuration. Two independent switches decide a processor's delivery guarantee:

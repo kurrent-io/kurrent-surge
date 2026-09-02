@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Checkpointing;
 using Kurrent.Surge.Streaming.Tests.Fakes;
 using Kurrent.Testkit.TUnit.Assertions;
 

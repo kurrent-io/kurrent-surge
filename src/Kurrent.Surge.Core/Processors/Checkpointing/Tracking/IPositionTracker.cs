@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Streaming.Checkpointing;
+namespace Kurrent.Surge.Checkpointing;
 
 /// <summary>
 /// Tracks positions. Not thread-safe.

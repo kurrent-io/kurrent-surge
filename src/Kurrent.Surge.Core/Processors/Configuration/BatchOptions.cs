@@ -1,4 +1,4 @@
-namespace Kurrent.Processors.Configuration;
+namespace Kurrent.Surge.Processors.Configuration;
 
 /// <summary>
 /// Batch-read tuning. The drone reads the channel in batches of up to <see cref="MaxBatchSize"/>,

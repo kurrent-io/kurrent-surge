@@ -5,7 +5,7 @@ using Kurrent.Surge.Streaming.Models;
 using Kurrent.Validation;
 using Polly;
 
-namespace Kurrent.Processors.Configuration;
+namespace Kurrent.Surge.Processors.Configuration;
 
 /// <summary>
 /// Configuration for a Kurrent processor. Pure data — processor wiring lives on the

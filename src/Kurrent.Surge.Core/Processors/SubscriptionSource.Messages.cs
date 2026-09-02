@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Collections.Immutable;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Variant;
 
 namespace Kurrent.Surge.Client.Processors.Gateway.Messages;

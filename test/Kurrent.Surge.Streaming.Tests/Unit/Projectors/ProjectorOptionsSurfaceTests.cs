@@ -1,6 +1,6 @@
 using System.Reflection;
 using Bogus;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Projectors;
 
 namespace Kurrent.Surge.Streaming.Tests.Projections;

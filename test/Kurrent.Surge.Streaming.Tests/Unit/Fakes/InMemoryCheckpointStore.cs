@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Checkpointing;
 using Kurrent.Surge.Streaming.Models;
 
 namespace Kurrent.Surge.Streaming.Tests.Fakes;

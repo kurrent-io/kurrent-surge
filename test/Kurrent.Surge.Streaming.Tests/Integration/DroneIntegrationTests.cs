@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Streaming.Models;
 using TUnit.Assertions.Enums;
 

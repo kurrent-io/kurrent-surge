@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Schema.Naming;
 using Microsoft.Extensions.Configuration;
 

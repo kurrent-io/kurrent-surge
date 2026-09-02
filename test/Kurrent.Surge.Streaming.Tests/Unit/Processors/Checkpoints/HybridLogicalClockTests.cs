@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using Kurrent.Surge.Streaming.Checkpointing;
+using Kurrent.Surge.Checkpointing;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Kurrent.Surge.Streaming.Tests.Checkpoints;

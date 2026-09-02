@@ -1,4 +1,4 @@
-namespace Kurrent.Processors.Configuration;
+namespace Kurrent.Surge.Processors.Configuration;
 
 /// <summary>
 /// Knobs for the SDK's default reconnection pipeline — retry attempts, backoff, and the

@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Streaming.Models;
 
-namespace Kurrent.Processors.Configuration;
+namespace Kurrent.Surge.Processors.Configuration;
 
 /// <summary>
 /// Subscription configuration — what to read and where to start.

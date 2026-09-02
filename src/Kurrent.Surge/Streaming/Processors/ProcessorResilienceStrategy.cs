@@ -2,11 +2,11 @@ using System.Collections.Frozen;
 using Google.Rpc;
 using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
-using Kurrent.Processors.Configuration;
+using Kurrent.Surge.Processors.Configuration;
 using Polly;
 using Polly.Retry;
 
-namespace Kurrent.Surge.Streaming.Options;
+namespace Kurrent.Surge.Processors.Configuration;
 
 /// <summary>
 /// The SDK's default subscription reconnection strategy and the resilience-context keys
