@@ -64,6 +64,9 @@
   --font-faces: var(--font-poppins);
   --font-sans: var(--font-faces);
   --font-mono: var(--font-fira-code);
+  /* Uppercase index labels: sidebar groups and the right-rail heading. Mono
+     by default; words, not code, so the dyslexic face takes them over. */
+  --font-eyebrow: var(--font-mono);
 
   /* Overlays. Tints and hairlines that sit on top of the current surface for
      hover states, chips, table rules and code frames. Defined per scope so
@@ -79,8 +82,8 @@
   --maxw-tight: 880px;
 }
 
-/* Dyslexia-friendly typeface, switched by the header control. Independent of
-   the light/dark scope, so the two combine.
+/* Dyslexia-friendly typeface, switched from the footer preferences. Independent
+   of the light/dark scope, so the two combine.
    OpenDyslexic ships 400 and 700 only, while the scale below asks for 300-600.
    Left alone the browser synthesises the missing weights, which thickens the
    glyphs and undoes the letter shapes the face exists for — so the whole scale
@@ -88,12 +91,13 @@
    already disambiguated and OpenDyslexic Mono is a separate package. */
 :root[data-font="dyslexic"] {
   --font-faces: var(--font-opendyslexic);
+  --font-eyebrow: var(--font-opendyslexic);
 }
 :root[data-font="dyslexic"] :is(h1, h2, h3, h4, h5, h6, strong, b, th),
 :root[data-font="dyslexic"] .sidebar-content a[aria-current="page"] {
   font-weight: 700;
 }
-:root[data-font="dyslexic"] :is(p, li, td, a, span, div, button, input, summary) {
+:root[data-font="dyslexic"] :is(p, li, td, a, span, div, button, input, select, summary) {
   font-weight: 400;
 }
 
@@ -295,15 +299,6 @@
   }
 }
 
-/* Starlight stacks two .content-panels (page-title + body) and divides them
-   with a 1px border-top on the second one. Our coral rule under the H1
-   already plays that role, so the neutral divider is redundant — and two
-   horizontal lines in the same vertical zone read as accidental, not
-   designed. Drop the duplicate. */
-.content-panel + .content-panel {
-  border-top: 0;
-}
-
 /* Body copy weight. Colour comes from --sl-color-text. */
 .sl-markdown-content {
   font-weight: 450;
@@ -314,7 +309,7 @@
    rather than announce it (designer's .docs-sidebar-label). */
 .sidebar-content .group-label > *,
 .sidebar-content .group-label .large {
-  font-family: var(--font-mono);
+  font-family: var(--font-eyebrow);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -352,7 +347,7 @@
    device, and repeating it on the right competes with the prose. */
 starlight-toc nav > h2,
 .right-sidebar h2 {
-  font-family: var(--font-mono);
+  font-family: var(--font-eyebrow);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -406,25 +401,8 @@ starlight-toc nav a[aria-current="true"]:hover {
   content: none;
 }
 
-/* Search sits at the top of the navigation column and spans it. The sidebar
-   pane already applies --sl-sidebar-pad-x, so repeating it here would inset
-   the field twice and leave it narrower than the links below. */
-.sidebar-search {
-  padding-block-end: 1rem;
-}
-.sidebar-search site-search button[data-open-modal] {
-  width: 100%;
-  max-width: none;
-  justify-content: flex-start;
-  gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
-}
-.sidebar-search site-search button[data-open-modal] kbd {
-  margin-inline-start: auto;
-}
-
-/* Sidebar filter. Narrows the visible navigation only; search is the separate
-   control above it. */
+/* Sidebar filter. Narrows the visible navigation only; search is the header
+   control. */
 .sidebar-filter {
   padding-block-end: 1rem;
 }
@@ -765,6 +743,34 @@ body {
 }
 .sl-markdown-content svg[data-d2-version] .stroke-B1 {
   stroke: var(--d2-line);
+}
+
+/* ---- Collapsible sidebar ---------------------------------------------- */
+/* SidebarToggle.astro sets data-sidebar-collapsed on <html>; Head.astro
+   restores it before first paint. The prose offset and the header grid follow
+   --sl-content-inline-start, so that token goes to zero and the pane's width
+   with it. --sl-sidebar-width stays untouched: Starlight also sizes the
+   right-hand table of contents from it, and zeroing it crushed that rail to a
+   sliver. Below 50rem the sidebar is the mobile menu and the toggle is not
+   rendered. */
+@media (min-width: 50rem) {
+  .sidebar-pane {
+    transition: width 0.25s ease, visibility 0s;
+  }
+  .main-frame {
+    transition: padding-inline-start 0.25s ease;
+  }
+  :root[data-sidebar-collapsed] {
+    --sl-content-inline-start: 0rem;
+  }
+  /* Visibility waits for the width animation on the way out, and returns at
+     once on the way in. */
+  :root[data-sidebar-collapsed] .sidebar-pane {
+    width: 0;
+    visibility: hidden;
+    border-inline-end: 0;
+    transition: width 0.25s ease, visibility 0s 0.25s;
+  }
 }
 
 /* ---- Code scrollbars --------------------------------------------------- */

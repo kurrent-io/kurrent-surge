@@ -43,8 +43,12 @@ Earned the hard way. Each one cost real time.
 |---|---|---|
 | Diagrams | `astro-d2` → SVG at build time | `experimental.useD2js` renders through WebAssembly, so no `d2` binary anywhere, CI included |
 | Fonts | Astro's native `fonts:` config | `fontProviders.fontsource()`; never hand-roll `@font-face` fallbacks |
+| Tailwind | v4 through `@tailwindcss/vite` + `@astrojs/starlight-tailwind`, `src/styles/global.css` first in `customCss` | Starlight's documented layering: theme + utilities only, no Preflight. Its compatibility CSS defines the `dark` variant on `data-theme`; do not redefine it. surge.css stays unlayered and wins |
+| UI frameworks | none | No React, no Svelte. Interactive controls are `.astro` components with their own scripts |
 | Code blocks | Expressive Code, configured **only** in `ec.config.mjs` | An `expressiveCode` key in `astro.config.mjs` makes Starlight ignore that file |
 | Icons | UnoCSS `presetIcons` + safelist | From `src/expressive-code/block-header.mjs`; `starlight-plugin-icons` is not used |
+| Shortcut keys | `starlight-kbd`, `globalPicker: false` | The footer's OS picker is `CustomSelect.astro` (ported from aspire.dev, MIT) driving the plugin's `sl-kbd-type` key and `data-sl-kbd-active` contract. The plugin's own picker is not rendered; if it ever is, import `{ KbdPicker } from 'starlight-kbd/components'`, because the `./components/KbdPicker.astro` export points at a file that does not exist in 0.4.0 |
+| Footer dropdowns | `CustomSelect.astro`, no shadcn, no React | Aspire's footer has no shadcn either; this is their component. A `popover="manual"` listbox over a hidden native `<select>`, which stays the value carrier and fires `change` |
 | Port | `server: { port: 4400 }` | Documented and sufficient — see below |
 
 ## Dev server and the port
@@ -107,6 +111,10 @@ Neither `astro dev` nor `astro build` type-checks anything, so this is the only 
 
 - The action detects `bun.lock` (it checks both `bun.lock` and `bun.lockb`) and runs
   `bun install` then `bun run build`. No `build-cmd` override is needed.
+- **Checkout uses `fetch-depth: 0`.** `lastUpdated: true` runs `git log` per page; a shallow clone
+  stamps every page with the deploy commit's date and nothing fails.
+- The footer's `SHA` link reads `GITHUB_SHA` in Actions and `git rev-parse HEAD` locally, exposed as
+  `import.meta.env.PUBLIC_COMMIT_SHA` through `vite.define` in `astro.config.mjs`.
 - **`patches/` must stay tracked.** `bun install` in CI cannot apply a patch that is not in the
   checkout, and the failure is silent in its effects.
 - `base` is hardcoded to `/kurrent-surge/` and every internal link under `src/` carries it, because

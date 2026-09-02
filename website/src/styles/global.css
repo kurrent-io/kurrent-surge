@@ -1,0 +1,14 @@
+/* Tailwind for Starlight, per starlight.astro.build/guides/css-and-tailwind.
+   No Preflight: the compatibility layer restores only `border: 0 solid` and the
+   font families, in the lowest layer, and defines the `dark` variant on
+   Starlight's data-theme attribute. surge.css stays unlayered and wins. */
+@layer base, starlight, theme, components, utilities;
+@import '@astrojs/starlight-tailwind';
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* Tailwind's font utilities resolve to the site's faces, dyslexic switch included. */
+@theme inline {
+  --font-sans: var(--font-faces);
+  --font-mono: var(--font-fira-code);
+}

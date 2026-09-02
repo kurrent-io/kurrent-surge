@@ -29,6 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Starlight's last-updated dates come from `git log` per page. A
+          # shallow clone stamps every page with the deploy commit's date.
+          fetch-depth: 0
 
       - uses: withastro/action@v6
         with:

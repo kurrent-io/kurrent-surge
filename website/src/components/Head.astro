@@ -28,5 +28,8 @@ import { Font } from 'astro:assets';
     if (localStorage.getItem('surge-font') === 'dyslexic') {
       document.documentElement.dataset.font = 'dyslexic';
     }
+    if (localStorage.getItem('surge-sidebar-collapsed') === '1') {
+      document.documentElement.dataset.sidebarCollapsed = '';
+    }
   } catch {}
 </script>

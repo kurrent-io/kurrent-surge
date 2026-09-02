@@ -1,0 +1,437 @@
+---
+// Community links, reader preferences and the build stamp, under Starlight's
+// own footer row (edit link, last-updated date, previous/next). Dimensions
+// follow the aspire.dev footer.
+import Default from '@astrojs/starlight/components/Footer.astro';
+import { Icon } from '@astrojs/starlight/components';
+import CustomSelect, { type CustomSelectOption } from './CustomSelect.astro';
+
+const repo = 'https://github.com/kurrent-io/kurrent-surge';
+const community = [
+  { label: 'GitHub', icon: 'github', href: repo },
+  { label: 'Discord', icon: 'discord', href: 'https://discord.gg/Phn9pmCw3t' },
+] as const;
+
+// Mirrors the starlight-kbd `types` in astro.config.mjs.
+const kbdTypes: CustomSelectOption[] = [
+  { value: 'mac', label: 'macOS', detector: 'apple' },
+  { value: 'windows', label: 'Windows', detector: 'windows', selected: true },
+  { value: 'linux', label: 'Linux', detector: 'linux' },
+];
+
+const sha: string = import.meta.env.PUBLIC_COMMIT_SHA ?? '';
+const year = new Date().getFullYear();
+---
+
+<Default />
+
+<div class="site-footer not-content">
+  <div class="site-footer__utility">
+    <section class="footer-community" aria-labelledby="footer-community-heading">
+      <h2 id="footer-community-heading" class="footer-heading">Community</h2>
+      <ul class="social-links">
+        {
+          community.map(({ label, icon, href }) => (
+            <li>
+              <a href={href} aria-label={label} title={label}>
+                <Icon name={icon} />
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="footer-preferences" aria-labelledby="footer-preferences-heading">
+      <h2 id="footer-preferences-heading" class="footer-heading">Preferences</h2>
+      <div class="preference-controls">
+        <div class="choice-toggle" role="radiogroup" aria-label="Colour theme" data-theme-choice style="--cells: 3; --index: 1">
+          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" aria-label="Light" title="Light" data-theme-option="light">
+            <Icon name="sun" />
+          </button>
+          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" aria-label="System" title="System" data-theme-option="auto">
+            <Icon name="laptop" />
+          </button>
+          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" aria-label="Dark" title="Dark" data-theme-option="dark">
+            <Icon name="moon" />
+          </button>
+        </div>
+
+        <div class="choice-toggle" role="radiogroup" aria-label="Typeface" data-font-choice style="--cells: 2; --index: 0">
+          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" title="Poppins" data-font-option="default">
+            Default
+          </button>
+          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" title="OpenDyslexic, a dyslexia-friendly typeface" data-font-option="dyslexic">
+            Dyslexic
+          </button>
+        </div>
+
+        <CustomSelect id="footer-kbd-select" class="footer-custom-select" label="Keyboard shortcut style" options={kbdTypes}>
+          <svg slot="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M6.21 13.29a.93.93 0 0 0-.33-.21 1 1 0 0 0-.76 0 .9.9 0 0 0-.54.54 1 1 0 1 0 1.84 0 1 1 0 0 0-.21-.33ZM13.5 11h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-4 0h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-3-2h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2ZM20 5H4a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h16a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3Zm1 11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1Zm-6-3H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2Zm3.5-4h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm.71 4.29a1 1 0 0 0-.33-.21 1 1 0 0 0-.76 0 .93.93 0 0 0-.33.21 1 1 0 0 0-.21.33 1 1 0 1 0 1.92.38.84.84 0 0 0-.08-.38 1 1 0 0 0-.21-.33Z"
+            ></path>
+          </svg>
+        </CustomSelect>
+      </div>
+    </section>
+  </div>
+
+  <div class="site-footer__bottom">
+    {
+      sha && (
+        <a class="site-footer__commit" href={`${repo}/commit/${sha}`} title={`Built from ${sha}`}>
+          SHA {sha.slice(0, 7)}
+        </a>
+      )
+    }
+    <span class="site-footer__copyright">© Kurrent, Inc. {year}</span>
+  </div>
+</div>
+
+<style>
+  .site-footer {
+    --footer-surface: var(--tint);
+    --footer-line: var(--tint-2);
+    container: footer / inline-size;
+    margin-top: 2rem;
+  }
+
+  .site-footer__utility {
+    display: grid;
+    grid-template-columns: minmax(12rem, 0.6fr) minmax(0, 1.4fr);
+    align-items: start;
+    gap: clamp(2rem, 4vw, 4rem);
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--footer-line);
+  }
+
+  .footer-community,
+  .footer-preferences {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .footer-preferences {
+    container: preferences / inline-size;
+  }
+  /* Astro scopes with :where(), so the selector needs the extra class to beat
+     the global `.content-panel h2` rule. */
+  .site-footer .footer-heading {
+    margin: 0;
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: var(--sl-text-sm);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .social-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .social-links a {
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: 0.4rem;
+    color: var(--fg-1);
+    text-decoration: none;
+    --sl-icon-size: 1rem;
+  }
+  .social-links a:hover,
+  .social-links a:focus-visible {
+    color: var(--fg);
+    background: var(--tint-2);
+  }
+  .social-links a:focus-visible {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 0.15rem;
+  }
+
+  .preference-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  @container preferences (min-width: 18rem) {
+    .preference-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .preference-controls > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+  @container preferences (min-width: 26rem) {
+    .preference-controls {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .preference-controls > :first-child {
+      grid-column: auto;
+    }
+  }
+
+  /* N equal cells in one box; the selected cell is marked by an indicator
+     drawn by ::before and slid with a transform. --cells and --index are set
+     on the element. */
+  .choice-toggle {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: repeat(var(--cells), minmax(0, 1fr));
+    align-items: center;
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0.25rem;
+    border: 1px solid var(--footer-line);
+    border-radius: 0.5rem;
+    background: var(--footer-surface);
+  }
+  .choice-toggle::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    left: 0.25rem;
+    width: calc((100% - 0.5rem) / var(--cells));
+    box-sizing: border-box;
+    border: 1px solid var(--accent);
+    border-radius: 0.3rem;
+    background: color-mix(in oklab, var(--accent) 24%, transparent);
+    transform: translateX(calc(var(--index) * 100%));
+    transition: transform 180ms ease;
+  }
+  .choice-toggle:hover {
+    border-color: var(--border-1);
+  }
+  .choice-toggle:focus-within {
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 2px;
+  }
+  .choice-toggle-option {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    height: 1.8rem;
+    padding: 0 0.5rem;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: var(--fg-fade);
+    font-family: var(--font-sans);
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+  .choice-toggle-option:hover {
+    color: var(--fg-1);
+  }
+  .choice-toggle-option:focus {
+    outline: none;
+  }
+  .choice-toggle-option[aria-checked='true'] {
+    color: var(--fg);
+  }
+  .choice-toggle-option :global(svg) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .site-footer :global(.footer-custom-select) {
+    --custom-select-bg: var(--footer-surface);
+    --custom-select-border: var(--footer-line);
+    --custom-select-hover-bg: var(--tint-1);
+    --custom-select-hover-border: var(--border-1);
+    --custom-select-text: var(--fg);
+    --custom-select-icon: var(--fg-dim);
+    --custom-select-font-size: var(--sl-text-sm);
+    --custom-select-menu-bg: var(--bg-1);
+    --custom-select-menu-border: var(--border-1);
+    --custom-select-menu-text: var(--fg);
+    --custom-select-selected-text: var(--fg);
+  }
+
+  .site-footer__bottom {
+    min-height: 3.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--footer-line);
+  }
+  .site-footer__commit,
+  .site-footer__copyright {
+    color: var(--fg-dim);
+    font-size: var(--sl-text-xs);
+  }
+  .site-footer__commit {
+    font-family: var(--font-mono);
+    font-size: var(--sl-text-2xs);
+    text-decoration: none;
+  }
+  .site-footer__commit:hover {
+    color: var(--fg);
+  }
+  .site-footer__commit:focus-visible {
+    border-radius: 0.2rem;
+    outline: 2px solid var(--sl-color-text-accent);
+    outline-offset: 0.2rem;
+  }
+  .site-footer__copyright {
+    margin-inline-start: auto;
+  }
+
+  @container footer (max-width: 36rem) {
+    .site-footer__utility {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+    .site-footer__bottom {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.65rem;
+    }
+    .site-footer__copyright {
+      margin-inline-start: 0;
+    }
+  }
+  @container footer (max-width: 30rem) {
+    .site-footer__utility {
+      padding-block: 1.25rem;
+    }
+  }
+</style>
+
+<script>
+  function initChoiceToggle(
+    group: HTMLElement,
+    attribute: string,
+    current: () => string,
+    apply: (choice: string) => void
+  ) {
+    const buttons = [...group.querySelectorAll<HTMLButtonElement>(`[${attribute}]`)];
+    const sync = () => {
+      const choice = current();
+      const index = Math.max(0, buttons.findIndex((b) => b.getAttribute(attribute) === choice));
+      group.style.setProperty('--index', String(index));
+      buttons.forEach((b, i) => {
+        b.setAttribute('aria-checked', String(i === index));
+        b.tabIndex = i === index ? 0 : -1;
+      });
+    };
+    for (const button of buttons) {
+      button.addEventListener('click', () => {
+        apply(button.getAttribute(attribute) ?? '');
+        sync();
+      });
+    }
+    group.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      const index = buttons.findIndex((b) => b.getAttribute('aria-checked') === 'true');
+      const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next]?.click();
+      buttons[next]?.focus();
+    });
+    sync();
+    return sync;
+  }
+
+  function initFooterPreferences() {
+    const root = document.documentElement;
+
+    const theme = document.querySelector<HTMLElement>('[data-theme-choice]');
+    if (theme) {
+      const stored = () => {
+        try {
+          return localStorage.getItem('starlight-theme') || 'auto';
+        } catch {
+          return 'auto';
+        }
+      };
+      const sync = initChoiceToggle(theme, 'data-theme-option', stored, (choice) => {
+        root.dataset.theme =
+          choice === 'auto'
+            ? window.matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark'
+            : choice;
+        try {
+          // Starlight's own key, so its pre-paint script restores this choice.
+          localStorage.setItem('starlight-theme', choice);
+        } catch {}
+        (window as any).StarlightThemeProvider?.updatePickers?.(choice);
+      });
+      new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    }
+
+    const font = document.querySelector<HTMLElement>('[data-font-choice]');
+    if (font) {
+      initChoiceToggle(
+        font,
+        'data-font-option',
+        () => (root.dataset.font === 'dyslexic' ? 'dyslexic' : 'default'),
+        (choice) => {
+          if (choice === 'dyslexic') root.dataset.font = 'dyslexic';
+          else delete root.dataset.font;
+          try {
+            // Head.astro reads this key before first paint.
+            localStorage.setItem('surge-font', choice);
+          } catch {}
+        }
+      );
+    }
+
+    // Drives starlight-kbd through its own storage key and DOM contract, the
+    // same way its bundled picker does.
+    const kbd = document.getElementById('footer-kbd-select') as HTMLSelectElement | null;
+    if (kbd) {
+      let stored: string | null = null;
+      try {
+        stored = localStorage.getItem('sl-kbd-type');
+      } catch {}
+      if (stored) {
+        kbd.value = stored;
+      } else {
+        const platform = (navigator as any).userAgentData?.platform || navigator.platform || '';
+        const agent = navigator.userAgent || '';
+        let detected = 'windows';
+        if (/Mac|iPhone|iPad|iPod/i.test(platform) || /Mac|iPhone|iPad|iPod/i.test(agent)) detected = 'mac';
+        else if (/Linux/i.test(platform) || /Linux/i.test(agent)) detected = 'linux';
+        kbd.value = detected;
+      }
+      kbd.dispatchEvent(new Event('surge:custom-select-sync'));
+
+      kbd.addEventListener('change', () => {
+        const type = kbd.value;
+        try {
+          localStorage.setItem('sl-kbd-type', type);
+        } catch {}
+        for (const el of document.querySelectorAll('[data-sl-kbd-type]')) {
+          if (el.getAttribute('data-sl-kbd-type') === type) el.setAttribute('data-sl-kbd-active', '');
+          else el.removeAttribute('data-sl-kbd-active');
+        }
+        (window as any).StarlightKbdProvider?.updateKbdPickers?.(type);
+      });
+    }
+  }
+
+  initFooterPreferences();
+  document.addEventListener('astro:page-load', initFooterPreferences);
+</script>

@@ -6,8 +6,11 @@ import starlightLinksValidator from 'starlight-links-validator';
 import starlightGitHubAlerts from 'starlight-github-alerts';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightPageActions from 'starlight-page-actions';
+import starlightKbd from 'starlight-kbd';
 import astroD2 from 'astro-d2';
 import UnoCSS from 'unocss/astro';
+import { execSync } from 'node:child_process';
+import tailwindcss from '@tailwindcss/vite';
 
 // GitHub Pages serves a project site from /<repo>/. Astro never rewrites authored
 // links, so every internal link under src/ carries this prefix: changing the base
@@ -18,10 +21,19 @@ const base = '/kurrent-surge/';
 // one. Same env-var treatment so a deploy target sets both together.
 const site = process.env.SITE_URL ?? 'https://kurrent-io.github.io';
 
+// Stamped into the footer as a link to the commit that built the site. Actions
+// exposes it as GITHUB_SHA; a local build asks git.
+const commit =
+  process.env.GITHUB_SHA ?? execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+
 export default defineConfig({
   site,
   base,
   server: { port: 4400 },
+  vite: {
+    define: { 'import.meta.env.PUBLIC_COMMIT_SHA': JSON.stringify(commit) },
+    plugins: [tailwindcss()],
+  },
   // Astro downloads these at build time and emits only the declared weights and
   // subsets. It also generates a metric-matched fallback per family from the
   // last generic in `fallbacks` (`optimizedFallbacks` is on by default), which is
@@ -83,12 +95,13 @@ export default defineConfig({
         // The `title` option takes no markup, so colouring "Surge" alone needs
         // the component override.
         SiteTitle: './src/components/SiteTitle.astro',
-        // Search moves out of the header and into the sidebar: the pair has to
-        // change together, because Header always fills its search slot while
-        // Pagefind is enabled.
-        Search: './src/components/Search.astro',
+        // Adds the filter box, the collapse toggle and the repository link
+        // around Starlight's navigation list.
         Sidebar: './src/components/Sidebar.astro',
         SocialIcons: './src/components/SocialIcons.astro',
+        // Community links, reader preferences and the build stamp under
+        // Starlight's own edit-link / last-updated / pagination row.
+        Footer: './src/components/Footer.astro',
         // Renders the breadcrumb trail above the page body.
         MarkdownContent: './src/components/MarkdownContent.astro',
         // Shipped by starlight-page-actions; it owns the Copy / Open / Share row.
@@ -98,8 +111,12 @@ export default defineConfig({
         ThemeSelect: './src/components/ThemeSelect.astro',
         Head: './src/components/Head.astro',
       },
-      // Typefaces are declared in the top-level `fonts` option, not here.
-      customCss: ['./src/styles/surge.css'],
+      // Tailwind first, so its layers are declared before surge.css, which stays
+      // unlayered and wins. Typefaces are declared in the top-level `fonts` option.
+      customCss: ['./src/styles/global.css', './src/styles/surge.css'],
+      editLink: { baseUrl: 'https://github.com/kurrent-io/kurrent-surge/edit/main/website/' },
+      // Dates come from `git log` per page, so CI checks out the full history.
+      lastUpdated: true,
       social: [
         {
           icon: 'github',
@@ -239,6 +256,16 @@ export default defineConfig({
         // Renders GitHub's `> [!NOTE]` blockquote syntax as Starlight asides.
         starlightGitHubAlerts(),
         starlightScrollToTop({ showTooltip: true, tooltipText: { en: 'Scroll to top' } }),
+        // Renders `<Kbd>` shortcuts for the reader's OS. The picker sits in the
+        // footer preferences, so the header slot stays off.
+        starlightKbd({
+          globalPicker: false,
+          types: [
+            { id: 'mac', label: 'macOS', detector: 'apple' },
+            { id: 'windows', label: 'Windows', detector: 'windows', default: true },
+            { id: 'linux', label: 'Linux', detector: 'linux' },
+          ],
+        }),
       ],
     }),
   ],

@@ -3,6 +3,7 @@
 // `crumbs: false` in its frontmatter.
 import DefaultMarkdownContent from '@astrojs/starlight/components/MarkdownContent.astro';
 import Breadcrumb from './Breadcrumb.astro';
+import SidebarToggle from './SidebarToggle.astro';
 import { getBreadcrumbs } from '../utils/breadcrumbs';
 
 const routeData = Astro.locals.starlightRoute;
@@ -10,5 +11,6 @@ const pageData = routeData?.entry?.data as { crumbs?: boolean } | undefined;
 const crumbs = pageData?.crumbs === false ? undefined : getBreadcrumbs(routeData?.sidebar as any);
 ---
 
+{routeData?.hasSidebar && <SidebarToggle />}
 {crumbs && <Breadcrumb crumbs={crumbs} />}
 <DefaultMarkdownContent><slot /></DefaultMarkdownContent>

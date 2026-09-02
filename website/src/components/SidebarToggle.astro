@@ -1,0 +1,108 @@
+---
+// Collapses the navigation column on wide viewports. The state is the
+// data-sidebar-collapsed attribute on <html>; Head.astro restores it before
+// first paint and surge.css turns it into layout.
+---
+
+<button
+  type="button"
+  class="sidebar-toggle"
+  data-sidebar-toggle
+  aria-controls="starlight__sidebar"
+  aria-expanded="true"
+  title="Collapse sidebar"
+>
+  <svg
+    aria-hidden="true"
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <rect width="18" height="18" x="3" y="3" rx="2"></rect>
+    <path d="M9 3v18"></path>
+    <path class="sidebar-toggle__chevron" d="M16 15l-3-3 3-3"></path>
+  </svg>
+  <span class="sr-only">Collapse sidebar</span>
+</button>
+
+<style>
+  .sidebar-toggle {
+    display: none;
+  }
+
+  @media (min-width: 50rem) {
+    /* Fixed at the seam between the pane and the prose, so it follows the
+       pane's width as it animates and stays put while the page scrolls. The
+       pane sits at --sl-z-index-menu; one above keeps the button clickable
+       while the pane is still visible mid-collapse. */
+    .sidebar-toggle {
+      position: fixed;
+      z-index: calc(var(--sl-z-index-menu) + 1);
+      inset-block-start: calc(var(--sl-nav-height) + var(--sl-mobile-toc-height) + 0.75rem);
+      inset-inline-start: var(--sl-content-inline-start);
+      display: grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      border: 1px solid var(--tint-2);
+      border-inline-start: 0;
+      border-radius: 0 6px 6px 0;
+      background: var(--bg);
+      color: var(--fg-fade);
+      cursor: pointer;
+      transition: inset-inline-start 0.25s ease;
+    }
+    .sidebar-toggle:hover {
+      color: var(--accent);
+      border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+    }
+    .sidebar-toggle:focus-visible {
+      outline: 2px solid var(--sl-color-text-accent);
+      outline-offset: 2px;
+    }
+    .sidebar-toggle__chevron {
+      transform-origin: 14.5px 12px;
+      transition: transform 0.25s ease;
+    }
+    :global(:root[data-sidebar-collapsed]) .sidebar-toggle__chevron {
+      transform: scaleX(-1);
+    }
+  }
+</style>
+
+<script>
+  function initSidebarToggle() {
+    const button = document.querySelector<HTMLButtonElement>('[data-sidebar-toggle]');
+    if (!button) return;
+    const root = document.documentElement;
+    const label = button.querySelector<HTMLElement>('.sr-only');
+
+    const sync = () => {
+      const collapsed = 'sidebarCollapsed' in root.dataset;
+      button.setAttribute('aria-expanded', String(!collapsed));
+      button.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+      if (label) label.textContent = button.title;
+    };
+
+    button.addEventListener('click', () => {
+      const collapsed = 'sidebarCollapsed' in root.dataset;
+      if (collapsed) delete root.dataset.sidebarCollapsed;
+      else root.dataset.sidebarCollapsed = '';
+      try {
+        localStorage.setItem('surge-sidebar-collapsed', collapsed ? '0' : '1');
+      } catch {}
+      sync();
+    });
+
+    sync();
+  }
+
+  initSidebarToggle();
+  document.addEventListener('astro:page-load', initSidebarToggle);
+</script>
