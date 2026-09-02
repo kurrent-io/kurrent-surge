@@ -73,8 +73,8 @@ Configured through `ProcessorOptions`:
 | Batch shape | `Batching` |
 | Reconnecting a dropped subscription | `Resilience` |
 | Checkpoint partition count | `MaxParallelism`, default 1 |
-| [Observability](/processors/observability/) | `Observers`, `MeterFactory`, `TrackSourceLag` |
+| [Observability](/kurrent-surge/processors/observability/) | `Observers`, `MeterFactory`, `TrackSourceLag` |
 
-Read on for [writing a processor](/processors/writing-a-processor/),
-[checkpointing](/processors/checkpointing/), [partitioning](/processors/partitioning/) and
-[batching](/processors/batching/).
+Read on for [writing a processor](/kurrent-surge/processors/writing-a-processor/),
+[checkpointing](/kurrent-surge/processors/checkpointing/), [partitioning](/kurrent-surge/processors/partitioning/) and
+[batching](/kurrent-surge/processors/batching/).

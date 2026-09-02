@@ -36,7 +36,7 @@ await client.Indexes.Create(
 | Option | Type | Meaning |
 |---|---|---|
 | `Name` | `IndexName` | Unique |
-| `Filter` | `string` | Decides which records the index contains. Same grammar as a [read filter](/streams/filters/) |
+| `Filter` | `string` | Decides which records the index contains. Same grammar as a [read filter](/kurrent-surge/streams/filters/) |
 | `Fields` | `IList<IndexField>` | The indexed columns |
 | `Start` | `bool?` | `false` creates it stopped. `null` takes the server default |
 

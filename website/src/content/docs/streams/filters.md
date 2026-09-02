@@ -21,7 +21,7 @@ var options = new ReadRecordsOptions {
 |---|---|---|
 | `ByCategory(name)` | Every stream in a category | `$idx-ce-{category}` |
 | `BySchema(name)` | Every record of one schema | `$idx-et-{schema}` |
-| `ByUserIndex(name)` | Whatever a [secondary index](/client/indexes/) contains | `$idx-user-{name}` |
+| `ByUserIndex(name)` | Whatever a [secondary index](/kurrent-surge/client/indexes/) contains | `$idx-user-{name}` |
 | `ByStream(name)` | One stream, named exactly | direct stream read |
 | `ByStreamPattern(regex)` | Streams whose name matches | scan |
 | `ByExpression(sql)` | Anything expressible in SQL | scan, or an index when it can be extracted |

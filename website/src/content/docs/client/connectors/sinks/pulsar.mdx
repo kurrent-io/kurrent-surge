@@ -19,7 +19,7 @@ Before using the Pulsar sink connector, ensure you have:
 - Appropriate authentication token if your Pulsar cluster requires authentication
 
 :::tip
-See the [Data Protection](/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -51,7 +51,7 @@ The connector settings control how it interacts with Pulsar, manages message par
 
 :::tip
 The Pulsar sink inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
 :::
 
 ### General settings 
@@ -75,7 +75,7 @@ Partitioning options determine how the connector assigns partition keys, which a
 
 ### Resilience
 
-The Pulsar sink connector relies on its own retry mechanism and doesn't include the configuration from [Resilience configuration](/client/connectors/settings/#resilience-configuration).
+The Pulsar sink connector relies on its own retry mechanism and doesn't include the configuration from [Resilience configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration).
 
 | Name                       | Details                                                                                                                                           |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -103,7 +103,7 @@ Content-Type: application/json
 }
 ```
 
-These headers will be included in every message sent by the connector, in addition to the [default headers](/client/connectors/features/#headers) automatically added by the connector's plugin.
+These headers will be included in every message sent by the connector, in addition to the [default headers](/kurrent-surge/client/connectors/features/#headers) automatically added by the connector's plugin.
 
 
 ## Examples

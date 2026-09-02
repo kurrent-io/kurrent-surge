@@ -109,6 +109,7 @@ Neither `astro dev` nor `astro build` type-checks anything, so this is the only 
   `bun install` then `bun run build`. No `build-cmd` override is needed.
 - **`patches/` must stay tracked.** `bun install` in CI cannot apply a patch that is not in the
   checkout, and the failure is silent in its effects.
-- `site` and `base` come from `SITE_URL` / `SITE_BASE` env vars rather than being hardcoded, so a
-  local `bun run build` produces `base: '/'` and CI produces `/kurrent-surge/`. Local `dist/` is
-  therefore not what ships — do not test base-path behaviour locally and trust it.
+- `base` is hardcoded to `/kurrent-surge/` and every internal link under `src/` carries it, because
+  Astro never rewrites authored links. Local and CI builds are identical; the dev server serves at
+  `http://localhost:4400/kurrent-surge/`, and `starlight-links-validator` fails the build on any
+  link written without the prefix.

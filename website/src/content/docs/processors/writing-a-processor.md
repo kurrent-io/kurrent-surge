@@ -68,7 +68,7 @@ with the operation that failed, resilience policy applies, and the position is n
 the record that threw. Cancellation propagates unwrapped, because a stopping processor is not a
 failing one.
 
-[Error handling](/processors/error-handling/) covers the retry policy, stopping deliberately, and
+[Error handling](/kurrent-surge/processors/error-handling/) covers the retry policy, stopping deliberately, and
 what happens when a checkpoint fails.
 
 ## Running it

@@ -165,11 +165,11 @@ when the path between them is slower or less reliable than that.
 
 Tune `gossipTimeout` against measured latency. Tune `keepAliveInterval` against the idle timeout of
 whatever sits between the client and the cluster, which is a different question with a different
-answer. See [Connection strings](/client/connection-strings/) for both.
+answer. See [Connection strings](/kurrent-surge/client/connection-strings/) for both.
 
 Retries live in the same `ServiceConfig` as the balancing policy, as a gRPC method config, so a retry
 is enforced by the transport rather than by a loop above it. See
-[Configuring the client](/client/configuring-the-client/).
+[Configuring the client](/kurrent-surge/client/configuring-the-client/).
 
 ## Reads and writes on different nodes
 

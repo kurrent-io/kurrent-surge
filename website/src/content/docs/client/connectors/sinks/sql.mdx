@@ -28,7 +28,7 @@ Before using the SQL sink connector, ensure you have:
 - Appropriate database credentials and network access
 
 :::tip
-See the [Data Protection](/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quick Start
@@ -93,7 +93,7 @@ Define SQL statement templates with parameter placeholders (prefixed with `@`) a
 The configuration is passed as a base64-encoded JSON string using the `reducer:mappings` option.
 
 :::note
-The extractor function receives a `record` parameter following the [KurrentDB record structure](/client/connectors/features/#kurrentdb-record). It must return an object with properties matching the parameter placeholders in the SQL statement (without the `@` prefix).
+The extractor function receives a `record` parameter following the [KurrentDB record structure](/kurrent-surge/client/connectors/features/#kurrentdb-record). It must return an object with properties matching the parameter placeholders in the SQL statement (without the `@` prefix).
 :::
 
 ### Helper Functions
@@ -123,7 +123,7 @@ Adjust these settings to specify the behavior and interaction of your SQL sink c
 
 :::tip
 The SQL sink connector inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
 :::
 
 The SQL sink connector can be configured with the following options:

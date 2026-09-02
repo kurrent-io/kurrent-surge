@@ -7,7 +7,7 @@ description: Create schemas, add versions, check compatibility, and inspect what
 a compatibility mode, and an ordered list of versions.
 
 Most applications never call this module directly, because
-[registration](/schema/registration/) does it for you when you turn it on. Reach for it when you
+[registration](/kurrent-surge/schema/registration/) does it for you when you turn it on. Reach for it when you
 manage schemas out of band, or need to inspect what is registered.
 
 
@@ -53,7 +53,7 @@ Throws `SchemaAlreadyExistsException` if the name is taken.
 ## Add a version
 
 New versions inherit the schema's data format. The server checks the definition against the
-schema's [compatibility mode](/schema/evolution/) and rejects anything outside it.
+schema's [compatibility mode](/kurrent-surge/schema/evolution/) and rejects anything outside it.
 
 ```csharp
 var v2 = await client.Registry.RegisterSchemaVersion("order-placed", updatedJson);

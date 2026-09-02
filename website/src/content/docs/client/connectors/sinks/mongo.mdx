@@ -22,7 +22,7 @@ Before using the MongoDB sink connector, ensure you have:
 - Appropriate authentication credentials (username/password or X.509 certificate)
 
 :::tip
-See the [Data Protection](/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -58,7 +58,7 @@ Adjust these settings to specify the behavior and interaction of your MongoDB si
 
 :::tip
 The MongoDB sink inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
 :::
 
 The MongoDB sink can be configured with the following options:
@@ -75,11 +75,11 @@ The MongoDB sink can be configured with the following options:
 | `batching:batchSize`      | **Description:**<br/>Threshold batch size at which the sink will push the batch of records to the MongoDB collection.<br/><br/>**Default**: `"1000"`                                                |
 | `batching:batchTimeoutMs` | **Description:**<br/>Threshold time in milliseconds at which the sink will push the current batch of records to the MongoDB collection, regardless of the batch size.<br/><br/>**Default**: `"250"` |
 
-Resilience options can be found in the [Resilience Configuration](/client/connectors/settings/#resilience-configuration) section.
+Resilience options can be found in the [Resilience Configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration) section.
 
 ## Metadata
 
-The MongoDB sink connector automatically includes these [default headers](/client/connectors/features/#headers) in each document sent to the collection. These
+The MongoDB sink connector automatically includes these [default headers](/kurrent-surge/client/connectors/features/#headers) in each document sent to the collection. These
 headers provide metadata about the event and are stored in a `_metadata` field
 within the document.
 
@@ -87,7 +87,7 @@ within the document.
 
 ### Authentication
 
-This MongoDB sink connector currently only supports [SCRAM](/client/connectors/sinks/mongo/#scram) and [X.509 certificate authentication](/client/connectors/sinks/mongo/#x509-certificate-authentication).
+This MongoDB sink connector currently only supports [SCRAM](/kurrent-surge/client/connectors/sinks/mongo/#scram) and [X.509 certificate authentication](/kurrent-surge/client/connectors/sinks/mongo/#x509-certificate-authentication).
 
 #### SCRAM
 

@@ -11,7 +11,7 @@ matches what you are building.
 | A **producer** | Get events into KurrentDB and read them back | [Append and read](#produce-append-and-read) |
 | A **consumer** | React to events as they arrive, continuously | [Run a processor](#consume-run-a-processor) |
 
-For what Surge is and how it is designed, read [What is Kurrent Surge](/what-is-surge/) first.
+For what Surge is and how it is designed, read [What is Kurrent Surge](/kurrent-surge/what-is-surge/) first.
 
 ## Install
 
@@ -20,7 +20,7 @@ dotnet add package Kurrent.Surge
 ```
 
 Requires .NET 10.0 or a subsequent version. `Kurrent.Surge` carries the client and the processors;
-the [other three packages](/what-is-surge/) are opt in.
+the [other three packages](/kurrent-surge/what-is-surge/) are opt in.
 
 ## Declare your messages
 
@@ -38,7 +38,7 @@ namespace Orders.Events {
 ```
 
 Without a catalog the client cannot resolve a schema name for your type, and the append is rejected.
-See [Catalogs](/schema/catalogs/) for the other ways to declare one.
+See [Catalogs](/kurrent-surge/schema/catalogs/) for the other ways to declare one.
 
 ## Produce: append and read
 
@@ -70,8 +70,8 @@ await foreach (var message in client.Streams.ReadStream("order-001")) {
 [`examples/streams/Streams.QuickStart`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/streams/Streams.QuickStart)
 is 31 lines that append three order events and read them back, with the output it produces.
 
-Next: [Append](/streams/append/) for concurrency control, [Read](/streams/read/) for the live tail,
-[Client](/client/) for the other four modules.
+Next: [Append](/kurrent-surge/streams/append/) for concurrency control, [Read](/kurrent-surge/streams/read/) for the live tail,
+[Client](/kurrent-surge/client/) for the other four modules.
 
 ## Consume: run a processor
 
@@ -113,8 +113,8 @@ seeds a stream and counts words across it.
 [`Processor.AspNetMinimal`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Processor.AspNetMinimal)
 hosts one as an ASP.NET Core background service, which is how you would deploy it.
 
-Next: [Writing a processor](/processors/writing-a-processor/),
-[Checkpointing](/processors/checkpointing/), [Error handling](/processors/error-handling/).
+Next: [Writing a processor](/kurrent-surge/processors/writing-a-processor/),
+[Checkpointing](/kurrent-surge/processors/checkpointing/), [Error handling](/kurrent-surge/processors/error-handling/).
 
 ## More examples
 
@@ -124,4 +124,4 @@ detection, IoT thresholds, leaderboards, stream-table joins, Postgres and Redis 
 connectors and the schema registry. Each one has its own README and runs with `dotnet run`.
 
 To connect to a cluster, or to configure TLS, discovery or keepalive, see
-[Connection strings](/client/connection-strings/).
+[Connection strings](/kurrent-surge/client/connection-strings/).

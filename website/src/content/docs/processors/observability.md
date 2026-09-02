@@ -116,7 +116,7 @@ nothing.
 
 ### Correlation across a stream
 
-A record carries `$traceId` and `$spanId` in its [metadata](/streams/metadata/) when the producer set
+A record carries `$traceId` and `$spanId` in its [metadata](/kurrent-surge/streams/metadata/) when the producer set
 them. That links a consumer's work back to whatever caused the record, across process boundaries and
 across time, which a span alone cannot do once the producing process is gone.
 

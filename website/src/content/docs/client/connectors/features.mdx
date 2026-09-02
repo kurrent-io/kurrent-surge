@@ -117,7 +117,7 @@ All sink connectors support filtering events using regular expressions, JsonPath
 :::note
 With neither `subscription:filter:scope` nor `subscription:filter:expression` set, a connector consumes
 `$all`, excluding system events. Setting the scope while leaving the expression empty consumes `$all`
-*including* system events. See [Configure connector](/client/connectors/settings/).
+*including* system events. See [Configure connector](/kurrent-surge/client/connectors/settings/).
 :::
 
 ### Stream ID Filter
@@ -189,7 +189,7 @@ In this case, the filter will only match events where the year field is equal to
 You can test your JSONPath expressions using the [JsonPath Playground](https://json-everything.net/json-path/). Copy the record JSON and test your expressions to ensure they work as expected.
 :::
 
-Refer to the [Subscription Configuration](/client/connectors/settings/#subscription-configuration) section in settings
+Refer to the [Subscription Configuration](/kurrent-surge/client/connectors/settings/#subscription-configuration) section in settings
 page for more details on the available scopes and additional configuration
 options.
 
@@ -361,7 +361,7 @@ The retry process unfolds in three phases:
 
 These phases allow the system to progressively adjust retry frequency, balancing resilience and performance. 
 
-For more details on customizing these settings, refer to the [Resilience Configuration](/client/connectors/settings/#resilience-configuration) section.
+For more details on customizing these settings, refer to the [Resilience Configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration) section.
 
 :::note
 Some connectors have their own resilience mechanisms and configurations. Refer to the specific connector's page for details.
@@ -373,7 +373,7 @@ KurrentDB Connectors protect sensitive configuration fields using envelope encry
 
 When you configure a connector, the system encrypts sensitive data using Data Encryption Keys (DEKs), which are then wrapped (encrypted) using a master key based on your provided token. The encrypted data is stored securely in KurrentDB rather than in plaintext.
 
-Refer to each connector's [individual documentation](/client/connectors/) to see which fields are considered sensitive and protected.
+Refer to each connector's [individual documentation](/kurrent-surge/client/connectors/) to see which fields are considered sensitive and protected.
 
 ### Configuring Data Protection
 

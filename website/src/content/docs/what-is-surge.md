@@ -28,7 +28,7 @@ Reading is deliberately softer than writing. A record whose schema name has no m
 raw rather than throwing, so an unknown type from a newer producer does not kill a running
 subscription. Strict where a mistake is permanent, forgiving where it is not.
 
-See [Schema](/schema/).
+See [Schema](/kurrent-surge/schema/).
 
 ## Append and read
 
@@ -41,7 +41,7 @@ The other four modules are the same client and the same shape: the schema regist
 indexes, connectors, and node administration. There is no second client type to construct and no
 second connection to configure.
 
-See [Client](/client/) and [Streams](/streams/).
+See [Client](/kurrent-surge/client/) and [Streams](/kurrent-surge/streams/).
 
 ## Process what arrives
 
@@ -54,7 +54,7 @@ A processor builds and owns its own client, so it is not something you attach to
 It is the other way to talk to KurrentDB, and which one you reach for depends on whether you are
 producing or consuming.
 
-See [Processors](/processors/).
+See [Processors](/kurrent-surge/processors/).
 
 ## How it is designed
 
@@ -68,17 +68,17 @@ frozen dictionaries built once at startup. JSON goes through a source-generated
 it. Every record carries its own format on the wire, so a reader picks the codec from the record
 instead of from configuration, and a producer moving to Protobuf does not break a consumer. JSON is
 the default, Protobuf and Avro are a property on the record you append, and raw bytes skip the layer
-entirely. See [Formats](/schema/formats/).
+entirely. See [Formats](/kurrent-surge/schema/formats/).
 
 **Resilience is configured on both halves.** The client retries at the gRPC channel, declared in the
 service config so the transport enforces it rather than a loop above it. A processor reconnects its
 own subscription on a pipeline you can extend or replace outright. The same vocabulary on both sides,
-and a hand-rolled reconnect loop on neither. See [Configuring the client](/client/configuring-the-client/) and
-[Error handling](/processors/error-handling/).
+and a hand-rolled reconnect loop on neither. See [Configuring the client](/kurrent-surge/client/configuring-the-client/) and
+[Error handling](/kurrent-surge/processors/error-handling/).
 
 **Routing is a gRPC policy, not a wrapper.** Discovery, node ranking, connection replacement and
 leader-change following all run inside the channel, as a load balancing policy registered on it. See
-[Clusters and load balancing](/client/clusters-and-discovery/).
+[Clusters and load balancing](/kurrent-surge/client/clusters-and-discovery/).
 
 **One surface over two protocols.** Appends run on the V2 gRPC service. Reads and stream management
 run on the V1 legacy service. Indexes and connectors use V2 messages. You call one client, and the
@@ -91,9 +91,9 @@ result wrapper to unpack, and no single catch-all to inspect for a reason string
 
 | Package | What it is | Links |
 |---|---|---|
-| `Kurrent.Surge` | The client and the processors. What you install | [Docs](/client/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge) |
-| `Kurrent.Surge.Core` | Contracts, value types, and the JSON, Protobuf, and Avro codecs. No gRPC, no transport. Arrives with the client | [Docs](/schema/formats/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Core) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge.Core) |
-| `Kurrent.Surge.Schema.Catalogs` | Message declaration and the catalog generator | [Docs](/schema/catalogs/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Schema.Catalogs) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge.Schema.Catalogs) |
+| `Kurrent.Surge` | The client and the processors. What you install | [Docs](/kurrent-surge/client/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge) |
+| `Kurrent.Surge.Core` | Contracts, value types, and the JSON, Protobuf, and Avro codecs. No gRPC, no transport. Arrives with the client | [Docs](/kurrent-surge/schema/formats/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Core) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge.Core) |
+| `Kurrent.Surge.Schema.Catalogs` | Message declaration and the catalog generator | [Docs](/kurrent-surge/schema/catalogs/) · [NuGet](https://www.nuget.org/packages/Kurrent.Surge.Schema.Catalogs) · [Source](https://github.com/kurrent-io/kurrent-surge/tree/main/src/Kurrent.Surge.Schema.Catalogs) |
 
 ## What changed from the v1 client
 
@@ -111,7 +111,7 @@ result wrapper to unpack, and no single catch-all to inspect for a reason string
 | Disposal | `IDisposable` | `IAsyncDisposable` |
 
 Your connection strings keep working. `esdb://` and `eventstore://` still parse, and every parameter
-means what it means in the other KurrentDB SDKs. See [Migration](/migration/) for the rest.
+means what it means in the other KurrentDB SDKs. See [Migration](/kurrent-surge/migration/) for the rest.
 
 ## What it is not
 

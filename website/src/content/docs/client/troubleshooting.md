@@ -78,7 +78,7 @@ Almost always a middlebox closing an idle connection. Work down this list.
 3. **A load balancer dropping HTTP/2 pings.** Some L7 balancers discard them. Enable them, or accept
    the reconnects.
 4. **The application not resubscribing.** The client surfaces the cancellation; resuming from the last
-   checkpoint is the application's job. A [processor](/processors/) does this for you.
+   checkpoint is the application's job. A [processor](/kurrent-surge/processors/) does this for you.
 
 ### Deadline exceeded
 
@@ -102,6 +102,6 @@ Split them into two clients, one per preference, rather than compromising on one
 
 | Symptom | Where it belongs |
 |---|---|
-| `StreamRevisionConflictException` after a retry | [Append](/streams/append/), optimistic concurrency |
-| A schema fails to resolve or validate | [Registration](/schema/registration/) |
+| `StreamRevisionConflictException` after a retry | [Append](/kurrent-surge/streams/append/), optimistic concurrency |
+| A schema fails to resolve or validate | [Registration](/kurrent-surge/schema/registration/) |
 | A leader election that never converges | Server-side. Cluster health, not client configuration |

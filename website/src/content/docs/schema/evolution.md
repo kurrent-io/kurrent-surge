@@ -6,7 +6,7 @@ description: Compatibility modes, and the four moves that let a record type chan
 Records you append today will outlive the code that wrote them. A service running a newer release
 still has to decode records appended by an older one.
 
-When [validation](/schema/registration/) is on, the registry checks each new version against a
+When [validation](/kurrent-surge/schema/registration/) is on, the registry checks each new version against a
 **compatibility mode** chosen when the schema was created, and rejects anything that drifts outside
 it.
 
@@ -69,7 +69,7 @@ operation the modes police.
 ```
 
 This holds whatever the wire format is. Protobuf and Avro records register a JSON Schema too. See
-[Registration](/schema/registration/).
+[Registration](/kurrent-surge/schema/registration/).
 
 ## When a check fails
 

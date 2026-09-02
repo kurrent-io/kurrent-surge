@@ -21,7 +21,7 @@ var schema = await client.Registry.GetSchema("order-placed");
 ```
 
 Building a client, pointing it at a cluster, and tuning the transport are all
-[Connecting](/client/connection-strings/). This page is about what you reach once you have one.
+[Connecting](/kurrent-surge/client/connection-strings/). This page is about what you reach once you have one.
 
 ## Errors
 

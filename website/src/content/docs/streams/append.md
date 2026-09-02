@@ -32,7 +32,7 @@ Console.WriteLine("now at revision {0}", result.Revision);
 ```
 
 Payloads serialise as JSON unless you say otherwise, and the schema name comes from your
-[catalog](/schema/catalogs/). The same shape works for events, commands, and snapshots, because
+[catalog](/kurrent-surge/schema/catalogs/). The same shape works for events, commands, and snapshots, because
 KurrentDB does not distinguish them.
 
 You get back where the write landed: a `Position`, plus the `Stream` and `Revision` read off it.

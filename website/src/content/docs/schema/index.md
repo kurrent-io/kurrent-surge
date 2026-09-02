@@ -11,10 +11,10 @@ Four things decide what happens to a message:
 
 | Step | Decides | Page |
 |---|---|---|
-| **Catalog** | Which types this client can append and decode | [Catalogs](/schema/catalogs/) |
-| **Name** | The string identity a record carries on the wire | [Schema names](/schema/names/) |
-| **Format** | How the payload becomes bytes | [Formats](/schema/formats/) |
-| **Registry** | Whether the shape is registered and checked | [Registration](/schema/registration/) |
+| **Catalog** | Which types this client can append and decode | [Catalogs](/kurrent-surge/schema/catalogs/) |
+| **Name** | The string identity a record carries on the wire | [Schema names](/kurrent-surge/schema/names/) |
+| **Format** | How the payload becomes bytes | [Formats](/kurrent-surge/schema/formats/) |
+| **Registry** | Whether the shape is registered and checked | [Registration](/kurrent-surge/schema/registration/) |
 
 ## Nothing is inferred
 
@@ -37,7 +37,7 @@ kill your subscription.
 
 The default is `KurrentClientSchemaOptions.Disabled`: schema names resolve locally through your
 catalog, and the registry is never consulted. Turn it on when you want registration, validation, or
-both. See [Registration](/schema/registration/).
+both. See [Registration](/kurrent-surge/schema/registration/).
 
 ## One definition format, four wire formats
 
@@ -46,5 +46,5 @@ whatever the encoding, **the definition stored in the registry is a JSON Schema*
 CLR type.
 
 That is deliberate. It gives one comparable shape to run compatibility rules against, no matter how
-the bytes were encoded. [Formats](/schema/formats/) covers what each encoding does and where they
+the bytes were encoded. [Formats](/kurrent-surge/schema/formats/) covers what each encoding does and where they
 genuinely differ.

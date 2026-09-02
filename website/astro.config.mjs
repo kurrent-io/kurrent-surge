@@ -9,9 +9,10 @@ import starlightPageActions from 'starlight-page-actions';
 import astroD2 from 'astro-d2';
 import UnoCSS from 'unocss/astro';
 
-// GitHub Pages serves from /<repo>/ while Cloudflare serves from /. Setting the base
-// through an env var keeps every internal link correct on both without a code change.
-const base = process.env.SITE_BASE ?? '/';
+// GitHub Pages serves a project site from /<repo>/. Astro never rewrites authored
+// links, so every internal link under src/ carries this prefix: changing the base
+// means rewriting them.
+const base = '/kurrent-surge/';
 
 // Starlight's sitemap integration needs an absolute origin and silently skips without
 // one. Same env-var treatment so a deploy target sets both together.

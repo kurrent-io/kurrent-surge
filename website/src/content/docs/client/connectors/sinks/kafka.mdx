@@ -22,7 +22,7 @@ Before using the Kafka sink connector, ensure you have:
 - Appropriate authentication credentials if using SASL
 
 :::tip
-See the [Data Protection](/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -57,7 +57,7 @@ Adjust these settings to specify the behavior and interaction of your Kafka sink
 
 :::tip
 The Kafka sink inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
 :::
 
 The Kafka sink can be configured with the following options:
@@ -91,7 +91,7 @@ See the [Partitioning](#partitioning-1) section for examples.
 #### Resilience
 
 The Kafka sink connector relies on its own Kafka retry mechanism. None of the keys in
-[Resilience configuration](/client/connectors/settings/#resilience-configuration) apply to it. The two keys
+[Resilience configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration) apply to it. The two keys
 below share the `resilience:` prefix, but they are separate settings.
 
 | Name                               | Details                                                                                                                                                                                                    |
@@ -152,7 +152,7 @@ Content-Type: application/json
 }
 ```
 
-These headers will be included in every message sent by the connector, in addition to the [default headers](/client/connectors/features/#headers) automatically added by the connector's plugin.
+These headers will be included in every message sent by the connector, in addition to the [default headers](/kurrent-surge/client/connectors/features/#headers) automatically added by the connector's plugin.
 
 ## Examples
 

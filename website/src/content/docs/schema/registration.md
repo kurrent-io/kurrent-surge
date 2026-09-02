@@ -53,9 +53,9 @@ Whatever the wire format, the definition sent to the registry is a **JSON Schema
 CLR type**. A Protobuf-encoded or Avro-encoded record registers the same kind of definition a JSON
 one does.
 
-That is what lets [compatibility modes](/schema/evolution/) work uniformly: one comparable shape per
+That is what lets [compatibility modes](/kurrent-surge/schema/evolution/) work uniformly: one comparable shape per
 schema name, regardless of encoding. The exception is `Bytes`, which never reaches the registry at
-all. See [Formats](/schema/formats/).
+all. See [Formats](/kurrent-surge/schema/formats/).
 
 ## Timing
 

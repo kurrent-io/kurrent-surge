@@ -21,7 +21,7 @@ Before using the HTTP sink connector, ensure you have:
 - Appropriate authentication credentials if the endpoint requires authentication
 
 :::tip
-See the [Data Protection](/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -55,7 +55,7 @@ Adjust these settings to specify the behavior and interaction of your HTTP sink 
 
 :::tip
 The HTTP sink inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
 :::
 
 | Name                       | Details                                                                                                                                                                                                      |
@@ -88,11 +88,11 @@ The HTTP sink connector supports both [Basic](https://datatracker.ietf.org/doc/h
 
 #### Resilience
 
-Resilience options can be found in the [Resilience Configuration](/client/connectors/settings/#resilience-configuration) section.
+Resilience options can be found in the [Resilience Configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration) section.
 
 ## Headers
 
-In addition to the [default headers](/client/connectors/features/#headers) that are included with every request, the HTTP sink connector also includes the following headers in the HTTP request:
+In addition to the [default headers](/kurrent-surge/client/connectors/features/#headers) that are included with every request, the HTTP sink connector also includes the following headers in the HTTP request:
 
 | Header              | Description                                                    |
 | ------------------- | -------------------------------------------------------------- |
@@ -124,7 +124,7 @@ Content-Type: application/json
 
 With this configuration, every HTTP request sent by the connector will include
 the specified custom headers along with their respective values, in addition to
-the [default headers](/client/connectors/features/#headers) that are automatically added by
+the [default headers](/kurrent-surge/client/connectors/features/#headers) that are automatically added by
 the connector's plugin.
 
 ## Template parameters

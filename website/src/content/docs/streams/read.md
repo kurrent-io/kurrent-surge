@@ -80,7 +80,7 @@ Start at `Earliest` to replay history, `Latest` to pick up only what comes next,
 to resume from where you stopped. The same shaping settings apply as for a single stream.
 
 Reading the whole log unfiltered is expensive. When you want a slice of it, a
-[filter](/streams/filters/) narrows it server-side rather than shipping everything to you. A
+[filter](/kurrent-surge/streams/filters/) narrows it server-side rather than shipping everything to you. A
 slice is one category, one schema type, or one indexed field.
 
 ## Fetch a single record
@@ -99,7 +99,7 @@ gave you a position and you want to see what it points at.
 
 `FirstRecord` and `LastRecord` give you the edges of a stream. `LastRecord` is the one you will
 actually use: it is how you find the current revision before an append that needs
-[optimistic concurrency](/streams/append/#guarding-against-concurrent-writes).
+[optimistic concurrency](/kurrent-surge/streams/append/#guarding-against-concurrent-writes).
 
 Pass no stream and you get the edges of the whole log:
 
@@ -118,7 +118,7 @@ caught up, then keeps delivering as records are written.
 
 Doing this properly means more than a loop: remembering where you got to, resuming there after a
 restart, reconnecting when the server goes away, and not reprocessing everything on every deploy.
-That is what a [processor](/processors/) is. It owns the subscription, the checkpoints, and the
+That is what a [processor](/kurrent-surge/processors/) is. It owns the subscription, the checkpoints, and the
 reconnection, and leaves you writing a handler.
 
 **Use a processor.** `Subscribe` is the primitive underneath it, and it is documented here so you can

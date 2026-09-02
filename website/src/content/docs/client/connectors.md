@@ -20,21 +20,21 @@ list tracks the **server** version, not the SDK. It is current for KurrentDB 26.
 
 | `instanceTypeName` | Writes to | Since |
 |---|---|---|
-| [`http-sink`](/client/connectors/sinks/http/) | Any HTTP endpoint | 24.10 |
-| [`serilog-sink`](/client/connectors/sinks/serilog/) | A Serilog sink: console, file or Seq | 24.10 |
-| [`kafka-sink`](/client/connectors/sinks/kafka/) | A Kafka topic | 24.10 |
-| [`mongo-db-sink`](/client/connectors/sinks/mongo/) | A MongoDB collection | 24.10 |
-| [`rabbit-mq-sink`](/client/connectors/sinks/rabbitmq/) | A RabbitMQ exchange | 24.10 |
-| [`elasticsearch-sink`](/client/connectors/sinks/elasticsearch/) | An Elasticsearch index | 25.0 |
-| [`pulsar-sink`](/client/connectors/sinks/pulsar/) | A Pulsar topic | 25.1 |
-| [`sql-sink`](/client/connectors/sinks/sql/) | SQL Server or PostgreSQL | 26.0 |
+| [`http-sink`](/kurrent-surge/client/connectors/sinks/http/) | Any HTTP endpoint | 24.10 |
+| [`serilog-sink`](/kurrent-surge/client/connectors/sinks/serilog/) | A Serilog sink: console, file or Seq | 24.10 |
+| [`kafka-sink`](/kurrent-surge/client/connectors/sinks/kafka/) | A Kafka topic | 24.10 |
+| [`mongo-db-sink`](/kurrent-surge/client/connectors/sinks/mongo/) | A MongoDB collection | 24.10 |
+| [`rabbit-mq-sink`](/kurrent-surge/client/connectors/sinks/rabbitmq/) | A RabbitMQ exchange | 24.10 |
+| [`elasticsearch-sink`](/kurrent-surge/client/connectors/sinks/elasticsearch/) | An Elasticsearch index | 25.0 |
+| [`pulsar-sink`](/kurrent-surge/client/connectors/sinks/pulsar/) | A Pulsar topic | 25.1 |
+| [`sql-sink`](/kurrent-surge/client/connectors/sinks/sql/) | SQL Server or PostgreSQL | 26.0 |
 
 ### Sources, which move records in
 
 | `instanceTypeName` | Reads from | Since |
 |---|---|---|
-| [`kafka-source`](/client/connectors/sources/kafka/) | A Kafka topic | 26.0 |
-| [`webhook-source`](/client/connectors/sources/webhook/) | `POST /webhook/{connectorId}` | 26.1 |
+| [`kafka-source`](/kurrent-surge/client/connectors/sources/kafka/) | A Kafka topic | 26.0 |
+| [`webhook-source`](/kurrent-surge/client/connectors/sources/webhook/) | `POST /webhook/{connectorId}` | 26.1 |
 
 Each page carries that connector's settings and says whether it needs a license. Two sinks run
 without a license key, `http-sink` and `serilog-sink`, and the server refuses to start a licensed

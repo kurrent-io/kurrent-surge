@@ -20,7 +20,7 @@ Individual connectors also include their own specific settings. To view them, go
 
 | Name               | Details                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `instanceTypeName` | _required_<br/><br/>**Description:**<br/>Specifies the type of connector instance.<br/><br/>**Accepted Values:**<br/><ul><li>`elasticsearch-sink`</li><li>`http-sink`</li><li>`kafka-sink`</li><li>`mongo-db-sink`</li><li>`rabbit-mq-sink`</li><li>`serilog-sink`</li><li>`sql-sink`</li></ul>For details about each type, see the individual connector [page](/client/connectors/). |
+| `instanceTypeName` | _required_<br/><br/>**Description:**<br/>Specifies the type of connector instance.<br/><br/>**Accepted Values:**<br/><ul><li>`elasticsearch-sink`</li><li>`http-sink`</li><li>`kafka-sink`</li><li>`mongo-db-sink`</li><li>`rabbit-mq-sink`</li><li>`serilog-sink`</li><li>`sql-sink`</li></ul>For details about each type, see the individual connector [page](/kurrent-surge/client/connectors/). |
 
 ### Subscription configuration
 
@@ -31,16 +31,16 @@ Individual connectors also include their own specific settings. To view them, go
 | `subscription:filter:expression` | **Description:**<br/>A filter expression (regex, JsonPath, or prefix) for records. If `scope` is specified and the expression is empty, it consumes from `$all` including system events. If `scope` is not specified, it consumes from `$all` excluding system events.<br/><br/>**Default**: `""` |
 | `subscription:initialPosition`   | **Description:**<br/>The position in the message stream from which a consumer starts consuming messages when there is no prior checkpoint.<br/><br/>**Accepted Values:**<br/>- `"latest"`, `"earliest"`.<br/><br/>**Default**: `"latest"`                                                                |
 
-For details and examples on subscriptions, see [Filters](/client/connectors/features/#filters).
+For details and examples on subscriptions, see [Filters](/kurrent-surge/client/connectors/features/#filters).
 
 ### Transformation configuration
 
 | Name                   | Details                                                                                                                                                                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `transformer:enabled`  | **Description:**<br/>Enables or disables the event transformer.<br/><br/>**Default**: `"false"`                                                                                                                   |
-| `transformer:function` | _required_<br/><br/>**Description:**<br/>Base64 encoded JavaScript function for transforming events. See [Transformations](/client/connectors/features/#transformations) for examples.<br/><br/>**Default**: `""` |
+| `transformer:function` | _required_<br/><br/>**Description:**<br/>Base64 encoded JavaScript function for transforming events. See [Transformations](/kurrent-surge/client/connectors/features/#transformations) for examples.<br/><br/>**Default**: `""` |
 
-For details and examples on transformations, see [Transformations](/client/connectors/features/#transformations).
+For details and examples on transformations, see [Transformations](/kurrent-surge/client/connectors/features/#transformations).
 
 ### Resilience configuration
 
@@ -58,7 +58,7 @@ For details and examples on transformations, see [Transformations](/client/conne
 Not all connectors use every resilience setting listed here. Some may have additional or different resilience options. If a connector’s individual documentation page does not explicitly mention support for these settings, it does not use them.
 :::
 
-For more details on resilience, see [Resilience](/client/connectors/features/#resilience).
+For more details on resilience, see [Resilience](/kurrent-surge/client/connectors/features/#resilience).
 
 ### Auto-Commit configuration
 
@@ -88,7 +88,7 @@ Individual connectors also include their own specific settings. To view them, go
 
 | Name               | Details                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `instanceTypeName` | _required_<br/><br/>**Description:**<br/>Specifies the type of connector instance.<br/><br/>**Accepted Values:**<br/><ul><li>`kafka-source`</li><li>`webhook-source`</li></ul>For details about each type, see the individual connector [page](/client/connectors/). |
+| `instanceTypeName` | _required_<br/><br/>**Description:**<br/>Specifies the type of connector instance.<br/><br/>**Accepted Values:**<br/><ul><li>`kafka-source`</li><li>`webhook-source`</li></ul>For details about each type, see the individual connector [page](/kurrent-surge/client/connectors/). |
 
 ### Logging configuration
 

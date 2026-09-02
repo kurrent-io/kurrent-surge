@@ -6,8 +6,8 @@ description: Move an existing project onto Kurrent Surge from an earlier Kurrent
 Kurrent Surge replaces the earlier .NET clients for KurrentDB. Pick the guide that matches what you
 have today.
 
-- [From EventStoreDB](/migration/from-eventstoredb/), for the `EventStore.Client.Grpc.*` packages.
-- [From KurrentDB v1](/migration/from-kurrentdb-v1/), for the `KurrentDB.Client.*` packages.
+- [From EventStoreDB](/kurrent-surge/migration/from-eventstoredb/), for the `EventStore.Client.Grpc.*` packages.
+- [From KurrentDB v1](/kurrent-surge/migration/from-kurrentdb-v1/), for the `KurrentDB.Client.*` packages.
 
 Both migrations are the same shape, because the v1 KurrentDB client was a rebrand of the
 EventStoreDB one. The differences are in the package names you remove and the namespaces you replace.
@@ -31,7 +31,7 @@ change before you migrate. Every parameter behaves identically across all six sc
 `tls`, `tlsVerifyCert`, `keepAliveInterval`, and `nodePreference`.
 
 Durations in a connection string are read in the same units every KurrentDB SDK uses. See
-[Breaking changes](/migration/breaking-changes/) for the behaviour that moved.
+[Breaking changes](/kurrent-surge/migration/breaking-changes/) for the behaviour that moved.
 
 ## What actually breaks
 

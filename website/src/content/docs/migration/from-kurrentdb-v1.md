@@ -5,7 +5,7 @@ description: Move a project from the KurrentDB.Client v1 packages onto Kurrent S
 
 Kurrent Surge is the successor to the v1 `KurrentDB.Client` packages. Because v1 was itself a rebrand
 of the EventStoreDB client, this migration is the same shape as
-[From EventStoreDB](/migration/from-eventstoredb/). Only the names you are replacing differ.
+[From EventStoreDB](/kurrent-surge/migration/from-eventstoredb/). Only the names you are replacing differ.
 
 Your `kurrentdb://` connection strings keep working unchanged.
 
@@ -111,7 +111,7 @@ var result = await client.Streams.AppendStream(record);
 ```
 
 `AppendRecord` encodes as JSON by default, and the schema name comes from your message catalog rather
-than a hand-written type string. See [Catalogs](/schema/catalogs/).
+than a hand-written type string. See [Catalogs](/kurrent-surge/schema/catalogs/).
 
 Reads interleave records with checkpoints:
 
@@ -177,7 +177,7 @@ services.AddKurrentClient("kurrentdb://admin:changeit@localhost:2113?tls=false")
 8. **Registration.** `AddKurrentDBClient` becomes `AddKurrentClient`.
 9. **Declare your message types.** Kurrent Surge does not infer schema names, so an append of an
    undeclared type throws. This has no v1 equivalent and is the step most likely to surprise you.
-   See [Catalogs](/schema/catalogs/).
+   See [Catalogs](/kurrent-surge/schema/catalogs/).
 10. **Build, then run your tests.**
 
 ## Breaking changes

@@ -1,8 +1,9 @@
 name: Docs
 
 # Builds the Starlight site in website/ and publishes it to GitHub Pages.
-# Pages serves a project site from the repository name, so SITE_BASE must match
-# it: a mismatch still builds green and then 404s on every page.
+# Pages serves a project site from the repository name, so `base` in
+# website/astro.config.mjs must match it: a mismatch still builds green and then
+# 404s on every page.
 
 on:
   push:
@@ -29,13 +30,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Diagrams need no browser and no `d2` binary: astro-d2 renders them to SVG
-      # at build time through a bundled WebAssembly build of D2.
       - uses: withastro/action@v6
         with:
           path: website
         env:
-          SITE_BASE: /kurrent-surge/
           SITE_URL: https://kurrent-io.github.io
 
   deploy:

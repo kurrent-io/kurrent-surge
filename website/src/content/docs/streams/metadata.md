@@ -4,7 +4,7 @@ description: Attach your own keys to a record, and read them back with the type 
 ---
 
 Every record carries a metadata bag alongside its payload. It travels with the record, survives a
-round trip, and is addressable from a [filter](/streams/filters/).
+round trip, and is addressable from a [filter](/kurrent-surge/streams/filters/).
 
 Use it for context about the record rather than the fact itself: a correlation id, the user who
 caused it, a tenant, a trace id. The payload is what happened; the metadata is what surrounded it.
@@ -104,4 +104,4 @@ empty object rather than a missing column.
 
 This page is about metadata on a record. Metadata on a *stream* covers retention, access control, and
 your own key-value data attached to the stream itself. That lives on
-[Manage](/streams/manage/).
+[Manage](/kurrent-surge/streams/manage/).

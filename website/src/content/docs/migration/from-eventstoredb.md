@@ -6,7 +6,7 @@ description: Move a project from the EventStore.Client.Grpc packages onto Kurren
 Kurrent Surge is the successor to the EventStoreDB .NET client. This guide covers what changed, what
 keeps working, and the order to change things in.
 
-Your `esdb://` connection strings keep working. See [Migration](/migration/) for the full scheme
+Your `esdb://` connection strings keep working. See [Migration](/kurrent-surge/migration/) for the full scheme
 table. Everything below is about packages, namespaces, and API shape.
 
 ## Packages
@@ -124,7 +124,7 @@ var result = await client.Streams.AppendStream(record);
 ```
 
 You no longer serialize by hand. `AppendRecord` encodes as JSON by default, and the schema name comes
-from your message catalog. See [Catalogs](/schema/catalogs/).
+from your message catalog. See [Catalogs](/kurrent-surge/schema/catalogs/).
 
 Reads return an async sequence that interleaves records with checkpoints:
 
@@ -210,7 +210,7 @@ services.AddKurrentClient("kurrentdb://admin:changeit@localhost:2113?tls=false")
 8. **Registration.** `AddEventStoreClient` becomes `AddKurrentClient`.
 9. **Declare your message types.** This step has no equivalent in the old client and is the one that
    will bite you. Kurrent Surge does not infer schema names, so an append of an undeclared type throws.
-   See [Catalogs](/schema/catalogs/).
+   See [Catalogs](/kurrent-surge/schema/catalogs/).
 10. **Build, then run your tests.** The compiler finds the remaining call sites.
 11. **Connection strings, whenever you like.** `esdb://` keeps working indefinitely.
 
