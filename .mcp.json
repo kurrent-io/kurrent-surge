@@ -7,6 +7,15 @@
         "mcp"
       ],
       "env": {}
+    },
+    "starwind-ui": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@starwind-ui/mcp"
+      ],
+      "env": {}
     }
   }
 }
