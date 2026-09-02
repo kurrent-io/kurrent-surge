@@ -3,7 +3,7 @@ using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 
-namespace Kurrent.Surge.Checkpointing;
+namespace Kurrent.Surge.Processors.Checkpointing;
 
 /// <summary>
 /// Event-sourced <see cref="CheckpointStoreBase"/> backed by KurrentDB.

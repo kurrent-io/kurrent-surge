@@ -1,7 +1,7 @@
 using System.Buffers;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Checkpointing;
+namespace Kurrent.Surge.Processors.Checkpointing;
 
 /// <summary>
 /// High-performance position tracker using ArrayPool for single-threaded partition processing.

@@ -12,7 +12,7 @@ package kurrent.streaming;
 
 import "google/protobuf/timestamp.proto";
 
-option csharp_namespace = "Kurrent.Surge.Checkpointing";
+option csharp_namespace = "Kurrent.Surge.Processors.Checkpointing";
 
 // Position data for a single partition within a checkpoint event.
 message PartitionPosition {

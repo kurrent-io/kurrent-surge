@@ -1,5 +1,5 @@
 using Kurrent.Surge.Schema.Catalogs;
-using Kurrent.Surge.Checkpointing;
+using Kurrent.Surge.Processors.Checkpointing;
 
 namespace Kurrent.Surge.Streaming;
 

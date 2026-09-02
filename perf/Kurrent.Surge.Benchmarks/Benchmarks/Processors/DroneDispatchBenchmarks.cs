@@ -1,10 +1,10 @@
 using System.Threading.Channels;
 using BenchmarkDotNet.Attributes;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Checkpointing;
+using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Streaming;
-using Kurrent.Surge.Checkpointing;
+using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Streaming.Gateway;
 using Kurrent.Surge.Streaming.Models;
 using Microsoft.Extensions.Logging.Abstractions;

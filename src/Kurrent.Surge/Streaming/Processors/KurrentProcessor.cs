@@ -3,9 +3,9 @@ using System.Threading.Channels;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema.Naming;
-using Kurrent.Surge.Checkpointing;
+using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Processors.Configuration;
-using Kurrent.Surge.Checkpointing;
+using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Streaming.Gateway;
 using Kurrent.Surge.Processors.Configuration;
 

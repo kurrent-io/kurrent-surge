@@ -1,7 +1,7 @@
 using System.Collections.Frozen;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Checkpointing;
+namespace Kurrent.Surge.Processors.Checkpointing;
 
 /// <summary>
 /// Manages position tracking across multiple partitions.
