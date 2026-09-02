@@ -4,7 +4,10 @@
 // follow the aspire.dev footer.
 import Default from '@astrojs/starlight/components/Footer.astro';
 import { Icon } from '@astrojs/starlight/components';
-import CustomSelect, { type CustomSelectOption } from './CustomSelect.astro';
+import { ToggleGroup, ToggleGroupItem } from '@/components/starwind/toggle-group';
+import { Switch } from '@/components/starwind/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/starwind/select';
+import LetterCase from '@tabler/icons/outline/letter-case.svg';
 
 const repo = 'https://github.com/kurrent-io/kurrent-surge';
 const community = [
@@ -12,12 +15,20 @@ const community = [
   { label: 'Discord', icon: 'discord', href: 'https://discord.gg/Phn9pmCw3t' },
 ] as const;
 
+const themes = [
+  { value: 'light', label: 'Light', icon: 'sun' },
+  { value: 'auto', label: 'System', icon: 'laptop' },
+  { value: 'dark', label: 'Dark', icon: 'moon' },
+] as const;
+const defaultTheme = 'auto';
+
 // Mirrors the starlight-kbd `types` in astro.config.mjs.
-const kbdTypes: CustomSelectOption[] = [
-  { value: 'mac', label: 'macOS', detector: 'apple' },
-  { value: 'windows', label: 'Windows', detector: 'windows', selected: true },
-  { value: 'linux', label: 'Linux', detector: 'linux' },
-];
+const kbdTypes = [
+  { value: 'mac', label: 'macOS' },
+  { value: 'windows', label: 'Windows' },
+  { value: 'linux', label: 'Linux' },
+] as const;
+const defaultKbd = 'windows';
 
 const sha: string = import.meta.env.PUBLIC_COMMIT_SHA ?? '';
 const year = new Date().getFullYear();
@@ -45,34 +56,131 @@ const year = new Date().getFullYear();
     <section class="footer-preferences" aria-labelledby="footer-preferences-heading">
       <h2 id="footer-preferences-heading" class="footer-heading">Preferences</h2>
       <div class="preference-controls">
-        <div class="choice-toggle" role="radiogroup" aria-label="Colour theme" data-theme-choice style="--cells: 3; --index: 1">
-          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" aria-label="Light" title="Light" data-theme-option="light">
-            <Icon name="sun" />
-          </button>
-          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" aria-label="System" title="System" data-theme-option="auto">
-            <Icon name="laptop" />
-          </button>
-          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" aria-label="Dark" title="Dark" data-theme-option="dark">
-            <Icon name="moon" />
-          </button>
-        </div>
+        <ToggleGroup
+          id="theme-group"
+          class="choice-toggle"
+          size="sm"
+          spacing={0}
+          variant="outline"
+          aria-label="Colour theme"
+          defaultValue={[defaultTheme]}
+          style="--cells: 3; --index: 1"
+        >
+          {
+            themes.map(({ value, label, icon }) => (
+              <ToggleGroupItem
+                value={value}
+                class="choice-toggle-option"
+                aria-label={label}
+                title={label}
+                defaultPressed={value === defaultTheme}
+              >
+                <Icon name={icon} />
+              </ToggleGroupItem>
+            ))
+          }
+        </ToggleGroup>
+        <script is:inline>
+          // Runs during parsing, before the Starwind runtime hydrates: the group
+          // reads data-default-value once, at init, and the items paint from
+          // their own state attributes until then.
+          (function () {
+            try {
+              var group = document.getElementById('theme-group');
+              if (!group) return;
+              var choice = localStorage.getItem('starlight-theme') || 'auto';
+              var items = group.querySelectorAll('[data-slot="toggle-group-item"]');
+              var index = -1;
+              for (var i = 0; i < items.length; i++) {
+                var on = items[i].getAttribute('data-value') === choice;
+                if (on) index = i;
+                items[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+                items[i].setAttribute('data-state', on ? 'on' : 'off');
+                items[i].toggleAttribute('data-pressed', on);
+                items[i].toggleAttribute('data-unpressed', !on);
+                items[i].toggleAttribute('data-default-pressed', on);
+              }
+              if (index < 0) return;
+              group.setAttribute('data-default-value', JSON.stringify([choice]));
+              group.setAttribute('data-value', JSON.stringify([choice]));
+              group.style.setProperty('--index', String(index));
+            } catch (e) {}
+          })();
+        </script>
 
-        <div class="choice-toggle" role="radiogroup" aria-label="Typeface" data-font-choice style="--cells: 2; --index: 0">
-          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" title="Poppins" data-font-option="default">
-            Default
-          </button>
-          <button type="button" class="choice-toggle-option" role="radio" aria-checked="false" title="OpenDyslexic, a dyslexia-friendly typeface" data-font-option="dyslexic">
-            Dyslexic
-          </button>
+        <div class="pref-switch" title="OpenDyslexic, a dyslexia-friendly typeface">
+          <LetterCase class="pref-switch-icon" aria-hidden="true" />
+          <Switch id="font-switch" label="Dyslexic" variant="primary" size="sm" />
         </div>
+        <script is:inline>
+          // Same pre-hydration contract: the switch reads data-default-checked once.
+          (function () {
+            try {
+              if (localStorage.getItem('surge-font') === 'dyslexic') {
+                var s = document.getElementById('font-switch');
+                if (s) {
+                  s.setAttribute('data-default-checked', 'true');
+                  s.setAttribute('aria-checked', 'true');
+                  s.setAttribute('data-state', 'checked');
+                }
+              }
+            } catch (e) {}
+          })();
+        </script>
 
-        <CustomSelect id="footer-kbd-select" class="footer-custom-select" label="Keyboard shortcut style" options={kbdTypes}>
-          <svg slot="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path
-              d="M6.21 13.29a.93.93 0 0 0-.33-.21 1 1 0 0 0-.76 0 .9.9 0 0 0-.54.54 1 1 0 1 0 1.84 0 1 1 0 0 0-.21-.33ZM13.5 11h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-4 0h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-3-2h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2ZM20 5H4a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h16a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3Zm1 11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1Zm-6-3H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2Zm3.5-4h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm.71 4.29a1 1 0 0 0-.33-.21 1 1 0 0 0-.76 0 .93.93 0 0 0-.33.21 1 1 0 0 0-.21.33 1 1 0 1 0 1.92.38.84.84 0 0 0-.08-.38 1 1 0 0 0-.21-.33Z"
-            ></path>
-          </svg>
-        </CustomSelect>
+        <Select id="footer-kbd-select" class="footer-kbd" defaultValue={defaultKbd} modal={false}>
+          <SelectTrigger size="sm" class="footer-kbd-trigger" aria-label="Keyboard shortcut style">
+            <span class="footer-kbd-leading" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M6.21 13.29a.93.93 0 0 0-.33-.21 1 1 0 0 0-.76 0 .9.9 0 0 0-.54.54 1 1 0 1 0 1.84 0 1 1 0 0 0-.21-.33ZM13.5 11h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-4 0h1a1 1 0 0 0 0-2h-1a1 1 0 0 0 0 2Zm-3-2h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2ZM20 5H4a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h16a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3Zm1 11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1Zm-6-3H9a1 1 0 0 0 0 2h6a1 1 0 0 0 0-2Zm3.5-4h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm.71 4.29a1 1 0 0 0-.33-.21 1 1 0 0 0-.76 0 .93.93 0 0 0-.33.21 1 1 0 0 0-.21.33 1 1 0 1 0 1.92.38.84.84 0 0 0-.08-.38 1 1 0 0 0-.21-.33Z"
+                ></path>
+              </svg>
+            </span>
+            <SelectValue class="footer-kbd-value">{kbdTypes.find((type) => type.value === defaultKbd)?.label}</SelectValue>
+            <Icon name="down-caret" slot="icon" />
+          </SelectTrigger>
+          <SelectContent size="sm" class="footer-kbd-content" sideOffset={8} alignItemWithTrigger={false}>
+            {
+              kbdTypes.map(({ value, label }) => (
+                <SelectItem value={value} class="footer-kbd-item" showIndicator={false}>
+                  {label}
+                </SelectItem>
+              ))
+            }
+          </SelectContent>
+        </Select>
+        <script is:inline>
+          // The select reads data-default-value once, at init. The stored choice
+          // wins; otherwise the platform is detected, the same way starlight-kbd's
+          // own picker does it.
+          (function () {
+            try {
+              var select = document.getElementById('footer-kbd-select');
+              if (!select) return;
+              var type = localStorage.getItem('sl-kbd-type');
+              if (!type) {
+                var platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+                var haystack = platform + ' ' + (navigator.userAgent || '');
+                type = /Mac|iPhone|iPad|iPod/i.test(haystack) ? 'mac' : /Linux/i.test(haystack) ? 'linux' : 'windows';
+              }
+              var items = select.querySelectorAll('[data-slot="select-item"]');
+              var selected = null;
+              for (var i = 0; i < items.length; i++) {
+                var on = items[i].getAttribute('data-value') === type;
+                if (on) selected = items[i];
+                items[i].toggleAttribute('data-selected', on);
+                items[i].setAttribute('aria-selected', on ? 'true' : 'false');
+              }
+              if (!selected) return;
+              select.setAttribute('data-default-value', type);
+              var input = select.querySelector('[data-sw-select-input]');
+              if (input) input.value = type;
+              var value = select.querySelector('[data-slot="select-value"]');
+              if (value) value.textContent = selected.textContent.trim();
+            } catch (e) {}
+          })();
+        </script>
       </div>
     </section>
   </div>
@@ -179,15 +287,20 @@ const year = new Date().getFullYear();
     }
   }
 
+  /* The three Starwind controls carry Tailwind utilities from their variants.
+     Every rule below is unlayered, so it wins over the `utilities` layer
+     regardless of specificity, and the footer keeps its own look. */
+
   /* N equal cells in one box; the selected cell is marked by an indicator
      drawn by ::before and slid with a transform. --cells and --index are set
      on the element. */
-  .choice-toggle {
+  .site-footer :global(.choice-toggle) {
     position: relative;
     isolation: isolate;
     display: grid;
     grid-template-columns: repeat(var(--cells), minmax(0, 1fr));
     align-items: center;
+    gap: 0;
     width: 100%;
     min-height: 2.5rem;
     padding: 0.25rem;
@@ -195,7 +308,7 @@ const year = new Date().getFullYear();
     border-radius: 0.5rem;
     background: var(--footer-surface);
   }
-  .choice-toggle::before {
+  .site-footer :global(.choice-toggle)::before {
     content: '';
     position: absolute;
     z-index: 0;
@@ -210,14 +323,16 @@ const year = new Date().getFullYear();
     transform: translateX(calc(var(--index) * 100%));
     transition: transform 180ms ease;
   }
-  .choice-toggle:hover {
+  .site-footer :global(.choice-toggle:hover) {
     border-color: var(--border-1);
   }
-  .choice-toggle:focus-within {
+  /* Keyboard focus only, like the switch and the select. `:focus-within` also
+     matches the button a mouse click leaves focused. */
+  .site-footer :global(.choice-toggle:has(:focus-visible)) {
     outline: 2px solid var(--sl-color-text-accent);
     outline-offset: 2px;
   }
-  .choice-toggle-option {
+  .site-footer :global(.choice-toggle-option) {
     position: relative;
     z-index: 1;
     display: inline-flex;
@@ -229,6 +344,7 @@ const year = new Date().getFullYear();
     border: 0;
     border-radius: 0.25rem;
     background: transparent;
+    box-shadow: none;
     color: var(--fg-fade);
     font-family: var(--font-sans);
     font-size: var(--sl-text-xs);
@@ -237,33 +353,174 @@ const year = new Date().getFullYear();
     overflow: hidden;
     text-overflow: ellipsis;
     cursor: pointer;
-  }
-  .choice-toggle-option:hover {
-    color: var(--fg-1);
-  }
-  .choice-toggle-option:focus {
     outline: none;
   }
-  .choice-toggle-option[aria-checked='true'] {
+  .site-footer :global(.choice-toggle-option:hover) {
+    color: var(--fg-1);
+  }
+  .site-footer :global(.choice-toggle-option[data-state='on']) {
     color: var(--fg);
   }
-  .choice-toggle-option :global(svg) {
+  .site-footer :global(.choice-toggle-option svg) {
     width: 1rem;
     height: 1rem;
   }
 
-  .site-footer :global(.footer-custom-select) {
-    --custom-select-bg: var(--footer-surface);
-    --custom-select-border: var(--footer-line);
-    --custom-select-hover-bg: var(--tint-1);
-    --custom-select-hover-border: var(--border-1);
-    --custom-select-text: var(--fg);
-    --custom-select-icon: var(--fg-dim);
-    --custom-select-font-size: var(--sl-text-sm);
-    --custom-select-menu-bg: var(--bg-1);
-    --custom-select-menu-border: var(--border-1);
-    --custom-select-menu-text: var(--fg);
-    --custom-select-selected-text: var(--fg);
+  /* Same cell as the other two controls, with the Starwind switch inside. */
+  .pref-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    height: 2.5rem;
+    padding: 0 0.7rem;
+    border: 1px solid var(--footer-line);
+    border-radius: 0.5rem;
+    background: var(--footer-surface);
+  }
+  .pref-switch :global(.pref-switch-icon) {
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    color: var(--fg-dim);
+  }
+  .pref-switch :global(button) {
+    flex-shrink: 0;
+  }
+  .pref-switch :global(label) {
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    color: var(--fg);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .site-footer :global(.footer-kbd) {
+    min-width: 0;
+    color: var(--fg);
+  }
+  .site-footer :global(.footer-kbd-trigger) {
+    width: 100%;
+    height: auto;
+    min-height: 2.5rem;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--footer-line);
+    border-radius: 0.5rem;
+    background: var(--footer-surface);
+    color: inherit;
+    font: inherit;
+    font-size: var(--sl-text-sm);
+    line-height: 1.25;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sl-color-white) 5%, transparent);
+  }
+  .site-footer :global(.footer-kbd-trigger:hover),
+  .site-footer :global(.footer-kbd-trigger[data-state='open']) {
+    border-color: var(--border-1);
+    background: var(--tint-1);
+  }
+  .site-footer :global(.footer-kbd-trigger:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .site-footer :global(.footer-kbd-leading),
+  .site-footer :global(.footer-kbd-trigger [data-slot='select-icon']) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: auto;
+    color: var(--fg-dim);
+    pointer-events: none;
+  }
+  .site-footer :global(.footer-kbd-leading svg) {
+    width: 1rem;
+    height: 1rem;
+  }
+  .site-footer :global(.footer-kbd-trigger [data-slot='select-icon'] svg) {
+    width: 1em;
+    height: 1em;
+  }
+  .site-footer :global(.footer-kbd-trigger[data-state='open'] [data-slot='select-icon']) {
+    transform: rotate(180deg);
+  }
+  .site-footer :global(.footer-kbd-value) {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: inherit;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The listbox is portaled to <body>, so these are global by necessity. */
+  :global(.footer-kbd-content) {
+    max-width: calc(100vw - 1rem);
+    padding: 0.35rem;
+    border: 1px solid var(--border-1);
+    border-radius: 0.5rem;
+    background: var(--bg-1);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: var(--sl-text-sm);
+    box-shadow:
+      0 1rem 2.5rem color-mix(in srgb, var(--sl-color-black) 32%, transparent),
+      inset 0 1px 0 color-mix(in srgb, var(--sl-color-white) 7%, transparent);
+  }
+  :global(.footer-kbd-content [data-slot='select-list']) {
+    padding: 0;
+    scrollbar-color: var(--accent) transparent;
+    scrollbar-width: thin;
+  }
+  :global(.footer-kbd-item) {
+    position: relative;
+    min-height: 2.5rem;
+    display: grid;
+    align-content: center;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--fg);
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+    line-height: 1.3;
+    cursor: pointer;
+  }
+  :global(.footer-kbd-item[data-highlighted]) {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--fg);
+  }
+  :global(.footer-kbd-item[data-selected]) {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+    color: var(--fg);
+  }
+  :global(.footer-kbd-item[data-selected])::before {
+    content: '';
+    position: absolute;
+    top: 0.55rem;
+    bottom: 0.55rem;
+    left: 0.2rem;
+    width: 2px;
+    border-radius: 999px;
+    background: var(--accent);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .site-footer :global(.footer-kbd-trigger),
+    .site-footer :global(.footer-kbd-trigger [data-slot='select-icon']),
+    :global(.footer-kbd-item) {
+      transition:
+        color 150ms ease,
+        border-color 150ms ease,
+        background-color 150ms ease,
+        transform 160ms ease;
+    }
   }
 
   .site-footer__bottom {
@@ -319,117 +576,83 @@ const year = new Date().getFullYear();
 </style>
 
 <script>
-  function initChoiceToggle(
-    group: HTMLElement,
-    attribute: string,
-    current: () => string,
-    apply: (choice: string) => void
-  ) {
-    const buttons = [...group.querySelectorAll<HTMLButtonElement>(`[${attribute}]`)];
-    const sync = () => {
-      const choice = current();
-      const index = Math.max(0, buttons.findIndex((b) => b.getAttribute(attribute) === choice));
-      group.style.setProperty('--index', String(index));
-      buttons.forEach((b, i) => {
-        b.setAttribute('aria-checked', String(i === index));
-        b.tabIndex = i === index ? 0 : -1;
-      });
-    };
-    for (const button of buttons) {
-      button.addEventListener('click', () => {
-        apply(button.getAttribute(attribute) ?? '');
-        sync();
-      });
-    }
-    group.addEventListener('keydown', (event) => {
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-      event.preventDefault();
-      const index = buttons.findIndex((b) => b.getAttribute('aria-checked') === 'true');
-      const next = (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
-      buttons[next]?.click();
-      buttons[next]?.focus();
-    });
-    sync();
-    return sync;
-  }
-
   function initFooterPreferences() {
     const root = document.documentElement;
 
-    const theme = document.querySelector<HTMLElement>('[data-theme-choice]');
+    const theme = document.getElementById('theme-group');
     if (theme) {
-      const stored = () => {
-        try {
-          return localStorage.getItem('starlight-theme') || 'auto';
-        } catch {
-          return 'auto';
+      const items = [...theme.querySelectorAll<HTMLElement>('[data-slot="toggle-group-item"]')];
+      const systemScheme = window.matchMedia('(prefers-color-scheme: light)');
+      const resolve = (choice: string) =>
+        choice === 'auto' ? (systemScheme.matches ? 'light' : 'dark') : choice;
+      theme.addEventListener('starwind:value-change', (event) => {
+        const { value } = (event as CustomEvent<{ value: string[] }>).detail;
+        const choice = value[0];
+        // Single-select mode releases a pressed item on a second press. A theme
+        // has no "none", so the proposal is cancelled and the choice stays.
+        if (!choice) {
+          event.preventDefault();
+          return;
         }
-      };
-      const sync = initChoiceToggle(theme, 'data-theme-option', stored, (choice) => {
-        root.dataset.theme =
-          choice === 'auto'
-            ? window.matchMedia('(prefers-color-scheme: light)').matches
-              ? 'light'
-              : 'dark'
-            : choice;
+        const index = Math.max(0, items.findIndex((item) => item.dataset.value === choice));
+        theme.style.setProperty('--index', String(index));
+        root.dataset.theme = resolve(choice);
         try {
-          // Starlight's own key, so its pre-paint script restores this choice.
-          localStorage.setItem('starlight-theme', choice);
+          // Starlight's own key and contract: its pre-paint script treats any
+          // stored value other than "light" as dark, so System is stored as "".
+          localStorage.setItem('starlight-theme', choice === 'auto' ? '' : choice);
         } catch {}
         (window as any).StarlightThemeProvider?.updatePickers?.(choice);
       });
-      new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+      systemScheme.addEventListener('change', () => {
+        let stored = '';
+        try {
+          stored = localStorage.getItem('starlight-theme') || '';
+        } catch {}
+        if (stored === '') root.dataset.theme = resolve('auto');
+      });
     }
 
-    const font = document.querySelector<HTMLElement>('[data-font-choice]');
-    if (font) {
-      initChoiceToggle(
-        font,
-        'data-font-option',
-        () => (root.dataset.font === 'dyslexic' ? 'dyslexic' : 'default'),
-        (choice) => {
-          if (choice === 'dyslexic') root.dataset.font = 'dyslexic';
-          else delete root.dataset.font;
-          try {
-            // Head.astro reads this key before first paint.
-            localStorage.setItem('surge-font', choice);
-          } catch {}
-        }
-      );
-    }
+    let fontSwitchSeq = 0;
+    document.getElementById('font-switch')?.addEventListener('starwind:checked-change', (event) => {
+      const { checked } = (event as CustomEvent<{ checked: boolean }>).detail;
+      const seq = ++fontSwitchSeq;
+      try {
+        // Head.astro reads this key before first paint.
+        localStorage.setItem('surge-font', checked ? 'dyslexic' : 'default');
+      } catch {}
+      if (!checked) {
+        delete root.dataset.font;
+        return;
+      }
+      // Load the face before the family changes. Under display: optional a
+      // switch to a face that is not loaded yet paints the fallback and keeps
+      // it until the next navigation.
+      const family = getComputedStyle(root)
+        .getPropertyValue('--font-opendyslexic')
+        .split(',')[0]
+        .trim()
+        .replace(/^["']|["']$/g, '');
+      Promise.all([document.fonts.load(`400 1em "${family}"`), document.fonts.load(`700 1em "${family}"`)])
+        .catch(() => {})
+        .finally(() => {
+          if (seq === fontSwitchSeq) root.dataset.font = 'dyslexic';
+        });
+    });
 
     // Drives starlight-kbd through its own storage key and DOM contract, the
     // same way its bundled picker does.
-    const kbd = document.getElementById('footer-kbd-select') as HTMLSelectElement | null;
-    if (kbd) {
-      let stored: string | null = null;
+    document.getElementById('footer-kbd-select')?.addEventListener('starwind:value-change', (event) => {
+      const { value } = (event as CustomEvent<{ value: string | null }>).detail;
+      if (!value) return;
       try {
-        stored = localStorage.getItem('sl-kbd-type');
+        localStorage.setItem('sl-kbd-type', value);
       } catch {}
-      if (stored) {
-        kbd.value = stored;
-      } else {
-        const platform = (navigator as any).userAgentData?.platform || navigator.platform || '';
-        const agent = navigator.userAgent || '';
-        let detected = 'windows';
-        if (/Mac|iPhone|iPad|iPod/i.test(platform) || /Mac|iPhone|iPad|iPod/i.test(agent)) detected = 'mac';
-        else if (/Linux/i.test(platform) || /Linux/i.test(agent)) detected = 'linux';
-        kbd.value = detected;
+      for (const el of document.querySelectorAll('[data-sl-kbd-type]')) {
+        el.toggleAttribute('data-sl-kbd-active', el.getAttribute('data-sl-kbd-type') === value);
       }
-      kbd.dispatchEvent(new Event('surge:custom-select-sync'));
-
-      kbd.addEventListener('change', () => {
-        const type = kbd.value;
-        try {
-          localStorage.setItem('sl-kbd-type', type);
-        } catch {}
-        for (const el of document.querySelectorAll('[data-sl-kbd-type]')) {
-          if (el.getAttribute('data-sl-kbd-type') === type) el.setAttribute('data-sl-kbd-active', '');
-          else el.removeAttribute('data-sl-kbd-active');
-        }
-        (window as any).StarlightKbdProvider?.updateKbdPickers?.(type);
-      });
-    }
+      (window as any).StarlightKbdProvider?.updateKbdPickers?.(value);
+    });
   }
 
   initFooterPreferences();

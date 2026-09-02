@@ -7,6 +7,9 @@
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
+/* Starwind UI tokens, folded for this layering. See the file header. */
+@import './starwind.css';
+
 /* Tailwind's font utilities resolve to the site's faces, dyslexic switch included. */
 @theme inline {
   --font-sans: var(--font-faces);
