@@ -77,6 +77,12 @@
   --tint-2: rgba(255, 255, 255, 0.08);
   --code-bg: #141414;
 
+  /* Lifted cards (pagination). A drop shadow is invisible on a near-black
+     page, so depth comes from a lighter surface plus a one-pixel highlight
+     along the top edge; the shadow only matters on the light palette. */
+  --lift-edge: rgba(255, 255, 255, 0.06);
+  --lift-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+
   /* Layout. */
   --maxw: 1080px;
   --maxw-tight: 880px;
@@ -140,6 +146,8 @@
   --tint: rgba(23, 24, 28, 0.04);
   --tint-1: rgba(23, 24, 28, 0.05);
   --tint-2: rgba(23, 24, 28, 0.1);
+  --lift-edge: rgba(255, 255, 255, 0.8);
+  --lift-shadow: 0 1px 2px rgba(23, 24, 28, 0.08), 0 8px 24px rgba(23, 24, 28, 0.06);
   /* Code frames stay dark in both themes: expressiveCode resolves its own
      colours from a single build-time theme, so a light variant needs a second
      theme in astro.config, not a CSS token. */
@@ -402,9 +410,16 @@ starlight-toc nav a[aria-current="true"]:hover {
    name keeps its own --sl-color-white rule and stays bone. */
 .pagination-links a {
   color: var(--accent);
+  /* Starlight gives the cards a dark drop shadow, which vanishes on the
+     near-black page. Same treatment as the footer cells and code frames:
+     a lifted surface, a hairline highlight on the top edge. */
+  background: var(--bg-1);
+  border-color: var(--border);
+  box-shadow: inset 0 1px 0 var(--lift-edge), var(--lift-shadow);
 }
 .pagination-links a:hover {
   border-color: var(--accent);
+  background: var(--bg-2);
 }
 
 /* Starlight draws a 1px divider after the social icons to separate them from
