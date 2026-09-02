@@ -92,6 +92,19 @@
 :root[data-font="dyslexic"] {
   --font-faces: var(--font-opendyslexic);
   --font-eyebrow: var(--font-opendyslexic);
+  /* OpenDyslexic runs 41% wider than Poppins at the same font-size (a sample
+     sentence: 55.07em against 39.0em, measured in Chrome) while their
+     x-heights match (0.560 against 0.548), so the switch reflowed every line.
+     font-size-adjust scales the used glyph size, not the em, so rem and em
+     spacing and line boxes stay where Poppins put them. 0.397 = 0.560 / 1.412:
+     the size at which a line of OpenDyslexic runs as long as the same line of
+     Poppins. Measured with it: identical line counts, main column 4430px
+     against 4429px. */
+  font-size-adjust: 0.397;
+}
+/* Code keeps Fira Code and its own size; the adjust would shrink it by a quarter. */
+:root[data-font="dyslexic"] :is(code, kbd, samp, pre, .expressive-code) {
+  font-size-adjust: none;
 }
 :root[data-font="dyslexic"] :is(h1, h2, h3, h4, h5, h6, strong, b, th),
 :root[data-font="dyslexic"] .sidebar-content a[aria-current="page"] {

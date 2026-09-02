@@ -26,13 +26,47 @@ const site = process.env.SITE_URL ?? 'https://kurrent-io.github.io';
 const commit =
   process.env.GITHUB_SHA ?? execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
 
+// Dev server only. Astro serves every font file with `Cache-Control: no-store`
+// (node_modules/astro/dist/assets/fonts/core/font-file-middleware.js, line 35,
+// unconditional, same on upstream main), so each navigation re-downloads them
+// and a `display: block` face hides its text for the length of the fetch. The
+// dev URLs carry a content hash, so long caching is safe: a changed font gets
+// a new URL. Production is untouched: the build copies the files into
+// `_astro/fonts` and the host sets the headers. Remove when Astro caches them.
+/** @returns {import('vite').Plugin} */
+function cacheFontsInDev() {
+  const fontPath = /\/_astro\/fonts\//;
+  const dropped = /^(pragma|expires)$/i;
+  return {
+    name: 'surge:cache-fonts-in-dev',
+    apply: 'serve',
+    // Astro's own plugins carry no `enforce`, so `pre` sorts this one ahead of
+    // them and its middleware is registered before Astro's font handler, which
+    // ends the response. Registered after it, this never runs.
+    enforce: 'pre',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (fontPath.test(req.url ?? '')) {
+          const setHeader = res.setHeader.bind(res);
+          res.setHeader = (name, value) => {
+            if (dropped.test(String(name))) return res;
+            if (/^cache-control$/i.test(String(name))) value = 'public, max-age=31536000, immutable';
+            return setHeader(name, value);
+          };
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   site,
   base,
   server: { port: 4400 },
   vite: {
     define: { 'import.meta.env.PUBLIC_COMMIT_SHA': JSON.stringify(commit) },
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), cacheFontsInDev()],
   },
   // Astro downloads these at build time and emits only the declared weights and
   // subsets. It also generates a metric-matched fallback per family from the
@@ -48,6 +82,13 @@ export default defineConfig({
       // rules in home.css, so the real italics are worth their weight here.
       styles: ['normal', 'italic'],
       fallbacks: ['sans-serif'],
+      // 100 ms block period, then the fallback stays for that page view: the
+      // real face never swaps in over painted text. The hosts force this.
+      // GitHub Pages sends max-age=600 on every font file, so after ten minutes
+      // each navigation revalidates (~40 ms round trip), and `astro dev` sends
+      // no-store, so every navigation refetches. With `swap` both paint the
+      // fallback first. https://web.dev/articles/font-best-practices
+      display: 'optional',
     },
     {
       provider: fontProviders.fontsource(),
@@ -58,6 +99,8 @@ export default defineConfig({
       // the italic files would ship unused.
       styles: ['normal'],
       fallbacks: ['monospace'],
+      // Same reasoning as Poppins above.
+      display: 'optional',
     },
     {
       // Reader-selectable alternative; see the [data-font] scope in surge.css.
@@ -67,6 +110,13 @@ export default defineConfig({
       weights: [400, 700],
       styles: ['normal'],
       fallbacks: ['sans-serif'],
+      // Not `optional`: when this face misses first render, `optional` keeps
+      // the fallback for the whole page view, and the fallback is Arial drawn
+      // at the OpenDyslexic size adjustment, wrong face and wrong size for the
+      // one reader who asked for it. `block` holds the text invisible until the
+      // file lands, up to 3 s, and never paints a second face over a first.
+      // Head.astro preloads it for readers who turned it on.
+      display: 'block',
     },
   ],
   integrations: [

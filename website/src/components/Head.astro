@@ -1,31 +1,66 @@
 ---
 import Default from '@astrojs/starlight/components/Head.astro';
-import { Font } from 'astro:assets';
+import { Font, fontData } from 'astro:assets';
+
+// Preload URLs for the OpenDyslexic faces, handed to the inline script below.
+// It injects them only when the reader has the face turned on, so nobody else
+// downloads the 230 KB. `src.url` is the same value Astro writes into the
+// @font-face rule and into <Font preload>, so the browser matches the two
+// requests. `experimental_getFontFileURL` is not that: in dev it returns the
+// server's own [::1] address, a different origin, and the font is fetched twice
+// and blocked by CORS.
+const odPreloads = (fontData['--font-opendyslexic'] ?? [])
+  .filter((face) => face.style === 'normal' && (face.subset ?? 'latin') === 'latin')
+  .flatMap((face) => face.src.filter((source) => (source.format ?? 'woff2') === 'woff2').map((source) => source.url));
 ---
 
 <Default />
 
-{/* Emits the @font-face rules, plus preloads for the two faces that paint above
-    the fold: 400 for body copy and 600 for headings. A bare `preload` covers
-    every weight and both styles — ten files here — which the docs warn against
-    because it competes with the stylesheet it is meant to beat. Italics stay
-    declared but unpreloaded. Fira Code sits in code blocks below the fold, and
-    OpenDyslexic only loads for readers who turn it on. */}
+{/* Emits the @font-face rules, plus preloads for every face that paints above
+    the fold. With `display: 'optional'` a face that misses its 100 ms block
+    period stays on the fallback for the whole page view, so the ones the first
+    screen needs must already be in flight before the stylesheet asks for them:
+    300 for body copy and h1, 400 for chrome, 500 for h3 and the sidebar, 600 for
+    strong and h2, and Fira Code for h2 and inline code. Italics stay declared but
+    unpreloaded. OpenDyslexic only loads for readers who turn it on. */}
 <Font
   cssVariable="--font-poppins"
   preload={[
+    { subset: 'latin', style: 'normal', weight: '300' },
     { subset: 'latin', style: 'normal', weight: '400' },
+    { subset: 'latin', style: 'normal', weight: '500' },
     { subset: 'latin', style: 'normal', weight: '600' },
   ]}
 />
-<Font cssVariable="--font-fira-code" />
+<Font cssVariable="--font-fira-code" preload />
 <Font cssVariable="--font-opendyslexic" />
 
-<script is:inline>
+<script is:inline define:vars={{ odPreloads }}>
   // Applied before first paint so a reader who chose OpenDyslexic never sees a
   // frame of the default face. Mirrors how Starlight restores the theme.
   try {
+    // The footer used to store System as "auto". Starlight's pre-paint script,
+    // which has already run, treats that as dark whatever the OS says. Rewrite
+    // it to Starlight's own "" and resolve the theme here, still before paint.
+    if (localStorage.getItem('starlight-theme') === 'auto') {
+      localStorage.setItem('starlight-theme', '');
+      document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark';
+    }
     if (localStorage.getItem('surge-font') === 'dyslexic') {
+      // Start the fetch before the stylesheet asks for the face. Under
+      // display: optional a face that misses its 100 ms window stays on the
+      // fallback for the whole page view.
+      for (const href of odPreloads) {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'font';
+        link.type = 'font/woff2';
+        link.crossOrigin = '';
+        link.href = href;
+        document.head.append(link);
+      }
       document.documentElement.dataset.font = 'dyslexic';
     }
     if (localStorage.getItem('surge-sidebar-collapsed') === '1') {
