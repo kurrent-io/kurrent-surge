@@ -1,4 +1,4 @@
-using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Schema.Governance;
 using LegacyStreamsServiceClient = KurrentDB.Protocol.V1.Streams.Streams.StreamsClient;
 using static KurrentDB.Protocol.V2.Streams.StreamsService;
 

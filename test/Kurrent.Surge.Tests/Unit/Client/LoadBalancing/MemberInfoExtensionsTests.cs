@@ -1,6 +1,6 @@
 using EventStore.Client.Gossip;
 using Kurrent.Surge.Client.LoadBalancing;
-using Kurrent.Surge.LoadBalancing.Gossip;
+using Kurrent.Surge.Client.LoadBalancing.Gossip;
 using VNodeState = EventStore.Client.Gossip.MemberInfo.Types.VNodeState;
 
 namespace Kurrent.Surge.Tests.Client.LoadBalancing;

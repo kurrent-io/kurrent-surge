@@ -3,7 +3,7 @@ using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
-namespace Kurrent.Surge.Client.Schema.Governance;
+namespace Kurrent.Surge.Schema.Governance;
 
 /// <summary>
 /// Schema registry governance as a standalone service, with catalog resolution evicted to

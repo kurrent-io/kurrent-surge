@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Outcome of dispatching a record batch to one processor shape.

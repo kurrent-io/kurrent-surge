@@ -1,6 +1,6 @@
 // ReSharper disable CheckNamespace
 
-namespace Kurrent.Diagnostics;
+namespace Kurrent.Surge.Processors.Diagnostics;
 
 /// <summary>
 /// OpenTelemetry semantic convention tag names for processor tracing.

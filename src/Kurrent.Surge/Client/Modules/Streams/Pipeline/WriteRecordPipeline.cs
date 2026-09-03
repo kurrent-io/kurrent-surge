@@ -1,7 +1,7 @@
-using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema.Catalogs;
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
 namespace Kurrent.Surge.Client.Streams;

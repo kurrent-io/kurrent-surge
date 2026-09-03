@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Common base interface for record-processing primitives. Carries the shared lifecycle

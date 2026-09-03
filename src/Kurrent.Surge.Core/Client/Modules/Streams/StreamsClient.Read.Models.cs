@@ -1,4 +1,4 @@
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 using Kurrent.Variant;
 
 namespace Kurrent.Surge.Client.Streams;

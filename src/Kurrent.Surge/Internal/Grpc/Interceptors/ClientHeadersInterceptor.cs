@@ -1,7 +1,7 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 
-namespace Kurrent.Grpc.Interceptors;
+namespace Kurrent.Toolkit.Grpc.Interceptors;
 
 /// <summary>
 /// Injects a fixed set of headers on every call. A caller-supplied value wins over a

@@ -3,7 +3,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Kurrent.Diagnostics;
+namespace Kurrent.Surge.Diagnostics;
 
 [PublicAPI]
 public static class ActivitySourceExtensions {

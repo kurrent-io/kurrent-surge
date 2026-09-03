@@ -1,3 +1,4 @@
+using Kurrent.Surge.Client;
 using System.Collections.Concurrent;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
@@ -6,7 +7,7 @@ using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
-namespace Kurrent.Surge.Client.Schema.Governance;
+namespace Kurrent.Surge.Schema.Governance;
 
 /// <summary>
 /// The real <see cref="ISchemaGovernance"/>: registry RPC, registration race protocol,

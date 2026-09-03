@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Dispatches processor lifecycle events to registered observers: synchronously, on the calling
@@ -26,7 +26,7 @@ sealed partial class ObserverDispatcher(IEnumerable<IProcessorObserver> observer
                 observer.OnRecordSkipped(in evt);
             }
             catch (Exception ex) {
-                LogObserverFailed(ex, observer.GetType().Name, nameof(Streaming.RecordSkipped));
+                LogObserverFailed(ex, observer.GetType().Name, nameof(Processors.RecordSkipped));
             }
         }
     }
@@ -37,7 +37,7 @@ sealed partial class ObserverDispatcher(IEnumerable<IProcessorObserver> observer
                 observer.OnRecordReady(in evt);
             }
             catch (Exception ex) {
-                LogObserverFailed(ex, observer.GetType().Name, nameof(Streaming.RecordReady));
+                LogObserverFailed(ex, observer.GetType().Name, nameof(Processors.RecordReady));
             }
         }
     }
@@ -48,7 +48,7 @@ sealed partial class ObserverDispatcher(IEnumerable<IProcessorObserver> observer
                 observer.OnRecordCompleted(in evt);
             }
             catch (Exception ex) {
-                LogObserverFailed(ex, observer.GetType().Name, nameof(Streaming.RecordCompleted));
+                LogObserverFailed(ex, observer.GetType().Name, nameof(Processors.RecordCompleted));
             }
         }
     }
@@ -59,7 +59,7 @@ sealed partial class ObserverDispatcher(IEnumerable<IProcessorObserver> observer
                 observer.OnBatchReady(in evt);
             }
             catch (Exception ex) {
-                LogObserverFailed(ex, observer.GetType().Name, nameof(Streaming.BatchReady));
+                LogObserverFailed(ex, observer.GetType().Name, nameof(Processors.BatchReady));
             }
         }
     }
@@ -70,7 +70,7 @@ sealed partial class ObserverDispatcher(IEnumerable<IProcessorObserver> observer
                 observer.OnBatchCompleted(in evt);
             }
             catch (Exception ex) {
-                LogObserverFailed(ex, observer.GetType().Name, nameof(Streaming.BatchCompleted));
+                LogObserverFailed(ex, observer.GetType().Name, nameof(Processors.BatchCompleted));
             }
         }
     }
@@ -81,7 +81,7 @@ sealed partial class ObserverDispatcher(IEnumerable<IProcessorObserver> observer
                 observer.OnSourceLagSampled(in evt);
             }
             catch (Exception ex) {
-                LogObserverFailed(ex, observer.GetType().Name, nameof(Streaming.SourceLagSampled));
+                LogObserverFailed(ex, observer.GetType().Name, nameof(Processors.SourceLagSampled));
             }
         }
     }
@@ -92,7 +92,7 @@ sealed partial class ObserverDispatcher(IEnumerable<IProcessorObserver> observer
                 observer.OnCheckpointCommitted(in evt);
             }
             catch (Exception ex) {
-                LogObserverFailed(ex, observer.GetType().Name, nameof(Streaming.CheckpointCommitted));
+                LogObserverFailed(ex, observer.GetType().Name, nameof(Processors.CheckpointCommitted));
             }
         }
     }
@@ -103,7 +103,7 @@ sealed partial class ObserverDispatcher(IEnumerable<IProcessorObserver> observer
                 observer.OnCheckpointFailed(in evt);
             }
             catch (Exception ex) {
-                LogObserverFailed(ex, observer.GetType().Name, nameof(Streaming.CheckpointFailed));
+                LogObserverFailed(ex, observer.GetType().Name, nameof(Processors.CheckpointFailed));
             }
         }
     }

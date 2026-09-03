@@ -1,6 +1,6 @@
 using System.Threading.Channels;
 using Kurrent.Surge.Client;
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 
 namespace Kurrent.Surge.Experimental;
 

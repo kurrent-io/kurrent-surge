@@ -1,5 +1,5 @@
 using System.Text;
-using Kurrent.Surge.Streaming.Partitioning.Hashing;
+using Kurrent.Surge.Processors.Partitioning.Hashing;
 
 namespace Kurrent.Surge.Streaming.Tests.Partitioning.Hashing;
 

@@ -1,7 +1,7 @@
 using System.Threading.Channels;
 using Bogus;
 using Kurrent.Surge.Experimental;
-using ValidationException = Kurrent.Validation.ValidationException;
+using ValidationException = Kurrent.Surge.Validation.ValidationException;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;

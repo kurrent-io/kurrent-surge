@@ -1,5 +1,5 @@
 using System.Buffers;
-using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Variant;

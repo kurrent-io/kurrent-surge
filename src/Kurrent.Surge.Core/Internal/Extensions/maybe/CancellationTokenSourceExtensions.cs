@@ -1,4 +1,4 @@
-namespace Kurrent;
+namespace Kurrent.Toolkit;
 
 static class CancellationTokenSourceExtensions {
     extension(CancellationTokenSource) {

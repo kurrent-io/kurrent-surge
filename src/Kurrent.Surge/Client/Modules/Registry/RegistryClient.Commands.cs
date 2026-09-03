@@ -107,7 +107,7 @@ public partial class RegistryClient {
                 .DeleteSchemaAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return Results.Success;
+            return new Success();
         }
         catch (Exception ex) {
             throw ex.ToException(

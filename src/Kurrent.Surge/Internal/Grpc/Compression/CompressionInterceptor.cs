@@ -3,7 +3,7 @@ using Grpc.Core.Interceptors;
 using Kurrent.Surge.Client;
 using Metadata = Grpc.Core.Metadata;
 
-namespace Kurrent.Grpc.Compression;
+namespace Kurrent.Toolkit.Grpc.Compression;
 
 /// <summary>
 /// Enforces the configured compression algorithm on every outgoing call, creating the

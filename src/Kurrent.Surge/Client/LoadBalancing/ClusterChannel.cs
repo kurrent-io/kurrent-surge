@@ -5,11 +5,11 @@ using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using Grpc.Net.Client.Balancer;
 using Grpc.Net.Client.Configuration;
-using Kurrent.Grpc.Compression;
-using Kurrent.Grpc.Interceptors;
-using Kurrent.Http;
+using Kurrent.Toolkit.Grpc.Compression;
+using Kurrent.Toolkit.Grpc.Interceptors;
+using Kurrent.Toolkit.Http;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.LoadBalancing.Gossip;
+using Kurrent.Surge.Client.LoadBalancing.Gossip;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Kurrent.Surge.Client.LoadBalancing;

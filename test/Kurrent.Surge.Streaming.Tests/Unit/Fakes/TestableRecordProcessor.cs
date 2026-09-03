@@ -1,3 +1,4 @@
+using Kurrent.Surge.Processors;
 using System.Collections.Concurrent;
 using Kurrent.Surge.Client.Streams;
 

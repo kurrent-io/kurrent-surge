@@ -1,7 +1,9 @@
+using Kurrent.Surge.Processors;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using Kurrent.Surge.Streaming.Diagnostics;
+using Kurrent.Surge.Processors.Diagnostics;
+using Kurrent.Toolkit.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kurrent.Surge.Streaming.Tests.Fakes;

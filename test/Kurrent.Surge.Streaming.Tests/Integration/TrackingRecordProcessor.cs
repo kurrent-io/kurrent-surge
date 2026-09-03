@@ -1,5 +1,6 @@
+using Kurrent.Surge.Processors;
 using System.Collections.Concurrent;
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Streaming.Tests;

@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Kurrent.Surge.Tests.Internal;

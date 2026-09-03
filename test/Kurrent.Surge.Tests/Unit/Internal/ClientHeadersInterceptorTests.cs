@@ -1,6 +1,6 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
-using Kurrent.Grpc.Interceptors;
+using Kurrent.Toolkit.Grpc.Interceptors;
 using Metadata = Grpc.Core.Metadata;
 
 namespace Kurrent.Surge.Tests.Internal;

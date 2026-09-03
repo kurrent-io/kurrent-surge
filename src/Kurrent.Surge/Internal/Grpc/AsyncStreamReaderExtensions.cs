@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using Grpc.Core;
 
-namespace Kurrent.Grpc;
+namespace Kurrent.Toolkit.Grpc;
 
 static class AsyncStreamReaderExtensions {
 	extension<T>(IAsyncStreamReader<T> reader) {

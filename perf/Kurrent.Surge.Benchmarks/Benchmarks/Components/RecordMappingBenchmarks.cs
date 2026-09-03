@@ -3,7 +3,7 @@ using Google.Protobuf;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.Streams.Checkpoints;
-using Kurrent.Surge.Legacy;
+using Kurrent.Surge.Client.Legacy;
 using Kurrent.Surge.Schema;
 
 using ReadEvent = KurrentDB.Protocol.V1.Streams.ReadResp.Types.ReadEvent;

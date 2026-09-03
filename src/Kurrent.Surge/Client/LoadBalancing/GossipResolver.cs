@@ -1,6 +1,6 @@
 using Grpc.Core;
 using Grpc.Net.Client.Balancer;
-using Kurrent.Surge.LoadBalancing.Gossip;
+using Kurrent.Surge.Client.LoadBalancing.Gossip;
 
 namespace Kurrent.Surge.Client.LoadBalancing;
 

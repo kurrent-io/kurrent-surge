@@ -1,7 +1,8 @@
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Configuration;
-using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Processors.Models;
 using TUnit.Assertions.Enums;
 
 namespace Kurrent.Surge.Streaming.Tests;

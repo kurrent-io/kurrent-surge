@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Client.Processors.Partitioning;
+namespace Kurrent.Surge.Processors.Partitioning;
 
 /// <summary>
 /// The manifest of partition distribution across drones, including change tracking.

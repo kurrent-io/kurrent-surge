@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Gateway;
+using Kurrent.Surge.Processors.Gateway;
 
 namespace Kurrent.Surge.Streaming.Tests;
 

@@ -1,9 +1,9 @@
 using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Processors.Configuration;
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Owns the dispatch of a record batch to one processor shape, including that shape's bookkeeping

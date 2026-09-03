@@ -1,7 +1,8 @@
+using Kurrent.Toolkit;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Configuration;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Periodically reads the readable log head and reports how far this drone is behind it, via the

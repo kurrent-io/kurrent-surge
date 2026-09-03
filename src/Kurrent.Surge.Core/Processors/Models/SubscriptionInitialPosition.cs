@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Streaming.Models;
+namespace Kurrent.Surge.Processors.Models;
 
 /// <summary>
 /// Initial position at which the cursor will be set when subscribing.

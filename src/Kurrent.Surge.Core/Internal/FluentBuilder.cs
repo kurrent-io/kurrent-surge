@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client;
 
-namespace Kurrent;
+namespace Kurrent.Surge;
 
 /// <summary>
 /// Base class for fluent builders that accumulate transformations and produce a result instance.

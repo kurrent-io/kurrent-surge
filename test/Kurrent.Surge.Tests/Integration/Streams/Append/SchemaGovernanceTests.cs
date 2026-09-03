@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Surge.Schema.Naming;

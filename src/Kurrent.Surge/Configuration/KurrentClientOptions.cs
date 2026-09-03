@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 using static System.StringComparer;
 using static System.TimeSpan;
 

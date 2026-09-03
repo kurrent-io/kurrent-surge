@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using Kurrent.Surge.Client;
 using static System.StringComparison;
 
-namespace Kurrent;
+namespace Kurrent.Surge;
 
 /// <summary>
 /// Represents a normalized error code. Error codes must:

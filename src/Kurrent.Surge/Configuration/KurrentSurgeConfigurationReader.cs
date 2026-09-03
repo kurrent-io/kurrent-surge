@@ -2,8 +2,8 @@ using System.Net;
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming;
-using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Processors;
+using Kurrent.Surge.Processors.Models;
 using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Surge;

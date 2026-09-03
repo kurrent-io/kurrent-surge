@@ -1,8 +1,8 @@
 using Grpc.Core;
 
-namespace Kurrent;
+namespace Kurrent.Toolkit.Grpc;
 
-static class AsyncStreamReaderExtensions {
+static class AsyncStreamReaderSafetyExtensions {
     extension<T>(IAsyncStreamReader<T> stream) {
         /// <summary>
         /// Advances the stream, returning <c>false</c> on cancellation instead of throwing.

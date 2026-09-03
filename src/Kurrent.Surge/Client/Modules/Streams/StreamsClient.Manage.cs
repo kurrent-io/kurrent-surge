@@ -6,7 +6,7 @@ using Kurrent.Surge.Schema;
 using KurrentDB.Protocol.V1.Streams;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams.Checkpoints;
-using Kurrent.Surge.Legacy;
+using Kurrent.Surge.Client.Legacy;
 using static Kurrent.Surge.Client.Streams.StreamsClientMapping;
 
 namespace Kurrent.Surge.Client.Streams;
@@ -243,7 +243,7 @@ public partial class StreamsClient {
 
         await SetStreamMetadata(stream, metadata, info.InfoRevision, cancellationToken).ConfigureAwait(false);
 
-        return Results.Success;
+        return new Success();
     }
 
     #endregion

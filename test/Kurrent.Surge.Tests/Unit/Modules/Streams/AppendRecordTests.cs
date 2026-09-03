@@ -1,8 +1,9 @@
+using Kurrent.Toolkit;
 using System.Buffers;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 using Kurrent.Testkit.TUnit;
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 
 namespace Kurrent.Surge.Tests.Modules.Streams;
 

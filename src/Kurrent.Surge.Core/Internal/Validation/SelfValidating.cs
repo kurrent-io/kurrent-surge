@@ -1,6 +1,6 @@
 // ReSharper disable ReplaceConditionalExpressionWithNullCoalescing
 
-namespace Kurrent.Validation;
+namespace Kurrent.Surge.Validation;
 
 public interface ISelfValidating {
     /// <summary>
@@ -66,7 +66,7 @@ public interface ISelfValidating {
     // - Should Validate() be virtual? Currently sealed-by-default via partial — fine.
     // - Do we want an incremental generator (IIncrementalGenerator) from day one? Yes.
     // - Roslyn target version? Match whatever KurrentDB's analyzer projects already use.
-    // - Ship in same package as Kurrent.Validation, or separate Kurrent.Validation.SourceGenerators?
+    // - Ship in same package as Kurrent.Surge.Validation, or separate Kurrent.Surge.Validation.SourceGenerators?
     //   Separate is cleaner — consumers get generator via PrivateAssets="all".
     //
     // PREREQUISITE

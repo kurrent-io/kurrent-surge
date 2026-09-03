@@ -1,8 +1,8 @@
 using System.Diagnostics.Metrics;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Streaming;
-using Kurrent.Surge.Streaming.Models;
-using Kurrent.Validation;
+using Kurrent.Surge.Processors;
+using Kurrent.Surge.Processors.Models;
+using Kurrent.Surge.Validation;
 using Polly;
 
 namespace Kurrent.Surge.Processors.Configuration;

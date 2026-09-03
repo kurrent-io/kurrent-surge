@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 [PublicAPI]
 public class DroneException(ErrorCode code, string reason, Exception innerException) : KurrentException(code, reason, innerException) {

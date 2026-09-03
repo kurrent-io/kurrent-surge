@@ -1,6 +1,6 @@
 // ReSharper disable CheckNamespace
 
-namespace KurrentDB.Diagnostics.Tracing;
+namespace Kurrent.Toolkit.Diagnostics.Tracing;
 
 static partial class TracingConstants {
     public static class Metadata {

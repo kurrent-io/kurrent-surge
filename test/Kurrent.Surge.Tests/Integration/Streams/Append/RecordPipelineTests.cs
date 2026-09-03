@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Bogus;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Codecs.Json;
@@ -11,7 +11,7 @@ using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Fakers;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Model;
 using Contracts = KurrentDB.Protocol.V2.Streams;
-using ValidationException = Kurrent.Validation.ValidationException;
+using ValidationException = Kurrent.Surge.Validation.ValidationException;
 
 namespace Kurrent.Surge.Tests.Streams;
 

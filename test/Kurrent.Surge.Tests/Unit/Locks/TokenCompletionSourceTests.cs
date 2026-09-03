@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using System.Runtime.ExceptionServices;
 
 namespace Kurrent.Surge.Tests.Locks;

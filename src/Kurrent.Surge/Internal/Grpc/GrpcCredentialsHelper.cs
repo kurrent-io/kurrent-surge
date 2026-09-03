@@ -1,7 +1,7 @@
 using System.Security;
 using Grpc.Core;
 
-namespace Kurrent.Grpc;
+namespace Kurrent.Toolkit.Grpc;
 
 static class GrpcCredentialsHelper {
 	/// <summary>

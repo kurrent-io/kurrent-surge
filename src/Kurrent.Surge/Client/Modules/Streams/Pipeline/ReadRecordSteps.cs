@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Variant;

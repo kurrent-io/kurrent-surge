@@ -1,12 +1,12 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Grpc.Core;
-using Kurrent.Surge.Client.Processors.Partitioning;
+using Kurrent.Surge.Processors.Partitioning;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Configuration;
 using Polly;
 
-namespace Kurrent.Surge.Streaming.Gateway;
+namespace Kurrent.Surge.Processors.Gateway;
 
 
 sealed class KdbDataSourceOptions {

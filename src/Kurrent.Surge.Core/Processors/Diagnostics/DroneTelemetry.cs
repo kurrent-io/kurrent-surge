@@ -1,8 +1,9 @@
+using Kurrent.Toolkit.Diagnostics;
 using System.Diagnostics;
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Streaming.Diagnostics;
+namespace Kurrent.Surge.Processors.Diagnostics;
 
 sealed partial class DroneTelemetry : TelemetrySource {
     readonly string _processorId;

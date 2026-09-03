@@ -5,7 +5,7 @@ using Grpc.Net.Compression;
 using Kurrent.Surge.Client;
 using Metadata = Grpc.Core.Metadata;
 
-namespace Kurrent.Grpc.Compression;
+namespace Kurrent.Toolkit.Grpc.Compression;
 
 static class GrpcCompression {
     public const string CompressionRequestAlgorithmHeader = "grpc-internal-encoding-request";

@@ -1,7 +1,7 @@
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Schema;
 
-namespace Kurrent.Surge.Client.Schema.Governance;
+namespace Kurrent.Surge.Schema.Governance;
 
 /// <summary>
 /// Exception thrown when the startup catalog registration walk fails.

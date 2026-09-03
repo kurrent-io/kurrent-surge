@@ -1,4 +1,4 @@
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Surge.Tests.Validation;
@@ -913,7 +913,7 @@ public class ValidatorTests {
     [Test]
     public async ValueTask validation_result_implicit_from_success() {
         // Act
-        ValidationResult result = Results.Success;
+        ValidationResult result = new Success();
 
         // Assert
         await Assert.That(result.IsValid).IsTrue();

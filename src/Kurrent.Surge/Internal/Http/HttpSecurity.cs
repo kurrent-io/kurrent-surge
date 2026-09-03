@@ -1,4 +1,4 @@
-namespace Kurrent.Http;
+namespace Kurrent.Toolkit.Http;
 
 static class HttpSecurity {
     /// <summary>

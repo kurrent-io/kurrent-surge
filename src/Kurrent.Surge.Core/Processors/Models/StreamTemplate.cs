@@ -3,7 +3,7 @@
 using System.Runtime.CompilerServices;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Streaming.Models;
+namespace Kurrent.Surge.Processors.Models;
 
 /// <summary>
 /// The StreamTemplate class represents a format for constructing,

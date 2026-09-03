@@ -1,7 +1,7 @@
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Kurrent.Http;
+namespace Kurrent.Toolkit.Http;
 
 /// <summary>
 /// Validates the server's certificate against a custom CA certificate on SSL/TLS connections.

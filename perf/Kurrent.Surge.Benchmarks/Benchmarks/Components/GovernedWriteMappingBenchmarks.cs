@@ -2,7 +2,7 @@ using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Google.Protobuf;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Codecs.Json;

@@ -1,6 +1,6 @@
 using Google.Rpc;
 using Grpc.Core;
-using Kurrent.GoogleRpc;
+using Kurrent.Toolkit.GoogleRpc;
 using Kurrent.Surge.Client.Errors;
 using Kurrent.Surge.Schema;
 

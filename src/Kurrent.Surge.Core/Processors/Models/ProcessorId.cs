@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Streaming.Models;
+namespace Kurrent.Surge.Processors.Models;
 
 /// <summary>
 /// Represents a unique identifier for a processor group.

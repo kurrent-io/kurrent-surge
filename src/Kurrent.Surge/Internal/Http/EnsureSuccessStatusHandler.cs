@@ -1,4 +1,4 @@
-namespace Kurrent.Http;
+namespace Kurrent.Toolkit.Http;
 
 class EnsureSuccessStatusHandler : DelegatingHandler {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {

@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Receives processor lifecycle notifications. All hooks have default no-op implementations —

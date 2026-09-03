@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Dispatch map from a record's decoded message type to its handler, carrying both lifetimes in one

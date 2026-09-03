@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Processors.Partitioning;
+using Kurrent.Surge.Processors.Partitioning;
 using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Experimental;

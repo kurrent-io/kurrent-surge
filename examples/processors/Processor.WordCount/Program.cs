@@ -1,8 +1,8 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema.Catalogs;
-using Kurrent.Surge.Streaming;
-using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Processors;
+using Kurrent.Surge.Processors.Models;
 using Processor.WordCount;
 using Processor.WordCount.Events;
 using Refit;

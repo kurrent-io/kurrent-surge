@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 namespace Kurrent.Surge.Tests.Internal;
 
 public class CancellationTokenSourceExtensionsTests {

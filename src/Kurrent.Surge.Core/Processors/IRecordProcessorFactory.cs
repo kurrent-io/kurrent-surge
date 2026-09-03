@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Factory interface for creating <see cref="IRecordProcessor"/> instances.

@@ -1,4 +1,4 @@
-// using Kurrent.Validation;
+// using Kurrent.Surge.Validation;
 //
 // namespace Kurrent.Surge.Tests;
 //
@@ -567,7 +567,7 @@
 //         var result = person.Validate();
 //
 //         result.IsSuccess.ShouldBeTrue();
-//         result.Value.ShouldBe(Results.Success);
+//         result.Value.ShouldBe(new Success());
 //     }
 //
 //     [Test]
@@ -691,7 +691,7 @@
 //                 return ValidationError.Create("INVALID_STRING", failures.ToArray());
 //             }
 //
-//             return Results.Success;
+//             return new Success();
 //         }
 //     }
 //
@@ -704,7 +704,7 @@
 //                 );
 //             }
 //
-//             return Results.Success;
+//             return new Success();
 //         }
 //     }
 //
@@ -727,7 +727,7 @@
 //                 return ValidationError.Create("INVALID_COMPLEX_VALUE", failures.ToArray());
 //             }
 //
-//             return Results.Success;
+//             return new Success();
 //         }
 //     }
 //
@@ -747,7 +747,7 @@
 //                 return ValidationError.Create("INVALID_PERSON", failures.ToArray());
 //             }
 //
-//             return Results.Success;
+//             return new Success();
 //         }
 //
 //         protected override string GetDisplayString() => $"{Value.Name} ({Value.Age} years old)";
@@ -769,7 +769,7 @@
 //                 return ValidationError.Create("INVALID_COORDINATE", failures.ToArray());
 //             }
 //
-//             return Results.Success;
+//             return new Success();
 //         }
 //
 //         protected override string GetDisplayString() {
@@ -796,7 +796,7 @@
 //                 return ValidationError.Create("INVALID_PERSON", failures.ToArray());
 //             }
 //
-//             return Results.Success;
+//             return new Success();
 //         }
 //
 //         protected override string GetDisplayString() => $"{Value.Name} ({Value.Age} years old)";
@@ -815,7 +815,7 @@
 //             if (failures.Count > 0)
 //                 return ValidationError.Create("INVALID_EMAIL", failures.ToArray());
 //
-//             return Results.Success;
+//             return new Success();
 //         }
 //     }
 //
@@ -836,7 +836,7 @@
 //             if (failures.Count > 0)
 //                 return ValidationError.Create("INVALID_PERSON", failures.ToArray());
 //
-//             return Results.Success;
+//             return new Success();
 //         }
 //
 //         protected override string GetDisplayString() => $"{Value.Name} ({Value.Age} years old)";

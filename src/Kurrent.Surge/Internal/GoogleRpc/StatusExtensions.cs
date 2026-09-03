@@ -1,4 +1,4 @@
-namespace Kurrent.GoogleRpc;
+namespace Kurrent.Toolkit.GoogleRpc;
 
 static class StatusExtensions {
     extension(Google.Rpc.Status status) {

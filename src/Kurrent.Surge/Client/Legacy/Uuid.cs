@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using KurrentDB.Protocol.V1;
 
-namespace Kurrent.Surge.Legacy;
+namespace Kurrent.Surge.Client.Legacy;
 
 /// <summary>
 /// An RFC-4122 compliant v4 UUID.

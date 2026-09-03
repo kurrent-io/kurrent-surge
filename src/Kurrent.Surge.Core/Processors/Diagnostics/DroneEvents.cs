@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Streaming.Diagnostics;
+namespace Kurrent.Surge.Processors.Diagnostics;
 
 /// <summary>
 /// Event raised when a drone is starting up.

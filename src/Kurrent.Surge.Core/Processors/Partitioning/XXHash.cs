@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
-namespace Kurrent.Surge.Streaming.Partitioning.Hashing;
+namespace Kurrent.Surge.Processors.Partitioning.Hashing;
 
 /// <summary>
 /// XXHash32 — fast non-cryptographic hash used by the partitioner.

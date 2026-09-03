@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Bogus;
-using KurrentDB.Diagnostics.Tracing;
+using Kurrent.Toolkit.Diagnostics.Tracing;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;

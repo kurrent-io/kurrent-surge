@@ -2,7 +2,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// TypeConverter attached to <see cref="TimeSpan"/> via <see cref="TypeDescriptor.AddAttributes"/>

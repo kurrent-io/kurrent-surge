@@ -1,5 +1,5 @@
 using Kurrent.Surge.Client.Exceptions;
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 
 using Contracts = KurrentDB.Protocol.V2.Streams;
 

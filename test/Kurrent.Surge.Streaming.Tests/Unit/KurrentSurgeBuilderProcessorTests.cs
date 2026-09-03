@@ -1,5 +1,6 @@
+using Kurrent.Surge.Processors;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Streaming.Hosting;
+using Kurrent.Surge.Processors.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 

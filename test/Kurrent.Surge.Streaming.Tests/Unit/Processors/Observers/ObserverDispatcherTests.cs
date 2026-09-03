@@ -1,4 +1,5 @@
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Streaming.Tests.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;

@@ -1,8 +1,8 @@
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Processors.Models;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Identity of the processor drone emitting an observer event.

@@ -37,7 +37,7 @@ public partial class ConnectorsClient {
                 .CreateAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return Results.Success;
+            return new Success();
         }
         catch (Exception ex) {
             throw ex.ToException(
@@ -75,7 +75,7 @@ public partial class ConnectorsClient {
                 .ReconfigureAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return Results.Success;
+            return new Success();
         }
         catch (Exception ex) {
             throw ex.ToException(
@@ -108,7 +108,7 @@ public partial class ConnectorsClient {
                 .DeleteAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return Results.Success;
+            return new Success();
         }
         catch (Exception ex) {
             throw ex.ToException(
@@ -161,7 +161,7 @@ public partial class ConnectorsClient {
                 .StartAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return Results.Success;
+            return new Success();
         }
         catch (Exception ex) {
             throw ex.ToException(
@@ -214,7 +214,7 @@ public partial class ConnectorsClient {
                 .ResetAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return Results.Success;
+            return new Success();
         }
         catch (Exception ex) {
             throw ex.ToException(
@@ -247,7 +247,7 @@ public partial class ConnectorsClient {
                 .StopAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return Results.Success;
+            return new Success();
         }
         catch (Exception ex) {
             throw ex.ToException(
@@ -283,7 +283,7 @@ public partial class ConnectorsClient {
                 .RenameAsync(request, cancellationToken: ct)
                 .ConfigureAwait(false);
 
-            return Results.Success;
+            return new Success();
         }
         catch (Exception ex) {
             throw ex.ToException(

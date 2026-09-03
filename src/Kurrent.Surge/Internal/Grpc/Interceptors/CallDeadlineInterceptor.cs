@@ -1,7 +1,7 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 
-namespace Kurrent.Grpc.Interceptors;
+namespace Kurrent.Toolkit.Grpc.Interceptors;
 
 /// <summary>
 /// Applies a default deadline to calls that do not carry one. A deadline set on the call

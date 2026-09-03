@@ -3,7 +3,7 @@ using Kurrent.Surge.Client.Admin;
 using Kurrent.Surge.Client.Indexes;
 using Kurrent.Surge.Client.Connectors;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.LoadBalancing;
 using Kurrent.Surge.Codecs;

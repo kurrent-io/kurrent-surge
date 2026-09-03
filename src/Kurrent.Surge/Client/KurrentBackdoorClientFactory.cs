@@ -1,5 +1,5 @@
 using System.Net;
-using Kurrent.Http;
+using Kurrent.Toolkit.Http;
 using Kurrent.Surge.Client.LoadBalancing;
 using Microsoft.Extensions.Http.Resilience;
 using Polly;

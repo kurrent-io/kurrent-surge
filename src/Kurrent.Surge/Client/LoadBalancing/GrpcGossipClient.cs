@@ -5,7 +5,7 @@ using Kurrent.Surge.Client.LoadBalancing;
 using KurrentDB.Protocol.V1;
 using static EventStore.Client.Gossip.MemberInfo.Types;
 
-namespace Kurrent.Surge.LoadBalancing.Gossip;
+namespace Kurrent.Surge.Client.LoadBalancing.Gossip;
 
 /// <summary>
 /// Reads cluster topology over the V1 gossip service, reusing one channel per endpoint.

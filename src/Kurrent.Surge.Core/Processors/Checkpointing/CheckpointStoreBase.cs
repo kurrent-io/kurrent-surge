@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Processors.Models;
 
 namespace Kurrent.Surge.Processors.Checkpointing;
 

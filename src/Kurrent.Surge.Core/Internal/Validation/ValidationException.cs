@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Exceptions;
 
-namespace Kurrent.Validation;
+namespace Kurrent.Surge.Validation;
 
 [PublicAPI]
 public class ValidationException : KurrentException {

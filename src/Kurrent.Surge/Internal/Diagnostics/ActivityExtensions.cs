@@ -2,10 +2,10 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using KurrentDB.Diagnostics.Telemetry;
-using KurrentDB.Diagnostics.Tracing;
+using Kurrent.Toolkit.Diagnostics.Telemetry;
+using Kurrent.Toolkit.Diagnostics.Tracing;
 
-namespace KurrentDB.Diagnostics;
+namespace Kurrent.Toolkit.Diagnostics;
 
 static class ActivityExtensions {
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -3,10 +3,10 @@ using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Schema.Naming;
 using Microsoft.Extensions.Configuration;
 
-// Home the connection sugar in Kurrent.Surge.Streaming — the namespace of KurrentProcessor, the primary
+// Home the connection sugar in Kurrent.Surge.Processors — the namespace of KurrentProcessor, the primary
 // entry point — so callers already reach it via the enclosing namespace (all Kurrent.Surge.Streaming.Tests
-// files) or their existing `using Kurrent.Surge.Streaming;`, avoiding a using addition per call site.
-namespace Kurrent.Surge.Streaming;
+// files) or their existing `using Kurrent.Surge.Processors;`, avoiding a using addition per call site.
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Connection configuration for <see cref="ProcessorOptions"/>. These overloads live in the

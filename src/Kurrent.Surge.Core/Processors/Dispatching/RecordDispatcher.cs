@@ -1,9 +1,9 @@
 using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Processors.Configuration;
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Dispatches a batch one record at a time to an <see cref="IRecordProcessor"/>, with per-record

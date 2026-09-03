@@ -1,5 +1,5 @@
 using Kurrent.Surge.Schema;
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 
 namespace Kurrent.Surge.Client.Registry;
 

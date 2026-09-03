@@ -1,7 +1,8 @@
+using Kurrent.Surge.Processors;
 using System.Diagnostics.Metrics;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Configuration;
-using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Processors.Models;
 using Kurrent.Surge.Streaming.Tests.Fakes;
 
 namespace Kurrent.Surge.Streaming.Tests;

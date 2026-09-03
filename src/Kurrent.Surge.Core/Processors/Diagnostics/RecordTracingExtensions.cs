@@ -3,7 +3,7 @@
 using System.Diagnostics;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Diagnostics;
+namespace Kurrent.Surge.Processors.Diagnostics;
 
 [PublicAPI]
 public static class RecordTracingExtensions {

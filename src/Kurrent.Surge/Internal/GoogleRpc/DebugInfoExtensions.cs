@@ -1,6 +1,6 @@
 using Google.Rpc;
 
-namespace Kurrent.GoogleRpc;
+namespace Kurrent.Toolkit.GoogleRpc;
 
 /// <summary>
 /// Extension methods for converting gRPC error details back into exceptions.

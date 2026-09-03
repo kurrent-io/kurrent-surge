@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using static System.Diagnostics.ActivityStatusCode;
 
-namespace KurrentDB.Diagnostics;
+namespace Kurrent.Toolkit.Diagnostics;
 
 static class ActivityStatusCodeHelper {
     public const string UnsetStatusCodeTagValue = "UNSET";

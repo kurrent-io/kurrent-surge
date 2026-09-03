@@ -3,7 +3,7 @@
 using System.Diagnostics;
 using System.Text.Json.Serialization;
 
-namespace KurrentDB.Diagnostics.Tracing;
+namespace Kurrent.Toolkit.Diagnostics.Tracing;
 
 readonly record struct TracingMetadata(
 	[property: JsonPropertyName(TracingConstants.Metadata.TraceId)]

@@ -1,6 +1,6 @@
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Client.Processors.Partitioning;
+namespace Kurrent.Surge.Processors.Partitioning;
 
 /// <summary>
 /// Distribution strategy that assigns contiguous partition ranges to drones.

@@ -1,6 +1,6 @@
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Streaming;
+using Kurrent.Surge.Processors;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Kurrent.Surge;

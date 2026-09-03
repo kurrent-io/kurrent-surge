@@ -2,7 +2,7 @@ using System.Collections;
 using System.Runtime.CompilerServices;
 using Kurrent.Surge.Client;
 
-namespace Kurrent.Validation;
+namespace Kurrent.Surge.Validation;
 
 /// <summary>
 /// Severity level for a validation rule.

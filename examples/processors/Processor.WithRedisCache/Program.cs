@@ -3,7 +3,7 @@ using System.Linq;
 using Kurrent.Surge;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Processors.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

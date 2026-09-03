@@ -1,10 +1,13 @@
+using Kurrent.Surge.Processors;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using Kurrent.Diagnostics;
+using Kurrent.Surge.Diagnostics;
+using Kurrent.Surge.Processors.Diagnostics;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Diagnostics;
+using Kurrent.Surge.Processors.Diagnostics;
+using Kurrent.Toolkit.Diagnostics;
 using Kurrent.Surge.Streaming.Tests.Fakes;
 using Microsoft.Extensions.Logging;
 

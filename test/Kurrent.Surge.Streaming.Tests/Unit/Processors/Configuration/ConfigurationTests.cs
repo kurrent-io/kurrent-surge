@@ -1,10 +1,11 @@
+using Kurrent.Surge.Processors;
 using System.Text;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Configuration;
-using Kurrent.Surge.Streaming.Hosting;
-using Kurrent.Surge.Streaming.Models;
-using Kurrent.Validation;
+using Kurrent.Surge.Processors.Hosting;
+using Kurrent.Surge.Processors.Models;
+using Kurrent.Surge.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

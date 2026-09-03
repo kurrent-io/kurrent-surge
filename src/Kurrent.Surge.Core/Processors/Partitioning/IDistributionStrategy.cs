@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Client.Processors.Partitioning;
+namespace Kurrent.Surge.Processors.Partitioning;
 
 /// <summary>
 /// Strategy for distributing partitions across drones.

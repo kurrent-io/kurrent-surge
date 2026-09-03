@@ -1,7 +1,7 @@
 using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Surge.Processors.Checkpointing;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// This assembly's contract mappings, discovered through the message catalog generator — the same

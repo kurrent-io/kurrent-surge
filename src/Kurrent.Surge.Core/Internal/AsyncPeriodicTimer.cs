@@ -1,4 +1,4 @@
-namespace Kurrent;
+namespace Kurrent.Toolkit;
 
 delegate Task OnPeriodicTimerTick(CancellationToken cancellationToken);
 

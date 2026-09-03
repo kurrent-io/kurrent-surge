@@ -1,11 +1,12 @@
+using Kurrent.Surge.Processors.Diagnostics;
 // ReSharper disable CheckNamespace
 
 using System.Diagnostics;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Diagnostics;
+namespace Kurrent.Surge.Diagnostics;
 
 /// <summary>
 /// Legacy platform keys for trace context in record metadata. Superseded by W3C Trace Context

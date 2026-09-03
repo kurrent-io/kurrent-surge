@@ -6,7 +6,7 @@ using System.Diagnostics;
 using Google.Protobuf.Collections;
 using Google.Protobuf.WellKnownTypes;
 using Kurrent.Surge.Client.Streams.Checkpoints;
-using Kurrent.Surge.Legacy;
+using Kurrent.Surge.Client.Legacy;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 

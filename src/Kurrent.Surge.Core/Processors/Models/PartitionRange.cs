@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Client.Streams.Processing;
+namespace Kurrent.Surge.Processors.Models;
 
 /// <summary>
 /// Represents a contiguous range of partitions.

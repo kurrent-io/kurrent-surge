@@ -1,6 +1,5 @@
-using Kurrent.Surge.Client.Streams;
 
-namespace Kurrent.Surge.Transformers;
+namespace Kurrent.Surge.Client.Streams;
 
 [PublicAPI]
 public static class RedactionExtensions {

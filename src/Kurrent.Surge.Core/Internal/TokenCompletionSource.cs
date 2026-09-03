@@ -1,4 +1,4 @@
-namespace Kurrent;
+namespace Kurrent.Toolkit;
 
 /// <summary>
 /// Represents a specialized task completion source that facilitates token-based

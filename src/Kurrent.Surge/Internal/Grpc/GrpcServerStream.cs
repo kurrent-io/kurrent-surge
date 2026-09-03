@@ -1,6 +1,6 @@
 using Grpc.Core;
 
-namespace Kurrent.Grpc;
+namespace Kurrent.Toolkit.Grpc;
 
 /// <summary>
 /// A self-disposing <see cref="IAsyncEnumerable{T}"/> over a gRPC server-streaming call.

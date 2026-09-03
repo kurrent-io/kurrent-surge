@@ -2,7 +2,7 @@ using System.Text.Json;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Client.Schema;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Schema;
 using Registry.Quickstart;
 using Registry.Quickstart.Events;

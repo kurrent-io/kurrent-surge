@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using Dapper;
-using Kurrent.Surge.Streaming;
+using Kurrent.Surge.Processors;
 using Npgsql;
 using Transfermarkt.Domain.Events;
 

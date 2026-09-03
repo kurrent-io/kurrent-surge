@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;

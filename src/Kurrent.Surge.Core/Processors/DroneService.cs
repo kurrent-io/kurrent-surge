@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Hosting;
 
-namespace Kurrent.Surge.Streaming.Hosting;
+namespace Kurrent.Surge.Processors.Hosting;
 
 sealed partial class DroneService<TProcessor>(
     IDrone drone,

@@ -1,3 +1,4 @@
+using Kurrent.Surge.Processors;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Streaming.Tests.Fakes;

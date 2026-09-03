@@ -1,5 +1,5 @@
 using System.Security.Cryptography.X509Certificates;
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 
 namespace Kurrent.Surge.Client;
 

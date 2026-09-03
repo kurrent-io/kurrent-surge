@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 
-namespace Kurrent.Surge.Client.Schema.Governance;
+namespace Kurrent.Surge.Schema.Governance;
 
 /// <summary>
 /// The result of catalog registration: the wire schema info for every registered or

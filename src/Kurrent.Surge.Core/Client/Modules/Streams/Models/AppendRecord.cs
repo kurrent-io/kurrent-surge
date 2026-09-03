@@ -1,7 +1,8 @@
+using Kurrent.Toolkit;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using Kurrent.Surge.Schema;
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 
 namespace Kurrent.Surge.Client.Streams;
 
@@ -187,6 +188,6 @@ public record AppendRecord : SelfValidating {
 
         return problems is not null
             ? ValidationResult.Failure(ErrorCode.FromType<AppendRecord>(), [.. problems])
-            : Results.Success;
+            : new Success();
     }
 }

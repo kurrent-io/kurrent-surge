@@ -1,14 +1,15 @@
 using System.Threading.Channels;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Processors.Checkpointing;
-using Kurrent.Surge.Streaming.Diagnostics;
-using Kurrent.Surge.Streaming.Gateway;
+using Kurrent.Surge.Processors.Diagnostics;
+using Kurrent.Toolkit.Diagnostics;
+using Kurrent.Surge.Processors.Gateway;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 sealed class Drone : IDrone {
     readonly IDataSource         _dataSource;

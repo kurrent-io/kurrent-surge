@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text;
 using Bogus;
-using Kurrent.Surge.Client.Schema.Governance;
+using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Codecs;

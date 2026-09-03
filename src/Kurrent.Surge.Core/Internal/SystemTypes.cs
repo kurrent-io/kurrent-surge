@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 
-namespace Kurrent;
+namespace Kurrent.Toolkit;
 
 static class SystemTypes {
     static readonly Type MissingType = Type.Missing.GetType();

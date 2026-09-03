@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace Kurrent;
+namespace Kurrent.Toolkit;
 
 /// <summary>
 /// <see cref="IServiceCollection"/> helpers that return whether a registration actually

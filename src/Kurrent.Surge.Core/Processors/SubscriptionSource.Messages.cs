@@ -4,7 +4,7 @@ using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Variant;
 
-namespace Kurrent.Surge.Client.Processors.Gateway.Messages;
+namespace Kurrent.Surge.Processors.Gateway.Messages;
 
 #region ->> Inbound - Control Messages <<-
 

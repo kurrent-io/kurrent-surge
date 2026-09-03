@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using Kurrent.Validation;
+using Kurrent.Surge.Validation;
 
 namespace Kurrent.Surge.Client;
 

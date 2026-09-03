@@ -6,10 +6,10 @@ using Kurrent.Surge.Schema.Naming;
 using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Processors.Checkpointing;
-using Kurrent.Surge.Streaming.Gateway;
+using Kurrent.Surge.Processors.Gateway;
 using Kurrent.Surge.Processors.Configuration;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// Entry point for configuring and running a Kurrent processor. Use one of the

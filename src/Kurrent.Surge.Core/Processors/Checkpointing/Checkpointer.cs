@@ -1,10 +1,11 @@
+using Kurrent.Toolkit;
 using System.Threading.Channels;
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Processors.Checkpointing;
-using Kurrent.Surge.Streaming.Gateway;
-using Kurrent.Surge.Streaming.Models;
+using Kurrent.Surge.Processors.Gateway;
+using Kurrent.Surge.Processors.Models;
 
 namespace Kurrent.Surge.Processors.Checkpointing;
 

@@ -1,4 +1,4 @@
-namespace Kurrent;
+namespace Kurrent.Toolkit;
 
 [PublicAPI]
 static class PipeExtensions {

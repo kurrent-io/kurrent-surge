@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Kurrent;
+namespace Kurrent.Surge;
 
 public interface IThrowableException<out TSelf> where TSelf : Exception, IThrowableException<TSelf> {
     static abstract TSelf Create(string message, Exception? innerException = null);

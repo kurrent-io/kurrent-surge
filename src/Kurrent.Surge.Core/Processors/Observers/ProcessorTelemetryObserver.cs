@@ -1,12 +1,14 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using Kurrent.Diagnostics;
-using Kurrent.Surge.Client.Processors.Gateway.Messages;
+using Kurrent.Surge.Diagnostics;
+using Kurrent.Surge.Processors.Diagnostics;
+using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Streaming.Diagnostics;
-using Kurrent.Surge.Streaming.Diagnostics.Metrics;
+using Kurrent.Surge.Processors.Diagnostics;
+using Kurrent.Toolkit.Diagnostics;
+using Kurrent.Surge.Processors.Diagnostics.Metrics;
 
-namespace Kurrent.Surge.Streaming;
+namespace Kurrent.Surge.Processors;
 
 /// <summary>
 /// The SDK's composite telemetry module: logging, metrics, tracing, and diagnostic-source

@@ -1,11 +1,12 @@
+using Kurrent.Toolkit;
 using System.Diagnostics.Metrics;
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema.Naming;
-using Kurrent.Surge.Streaming;
-using Kurrent.Surge.Streaming.Hosting;
+using Kurrent.Surge.Processors;
+using Kurrent.Surge.Processors.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

@@ -6,7 +6,7 @@ using static System.String;
 
 // ReSharper disable MemberCanBePrivate.Global
 
-namespace Kurrent.Validation;
+namespace Kurrent.Surge.Validation;
 
 /// <summary>
 /// Defines the contract for a fluent validator that can validate instances of <typeparamref name="T"/>.
@@ -138,7 +138,7 @@ public sealed class ValidationResult {
     public override string ToString() => IsValid ? "Valid" : ErrorMessage;
 
     /// <summary>
-    /// Allows <c>return Results.Success</c> to implicitly convert.
+    /// Allows <c>return new Success()</c> to implicitly convert.
     /// </summary>
     public static implicit operator ValidationResult(Success _) => Valid;
 

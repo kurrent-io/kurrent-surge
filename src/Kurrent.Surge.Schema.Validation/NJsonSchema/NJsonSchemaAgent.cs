@@ -2,7 +2,7 @@
 // Kurrent, Inc licenses this file to you under the Kurrent License v1 (see LICENSE.md).
 
 using System.Collections.Concurrent;
-using Kurrent.Surge.Client.Processors.Partitioning;
+using Kurrent.Surge.Processors.Partitioning;
 using Kurrent.Surge.Codecs.Json;
 using NJsonSchema;
 using NJsonSchema.Generation;
