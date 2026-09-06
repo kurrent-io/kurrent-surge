@@ -1,5 +1,5 @@
-using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Errors;
 using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Codecs;
@@ -11,7 +11,7 @@ namespace Kurrent.Surge.Codecs;
 /// Inherits from <see cref="KurrentException"/> to maintain consistency in error handling across the Kurrent client.
 /// </summary>
 public abstract class SchemaCodecException(string reason, SchemaDataFormat dataFormat, Exception? innerException = null)
-    : KurrentException(ErrorCode.FromType<SchemaCodecException>(), reason, innerException) {
+    : KurrentException(Errors.ErrorCode.FromType<SchemaCodecException>(), reason, innerException) {
 	public SchemaDataFormat DataFormat { get; } = dataFormat;
 }
 
@@ -44,7 +44,7 @@ public class UnsupportedSchemaDataFormatException(SchemaDataFormat expectedForma
 /// Exception thrown when a schema validation fails.
 /// </summary>
 public class SchemaValidationException(SchemaDataFormat dataFormat, SchemaIdentifier schemaIdentifier, Type messageType, IReadOnlyList<SchemaCompatibilityError> validationErrors)
-	: KurrentException(ErrorCode.FromType<SchemaValidationException>(), ErrorMessage(messageType, schemaIdentifier, validationErrors)) {
+	: KurrentException(Errors.ErrorCode.FromType<SchemaValidationException>(), ErrorMessage(messageType, schemaIdentifier, validationErrors)) {
 	public SchemaDataFormat                        DataFormat       { get; } = dataFormat;
 	public Type                                    MessageType      { get; } = messageType;
 	public SchemaIdentifier                        SchemaIdentifier { get; } = schemaIdentifier;

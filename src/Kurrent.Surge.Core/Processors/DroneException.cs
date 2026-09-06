@@ -1,9 +1,9 @@
-using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Processors;
 
 [PublicAPI]
-public class DroneException(ErrorCode code, string reason, Exception innerException) : KurrentException(code, reason, innerException) {
+public class DroneException(Errors.ErrorCode code, string reason, Exception innerException) : KurrentException(code, reason, innerException) {
     public static DroneException ProcessRecordFailed(Exception innerException) =>
         new("PROCESS_RECORD_FAILED", "An error occurred while processing a record.", innerException);
 

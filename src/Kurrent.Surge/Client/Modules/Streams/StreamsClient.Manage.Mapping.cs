@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using Contracts = KurrentDB.Protocol.V1.Streams;
 
 namespace Kurrent.Surge.Client.Streams;

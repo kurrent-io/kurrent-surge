@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using Kurrent.Surge.Codecs.Avro.Generators.Model;
 
 namespace Kurrent.Surge.Codecs.Avro.Generators.Emission;

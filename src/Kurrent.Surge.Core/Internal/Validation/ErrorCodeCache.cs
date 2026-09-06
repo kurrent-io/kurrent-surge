@@ -1,6 +1,7 @@
-namespace Kurrent.Surge.Client.Exceptions;
+using Kurrent.Toolkit;
+namespace Kurrent.Surge.Validation;
 
 static class ErrorCodeCache<TValue> {
-    public static readonly ErrorCode Value =
-        ErrorCode.From($"INVALID_{typeof(TValue).Name.Underscore().ToUpper()}");
+    public static readonly Errors.ErrorCode Value =
+        Errors.ErrorCode.From($"INVALID_{typeof(TValue).Name.Underscore().ToUpper()}");
 }

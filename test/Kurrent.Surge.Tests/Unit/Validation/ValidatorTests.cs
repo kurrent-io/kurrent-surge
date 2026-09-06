@@ -890,7 +890,7 @@ public class ValidatorTests {
     public async ValueTask validation_result_failure_contains_problems() {
         // Act
         var result = ValidationResult.Failure(
-            ErrorCode.From("TEST_VALIDATION"),
+            Surge.Errors.ErrorCode.From("TEST_VALIDATION"),
             ValidationProblem.CreateForField("Field1", "Bad value"));
 
         // Assert
@@ -903,7 +903,7 @@ public class ValidatorTests {
     public async ValueTask validation_result_ensure_valid_throws_on_failure() {
         // Arrange
         var result = ValidationResult.Failure(
-            ErrorCode.From("TEST_VALIDATION"),
+            Surge.Errors.ErrorCode.From("TEST_VALIDATION"),
             ValidationProblem.CreateForField("Field1", "Bad value"));
 
         // Act & Assert
@@ -924,7 +924,7 @@ public class ValidatorTests {
     public async ValueTask validation_result_from_problem_creates_failure() {
         // Act
         var result = ValidationResult.FromProblem(
-            ErrorCode.From("TEST"),
+            Surge.Errors.ErrorCode.From("TEST"),
             "bad value");
 
         // Assert
@@ -957,7 +957,7 @@ public class ValidatorTests {
     public async ValueTask validation_result_to_string_returns_error_message_when_invalid() {
         // Arrange
         var result = ValidationResult.Failure(
-            ErrorCode.From("TEST_VALIDATION"),
+            Surge.Errors.ErrorCode.From("TEST_VALIDATION"),
             ValidationProblem.CreateForField("Name", "is required"));
 
         // Act

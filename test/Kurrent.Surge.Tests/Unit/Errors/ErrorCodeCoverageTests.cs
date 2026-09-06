@@ -1,6 +1,5 @@
 using System.Reflection;
-using Kurrent.Surge.Client.Exceptions;
-
+using Kurrent.Surge.Errors;
 using IndexesErrors = KurrentDB.Protocol.V2.Indexes.Errors;
 using RegistryErrors = KurrentDB.Protocol.V2.Registry.Errors;
 using ServerErrors = Kurrent.Rpc;
@@ -18,7 +17,7 @@ namespace Kurrent.Surge.Tests.Errors;
 public class ErrorCodeCoverageTests {
     #region ->> Test Case Generators <<-
 
-    public record ErrorModule(string Name, IReadOnlyList<ErrorCode> Protocol, IReadOnlyList<ErrorCode> KnownGaps);
+    public record ErrorModule(string Name, IReadOnlyList<Surge.Errors.ErrorCode> Protocol, IReadOnlyList<Surge.Errors.ErrorCode> KnownGaps);
 
     public class ProtocolModules : TestCaseDataGenerator<ErrorModule> {
         protected override IEnumerable<TestCase<ErrorModule>> Data() {
@@ -26,7 +25,7 @@ public class ErrorCodeCoverageTests {
             yield return new(new(
                 "streams",
                 ProtocolCodes<StreamsErrors.StreamsError>(),
-                [ErrorCode.From("RECORD_NOT_FOUND"), ErrorCode.From("STREAM_REVISION_NOT_FOUND")]),
+                [Surge.Errors.ErrorCode.From("RECORD_NOT_FOUND"), Surge.Errors.ErrorCode.From("STREAM_REVISION_NOT_FOUND")]),
                 DisplayName: "streams");
 
             yield return new(new("registry", ProtocolCodes<RegistryErrors.RegistryError>(), []), DisplayName: "registry");
@@ -48,7 +47,7 @@ public class ErrorCodeCoverageTests {
         .GetTypes()
         .Where(t => t is { IsClass: true, IsAbstract: false } && t.IsAssignableTo(typeof(KurrentException)))
         .Select(t => t.GetProperty("Code", BindingFlags.Public | BindingFlags.Static)?.GetValue(null))
-        .OfType<ErrorCode>()
+        .OfType<Surge.Errors.ErrorCode>()
         .Select(x => x.Value)
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -56,10 +55,10 @@ public class ErrorCodeCoverageTests {
     /// The error-code vocabulary a protocol enum defines. <c>Unspecified</c> is the proto3 zero value and
     /// never travels as an error, so it carries no code.
     /// </summary>
-    static IReadOnlyList<ErrorCode> ProtocolCodes<T>() where T : struct, Enum => [
+    static IReadOnlyList<Surge.Errors.ErrorCode> ProtocolCodes<T>() where T : struct, Enum => [
         .. Enum.GetNames<T>()
             .Where(name => name != "Unspecified")
-            .Select(ErrorCode.From)
+            .Select(Surge.Errors.ErrorCode.From)
     ];
 
     [Test]

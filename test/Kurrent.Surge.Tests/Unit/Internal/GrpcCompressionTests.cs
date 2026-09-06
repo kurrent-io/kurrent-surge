@@ -1,4 +1,3 @@
-using Grpc.Core;
 using Kurrent.Toolkit.Grpc.Compression;
 using Metadata = Grpc.Core.Metadata;
 

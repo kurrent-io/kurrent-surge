@@ -1,5 +1,4 @@
-using Kurrent.Surge.Client.Exceptions;
-using Kurrent.Surge.Schema;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Schema.Governance;
 
@@ -8,7 +7,7 @@ namespace Kurrent.Surge.Schema.Governance;
 /// Carries every catalog entry that failed, not only the first.
 /// </summary>
 public sealed class CatalogRegistrationFailedException(IReadOnlyList<CatalogRegistrationFailure> failures)
-	: KurrentException(ErrorCode.FromType<CatalogRegistrationFailedException>(), ErrorMessage(failures), failures[0].Cause) {
+	: KurrentException(Errors.ErrorCode.FromType<CatalogRegistrationFailedException>(), ErrorMessage(failures), failures[0].Cause) {
 	/// <summary>
 	/// Every catalog entry that failed registration or verification, with its cause.
 	/// </summary>

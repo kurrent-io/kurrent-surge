@@ -1,5 +1,5 @@
-using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Errors;
 using Kurrent.Surge.Processors.Models;
 
 namespace Kurrent.Surge.Processors.Checkpointing;
@@ -248,5 +248,5 @@ public abstract partial class CheckpointStoreBase : ICheckpointStore {
 /// </summary>
 [PublicAPI]
 public sealed class CheckpointStoreException(string storeName, string message, Exception? innerException = null) 
-    : KurrentException(ErrorCode.FromType<CheckpointStoreException>(), $"[{storeName}] {message}", innerException);
+    : KurrentException(Errors.ErrorCode.FromType<CheckpointStoreException>(), $"[{storeName}] {message}", innerException);
 

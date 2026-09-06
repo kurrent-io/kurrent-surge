@@ -1,10 +1,10 @@
-using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Validation;
 
 [PublicAPI]
 public class ValidationException : KurrentException {
-    public ValidationException(ErrorCode errorCode, string reason, params ValidationProblem[] errors) : base(errorCode, reason) {
+    public ValidationException(Errors.ErrorCode errorCode, string reason, params ValidationProblem[] errors) : base(errorCode, reason) {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(errors.Length, 0);
         Errors = errors;

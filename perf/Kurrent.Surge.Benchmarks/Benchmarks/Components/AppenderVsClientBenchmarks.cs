@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Kurrent.Surge.Client;

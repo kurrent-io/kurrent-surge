@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Kurrent.Surge.Client;
+namespace Kurrent.Toolkit;
 
 /// <summary>
 /// Classification result for batching: either add to batch or flush and yield.

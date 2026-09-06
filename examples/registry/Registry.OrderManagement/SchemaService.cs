@@ -4,7 +4,7 @@ using Kurrent.Surge.Schema;
 
 namespace Registry.OrderManagement;
 
-public sealed class SchemaService(RegistryClient registry, ILogger<SchemaService> logger) {
+public sealed class SchemaService(IRegistryClient registry, ILogger<SchemaService> logger) {
     public async Task<SchemaVersionDescriptor> Register(
         SchemaName schemaName, string definition, string description,
         CompatibilityMode compatibility, string domain, string team

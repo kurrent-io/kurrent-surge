@@ -1,6 +1,4 @@
-using Kurrent.Surge.Client.Errors;
-
-namespace Kurrent.Surge.Client.Exceptions;
+namespace Kurrent.Surge.Errors;
 
 /// <summary>
 /// Errors raised by the server itself rather than by a module. All four are retriable, which is why

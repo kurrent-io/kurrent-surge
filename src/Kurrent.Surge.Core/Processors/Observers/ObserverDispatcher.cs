@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace Kurrent.Surge.Processors;
 
 /// <summary>

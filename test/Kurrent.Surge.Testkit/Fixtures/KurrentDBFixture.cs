@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using System.Runtime.CompilerServices;
 using Bogus;
 using Kurrent.Surge.Client;

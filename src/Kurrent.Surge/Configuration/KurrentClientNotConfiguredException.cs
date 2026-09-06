@@ -1,5 +1,7 @@
 // ReSharper disable CheckNamespace
 
+using Kurrent.Surge.Errors;
+
 namespace Kurrent.Surge.Client.Exceptions;
 
 /// <summary>
@@ -10,7 +12,7 @@ namespace Kurrent.Surge.Client.Exceptions;
 [PublicAPI]
 public sealed class KurrentClientNotConfiguredException()
     : KurrentException(
-        ErrorCode.FromType<KurrentClientNotConfiguredException>(),
+        Errors.ErrorCode.FromType<KurrentClientNotConfiguredException>(),
         "KurrentDB client is not configured. "
       + "Register a KurrentClientOptions instance, "
       + "set a connection string at 'ConnectionStrings:KurrentDB' in your IConfiguration, "

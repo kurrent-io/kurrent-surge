@@ -4,16 +4,16 @@ Demonstrates hosting a Kurrent processor as an ASP.NET Core background service w
 
 ## What You'll Learn
 
-- Hosting a processor within ASP.NET Core using `BackgroundService`
+- Registering a processor with `AddKurrentSurge` so the SDK hosts it inside ASP.NET Core
 - Integrating Serilog for structured logging
-- Using `ILogger<T>` with `[LoggerMessage]` source generation for high-performance logging
-- Resolving processor dependencies from the DI container
-- Using the host's cancellation token for graceful shutdown
+- Handling messages by type with `MessageProcessor`
+- Seeding sample events from a `BackgroundService` that shares the registered `KurrentClient`
+- Graceful shutdown through the host's cancellation token
 
 ## Prerequisites
 
 - KurrentDB running locally on port 2113
-- .NET 9.0 SDK
+- .NET 10 SDK
 
 ## Running the Example
 
@@ -21,42 +21,24 @@ Demonstrates hosting a Kurrent processor as an ASP.NET Core background service w
 dotnet run
 ```
 
-The processor starts automatically. Press `Ctrl+C` to gracefully shutdown.
+The processor starts automatically. A hosted `TransferSeeder` writes a player registration and a
+transfer every second, so the log shows `Registration:` and `Transfer:` lines right away.
+Press `Ctrl+C` to gracefully shutdown.
 
 ## Key Code
 
-### TransferProcessor.cs
+### LiveTransferProcessor.cs
 
-Uses `[LoggerMessage]` source generation for zero-allocation logging:
-
-```csharp
-public sealed partial class TransferProcessor(ILogger<TransferProcessor> logger) : IRecordProcessor {
-    public ValueTask ProcessRecords(ProcessRecordsContext context) {
-        foreach (var record in context.Records) {
-            if (record.Value is PlayerTransferred transfer) {
-                LogTransfer(transfer.PlayerName, transfer.FromClubId, transfer.ToClubId, transfer.Fee);
-            }
-        }
-        return ValueTask.CompletedTask;
-    }
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Transfer: {PlayerName} from {FromClub} to {ToClub} for {Fee:C}")]
-    partial void LogTransfer(string playerName, string fromClub, string toClub, decimal fee);
-}
-```
-
-### TransferProcessorService.cs
-
-Hosts the processor as a `BackgroundService`:
+Handles each message type with the context logger:
 
 ```csharp
-public sealed class TransferProcessorService(IServiceProvider services) : BackgroundService {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
-        var processor = services.GetRequiredService<TransferProcessor>();
-
-        await KurrentProcessors.Create(processor)
-            .ConnectTo("kurrentdb://localhost:2113")
-            .RunAsync(stoppingToken);
+public class LiveTransferProcessor : MessageProcessor {
+    public LiveTransferProcessor() {
+        Process<PlayerTransferred>((transfer, ctx) => {
+            ctx.Logger.LogInformation(
+                "Transfer: {PlayerName} from {FromClub} to {ToClub} for {Fee:C}",
+                transfer.PlayerName, transfer.FromClubId.ToString(), transfer.ToClubId.ToString(), transfer.Fee.Amount);
+        });
     }
 }
 ```
@@ -66,8 +48,17 @@ public sealed class TransferProcessorService(IServiceProvider services) : Backgr
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
-builder.Services.AddSingleton<TransferProcessor>();
-builder.Services.AddHostedService<TransferProcessorService>();
+
+builder.Services.AddKurrentSurge(surge => {
+    surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+
+    surge.AddProcessor(new LiveTransferProcessor(), prx => {
+        prx.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
+        prx.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
+    });
+});
+
+builder.Services.AddHostedService<TransferSeeder>();
 
 var app = builder.Build();
 app.MapGet("/health", () => Results.Ok("Healthy"));
@@ -80,11 +71,9 @@ await app.RunAsync();
 
 ## Configuration
 
-Configure the connection string via environment variables or appsettings:
-
-```bash
-export KURRENTDB_CONNECTION="kurrentdb://localhost:2113"
-```
+The connection string is set in `Program.cs`. To configure it externally, drop the `Connection` call
+and add `ConnectionStrings:KurrentDB` to `appsettings.json` or the environment; `AddKurrentSurge`
+reads it.
 
 ## Next Steps
 

@@ -3,7 +3,7 @@
 
 using System.Diagnostics;
 using System.Text.RegularExpressions;
-using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Client.Streams;
 

@@ -1,4 +1,3 @@
-using Kurrent.Surge.Client.Connectors;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Tests.Fixtures;
 

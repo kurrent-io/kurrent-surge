@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using ModelContextProtocol.Extensions.Tasks;
 using ModelContextProtocol.Protocol;
-using ModelContextProtocol.Server;
 
 namespace Kurrent.Surge.AI.Mcp.Tests;
 

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Kurrent.Surge.Client;
+namespace Kurrent.Toolkit;
 
 static class WithExtensions {
     extension<T>(T instance) {

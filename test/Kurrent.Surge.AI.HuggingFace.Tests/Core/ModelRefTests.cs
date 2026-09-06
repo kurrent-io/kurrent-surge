@@ -1,5 +1,3 @@
-using Kurrent.Testkit.TUnit;
-
 namespace Kurrent.Surge.AI.HuggingFace.Tests;
 
 /// <summary>

@@ -1,5 +1,4 @@
 using System.Text;
-using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Schema.Catalogs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Kurrent.Surge.Client;
+namespace Kurrent.Toolkit;
 
 static class StringExtensions {
     extension(string source) {

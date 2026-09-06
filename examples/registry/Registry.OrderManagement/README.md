@@ -163,7 +163,7 @@ curl -s http://localhost:5000/schemas/orders.order-placed-v1 -X DELETE | jq
 ### Client configured for auto-registration
 
 ```csharp
-builder.Services.AddKurrent(kurrent => kurrent.Connection(
+builder.Services.AddKurrentSurge(surge => surge.Connection(
     "kurrentdb://admin:changeit@localhost:2113?tls=false",
     opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister));
 ```

@@ -1,13 +1,13 @@
 // ReSharper disable CheckNamespace
 
 using Kurrent.Surge.Client.Connectors;
-using Kurrent.Surge.Client.Errors;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Client.Exceptions;
 
 [PublicAPI]
 public class ConnectorNotFoundException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("CONNECTOR_NOT_FOUND");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("CONNECTOR_NOT_FOUND");
 
     public ConnectorNotFoundException(ConnectorId connectorId)
         : this($"Connector '{connectorId}' was not found.") { }
@@ -20,7 +20,7 @@ public class ConnectorNotFoundException : KurrentException {
 
 [PublicAPI]
 public class ConnectorAlreadyExistsException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("CONNECTOR_ALREADY_EXISTS");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("CONNECTOR_ALREADY_EXISTS");
 
     public ConnectorAlreadyExistsException(ConnectorId connectorId)
         : this($"Connector '{connectorId}' already exists.") { }
@@ -33,7 +33,7 @@ public class ConnectorAlreadyExistsException : KurrentException {
 
 [PublicAPI]
 public class ConnectorDeletedException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("CONNECTOR_DELETED");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("CONNECTOR_DELETED");
 
     public ConnectorDeletedException(ConnectorId connectorId)
         : this($"Connector '{connectorId}' has been deleted.") { }

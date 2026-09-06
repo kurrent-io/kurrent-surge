@@ -1,14 +1,14 @@
 // ReSharper disable CheckNamespace
 
-using Kurrent.Surge.Client.Errors;
 using Kurrent.Surge.Client.Registry;
+using Kurrent.Surge.Errors;
 using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Exceptions;
 
 [PublicAPI]
 public class SchemaNotFoundException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("SCHEMA_NOT_FOUND");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("SCHEMA_NOT_FOUND");
 
     public SchemaNotFoundException(SchemaName schema)
         : this($"Schema '{schema}' was not found.") => Schema = schema;
@@ -23,7 +23,7 @@ public class SchemaNotFoundException : KurrentException {
 
 [PublicAPI]
 public class SchemaAlreadyExistsException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("SCHEMA_ALREADY_EXISTS");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("SCHEMA_ALREADY_EXISTS");
 
     public SchemaAlreadyExistsException(SchemaName schema)
         : this($"Schema '{schema}' already exists.") => Schema = schema;
@@ -38,7 +38,7 @@ public class SchemaAlreadyExistsException : KurrentException {
 
 [PublicAPI]
 public class SchemaDeletedException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("SCHEMA_DELETED");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("SCHEMA_DELETED");
 
     public SchemaDeletedException(SchemaName schema)
         : this($"Schema '{schema}' has been deleted.") => Schema = schema;
@@ -57,6 +57,6 @@ public class SchemaDeletedException : KurrentException {
 /// </summary>
 [PublicAPI]
 public class SchemaIncompatibleException(SchemaCompatibilityErrors errors)
-    : KurrentException(ErrorCode.From("SchemaIncompatible"), "Schema compatibility check failed.") {
+    : KurrentException(Surge.Errors.ErrorCode.From("SchemaIncompatible"), "Schema compatibility check failed.") {
     public SchemaCompatibilityErrors Errors { get; } = errors;
 }

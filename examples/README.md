@@ -2,6 +2,28 @@
 
 Each example is a runnable app demonstrating a slice of the SDK.
 
+## Prerequisites
+
+Every example connects to a local KurrentDB with `kurrentdb://admin:changeit@localhost:2113?tls=false`.
+Start one with:
+
+```bash
+docker run -d --name kurrentdb -p 2113:2113 \
+  -e KURRENTDB_INSECURE=true -e KURRENTDB_MEM_DB=true \
+  -e KURRENTDB_RUN_PROJECTIONS=All -e KURRENTDB_START_STANDARD_PROJECTIONS=true \
+  docker.kurrent.io/kurrent-latest/kurrentdb:latest
+```
+
+The processor examples seed their own input through a hosted service, so `dotnet run` alone produces
+output. Examples that need Redis or PostgreSQL say so in their README. `Connector.Management` uses the
+Kafka sink connector, which requires a licensed KurrentDB.
+
+## Wireup
+
+Every example registers the SDK through `AddKurrentSurge` on a service collection: web hosts on
+`WebApplication.CreateBuilder`, long-running consoles on `Host.CreateApplicationBuilder`, and the two
+one-shot quickstarts on a bare `ServiceCollection`.
+
 ## Message mapping
 
 Message types are mapped to wire-level schema names through a message catalog. These examples use

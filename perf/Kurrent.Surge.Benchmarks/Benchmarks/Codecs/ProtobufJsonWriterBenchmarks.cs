@@ -4,7 +4,6 @@ using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
-using Kurrent.Surge.Codecs.Protobuf.Experimental.Schema;
 using Kurrent.Surge.Core.Tests.Unit.Codecs.Protobuf.Experimental;
 using ProtobufTranscoder;
 using Transcoder.Probe;

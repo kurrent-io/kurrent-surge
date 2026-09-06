@@ -1,7 +1,6 @@
 // ReSharper disable RedundantAnonymousTypePropertyName
 
 using Kurrent.Surge;
-using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Serilog;
 using Streams.InventoryManagement;

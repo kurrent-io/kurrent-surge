@@ -1,4 +1,3 @@
-using Kurrent.Surge.Processors.Configuration;
 using Polly;
 
 namespace Kurrent.Surge.Processors.Configuration;

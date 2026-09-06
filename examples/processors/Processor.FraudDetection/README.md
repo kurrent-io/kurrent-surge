@@ -35,6 +35,9 @@ cd examples/processors/Processor.FraudDetection
 dotnet run
 ```
 
+A hosted `TransactionSeeder` writes transactions for four accounts, one of which repeats the
+card-testing pattern, so alerts appear within seconds. Press `Ctrl+C` to stop.
+
 ## Key Code
 
 ```csharp

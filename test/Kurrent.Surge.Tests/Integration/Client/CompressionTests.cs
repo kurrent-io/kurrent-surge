@@ -1,6 +1,5 @@
 using System.Text;
 using Grpc.Core;
-using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
 

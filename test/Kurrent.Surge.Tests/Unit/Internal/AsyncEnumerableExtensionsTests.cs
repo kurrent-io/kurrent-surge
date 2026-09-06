@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Kurrent.Surge.Tests.Internal;

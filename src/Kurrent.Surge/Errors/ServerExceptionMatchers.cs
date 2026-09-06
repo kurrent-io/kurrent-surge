@@ -1,6 +1,5 @@
 using Google.Rpc;
-using Kurrent.Surge.Client.Errors;
-
+using Kurrent.Surge.Errors;
 using Status = Google.Rpc.Status;
 
 using static Kurrent.Surge.Client.Exceptions.MatcherHelpers;

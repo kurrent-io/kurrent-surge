@@ -5,7 +5,7 @@ Demonstrates persisting processor state to PostgreSQL, with aggregates flushed o
 ## What You'll Learn
 
 - Storing processor state in PostgreSQL
-- Using `OnCheckpointComplete` to batch database writes
+- Using `OnCheckpoint` to batch database writes
 - Upsert pattern for aggregation (`ON CONFLICT DO UPDATE`)
 - Transaction handling for reliable persistence
 - Using `NpgsqlDataSource` with dependency injection
@@ -14,7 +14,7 @@ Demonstrates persisting processor state to PostgreSQL, with aggregates flushed o
 
 - KurrentDB running locally on port 2113
 - PostgreSQL running locally on port 5432
-- .NET 9.0 SDK
+- .NET 10 SDK
 
 ### Start PostgreSQL with Docker
 
@@ -31,6 +31,9 @@ docker run -d --name postgres \
 ```bash
 dotnet run
 ```
+
+A hosted `TransferSeeder` from the shared `Transfermarkt.Domain` project transfers a player every
+second. Aggregates are flushed to Postgres at each checkpoint, every 10 seconds.
 
 ## Key Code
 
@@ -95,7 +98,7 @@ export ConnectionStrings__Postgres="Host=localhost;Database=transfermarkt;Userna
 
 ## Database Schema
 
-The processor auto-creates the following table:
+`Program.cs` creates the following table on startup (`DatabaseSchema.CreateClubSpendingTable`):
 
 ```sql
 CREATE TABLE club_spending (

@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Client.Streams;
 
@@ -77,11 +77,11 @@ public record Revision : IComparable<Revision>, IComparable {
 }
 
 public class InvalidRevision(long value) : KurrentException(
-    ErrorCode.FromType<InvalidRevision>(),
+    Errors.ErrorCode.FromType<InvalidRevision>(),
     $"Invalid revision value: {value}. Revision must be greater than or equal to 0, or equal to -1000 (for Unset)."
 );
 
 public class InvalidRevisionFormat(string? value) : KurrentException(
-    ErrorCode.FromType<InvalidRevisionFormat>(),
+    Errors.ErrorCode.FromType<InvalidRevisionFormat>(),
     $"Invalid revision format: {value}."
 );

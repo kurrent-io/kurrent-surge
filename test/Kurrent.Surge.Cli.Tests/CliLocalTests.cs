@@ -1,5 +1,3 @@
-using Kurrent.Testkit.TUnit;
-
 namespace Kurrent.Surge.Cli.Tests;
 
 /// <summary>Local, no-network tests for the <c>surge huggingface</c> command group, invoked in-process via <see cref="CliApp"/>.</summary>

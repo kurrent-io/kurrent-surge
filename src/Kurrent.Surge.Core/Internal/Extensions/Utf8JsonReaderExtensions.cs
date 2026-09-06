@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 
-namespace Kurrent.Surge.Client;
+namespace Kurrent.Toolkit;
 
 static class Utf8JsonReaderExtensions {
     extension(ref Utf8JsonReader source) {

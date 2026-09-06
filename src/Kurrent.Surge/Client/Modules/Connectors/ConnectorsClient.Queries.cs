@@ -1,4 +1,3 @@
-using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
 using Queries = KurrentDB.Connectors.Management.Contracts.Queries;

@@ -1,4 +1,3 @@
-using Kurrent.Surge.Processors.Partitioning;
 using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Processors.Partitioning;

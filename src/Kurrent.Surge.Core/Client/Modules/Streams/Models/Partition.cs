@@ -1,4 +1,4 @@
-using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Client.Streams;
 
@@ -50,6 +50,6 @@ public readonly record struct Partition : IComparable<Partition>, IComparable {
 }
 
 public sealed class InvalidPartition(int value) : KurrentException(
-    ErrorCode.FromType<InvalidPartition>(),
+    Errors.ErrorCode.FromType<InvalidPartition>(),
     $"Invalid partition value: {value}. Partition must be greater than or equal to 0, or equal to -1 (for Any)."
 );

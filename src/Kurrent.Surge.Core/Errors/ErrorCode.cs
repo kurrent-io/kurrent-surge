@@ -1,8 +1,9 @@
+using Kurrent.Toolkit;
 using System.Text.RegularExpressions;
 using Kurrent.Surge.Client;
 using static System.StringComparison;
 
-namespace Kurrent.Surge;
+namespace Kurrent.Surge.Errors;
 
 /// <summary>
 /// Represents a normalized error code. Error codes must:

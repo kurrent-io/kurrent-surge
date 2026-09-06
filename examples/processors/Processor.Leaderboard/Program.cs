@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Kurrent.Surge;
-using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Processor.Leaderboard;
 using Serilog;
@@ -24,10 +23,12 @@ try {
     // Register processor as hosted service
     builder.Services.AddSingleton<LeaderboardProcessor>();
     builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://localhost:2113");
+        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
         surge.AddProcessor<LeaderboardProcessor>(opts =>
             opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('ScoreSubmitted', 'PlayerJoined')"));
     });
+
+    builder.Services.AddHostedService<ScoreSeeder>();
 
     var app = builder.Build();
 

@@ -1,5 +1,4 @@
 using System.Numerics;
-using Kurrent.Surge.Codecs.Avro;
 
 namespace Kurrent.Surge.Codecs.Avro.Tests;
 

@@ -1,4 +1,3 @@
-using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Processors;

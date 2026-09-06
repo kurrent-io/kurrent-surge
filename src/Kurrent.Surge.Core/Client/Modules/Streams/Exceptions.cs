@@ -1,19 +1,19 @@
 // ReSharper disable CheckNamespace
 
-using Kurrent.Surge.Client.Errors;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Client.Exceptions;
 
 /// <remarks>
 /// Plain contract types: they carry error data and nothing else. Each exposes its
-/// <see cref="ErrorCode"/> so callers and retry predicates can name the error, a constructor for
+/// <see cref="Errors.ErrorCode"/> so callers and retry predicates can name the error, a constructor for
 /// raising it directly, and a constructor the client's transport mapper fills from a wire status.
 /// Nothing here knows what gRPC is.
 /// </remarks>
 [PublicAPI]
 public class StreamNotFoundException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_NOT_FOUND");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("STREAM_NOT_FOUND");
 
     public StreamNotFoundException(StreamName stream)
         : this($"Stream '{stream}' was not found.") => Stream = stream;
@@ -28,7 +28,7 @@ public class StreamNotFoundException : KurrentException {
 
 [PublicAPI]
 public class StreamAlreadyExistsException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_ALREADY_EXISTS");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("STREAM_ALREADY_EXISTS");
 
     public StreamAlreadyExistsException(StreamName stream, Revision actualRevision)
         : this($"Operation failed due to a revision conflict on stream '{stream}'. Expected revision: {ExpectedStreamState.NoStream}. Actual revision: {actualRevision}.") {
@@ -47,7 +47,7 @@ public class StreamAlreadyExistsException : KurrentException {
 
 [PublicAPI]
 public class StreamDeletedException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_DELETED");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("STREAM_DELETED");
 
     public StreamDeletedException(StreamName stream)
         : this($"Stream '{stream}' has been soft deleted. It will not be visible in the stream list, until it is restored by appending to it again.") =>
@@ -63,7 +63,7 @@ public class StreamDeletedException : KurrentException {
 
 [PublicAPI]
 public class StreamTombstonedException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_TOMBSTONED");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("STREAM_TOMBSTONED");
 
     public StreamTombstonedException(StreamName stream)
         : this($"Stream '{stream}' has been tombstoned. It has been permanently removed from the system and cannot be restored.") =>
@@ -79,7 +79,7 @@ public class StreamTombstonedException : KurrentException {
 
 [PublicAPI]
 public class StreamRevisionConflictException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_REVISION_CONFLICT");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("STREAM_REVISION_CONFLICT");
 
     public StreamRevisionConflictException(StreamName stream, Revision expectedRevision, Revision actualRevision)
         : this($"Operation failed due to a revision conflict on stream '{stream}'. Expected revision: {expectedRevision}. Actual revision: {actualRevision}.") {
@@ -100,7 +100,7 @@ public class StreamRevisionConflictException : KurrentException {
 
 [PublicAPI]
 public class AppendConsistencyViolationException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("APPEND_CONSISTENCY_VIOLATION");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("APPEND_CONSISTENCY_VIOLATION");
 
     public AppendConsistencyViolationException(IReadOnlyList<ConsistencyViolation> violations)
         : this($"Append failed: {violations.Count} consistency check(s) violated.") =>
@@ -120,7 +120,7 @@ public class AppendConsistencyViolationException : KurrentException {
 
 [PublicAPI]
 public class MaxAppendRecordSizeExceededException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("MAX_APPEND_RECORD_SIZE_EXCEEDED");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("MAX_APPEND_RECORD_SIZE_EXCEEDED");
 
     public MaxAppendRecordSizeExceededException(string message) : base(Code, message) { }
 
@@ -134,7 +134,7 @@ public class MaxAppendRecordSizeExceededException : KurrentException {
 
 [PublicAPI]
 public class MaxAppendTransactionSizeExceededException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("MAX_APPEND_TRANSACTION_SIZE_EXCEEDED");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("MAX_APPEND_TRANSACTION_SIZE_EXCEEDED");
 
     public MaxAppendTransactionSizeExceededException(string message) : base(Code, message) { }
 
@@ -147,7 +147,7 @@ public class MaxAppendTransactionSizeExceededException : KurrentException {
 
 [PublicAPI]
 public class StreamAlreadyInAppendSessionException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("STREAM_ALREADY_IN_APPEND_SESSION");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("STREAM_ALREADY_IN_APPEND_SESSION");
 
     public StreamAlreadyInAppendSessionException(string message) : base(Code, message) { }
 
@@ -157,7 +157,7 @@ public class StreamAlreadyInAppendSessionException : KurrentException {
 
 [PublicAPI]
 public class AppendSessionNoRequestsException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("APPEND_SESSION_NO_REQUESTS");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("APPEND_SESSION_NO_REQUESTS");
 
     public AppendSessionNoRequestsException(string message) : base(Code, message) { }
 
@@ -167,7 +167,7 @@ public class AppendSessionNoRequestsException : KurrentException {
 
 [PublicAPI]
 public class LogPositionNotFoundException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("LOG_POSITION_NOT_FOUND");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("LOG_POSITION_NOT_FOUND");
 
     public LogPositionNotFoundException(ulong position)
         : this($"Failed to find log position: {position}") { }

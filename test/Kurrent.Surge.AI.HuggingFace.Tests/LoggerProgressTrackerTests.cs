@@ -1,4 +1,3 @@
-using Kurrent.Testkit.TUnit;
 using Microsoft.Extensions.Logging;
 
 namespace Kurrent.Surge.AI.HuggingFace.Tests;

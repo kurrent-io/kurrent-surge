@@ -1,4 +1,3 @@
-using Kurrent.Surge.Client;
 using Microsoft.Extensions.DependencyInjection;
 using static System.StringComparer;
 
@@ -25,10 +24,9 @@ public static class AspireExtensions {
 
             var model = app.Services.GetRequiredService<DistributedApplicationModel>();
 
-            await model.Resources
+            await Task.WhenAll(model.Resources
                 .Where(filter)
-                .Select(r => app.EnsureResourceReadyAsync(r.Name, behavior, ct))
-                .WhenAll();
+                .Select(r => app.EnsureResourceReadyAsync(r.Name, behavior, ct)));
         }
 
         /// <summary>

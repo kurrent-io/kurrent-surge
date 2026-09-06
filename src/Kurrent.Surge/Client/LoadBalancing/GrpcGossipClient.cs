@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using EventStore.Client.Gossip;
 using Grpc.Net.Client;
-using Kurrent.Surge.Client.LoadBalancing;
 using KurrentDB.Protocol.V1;
 using static EventStore.Client.Gossip.MemberInfo.Types;
+
 
 namespace Kurrent.Surge.Client.LoadBalancing.Gossip;
 

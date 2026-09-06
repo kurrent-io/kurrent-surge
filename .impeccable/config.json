@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "layout-transition",
+        "value": "*",
+        "files": [
+          "website/src/styles/surge.css"
+        ],
+        "createdAt": "2026-09-02T11:09:40.867Z",
+        "reason": "Sidebar collapse reflows the prose column; matches the reference aspire.dev site.css:1130-1146 which animates width and padding-inline-start on the same elements. transform cannot reflow the content column."
+      }
+    ]
+  }
+}

@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
@@ -8,7 +7,6 @@ using Grpc.Net.Client.Configuration;
 using Kurrent.Toolkit.Grpc.Compression;
 using Kurrent.Toolkit.Grpc.Interceptors;
 using Kurrent.Toolkit.Http;
-using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.LoadBalancing.Gossip;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -134,7 +132,7 @@ sealed class ClusterChannel : IAsyncDisposable {
             channelOptions: channelOptions
         );
 
-        var clientInfo = ClientInfo.Current;
+        var clientInfo = ClientProcessInfo.Current;
 
         var headersInterceptor = new ClientHeadersInterceptor(new Dictionary<string, string> {
             [Constants.Headers.ClientName]       = clientInfo.ClientName,

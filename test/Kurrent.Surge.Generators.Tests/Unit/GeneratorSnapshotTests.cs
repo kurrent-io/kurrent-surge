@@ -1,6 +1,5 @@
 using Kurrent.Testkit.TUnit;
 using static Kurrent.Surge.Codecs.Avro.Generators.Tests.Unit.AvroGeneratorHarness;
-using static VerifyTUnit.Verifier;
 
 namespace Kurrent.Surge.Codecs.Avro.Generators.Tests.Unit;
 

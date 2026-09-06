@@ -6,8 +6,8 @@ namespace Kurrent.Surge.Client;
 /// <summary>
 /// Identifies the client and its process environment.
 /// </summary>
-sealed record ClientInfo {
-    public static readonly ClientInfo Current = GetCurrent();
+sealed record ClientProcessInfo {
+    public static readonly ClientProcessInfo Current = GetCurrent();
 
     /// <summary>
     /// Gets the client name.
@@ -46,7 +46,7 @@ sealed record ClientInfo {
     /// </summary>
     public required string HostArchitecture { get; init; }
 
-    static ClientInfo GetCurrent() {
+    static ClientProcessInfo GetCurrent() {
         var assembly = Assembly.GetExecutingAssembly();
 
         // GenerateAssemblyInfo is on (Directory.Build.props), so the build always stamps

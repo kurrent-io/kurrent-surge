@@ -34,21 +34,24 @@ cd examples/processors/Processor.WordCount
 dotnet run
 ```
 
+A hosted `FactSeeder` fetches a random fact from `uselessfacts.jsph.pl` every second and appends it
+as a `TextSubmitted` event to a per-run stream, which the processor subscribes to. Press `Ctrl+C`
+to stop.
+
 ## Key Code
 
 ```csharp
-public ValueTask ProcessRecords(ProcessRecordsContext context) {
-    foreach (var record in context.Records) {
-        if (record.Value is TextSubmitted text) {
-            var words = WordPattern().Matches(text.Content)
-                .Select(m => m.Value.ToLowerInvariant());
+public sealed partial class WordCountProcessor : MessageProcessor {
+    public WordCountProcessor() {
+        Process<TextSubmitted>((msg, ctx) => {
+            var words = WordPattern().Matches(msg.Content)
+                .Select(m => m.Value.ToLowerInvariant())
+                .Where(w => w.Length > 1);
 
-            foreach (var word in words) {
+            foreach (var word in words)
                 _wordCounts.AddOrUpdate(word, 1, (_, count) => count + 1);
-            }
-        }
+        });
     }
-    return ValueTask.CompletedTask;
 }
 ```
 

@@ -430,12 +430,12 @@ Every document declares draft 2020-12, and `AvroJsonSchema.Dialect` holds that U
 
 `JsonSchemaExportOptions` carries four settings. This exporter reads one of them:
 
-| Setting              | What the Avro exporter does                                          |
-|----------------------|-----------------------------------------------------------------------|
-| `Canonical`          | Read. Sorts every object key                                          |
-| `SerializerOptions`  | Ignored. Property names come from the schema, not from a CLR type     |
-| `NullableIsOptional` | Ignored. `required` holds the fields that declare no default          |
-| `EnumAsOneOf`        | Ignored. An Avro enum is always a string with an `enum` list          |
+| Setting              | What the Avro exporter does                                       |
+|----------------------|-------------------------------------------------------------------|
+| `Canonical`          | Read. Sorts every object key                                      |
+| `SerializerOptions`  | Ignored. Property names come from the schema, not from a CLR type |
+| `NullableIsOptional` | Ignored. `required` holds the fields that declare no default      |
+| `EnumAsOneOf`        | Ignored. An Avro enum is always a string with an `enum` list      |
 
 `Canonical` makes two schemas of the same shape export byte for byte alike:
 
@@ -486,11 +486,11 @@ costs only the transcode. An instance holds the parsed schema and nothing else, 
 
 A parse costs more than an export or a transcode does. The three entry points pay for it differently.
 
-| Call                          | Parses the schema                                                |
-|-------------------------------|-------------------------------------------------------------------|
-| `AvroJsonSchema.Export`       | On every call. Export once and keep the document yourself         |
-| `AvroSchemaTranscoder.ToJson` | Once for each `SchemaSource` instance                             |
-| `AvroJsonWriter.Write`        | Never. The constructor parses                                     |
+| Call                          | Parses the schema                                         |
+|-------------------------------|-----------------------------------------------------------|
+| `AvroJsonSchema.Export`       | On every call. Export once and keep the document yourself |
+| `AvroSchemaTranscoder.ToJson` | Once for each `SchemaSource` instance                     |
+| `AvroJsonWriter.Write`        | Never. The constructor parses                             |
 
 The transcoder keys its cache on the `SchemaSource` object and not on the schema text. Two sources built from the same
 text are two keys.
@@ -566,22 +566,22 @@ reads the escaped and the unescaped form as the same string.
 
 ### The mapping
 
-| Avro       | JSON Schema                                                                             |
-|------------|------------------------------------------------------------------------------------------|
-| `null`     | `"type": "null"`                                                                         |
-| `boolean`  | `"type": "boolean"`                                                                      |
-| `int`      | `"type": "integer"`, with `minimum` and `maximum` at the int32 limits                    |
-| `long`     | `"type": "integer"`, with `minimum` and `maximum` at the int64 limits                    |
-| `float`    | `"type": "number"`                                                                       |
-| `double`   | `"type": "number"`                                                                       |
-| `bytes`    | `"type": "string"`, with the byte string `pattern`                                       |
-| `string`   | `"type": "string"`                                                                       |
-| `record`   | a `$defs` entry: `"type": "object"` with `properties`, `required`, `additionalProperties: false` |
-| `enum`     | a `$defs` entry: `"type": "string"` with `enum` for the symbols, in declaration order    |
-| `fixed`    | a `$defs` entry: `"type": "string"` with `minLength`, `maxLength` and the byte string `pattern` |
-| `array`    | `"type": "array"` with `items`                                                           |
-| `map`      | `"type": "object"` with `additionalProperties`                                           |
-| `union`    | `oneOf`, one entry for each branch                                                       |
+| Avro      | JSON Schema                                                                                      |
+|-----------|--------------------------------------------------------------------------------------------------|
+| `null`    | `"type": "null"`                                                                                 |
+| `boolean` | `"type": "boolean"`                                                                              |
+| `int`     | `"type": "integer"`, with `minimum` and `maximum` at the int32 limits                            |
+| `long`    | `"type": "integer"`, with `minimum` and `maximum` at the int64 limits                            |
+| `float`   | `"type": "number"`                                                                               |
+| `double`  | `"type": "number"`                                                                               |
+| `bytes`   | `"type": "string"`, with the byte string `pattern`                                               |
+| `string`  | `"type": "string"`                                                                               |
+| `record`  | a `$defs` entry: `"type": "object"` with `properties`, `required`, `additionalProperties: false` |
+| `enum`    | a `$defs` entry: `"type": "string"` with `enum` for the symbols, in declaration order            |
+| `fixed`   | a `$defs` entry: `"type": "string"` with `minLength`, `maxLength` and the byte string `pattern`  |
+| `array`   | `"type": "array"` with `items`                                                                   |
+| `map`     | `"type": "object"` with `additionalProperties`                                                   |
+| `union`   | `oneOf`, one entry for each branch                                                               |
 
 A map writes no `propertyNames`. The keys of a JSON object are strings by definition, so an assertion there asserts
 nothing.
@@ -653,8 +653,8 @@ A `doc` on a record, an enum, a fixed or a field becomes `description`. An enum'
 The document describes what the transcoder writes. An Avro fact that the Avro JSON encoding does not write has no
 keyword to hold it, so the export drops it:
 
-| Avro fact                       | Why the document cannot hold it                                                     |
-|---------------------------------|--------------------------------------------------------------------------------------|
+| Avro fact                       | Why the document cannot hold it                                                       |
+|---------------------------------|---------------------------------------------------------------------------------------|
 | `logicalType`                   | The encoding writes the base type. A `date` is a plain integer day count              |
 | `float` apart from `double`     | JSON Schema has one numeric type. Both become `number`                                |
 | field position                  | The properties of a JSON object have no order. The Avro wire is ordered by it         |
@@ -695,12 +695,12 @@ type. They read a payload, or describe one, without the message type in the proc
 These parse and round-trip correctly, and degrade to their base type exactly as Apache.Avro does. You get the underlying
 value and not a richer one.
 
-| Logical type            | Base        | What you get    | Why                                                                                     |
-|-------------------------|-------------|-----------------|-------------------------------------------------------------------------------------------|
-| `big-decimal`           | `bytes`     | `byte[]`        | No C# implementation exists to check an encoding against                                |
+| Logical type            | Base        | What you get    | Why                                                                                                                           |
+|-------------------------|-------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------|
+| `big-decimal`           | `bytes`     | `byte[]`        | No C# implementation exists to check an encoding against                                                                      |
 | `duration`              | `fixed(12)` | the fixed class | `TimeSpan` cannot hold a month, so months plus days plus milliseconds has no BCL type. The NodaTime model maps it to `Period` |
-| `local-timestamp-nanos` | `long`      | `long`          | Apache implements neither nanos variant, so there is no reference behaviour to match    |
-| any unrecognised name   | any         | the base type   | The specification requires implementations to ignore unknown logical types              |
+| `local-timestamp-nanos` | `long`      | `long`          | Apache implements neither nanos variant, so there is no reference behaviour to match                                          |
+| any unrecognised name   | any         | the base type   | The specification requires implementations to ignore unknown logical types                                                    |
 
 `uuid` on a `fixed` of any size other than 16 also degrades, which matches Java.
 
@@ -733,12 +733,12 @@ as the specification instructs and as Java does. Apache.Avro throws instead, so 
 
 ## Diagnostics
 
-| Id         | Severity | Meaning                                                                                     |
-|------------|----------|-----------------------------------------------------------------------------------------------|
-| `KAVRO001` | Error    | The file is not valid JSON, or not a valid Avro schema. Reported at the offending offset    |
-| `KAVRO002` | Warning  | The root schema is not a record, so no codec is generated                                   |
+| Id         | Severity | Meaning                                                                                      |
+|------------|----------|----------------------------------------------------------------------------------------------|
+| `KAVRO001` | Error    | The file is not valid JSON, or not a valid Avro schema. Reported at the offending offset     |
+| `KAVRO002` | Warning  | The root schema is not a record, so no codec is generated                                    |
 | `KAVRO003` | Error    | Two schemas declare the same type with different shapes. A type may have only one definition |
-| `KAVRO004` | Warning  | A `KurrentAvro*` property holds a value the generator does not recognise. The default holds |
+| `KAVRO004` | Warning  | A `KurrentAvro*` property holds a value the generator does not recognise. The default holds  |
 
 The generator deduplicates two schemas that declare the same type identically, and reports nothing: sharing a nested
 record between files is ordinary, and generates the same C# either way.

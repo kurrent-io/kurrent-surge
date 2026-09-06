@@ -1,5 +1,3 @@
-using Kurrent.Surge.Client.Streams;
-
 namespace Kurrent.Surge.Processors;
 
 /// <summary>

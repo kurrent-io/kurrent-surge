@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Text;
 using Kurrent.Surge.Codecs.Avro.Generators.Json;
 using Kurrent.Surge.Codecs.Avro.Generators.Model;

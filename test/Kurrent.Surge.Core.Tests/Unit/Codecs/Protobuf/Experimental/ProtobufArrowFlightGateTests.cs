@@ -1,7 +1,6 @@
 using System.Text.Json.Nodes;
 using Google.Protobuf;
 using Google.Protobuf.Reflection;
-using Kurrent.Surge.Codecs.Protobuf.Experimental.Indexed;
 using Kurrent.Surge.Codecs.Protobuf.Experimental.Schema;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Validation;

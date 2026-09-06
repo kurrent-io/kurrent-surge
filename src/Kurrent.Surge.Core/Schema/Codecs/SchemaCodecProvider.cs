@@ -1,5 +1,5 @@
 using System.Collections.Frozen;
-using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Errors;
 using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Codecs;
@@ -34,11 +34,11 @@ sealed class SchemaCodecProvider {
 /// Exception thrown when a codec for a specified data format is not registered.
 /// </summary>
 public class SchemaCodecNotFoundException(SchemaDataFormat dataFormat, params SchemaDataFormat[] supportedDataFormats)
-	: KurrentException(ErrorCode.FromType<SchemaCodecNotFoundException>(), $"Unsupported schema data format. Expected one of {string.Join(", ", supportedDataFormats)} but got {dataFormat}.");
+	: KurrentException(Errors.ErrorCode.FromType<SchemaCodecNotFoundException>(), $"Unsupported schema data format. Expected one of {string.Join(", ", supportedDataFormats)} but got {dataFormat}.");
 
 /// <summary>
 /// Exception thrown when more than one codec is registered for the same schema data format.
 /// Only one codec per data format is supported; pick one.
 /// </summary>
 public class DuplicateSchemaCodecException(SchemaDataFormat dataFormat, Type existing, Type duplicate)
-	: KurrentException(ErrorCode.FromType<DuplicateSchemaCodecException>(), $"Multiple codecs registered for schema data format '{dataFormat}': '{existing.FullName}' and '{duplicate.FullName}'. Only one codec per data format is supported.");
+	: KurrentException(Errors.ErrorCode.FromType<DuplicateSchemaCodecException>(), $"Multiple codecs registered for schema data format '{dataFormat}': '{existing.FullName}' and '{duplicate.FullName}'. Only one codec per data format is supported.");

@@ -2,7 +2,6 @@
 // ReSharper disable NotAccessedPositionalProperty.Local
 
 using System.Text.Json.Nodes;
-using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Schema;
 using NodaTime;
 

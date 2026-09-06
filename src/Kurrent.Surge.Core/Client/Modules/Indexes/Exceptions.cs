@@ -1,14 +1,14 @@
 // ReSharper disable CheckNamespace
 
-using Kurrent.Surge.Client.Errors;
 using Kurrent.Surge.Client.Indexes;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Client.Exceptions;
 
 [PublicAPI]
 public class IndexNotFoundException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("INDEX_NOT_FOUND");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("INDEX_NOT_FOUND");
 
     public IndexNotFoundException(IndexName index)
         : this($"Index '{index}' was not found.") => Index = index;
@@ -23,7 +23,7 @@ public class IndexNotFoundException : KurrentException {
 
 [PublicAPI]
 public class IndexAlreadyExistsException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("INDEX_ALREADY_EXISTS");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("INDEX_ALREADY_EXISTS");
 
     public IndexAlreadyExistsException(IndexName index)
         : this($"Index '{index}' already exists.") => Index = index;
@@ -38,7 +38,7 @@ public class IndexAlreadyExistsException : KurrentException {
 
 [PublicAPI]
 public class IndexesNotReadyException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("INDEXES_NOT_READY");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("INDEXES_NOT_READY");
 
     public IndexesNotReadyException(LogPosition currentPosition, LogPosition targetPosition)
         : this($"Indexes are not ready. Current position: {currentPosition}. Target position: {targetPosition}.") {
@@ -57,7 +57,7 @@ public class IndexesNotReadyException : KurrentException {
 
 [PublicAPI]
 public class SecondaryIndexingDisabledException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("SECONDARY_INDEXING_DISABLED");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("SECONDARY_INDEXING_DISABLED");
 
     public SecondaryIndexingDisabledException()
         : this("Secondary indexing is disabled on this server.") { }

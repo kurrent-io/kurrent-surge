@@ -26,7 +26,9 @@ Kafka sink connector that streams payment plan events from KurrentDB to Apache K
 
 ## Prerequisites
 
-- KurrentDB running on `localhost:2113`
+- KurrentDB running on `localhost:2113` **with a licence that includes the Kafka sink connector**.
+  On a community edition server `Create` fails with
+  `FailedPrecondition: Usage of the KafkaSink connector is not authorized`.
 - Apache Kafka broker running on `localhost:9092`
 
 ## Running the Example

@@ -1,13 +1,13 @@
-using Kurrent.Surge.Client;
+using Kurrent.Surge;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Schema.Catalogs;
-using Kurrent.Surge.Processors;
 using Kurrent.Surge.Processors.Models;
+using Kurrent.Surge.Schema.Catalogs;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Processor.WordCount;
 using Processor.WordCount.Events;
-using Refit;
 using Serilog;
-using Serilog.Extensions.Logging;
+using Serilog.Events;
 using UselessFacts;
 
 // Word Count processor - classic stream processing example
@@ -16,89 +16,41 @@ using UselessFacts;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
+    .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
     .WriteTo.Console()
     .CreateLogger();
 
-using var cts = new CancellationTokenSource();
-
-Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
-
-var stream = $"WordCount-{Guid.NewGuid().ToString()[..8]}";
-
-Log.Information("Seeding stream {Stream} with TextSubmitted events", stream);
-
-var catalog = new MessageCatalog("wordcount").Map<TextSubmitted>();
-
-var factsApi = RestService.For<IUselessFactsApi>("https://uselessfacts.jsph.pl");
-
-var seeder = Task.Run(() => SeedAsync(stream, factsApi, catalog, cts.Token));
-
-var processor = KurrentProcessor
-    .Create(new WordCountProcessor(), opts => {
-        opts.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false", client => {
-            client.LoggerFactory = new SerilogLoggerFactory();
-            client.Messages.UseCatalog(catalog);
-        });
-        
-        opts.Subscription.Filter          = RecordFilter.ByStream(stream);
-        opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest; 
-        
-        opts.Debug = true;
-    })
-    .RunAsync(cts.Token)
-    .AsTask();
-
 try {
-    await Task.WhenAll(seeder, processor);
+    var stream  = $"WordCount-{Guid.NewGuid().ToString()[..8]}";
+    var catalog = new MessageCatalog("wordcount").Map<TextSubmitted>();
+
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.Services.AddSerilog();
+    builder.Services.AddUselessFactsClient();
+
+    builder.Services.AddSingleton<WordCountProcessor>();
+
+    builder.Services.AddKurrentSurge(surge => {
+        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false", client => client.Messages.UseCatalog(catalog));
+        surge.AddProcessor<WordCountProcessor>(opts => {
+            opts.Subscription.Filter          = RecordFilter.ByStream(stream);
+            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+
+            opts.Debug = true;
+        });
+    });
+
+    builder.Services.AddHostedService(sp => ActivatorUtilities.CreateInstance<FactSeeder>(sp, stream));
+
+    using var host = builder.Build();
+
+    await host.RunAsync();
 }
-catch (OperationCanceledException) {
-    // expected on Ctrl+C
+catch (Exception ex) {
+    Log.Fatal(ex, "Application terminated unexpectedly");
+    Environment.ExitCode = 1;
 }
 finally {
     await Log.CloseAndFlushAsync();
-}
-
-return;
-
-static async Task SeedAsync(string stream, IUselessFactsApi factsApi, MessageCatalog catalog, CancellationToken ct) {
-    var delay = TimeSpan.FromSeconds(1);
-
-    await using var client = KurrentClient.Create(
-        "kurrentdb://admin:changeit@localhost:2113?tls=false", client => client.Messages.UseCatalog(catalog));
-
-    Log.Information("Streaming facts continuously. Press Ctrl+C to stop.");
-
-    while (!ct.IsCancellationRequested) {
-        var fact = await FetchFact(factsApi, ct);
-
-        var record = AppendRecord.Create(new TextSubmitted(Guid.NewGuid().ToString(), fact, DateTimeOffset.UtcNow), r => r.Stream = stream);
-        
-        await client.Streams.AppendStream(stream, [record], ct);
-        
-        Log.Information("{Fact}", fact);
-
-        await Task.Delay(delay, ct);
-    }
-
-    static async Task<string> FetchFact(IUselessFactsApi api, CancellationToken ct) {
-        const int maxAttempts = 3;
-
-        Exception? lastError = null;
-
-        for (var attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-                var fact = await api.GetRandomFact(ct);
-                return fact.Text;
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-            catch (Exception ex) {
-                lastError = ex;
-                Log.Warning("Fact fetch attempt {Attempt}/{Max} failed: {Error}", attempt, maxAttempts, ex.Message);
-            }
-
-            if (attempt < maxAttempts) await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), ct);
-        }
-
-        throw new InvalidOperationException($"Fact fetch failed after {maxAttempts} attempts", lastError);
-    }
 }

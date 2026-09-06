@@ -5,7 +5,6 @@ using System.Collections.Concurrent;
 using Json.Schema;
 using Kurrent.Surge.Processors.Partitioning;
 using Kurrent.Surge.Codecs.Json;
-using Kurrent.Surge.Schema;
 using JsonSchema = Json.Schema.JsonSchema;
 
 namespace Kurrent.Surge.Schema.Validation;

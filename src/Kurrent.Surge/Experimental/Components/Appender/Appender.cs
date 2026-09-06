@@ -15,8 +15,8 @@ namespace Kurrent.Surge.Experimental;
 /// <list type="bullet">
 ///   <item><see cref="Append"/> — callback-based, the callback is invoked when the batch
 ///     containing the record is acknowledged (or fails).</item>
-///   <item><see cref="AppendAsync"/> — awaitable, completes when the batch containing the record
-///     is acknowledged by the server.</item>
+///   <item><see cref="AppendAsync"/> — awaitable, completes when the server
+///     acknowledges the batch containing the record.</item>
 /// </list>
 ///
 /// <para>Ordering:</para>
@@ -26,7 +26,6 @@ namespace Kurrent.Surge.Experimental;
 /// Set the ordering key via <c>AppendRecord.Create(value, r =&gt; r.OrderingKey("key"))</c>.
 /// </summary>
 sealed class Appender : IAppender {
-    readonly AppenderOptions         _options;
     readonly KurrentClient           _client;
     readonly StreamsClient           _streams;
     readonly FlushLane               _defaultLane;
@@ -36,7 +35,6 @@ sealed class Appender : IAppender {
     public Appender(AppenderOptions options) {
         options.EnsureValid();
         
-        _options     = options;
         _client      = KurrentClient.Create(options.ClientOptions!);
         _streams     = new StreamsClient(_client);
         _defaultLane = new FlushLane(options, _streams, _stopping.Token);

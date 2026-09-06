@@ -3,7 +3,6 @@ using Kurrent.Surge.Processors.Diagnostics;
 
 using System.Diagnostics;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Diagnostics;

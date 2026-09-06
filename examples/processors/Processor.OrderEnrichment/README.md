@@ -44,6 +44,10 @@ cd examples/processors/Processor.OrderEnrichment
 dotnet run
 ```
 
+A hosted `OrderSeeder` writes the customer and product reference data first, then one order per
+second, so every order arrives fully enriched. The processor subscribes to the `customer-*`,
+`product-*` and `order-*` streams by prefix. Press `Ctrl+C` to stop.
+
 ## Key Code
 
 ```csharp

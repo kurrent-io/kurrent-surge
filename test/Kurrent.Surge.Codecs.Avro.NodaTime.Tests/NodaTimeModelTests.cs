@@ -1,5 +1,4 @@
 using Avro.IO;
-using Kurrent.Surge.Codecs.Avro;
 
 // The generated types take their namespace from the schemas, which are shared with the BCL-model test
 // project. They are generated into this assembly, not referenced from that one.

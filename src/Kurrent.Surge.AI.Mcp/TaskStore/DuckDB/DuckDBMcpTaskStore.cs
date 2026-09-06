@@ -8,7 +8,6 @@ using Kurrent.Quack.ConnectionPool;
 using ModelContextProtocol;
 using ModelContextProtocol.Extensions.Tasks;
 using ModelContextProtocol.Protocol;
-using ModelContextProtocol.Server;
 using Polly;
 using Polly.Retry;
 

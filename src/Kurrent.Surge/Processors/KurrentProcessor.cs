@@ -5,9 +5,7 @@ using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema.Naming;
 using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Processors.Configuration;
-using Kurrent.Surge.Processors.Checkpointing;
 using Kurrent.Surge.Processors.Gateway;
-using Kurrent.Surge.Processors.Configuration;
 
 namespace Kurrent.Surge.Processors;
 

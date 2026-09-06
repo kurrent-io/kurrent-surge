@@ -1,9 +1,9 @@
+using Kurrent.Toolkit;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using Kurrent.Surge;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Schema;
 using Kurrent.Toolkit.Diagnostics.Tracing;

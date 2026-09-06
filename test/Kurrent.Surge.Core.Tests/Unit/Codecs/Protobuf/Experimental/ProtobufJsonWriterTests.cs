@@ -1,8 +1,6 @@
 using System.Text.Json.Nodes;
 using Google.Protobuf;
 using Google.Protobuf.WellKnownTypes;
-using JetBrains.Annotations;
-using Kurrent.Surge.Codecs.Protobuf.Experimental;
 using Transcoder.Probe;
 using Duration = Google.Protobuf.WellKnownTypes.Duration;
 
@@ -11,10 +9,7 @@ namespace Kurrent.Surge.Core.Tests.Unit.Codecs.Protobuf.Experimental;
 public class ProtobufJsonWriterTests {
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
-
-
-
-
+    
     [Test]
     public async ValueTask writes_a_nested_message_from_the_schema_it_declares() {
         // Arrange

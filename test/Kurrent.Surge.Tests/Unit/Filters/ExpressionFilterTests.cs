@@ -1,8 +1,8 @@
+using Kurrent.Toolkit;
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.RecordFilters;
 using Kurrent.Surge.Schema;
-using Kurrent.Surge.Schema.Naming;
 
 namespace Kurrent.Surge.Tests.Filters;
 

@@ -1,5 +1,4 @@
 using System.Net;
-using Kurrent.Surge.Client;
 using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Surge.Tests.Configuration;

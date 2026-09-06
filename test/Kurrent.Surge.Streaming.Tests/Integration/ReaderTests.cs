@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Experimental;

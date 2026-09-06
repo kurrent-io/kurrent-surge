@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Threading;
 using Kurrent.Surge.Codecs.Avro.Generators.Emission;
 using Kurrent.Surge.Codecs.Avro.Generators.Model;
 using Microsoft.CodeAnalysis;

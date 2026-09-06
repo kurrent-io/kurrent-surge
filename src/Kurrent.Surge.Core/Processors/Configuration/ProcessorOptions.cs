@@ -1,6 +1,5 @@
 using System.Diagnostics.Metrics;
 using Kurrent.Surge.Client;
-using Kurrent.Surge.Processors;
 using Kurrent.Surge.Processors.Models;
 using Kurrent.Surge.Validation;
 using Polly;

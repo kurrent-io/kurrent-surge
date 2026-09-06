@@ -1,5 +1,5 @@
 using System.Net;
-using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Client;
 
@@ -235,5 +235,5 @@ record KurrentConnectionString {
 
 public class InvalidConnectionStringException(string reason, Exception? innerException = null)
     : KurrentException(Code, reason, innerException) {
-    static readonly ErrorCode Code = ErrorCode.FromType<InvalidConnectionStringException>();
+    static readonly Errors.ErrorCode Code = Errors.ErrorCode.FromType<InvalidConnectionStringException>();
 }

@@ -17,7 +17,7 @@ and structured logging with Serilog.
 - KurrentDB running locally on port 2113
 - PostgreSQL running locally on port 5432
 - Redis running locally on port 6379
-- .NET 9.0 SDK
+- .NET 10 SDK
 
 ### Start Dependencies with Docker
 
@@ -57,6 +57,10 @@ services:
 ```bash
 dotnet run
 ```
+
+A hosted `TransferSeeder` from the shared `Transfermarkt.Domain` project registers and transfers a
+player every second. The `club_spending` table is created on startup; aggregates are flushed at
+each checkpoint, every 10 seconds.
 
 ## Architecture
 

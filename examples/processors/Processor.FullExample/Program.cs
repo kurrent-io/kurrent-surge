@@ -1,16 +1,12 @@
-using System;
-using System.Collections.Generic;
+using Dapper;
 using Kurrent.Surge;
-using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Processor.FullExample;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
+using Transfermarkt.Seeding;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -40,12 +36,14 @@ try {
     // Register processor as hosted service
     builder.Services.AddSingleton<TransferAnalyticsProcessor>();
     builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://localhost:2113");
+        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
         surge.AddProcessor<TransferAnalyticsProcessor>(opts => {
             opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
             opts.Checkpointing(c => c.IntervalFrom(10_000));
         });
     });
+
+    builder.Services.AddHostedService<TransferSeeder>();
 
     // Health checks
     builder.Services.AddHealthChecks()
@@ -53,6 +51,9 @@ try {
         .AddRedis(redisConn, name: "redis");
 
     var app = builder.Build();
+
+    await using (var conn = await app.Services.GetRequiredService<NpgsqlDataSource>().OpenConnectionAsync())
+        await conn.ExecuteAsync(DatabaseSchema.CreateClubSpendingTable);
 
     // Health check endpoint
     app.MapHealthChecks("/health");

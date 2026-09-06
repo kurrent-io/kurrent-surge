@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using System.Text.Json.Nodes;
 using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Codecs;
@@ -14,10 +15,10 @@ namespace Kurrent.Surge.Client.Streams;
 /// terminal resolutions exit mid-chain without breaking the composition. Guards are
 /// orchestration in <see cref="Execute"/> — they decide whether the chain runs at all.
 /// </summary>
-sealed class ReadRecordPipeline : IStep<Record, DecodeOutcome>, IRecordDecoder {
-    ReadRecordPipeline(IStep<Record, DecodeOutcome> pipeline) => _pipeline = pipeline;
+sealed class ReadRecordPipeline : IPipelineStep<Record, DecodeOutcome>, IRecordDecoder {
+    ReadRecordPipeline(IPipelineStep<Record, DecodeOutcome> pipeline) => _pipeline = pipeline;
 
-    readonly IStep<Record, DecodeOutcome> _pipeline;
+    readonly IPipelineStep<Record, DecodeOutcome> _pipeline;
 
     /// <summary>
     /// Wires the canonical chain from client-composed parts.

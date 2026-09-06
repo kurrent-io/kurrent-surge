@@ -1,5 +1,4 @@
 using Kurrent.Surge.RecordFilters;
-using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Streams;
 

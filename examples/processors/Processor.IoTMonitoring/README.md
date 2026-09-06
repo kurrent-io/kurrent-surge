@@ -37,6 +37,9 @@ cd examples/processors/Processor.IoTMonitoring
 dotnet run
 ```
 
+A hosted `SensorReadingSeeder` writes readings for three sensors and spikes or drops every tenth
+round, so both the threshold alerts and the anomaly detector fire. Press `Ctrl+C` to stop.
+
 ## Key Code
 
 ```csharp

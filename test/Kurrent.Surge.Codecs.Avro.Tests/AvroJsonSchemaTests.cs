@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Json.Schema;
-using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Validation;
 
 namespace Kurrent.Surge.Codecs.Avro.Tests;

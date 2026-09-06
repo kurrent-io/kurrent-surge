@@ -1,6 +1,6 @@
+using Kurrent.Toolkit;
 using System.Collections;
 using System.Runtime.CompilerServices;
-using Kurrent.Surge.Client;
 
 namespace Kurrent.Surge.Validation;
 

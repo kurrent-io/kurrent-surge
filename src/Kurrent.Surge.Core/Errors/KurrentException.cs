@@ -1,6 +1,4 @@
-using Kurrent.Surge.Client.Errors;
-
-namespace Kurrent.Surge.Client.Exceptions;
+namespace Kurrent.Surge.Errors;
 
 /// <summary>
 /// Core and base exception class for all Kurrent-related errors, encapsulating detailed error information.

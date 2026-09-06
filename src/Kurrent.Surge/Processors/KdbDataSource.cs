@@ -8,17 +8,18 @@ using Polly;
 
 namespace Kurrent.Surge.Processors.Gateway;
 
-
 sealed class KdbDataSourceOptions {
-    public RecordFilter                Filter               { get; set; } = RecordFilter.None;
-    public bool                        SkipDecoding         { get; set; } = false;
-    public bool                        ResolveLinks         { get; set; } = true;
-    public uint                        MaxSearchWindow      { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
-    public string                      PartitionKeySelector { get; set; } = "";
-    public int                         MaxParallelism       { get; set; } = 1;
+    public RecordFilter Filter               { get; set; } = RecordFilter.None;
+    public bool         SkipDecoding         { get; set; } = false;
+    public bool         ResolveLinks         { get; set; } = true;
+    public uint         MaxSearchWindow      { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
+    public string       PartitionKeySelector { get; set; } = "";
+
+    public int MaxParallelism { get; set; } = 1;
+
     // Safe no-op default so default construction can't NRE in Connect (which executes the
     // pipeline unconditionally). The real pipeline is injected by the processor builder.
-    public ResiliencePipeline          ResiliencePipeline   { get; set; } = ResiliencePipeline.Empty;
+    public ResiliencePipeline ResiliencePipeline { get; set; } = ResiliencePipeline.Empty;
 }
 
 class KdbDataSource : IDataSource {

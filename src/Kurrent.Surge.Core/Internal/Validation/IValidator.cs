@@ -1,7 +1,7 @@
+using Kurrent.Toolkit;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Exceptions;
+
 using static System.String;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -41,25 +41,25 @@ public sealed class ValidationResult {
     public static readonly ValidationResult Valid = new();
 
     ValidationResult() {
-        ErrorCode = ErrorCode.None;
+        ErrorCode = Errors.ErrorCode.None;
         Problems  = [];
     }
 
     ValidationResult(ValidationProblem[] warnings) {
-        ErrorCode = ErrorCode.None;
+        ErrorCode = Errors.ErrorCode.None;
         Problems  = warnings;
     }
 
-    ValidationResult(ErrorCode errorCode, string errorMessage, ValidationProblem[] problems) {
+    ValidationResult(Errors.ErrorCode errorCode, string errorMessage, ValidationProblem[] problems) {
         ErrorCode    = errorCode;
         ErrorMessage = errorMessage;
         Problems     = problems;
     }
 
     /// <summary>
-    /// The error code categorizing this validation failure. <see cref="ErrorCode.None"/> when valid.
+    /// The error code categorizing this validation failure. <see cref="Errors.ErrorCode.None"/> when valid.
     /// </summary>
-    public ErrorCode ErrorCode { get; }
+    public Errors.ErrorCode ErrorCode { get; }
 
     /// <summary>
     /// A human-readable summary of the validation errors.
@@ -107,7 +107,7 @@ public sealed class ValidationResult {
     /// <summary>
     /// Creates a failure result from an error code and one or more validation problems.
     /// </summary>
-    public static ValidationResult Failure(ErrorCode code, params ValidationProblem[] problems) {
+    public static ValidationResult Failure(Errors.ErrorCode code, params ValidationProblem[] problems) {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(problems.Length, 0);
         return new(code, BuildErrorMessage(problems), problems);
     }
@@ -116,7 +116,7 @@ public sealed class ValidationResult {
     /// Creates a failure result from one or more validation problems, using a generic error code.
     /// </summary>
     public static ValidationResult Failure(params ValidationProblem[] problems) =>
-        Failure(ErrorCode.From("VALIDATION_FAILURE"), problems);
+        Failure(Errors.ErrorCode.From("VALIDATION_FAILURE"), problems);
 
     /// <summary>
     /// Creates a valid result that carries advisory warning problems.
@@ -129,7 +129,7 @@ public sealed class ValidationResult {
     /// <summary>
     /// Creates a failure result from a single problem message.
     /// </summary>
-    public static ValidationResult FromProblem(ErrorCode code, string message) =>
+    public static ValidationResult FromProblem(Errors.ErrorCode code, string message) =>
         Failure(code, ValidationProblem.Create(code, message));
 
     public static ValidationResult FromValue<T>(object? value, string reason) =>

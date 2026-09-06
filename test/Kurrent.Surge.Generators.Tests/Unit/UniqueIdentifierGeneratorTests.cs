@@ -1,7 +1,5 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Kurrent.Surge;
-using Kurrent.Surge.Generators;
 
 namespace Kurrent.Surge.Generators.Tests.Unit;
 

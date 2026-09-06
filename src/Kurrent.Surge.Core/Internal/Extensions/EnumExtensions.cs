@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
 
-namespace Kurrent.Surge.Client;
+namespace Kurrent.Toolkit;
 
 static class EnumExtensions {
     static readonly ConcurrentDictionary<Type, ConcurrentDictionary<Enum, string>> Cache = new();

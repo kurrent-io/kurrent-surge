@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using Google.Rpc;
 using Grpc.Core;
+using Kurrent.Surge.Errors;
 using Status = Google.Rpc.Status;
 
 namespace Kurrent.Surge.Client.Exceptions;

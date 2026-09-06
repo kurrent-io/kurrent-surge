@@ -1,4 +1,4 @@
-using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Client.Streams;
 
@@ -91,7 +91,7 @@ public readonly record struct StreamName {
 
     public static StreamName From(string? value) {
         if (string.IsNullOrWhiteSpace(value))
-            InvalidStreamNameException.Throw("Stream name cannot be null or whitespace.");
+            throw new InvalidStreamNameException("Stream cannot be null, empty, or whitespace.");
 
         var isIndexStream     = value.StartsWith(IndexStreamPrefix);
         var isSystemStream    = value.StartsWith(SystemStreamPrefix);
@@ -129,11 +129,11 @@ public readonly record struct StreamName {
     public static implicit operator string(StreamName stream) => stream.Value;
 }
 
-public sealed class InvalidStreamNameException(string reason, Exception? innerException = null)
-    : KurrentException(ErrorCode.FromType<InvalidStreamNameException>(), reason, innerException)
-    , IThrowableException<InvalidStreamNameException> {
-    public static InvalidStreamNameException Create(string message, Exception? innerException) => new(message, innerException);
-}
+public sealed class InvalidStreamNameException(string reason, Exception? innerException = null) : KurrentException(
+    ErrorCode.FromType<InvalidStreamNameException>(),
+    $"Invalid stream name value: {reason}.",
+    innerException
+);
 
 /// <summary>
 /// Determines which occurrence of the separator to use when extracting a category from a stream name.

@@ -60,9 +60,9 @@ public partial class StreamsClient {
 
         if (request.Records.Count == 0)
             throw new ValidationException(
-                ErrorCode.From(nameof(AppendRecords)),
+                Errors.ErrorCode.From(nameof(AppendRecords)),
                 "At least one record is required.",
-                ValidationProblem.Create(ErrorCode.From("AppendRecords"), "At least one record is required."));
+                ValidationProblem.Create(Errors.ErrorCode.From("AppendRecords"), "At least one record is required."));
 
         AddChecks(request, options);
 
@@ -83,18 +83,18 @@ public partial class StreamsClient {
         static void EnsureValid(AppendRecord record) {
             if (record.Stream == StreamName.Unset)
                 throw new ValidationException(
-                    ErrorCode.FromType<AppendRecord>(),
+                    Errors.ErrorCode.FromType<AppendRecord>(),
                     "A record must have a destination stream.",
                     ValidationProblem.Create(
-                        ErrorCode.FromType<AppendRecord>(),
+                        Errors.ErrorCode.FromType<AppendRecord>(),
                         "A record must have a destination stream."));
 
             if (record.Stream.IsAllStream)
                 throw new ValidationException(
-                    ErrorCode.FromType<AppendRecord>(),
+                    Errors.ErrorCode.FromType<AppendRecord>(),
                     "A record cannot be appended to the '$all' stream.",
                     ValidationProblem.Create(
-                        ErrorCode.FromType<AppendRecord>(),
+                        Errors.ErrorCode.FromType<AppendRecord>(),
                         "A record cannot be appended to the '$all' stream."));
 
             record.EnsureValid();

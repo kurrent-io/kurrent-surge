@@ -3,7 +3,6 @@ using Json.Schema;
 using Kurrent.Surge.Codecs.Protobuf.Experimental.Schema;
 using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Validation;
-using Transcoder.Probe;
 
 namespace Kurrent.Surge.Core.Tests.Unit.Codecs.Protobuf.Experimental;
 

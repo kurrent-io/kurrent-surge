@@ -1,15 +1,10 @@
-using System;
-using System.Linq;
 using Kurrent.Surge;
-using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Models;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Processor.WithRedisCache;
 using Serilog;
 using StackExchange.Redis;
+using Transfermarkt.Seeding;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
@@ -30,7 +25,7 @@ try {
     builder.Services.AddSingleton<PlayerCacheProcessor>();
 
     builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://localhost:2113");
+        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
         surge.AddProcessor<PlayerCacheProcessor>(opts => {
             opts.ProcessorId = "PlayerCacheProcessor-001";
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
@@ -38,6 +33,8 @@ try {
             opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
         });
     });
+
+    builder.Services.AddHostedService<TransferSeeder>();
 
     var app = builder.Build();
 

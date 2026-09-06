@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using System.ComponentModel;
 
 namespace Kurrent.Surge.Tests.Internal;

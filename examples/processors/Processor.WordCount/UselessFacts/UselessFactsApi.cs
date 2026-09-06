@@ -46,14 +46,13 @@ public static class UselessFactsClient {
         ContentSerializer = new SystemTextJsonContentSerializer(UselessFactsJsonContext.Default.Options)
     };
 
-    static IRequestBuilder<IUselessFactsApi> DefaultRequestBuilder { get; } =
-        RequestBuilder.ForType<IUselessFactsApi>(DefaultSettings);
-
     public static IUselessFactsApi Create(string baseUrl = DefaultBaseUrl) =>
         RestService.For<IUselessFactsApi>(baseUrl, DefaultSettings);
 
+    // Refit 15 routes RequestBuilder.ForType<T> through the reflection builder (Refit.Reflection);
+    // the generic RestService.For<T> overloads use the source-generated stub and stay trim-safe.
     public static IUselessFactsApi Create(HttpClient httpClient) =>
-        RestService.For(httpClient, DefaultRequestBuilder);
+        RestService.For<IUselessFactsApi>(httpClient, DefaultSettings);
 }
 
 /// <summary>
@@ -72,7 +71,12 @@ public static class UselessFactsServiceCollectionExtensions {
     /// Overload that targets a specific base URL (e.g. staging) while keeping the source-generated
     /// JSON serializer intact.
     /// </summary>
-    public static IHttpClientBuilder AddUselessFactsClient(this IServiceCollection services, string baseUrl) =>
-        services.AddRefitClient<IUselessFactsApi>(UselessFactsClient.DefaultSettings)
-            .ConfigureHttpClient(c => c.BaseAddress = new Uri(baseUrl));
+    public static IHttpClientBuilder AddUselessFactsClient(this IServiceCollection services, string baseUrl) {
+        // Refit.HttpClientFactory's AddRefitClient<T> resolves the reflection request builder, which
+        // needs the Refit.Reflection package; the generated stub over a named HttpClient stays trim-safe.
+        services.AddTransient(sp =>
+            UselessFactsClient.Create(sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(IUselessFactsApi))));
+
+        return services.AddHttpClient(nameof(IUselessFactsApi), c => c.BaseAddress = new Uri(baseUrl));
+    }
 }

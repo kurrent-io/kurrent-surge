@@ -1,5 +1,4 @@
 using Grpc.Core;
-using Kurrent.Surge.Client;
 
 namespace Kurrent.Surge.Client.LoadBalancing;
 

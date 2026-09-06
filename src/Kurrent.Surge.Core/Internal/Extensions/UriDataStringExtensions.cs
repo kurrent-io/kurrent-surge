@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Client;
+namespace Kurrent.Toolkit;
 
 /// <summary>
 /// Provides extension methods for URI data string manipulation.

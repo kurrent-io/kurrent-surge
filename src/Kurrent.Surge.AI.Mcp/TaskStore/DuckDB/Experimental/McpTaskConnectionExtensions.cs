@@ -5,7 +5,6 @@ using Kurrent.Quack;
 using ModelContextProtocol;
 using ModelContextProtocol.Extensions.Tasks;
 using ModelContextProtocol.Protocol;
-using ModelContextProtocol.Server;
 
 namespace Kurrent.Surge.AI.Mcp.DuckDB.Experimental;
 

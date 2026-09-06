@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Kurrent.Surge.Codecs.Avro.Generators;

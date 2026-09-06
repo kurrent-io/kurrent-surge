@@ -1,14 +1,10 @@
-using System;
 using Dapper;
 using Kurrent.Surge;
-using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Processor.WithPostgres;
 using Serilog;
+using Transfermarkt.Seeding;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -28,12 +24,19 @@ try {
     // Register processor as hosted service
     builder.Services.AddSingleton<ClubSpendingProcessor>();
     builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://localhost:2113");
-        surge.AddProcessor<ClubSpendingProcessor>(opts =>
-            opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'PlayerTransferred'"));
+        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+        surge.AddProcessor<ClubSpendingProcessor>(opts => {
+            opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'PlayerTransferred'");
+            opts.Checkpoint.Interval = TimeSpan.FromSeconds(10);
+        });
     });
 
+    builder.Services.AddHostedService<TransferSeeder>();
+
     var app = builder.Build();
+
+    await using (var conn = await app.Services.GetRequiredService<NpgsqlDataSource>().OpenConnectionAsync())
+        await conn.ExecuteAsync(DatabaseSchema.CreateClubSpendingTable);
 
     app.MapGet("/health", () => Results.Ok("Healthy"));
 

@@ -1,5 +1,3 @@
-using Kurrent.Surge.Client.LoadBalancing;
-
 namespace Kurrent.Surge.Client.LoadBalancing.Gossip;
 
 /// <summary>

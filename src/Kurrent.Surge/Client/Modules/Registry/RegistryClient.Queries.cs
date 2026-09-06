@@ -1,7 +1,6 @@
 // ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
 using Google.Protobuf;
-using Grpc.Core;
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Schema;
 using Contracts = KurrentDB.Protocol.V2.Registry;

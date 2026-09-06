@@ -1,12 +1,7 @@
-using System;
 using Kurrent.Surge;
-using Kurrent.Surge.Client;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors.Models;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Processor.AspNetMinimal;
-using Serilog;
+using Transfermarkt.Seeding;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -18,7 +13,7 @@ try {
     builder.Host.UseSerilog();
 
     builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@127.0.0.1:32769?tls=false");
+        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
 
         surge.AddProcessor(new LiveTransferProcessor(), prx => {
             prx.ProcessorId                  = $"live-transfer-processor-{Guid.NewGuid().ToString()[..8]}";
@@ -29,11 +24,11 @@ try {
         });
     });
 
+    builder.Services.AddHostedService<TransferSeeder>();
+
     var app = builder.Build();
 
     app.MapGet("/health", () => Results.Ok("Healthy"));
-
-    SeedData.StartSeeding();
 
     await app.RunAsync();
 }

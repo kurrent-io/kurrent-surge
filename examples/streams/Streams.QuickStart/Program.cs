@@ -1,14 +1,21 @@
+using Kurrent.Surge;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
-using Streams.QuickStart.Events;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using Streams.QuickStart.Events;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.Console()
     .CreateLogger();
 
-await using var client = KurrentClient.Create("kurrentdb://admin:changeit@localhost:2113?tls=false");
+var services = new ServiceCollection()
+    .AddKurrentSurge(surge => surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false"));
+
+await using var provider = services.BuildServiceProvider();
+
+var client = provider.GetRequiredService<KurrentClient>();
 
 var stream = $"order-{Guid.NewGuid().ToString()[..8]}";
 
@@ -21,7 +28,7 @@ var records = new[] {
 
 var result = await client.Streams.AppendStream(stream, records, ExpectedStreamState.NoStream);
 
-Log.Information("Appended {} events to {Stream} at revision {Revision}", records.Length, stream, result.Revision);
+Log.Information("Appended {Count} events to {Stream} at revision {Revision}", records.Length, stream, result.Revision);
 
 // Read them back
 await foreach (var message in client.Streams.ReadStream(stream)) {

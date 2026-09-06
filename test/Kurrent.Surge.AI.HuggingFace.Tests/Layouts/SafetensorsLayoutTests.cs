@@ -1,4 +1,3 @@
-using Kurrent.Testkit.TUnit;
 using TUnit.Assertions.Enums;
 
 namespace Kurrent.Surge.AI.HuggingFace.Tests;

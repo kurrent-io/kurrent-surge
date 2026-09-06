@@ -38,6 +38,10 @@ cd examples/processors/Processor.ClickstreamSessions
 dotnet run
 ```
 
+A hosted `PageViewSeeder` writes page views with simulated timestamps: two minutes between pages
+and thirty-five minutes between visits, so sessions close within seconds of wall-clock time.
+Press `Ctrl+C` to stop.
+
 ## Key Code
 
 ```csharp

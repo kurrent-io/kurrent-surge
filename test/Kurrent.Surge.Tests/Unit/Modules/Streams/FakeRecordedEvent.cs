@@ -1,6 +1,5 @@
 using Bogus;
 using Google.Protobuf;
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Client.Legacy;
 using KurrentDB.Protocol.V1;
 

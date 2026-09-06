@@ -1,5 +1,3 @@
-using ProtobufTranscoder;
-
 namespace ProtobufTranscoder.Descriptors;
 
 public sealed class MessageDescriptor

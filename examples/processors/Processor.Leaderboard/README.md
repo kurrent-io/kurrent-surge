@@ -41,6 +41,9 @@ cd examples/processors/Processor.Leaderboard
 dotnet run
 ```
 
+A hosted `ScoreSeeder` registers five players and submits a score for game `main` every 750 ms, so
+the endpoints below return data right away.
+
 ## API Endpoints
 
 ### Get Top N Players

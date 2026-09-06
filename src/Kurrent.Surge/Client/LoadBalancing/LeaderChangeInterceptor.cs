@@ -1,4 +1,3 @@
-using Google.Rpc;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Kurrent.Rpc;

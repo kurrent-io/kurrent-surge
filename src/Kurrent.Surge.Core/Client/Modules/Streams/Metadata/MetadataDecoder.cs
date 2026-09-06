@@ -1,11 +1,12 @@
+using Kurrent.Toolkit;
 // ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
 // ReSharper disable SwitchExpressionHandlesSomeKnownEnumValuesWithExceptionInDefault
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Nodes;
-using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Codecs.Json;
+using Kurrent.Surge.Errors;
 using Kurrent.Surge.Schema;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
@@ -89,7 +90,7 @@ public readonly record struct MetadataDecoderContext(
 
 [PublicAPI]
 public class MetadataDecodingException(Type decoderType, MetadataDecoderContext decoderContext, Exception innerException)
-    : KurrentException(ErrorCode.FromType<MetadataDecodingException>(), ErrorMessage(decoderType, decoderContext, innerException), innerException) {
+    : KurrentException(Errors.ErrorCode.FromType<MetadataDecodingException>(), ErrorMessage(decoderType, decoderContext, innerException), innerException) {
 
     public Type                   DecoderType    { get; } = decoderType;
     public MetadataDecoderContext DecoderContext { get; } = decoderContext;

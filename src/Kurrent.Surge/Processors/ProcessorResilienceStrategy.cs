@@ -1,8 +1,7 @@
 using System.Collections.Frozen;
 using Google.Rpc;
 using Grpc.Core;
-using Kurrent.Surge.Client.Exceptions;
-using Kurrent.Surge.Processors.Configuration;
+using Kurrent.Surge.Errors;
 using Polly;
 using Polly.Retry;
 

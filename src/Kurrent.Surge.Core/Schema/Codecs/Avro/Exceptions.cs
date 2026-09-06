@@ -1,4 +1,4 @@
-using Kurrent.Surge.Client.Exceptions;
+using Kurrent.Surge.Errors;
 
 namespace Kurrent.Surge.Codecs.Avro;
 
@@ -12,7 +12,7 @@ namespace Kurrent.Surge.Codecs.Avro;
 /// </remarks>
 [PublicAPI]
 public sealed class AvroCodecNotGeneratedException : KurrentException {
-    public static ErrorCode Code { get; } = ErrorCode.From("AVRO_CODEC_NOT_GENERATED");
+    public static Errors.ErrorCode Code { get; } = Errors.ErrorCode.From("AVRO_CODEC_NOT_GENERATED");
 
     public AvroCodecNotGeneratedException(Type messageType) : this(
         $"No generated Avro codec for '{messageType.FullName}'. Add its .avsc schema to the project as "

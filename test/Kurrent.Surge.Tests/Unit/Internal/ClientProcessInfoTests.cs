@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Kurrent.Surge.Tests.Internal;
 
-public class ClientInfoTests {
+public class ClientProcessInfoTests {
     [Test]
     public async ValueTask exposes_the_current_platform_as_a_short_os_name() {
         // Arrange
@@ -12,7 +12,7 @@ public class ClientInfoTests {
             : RuntimeInformation.OSDescription;
 
         // Act
-        var info = ClientInfo.Current;
+        var info = ClientProcessInfo.Current;
 
         // Assert
         await Assert.That(info.OsName).IsEqualTo(expectedOsName);
@@ -26,7 +26,7 @@ public class ClientInfoTests {
         var expectedOsVersion      = Environment.OSVersion.Version.ToString();
 
         // Act
-        var info = ClientInfo.Current;
+        var info = ClientProcessInfo.Current;
 
         // Assert
         await Assert.That(info.HostArchitecture).IsEqualTo(expectedArchitecture);
@@ -38,7 +38,7 @@ public class ClientInfoTests {
     [Test]
     public async ValueTask exposes_build_stamped_client_identity() {
         // Act
-        var info = ClientInfo.Current;
+        var info = ClientProcessInfo.Current;
 
         // Assert — GenerateAssemblyInfo guarantees both attributes; empty means a build defect
         await Assert.That(info.ClientName).IsNotEmpty();

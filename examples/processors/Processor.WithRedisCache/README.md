@@ -14,7 +14,7 @@ Demonstrates using Redis as a cache for fast player lookups and enrichment scena
 
 - KurrentDB running locally on port 2113
 - Redis running locally on port 6379
-- .NET 9.0 SDK
+- .NET 10 SDK
 
 ### Start Redis with Docker
 
@@ -27,6 +27,9 @@ docker run -d --name redis -p 6379:6379 redis:7
 ```bash
 dotnet run
 ```
+
+A hosted `TransferSeeder` from the shared `Transfermarkt.Domain` project registers and transfers a
+player every second, so `/players` fills up immediately.
 
 ## Key Code
 

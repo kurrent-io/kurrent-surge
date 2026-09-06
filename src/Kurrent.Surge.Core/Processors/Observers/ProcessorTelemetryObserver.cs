@@ -1,10 +1,8 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Kurrent.Surge.Diagnostics;
-using Kurrent.Surge.Processors.Diagnostics;
 using Kurrent.Surge.Processors.Gateway.Messages;
 using Kurrent.Surge.Client.Streams;
-using Kurrent.Surge.Processors.Diagnostics;
 using Kurrent.Toolkit.Diagnostics;
 using Kurrent.Surge.Processors.Diagnostics.Metrics;
 
