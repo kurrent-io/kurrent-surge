@@ -4,7 +4,6 @@ using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Codecs;
-using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 
 namespace Kurrent.Surge.Schema.Governance;
@@ -103,6 +102,11 @@ sealed class SchemaGovernance : ISchemaGovernance {
 
     public async ValueTask<SchemaVersionId> EnsureCompatible(RecordSchemaInfo schemaInfo, Type messageType, CancellationToken ct) {
         if (_options.ValidationMode is not SchemaValidationMode.Enabled)
+            return SchemaVersionId.Unset;
+
+        // The registry stores Json definitions only, and the exporter throws for anything else,
+        // so a non-Json payload has nothing to validate against. Skipped, never rejected.
+        if (schemaInfo.DataFormat != RegistrationDataFormat)
             return SchemaVersionId.Unset;
 
         if (schemaInfo.HasSchemaId) {

@@ -106,7 +106,8 @@ public record AppendRecord : SelfValidating {
     } = null!;
 
     /// <summary>
-    /// Specifies the format of the schema associated with the message.
+    /// The wire format for the payload. A stated format is used as given; left unstated, it is
+    /// taken from the message type.
     /// </summary>
     public SchemaDataFormat DataFormat {
         get;
@@ -114,7 +115,7 @@ public record AppendRecord : SelfValidating {
             field = value;
             ResetValidation();
         }
-    } = SchemaDataFormat.Json;
+    } = SchemaDataFormat.Unspecified;
 
     /// <summary>
     /// The schema name for a raw payload. A <see cref="SchemaDataFormat.Bytes"/> record bypasses
@@ -163,9 +164,8 @@ public record AppendRecord : SelfValidating {
                     nameof(Value),
                     "Record value cannot be null unless the schema format is 'Bytes'."));
 
-        if (DataFormat == SchemaDataFormat.Unspecified)
-            (problems ??= []).Add(ValidationProblem.CreateForField(nameof(DataFormat), "Schema format cannot be Unspecified.", DataFormat));
-
+        // An unstated format is valid here: the write pipeline settles it from the message type.
+        // A binary payload is the one case it cannot cover, and the next rule already rejects it.
         if (Value is { } && Value.IsBytes() && DataFormat != SchemaDataFormat.Bytes)
             (problems ??= []).Add(
                 ValidationProblem.CreateForField(
@@ -187,7 +187,7 @@ public record AppendRecord : SelfValidating {
                     "Schema name applies only to the 'Bytes' format; every other format takes its name from the message catalog.", SchemaName));
 
         return problems is not null
-            ? ValidationResult.Failure(ErrorCode.FromType<AppendRecord>(), [.. problems])
+            ? ValidationResult.Failure(Errors.ErrorCode.FromType<AppendRecord>(), [.. problems])
             : new Success();
     }
 }

@@ -7,7 +7,8 @@ namespace Kurrent.Surge.Schema;
 /// </summary>
 public enum SchemaDataFormat {
     /// <summary>
-    /// The data format is not specified.
+    /// The format was not stated. On a record the client's fallback is applied; as that
+    /// fallback it means take the format from the message type.
     /// </summary>
     Unspecified = 0,
 

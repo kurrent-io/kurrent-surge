@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Codecs;
@@ -28,7 +29,7 @@ readonly partial record struct TypeResolution : IVariant<DecodableRead, Terminal
 sealed class ResolveTypeReadStep(
     MessageResolver messages,
     KurrentClientSchemaOptions schema
-) : IStep<Record, TypeResolution> {
+) : IPipelineStep<Record, TypeResolution> {
     public ValueTask<TypeResolution> Execute(Record input, CancellationToken ct) {
         var messageType = messages.ResolveType(input.Schema.Schema);
 
@@ -46,7 +47,7 @@ sealed class ResolveTypeReadStep(
 /// The one effectful read stage: compatibility governance per the client's schema options.
 /// Backfills the record's version id when the wire carried none and the registry resolves one.
 /// </summary>
-sealed class GovernReadStep(ISchemaGovernance governance) : IStep<DecodableRead, DecodableRead> {
+sealed class GovernReadStep(ISchemaGovernance governance) : IPipelineStep<DecodableRead, DecodableRead> {
     public async ValueTask<DecodableRead> Execute(DecodableRead input, CancellationToken ct) {
         var record = input.Source;
 
@@ -56,7 +57,7 @@ sealed class GovernReadStep(ISchemaGovernance governance) : IStep<DecodableRead,
         if (!record.Schema.HasSchemaId) {
             var registered = await governance.CatalogRegistration.WaitAsync(ct).ConfigureAwait(false);
 
-            if (registered.TryGet(input.MessageType, record.Schema.DataFormat, out var info) && info.HasSchemaId)
+            if (registered.TryGet(input.MessageType, out var info) && info.HasSchemaId)
                 record.Schema = record.Schema with { VersionId = info.VersionId };
         }
 
@@ -79,10 +80,10 @@ sealed class GovernReadStep(ISchemaGovernance governance) : IStep<DecodableRead,
 /// terminal resolutions exit with their outcome.
 /// </summary>
 static class TypeResolutionSteps {
-    public static IStep<TypeResolution, DecodeOutcome> OnDecodable(this IStep<DecodableRead, DecodeOutcome> decoding) =>
+    public static IPipelineStep<TypeResolution, DecodeOutcome> OnDecodable(this IPipelineStep<DecodableRead, DecodeOutcome> decoding) =>
         new OnDecodableStep(decoding);
 
-    sealed class OnDecodableStep(IStep<DecodableRead, DecodeOutcome> decoding) : IStep<TypeResolution, DecodeOutcome> {
+    sealed class OnDecodableStep(IPipelineStep<DecodableRead, DecodeOutcome> decoding) : IPipelineStep<TypeResolution, DecodeOutcome> {
         public ValueTask<DecodeOutcome> Execute(TypeResolution input, CancellationToken ct) =>
             input.Match(
                 decodable => decoding.Execute(decodable, ct),
@@ -95,7 +96,7 @@ static class TypeResolutionSteps {
 /// Pure decode over an already-resolved type through the format's codec. Materializes the
 /// decoded value onto the record.
 /// </summary>
-sealed class DecodeReadStep(SchemaCodecProvider codecs) : IStep<DecodableRead, DecodeOutcome> {
+sealed class DecodeReadStep(SchemaCodecProvider codecs) : IPipelineStep<DecodableRead, DecodeOutcome> {
     public ValueTask<DecodeOutcome> Execute(DecodableRead input, CancellationToken ct) {
         var record = input.Source;
         

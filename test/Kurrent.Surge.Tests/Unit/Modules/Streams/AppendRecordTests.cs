@@ -2,7 +2,6 @@ using Kurrent.Toolkit;
 using System.Buffers;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
-using Kurrent.Testkit.TUnit;
 using Kurrent.Surge.Validation;
 
 namespace Kurrent.Surge.Tests.Modules.Streams;
@@ -44,16 +43,20 @@ public class AppendRecordTests {
     }
 
     [Test]
-    public async ValueTask ensure_valid_throws_when_data_format_is_unspecified() {
+    public async ValueTask ensure_valid_accepts_an_unstated_data_format() {
+        // Arrange — unstated is the normal case: the write pipeline derives the format from the
+        // message type, so validation must neither reject it nor settle it.
         var record = new AppendRecord {
             Value      = "test-payload",
             DataFormat = SchemaDataFormat.Unspecified,
             Stream     = "test-stream"
         };
 
-        var ex = Assert.Throws<ValidationException>(record.EnsureValid);
+        // Act
+        record.EnsureValid();
 
-        await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.DataFormat));
+        // Assert
+        await Assert.That(record.DataFormat).IsEqualTo(SchemaDataFormat.Unspecified);
     }
 
     [Test]
@@ -204,9 +207,9 @@ public class AppendRecordTests {
 
         var ex = Assert.Throws<ValidationException>(record.EnsureValid);
 
-        await Assert.That(ex.Errors).Count().IsEqualTo(3);
+        // An unstated format is not a problem, so only the id and the value are collected.
+        await Assert.That(ex.Errors).Count().IsEqualTo(2);
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.RecordId));
         await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.Value));
-        await Assert.That(ex.Errors).Contains(p => p.FieldName == nameof(AppendRecord.DataFormat));
     }
 }

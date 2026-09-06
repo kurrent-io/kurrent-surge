@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Google.Protobuf;
@@ -5,6 +6,7 @@ using Kurrent.Surge.Client;
 using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Codecs;
+using Kurrent.Surge.Codecs.Avro;
 using Kurrent.Surge.Codecs.Json;
 using Kurrent.Surge.Codecs.Protobuf;
 using Kurrent.Surge.Schema;
@@ -57,11 +59,11 @@ public class GovernedWriteMappingBenchmarks {
 
         var schema = KurrentClientSchemaOptions.Disabled;
 
-        var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
+        var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec(), new AvroSchemaCodec()]);
 
         var governance = SchemaGovernance.Create(_client, [catalog], schema);
 
-        _governed = WriteRecordPipeline.Create(resolver, codecs, governance);
+        _governed = WriteRecordPipeline.Create(resolver, schema, codecs, governance);
 
         var request = NewAppendRequest();
 

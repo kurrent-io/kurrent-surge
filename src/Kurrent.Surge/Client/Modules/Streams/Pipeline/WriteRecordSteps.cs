@@ -1,3 +1,4 @@
+using Kurrent.Toolkit;
 using System.Buffers;
 using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Schema;
@@ -5,6 +6,8 @@ using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Variant;
 using Google.Protobuf;
 using Kurrent.Surge.Codecs;
+using Kurrent.Surge.Codecs.Avro;
+using Kurrent.Surge.Codecs.Protobuf;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
 namespace Kurrent.Surge.Client.Streams;
@@ -37,14 +40,32 @@ readonly record struct EncodedWrite(AppendRecord Source, RecordSchemaInfo Schema
 /// the client's frozen snapshot and continue down the chain; an unmapped type throws here,
 /// with the pipeline on the stack instead of the serializer.
 /// </summary>
-sealed class ClassifyWriteStep(MessageResolver messages) : IStep<AppendRecord, WriteResolution> {
-    public ValueTask<WriteResolution> Execute(AppendRecord input, CancellationToken ct) =>
-        new(input.DataFormat == SchemaDataFormat.Bytes
-            ? (WriteResolution)new EncodedWrite(
+sealed class ClassifyWriteStep(MessageResolver messages, bool appendAsJson) : IPipelineStep<AppendRecord, WriteResolution> {
+    public ValueTask<WriteResolution> Execute(AppendRecord input, CancellationToken ct) {
+        if (input.DataFormat == SchemaDataFormat.Bytes)
+            return new((WriteResolution)new EncodedWrite(
                 input,
                 new RecordSchemaInfo { Schema = SchemaName.From(input.SchemaName!), DataFormat = SchemaDataFormat.Bytes },
-                UnwrapBytes(input.Value))
-            : (WriteResolution)new NamedWrite(input, messages.ResolveSchemaName(input.Value.GetType())));
+                UnwrapBytes(input.Value)));
+
+        var messageType = input.Value!.GetType();
+
+        // Settled here rather than at encode because the format is also a governance lookup key,
+        // and it lands on the record so the caller can see what was actually written.
+        if (input.DataFormat == SchemaDataFormat.Unspecified)
+            input.DataFormat = appendAsJson ? SchemaDataFormat.Json : FromMessageType(messageType);
+
+        return new((WriteResolution)new NamedWrite(input, messages.ResolveSchemaName(messageType)));
+    }
+
+    /// <summary>
+    /// The type's own encoding: Avro when a codec was generated for it, Protobuf when it is a
+    /// Protocol Buffers message, JSON otherwise.
+    /// </summary>
+    static SchemaDataFormat FromMessageType(Type messageType) =>
+        AvroCodecRegistry.IsRegistered(messageType) ? SchemaDataFormat.Avro
+      : messageType.IsProtoMessage()                ? SchemaDataFormat.Protobuf
+      :                                               SchemaDataFormat.Json;
 
     static ReadOnlyMemory<byte> UnwrapBytes(object? value) =>
         value switch {
@@ -64,10 +85,10 @@ sealed class ClassifyWriteStep(MessageResolver messages) : IStep<AppendRecord, W
 /// bytes pass straight through to the frame.
 /// </summary>
 static class WriteResolutionSteps {
-    public static IStep<WriteResolution, EncodedWrite> OnNamed(this IStep<NamedWrite, EncodedWrite> governed) =>
+    public static IPipelineStep<WriteResolution, EncodedWrite> OnNamed(this IPipelineStep<NamedWrite, EncodedWrite> governed) =>
         new OnNamedStep(governed);
 
-    sealed class OnNamedStep(IStep<NamedWrite, EncodedWrite> governed) : IStep<WriteResolution, EncodedWrite> {
+    sealed class OnNamedStep(IPipelineStep<NamedWrite, EncodedWrite> governed) : IPipelineStep<WriteResolution, EncodedWrite> {
         public ValueTask<EncodedWrite> Execute(WriteResolution input, CancellationToken ct) =>
             input.Match(
                 named => governed.Execute(named, ct),
@@ -82,7 +103,7 @@ static class WriteResolutionSteps {
 /// record) and reads the version id from the registration results. No registry call exists
 /// on this path.
 /// </summary>
-sealed class GovernWriteStep(ISchemaGovernance governance) : IStep<NamedWrite, ResolvedWrite> {
+sealed class GovernWriteStep(ISchemaGovernance governance) : IPipelineStep<NamedWrite, ResolvedWrite> {
     public async ValueTask<ResolvedWrite> Execute(NamedWrite input, CancellationToken ct) {
         var source = input.Source;
 
@@ -90,8 +111,11 @@ sealed class GovernWriteStep(ISchemaGovernance governance) : IStep<NamedWrite, R
         // running on the client lifetime token for every other caller.
         var registered = await governance.CatalogRegistration.WaitAsync(ct).ConfigureAwait(false);
 
-        var schemaInfo = registered.TryGet(source.Value!.GetType(), source.DataFormat, out var info)
-            ? info
+        // The registration is keyed by type and carries the format its definition was registered
+        // under, which is not this record's encoding — the record's own format has to win, or a
+        // Protobuf payload frames itself as the registration's format.
+        var schemaInfo = registered.TryGet(source.Value!.GetType(), out var info)
+            ? info with { DataFormat = source.DataFormat }
             : new RecordSchemaInfo { Schema = input.Schema, DataFormat = source.DataFormat };
 
         return new(source, schemaInfo);
@@ -101,7 +125,7 @@ sealed class GovernWriteStep(ISchemaGovernance governance) : IStep<NamedWrite, R
 /// <summary>
 /// Pure encode over an already-resolved schema through the format's codec.
 /// </summary>
-sealed class EncodeWriteStep(SchemaCodecProvider codecs) : IStep<ResolvedWrite, EncodedWrite> {
+sealed class EncodeWriteStep(SchemaCodecProvider codecs) : IPipelineStep<ResolvedWrite, EncodedWrite> {
     public ValueTask<EncodedWrite> Execute(ResolvedWrite input, CancellationToken ct) {
         var source = input.Source;
 
@@ -120,7 +144,7 @@ sealed class EncodeWriteStep(SchemaCodecProvider codecs) : IStep<ResolvedWrite, 
 /// Frames the wire message. <c>SchemaInfo.Id</c> is set only when the registry supplied a
 /// version id — an absent id stays absent on the wire, never minted client-side.
 /// </summary>
-sealed class FrameWriteStep : IStep<EncodedWrite, Contracts.AppendRecord> {
+sealed class FrameWriteStep : IPipelineStep<EncodedWrite, Contracts.AppendRecord> {
     public ValueTask<Contracts.AppendRecord> Execute(EncodedWrite input, CancellationToken ct) {
         var source = input.Source;
 

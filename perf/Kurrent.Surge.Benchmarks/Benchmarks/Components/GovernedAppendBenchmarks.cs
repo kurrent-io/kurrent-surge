@@ -1,9 +1,11 @@
+using Kurrent.Toolkit;
 using BenchmarkDotNet.Attributes;
 using Benchmarks.Infrastructure;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Codecs;
+using Kurrent.Surge.Codecs.Avro;
 using Kurrent.Surge.Codecs.Json;
 using Kurrent.Surge.Codecs.Protobuf;
 using Kurrent.Surge.Schema.Catalogs;
@@ -52,11 +54,11 @@ public class GovernedAppendBenchmarks {
 
         var schema = KurrentClientSchemaOptions.Disabled;
 
-        var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec()]);
+        var codecs = new SchemaCodecProvider([new JsonSchemaCodec(), new ProtobufSchemaCodec(), new AvroSchemaCodec()]);
 
         var governance = SchemaGovernance.Create(_fixture.Client, catalogs, schema);
 
-        _governed = WriteRecordPipeline.Create(resolver, codecs, governance);
+        _governed = WriteRecordPipeline.Create(resolver, schema, codecs, governance);
 
         // Pre-built catalog records, one stream — both paths map the same instances per op.
         var stream = $"governed-append-bench-{RecordCount}";

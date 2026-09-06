@@ -1,6 +1,4 @@
-using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Registry;
-using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Schema;
@@ -240,6 +238,66 @@ public class CatalogRegistrationTests {
         // Assert
         await Assert.That(results.Distinct()).Count().IsEqualTo(1);
         await Assert.That(results[0]).IsNotEqualTo(SchemaVersionId.Unset);
+    }
+
+    [Test]
+    public async ValueTask catalog_registration_keys_entries_by_type_alone(CancellationToken ct) {
+        // Arrange — registry ON. One entry per type, not per (type, format): a schema name
+        // carries one version lineage whatever the payload encoding, which is what lets a
+        // producer change format without changing the contract a consumer validates against.
+        var nameStrategy = NewIsolatedNameStrategy();
+        var catalog      = new MessageCatalog("registration-format-keying").Map<RaceCar>(nameStrategy);
+
+        var governance = SchemaGovernance.Create(
+            Fixture.Client, [catalog], KurrentClientSchemaOptions.AutoRegister, ct);
+
+        // Act
+        var registered = await governance.CatalogRegistration;
+
+        // Assert — one entry for the one catalog type, and it carries a version id, so a record
+        // resolves the same registration whether it was encoded as JSON, Protobuf or Avro.
+        await Assert.That(registered.Count).IsEqualTo(1);
+        await Assert.That(registered.TryGet(typeof(RaceCar), out var info)).IsTrue();
+        await Assert.That(info.HasSchemaId).IsTrue();
+    }
+
+    [Test]
+    public async ValueTask compatibility_is_skipped_for_a_non_json_record(CancellationToken ct) {
+        // Arrange — a registered schema and a validating client. The registry stores Json
+        // definitions only and the exporter throws for anything else, so a non-Json payload is
+        // skipped rather than validated or rejected.
+        var nameStrategy = NewIsolatedNameStrategy();
+        var catalog      = new MessageCatalog("registration-nonjson-compat").Map<RaceCar>(nameStrategy);
+        var schemaName   = nameStrategy.GenerateSchemaName(typeof(RaceCar));
+
+        var registrar = SchemaGovernance.Create(
+            Fixture.Client, [catalog], KurrentClientSchemaOptions.AutoRegister, ct);
+
+        await registrar.CatalogRegistration;
+
+        // Registry reads lag writes, so the schema has to be readable before the checks start.
+        await Assert.That(async () => {
+            await Fixture.Client.Registry.GetSchema(schemaName, ct);
+        }).EventuallyPasses(RetryOnTransients(ct));
+
+        var governance = SchemaGovernance.Create(
+            Fixture.Client, [catalog], KurrentClientSchemaOptions.Strict, ct);
+
+        // Act — Protobuf FIRST, deliberately. A Json check populates the per-type version cache
+        // that EnsureCompatibleByName returns from, which would let the Protobuf call answer out
+        // of the cache and hide whether the format was skipped.
+        var protobuf = await governance.EnsureCompatible(
+            new RecordSchemaInfo { Schema = schemaName, DataFormat = SchemaDataFormat.Protobuf },
+            typeof(RaceCar), ct);
+
+        var json = await governance.EnsureCompatible(
+            new RecordSchemaInfo { Schema = schemaName, DataFormat = SchemaDataFormat.Json },
+            typeof(RaceCar), ct);
+
+        // Assert — the non-Json record is skipped, and the control proves validation is on and
+        // does resolve a version for the format the registry actually holds.
+        await Assert.That(protobuf).IsEqualTo(SchemaVersionId.Unset);
+        await Assert.That(json).IsNotEqualTo(SchemaVersionId.Unset);
     }
 
     [Test]

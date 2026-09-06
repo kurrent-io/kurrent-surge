@@ -1,7 +1,7 @@
+using Kurrent.Toolkit;
 using Kurrent.Surge.Schema.Governance;
 using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema.Catalogs;
-using Kurrent.Surge.Validation;
 using Contracts = KurrentDB.Protocol.V2.Streams;
 
 namespace Kurrent.Surge.Client.Streams;
@@ -13,20 +13,21 @@ namespace Kurrent.Surge.Client.Streams;
 /// segment. Validation is orchestration in <see cref="Execute"/> — it decides whether the
 /// chain runs at all.
 /// </summary>
-sealed class WriteRecordPipeline : IStep<AppendRecord, Contracts.AppendRecord> {
-    WriteRecordPipeline(IStep<AppendRecord, Contracts.AppendRecord> pipeline) => _pipeline = pipeline;
+sealed class WriteRecordPipeline : IPipelineStep<AppendRecord, Contracts.AppendRecord> {
+    WriteRecordPipeline(IPipelineStep<AppendRecord, Contracts.AppendRecord> pipeline) => _pipeline = pipeline;
 
-    readonly IStep<AppendRecord, Contracts.AppendRecord> _pipeline;
+    readonly IPipelineStep<AppendRecord, Contracts.AppendRecord> _pipeline;
 
     /// <summary>
     /// Wires the canonical chain from client-composed parts.
     /// </summary>
     internal static WriteRecordPipeline Create(
         MessageResolver messages,
+        KurrentClientSchemaOptions schema,
         SchemaCodecProvider codecs,
         ISchemaGovernance governance
     ) =>
-        new(new ClassifyWriteStep(messages)
+        new(new ClassifyWriteStep(messages, schema.AppendAsJson)
             .Then(new GovernWriteStep(governance)
                 .Then(new EncodeWriteStep(codecs))
                 .OnNamed())

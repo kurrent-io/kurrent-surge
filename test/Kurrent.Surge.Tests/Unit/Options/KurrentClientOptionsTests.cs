@@ -1,5 +1,5 @@
 using System.Net;
-using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Tests.Options;
 
@@ -11,6 +11,15 @@ public class KurrentClientOptionsTests {
         var validationResult = options.Validate();
 
         await Assert.That(validationResult.IsValid).IsTrue();
+    }
+
+    [Test]
+    public async ValueTask does_not_append_as_json_by_default() {
+        // Act — off by default, so an unstated record takes its format from the message type.
+        var options = new KurrentClientOptions();
+
+        // Assert
+        await Assert.That(options.Schema.AppendAsJson).IsFalse();
     }
 
     [Test]

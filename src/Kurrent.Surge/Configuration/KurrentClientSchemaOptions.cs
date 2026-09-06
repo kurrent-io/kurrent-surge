@@ -1,3 +1,4 @@
+using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Naming;
 using Kurrent.Surge.Validation;
 
@@ -25,6 +26,12 @@ public sealed class KurrentClientSchemaOptions : SelfValidatingClass<KurrentClie
 	/// Defaults to <see cref="SchemaNameStrategies.TypeName"/>.
 	/// </summary>
 	public ISchemaNameStrategy NameStrategy { get; set; } = SchemaNameStrategies.TypeName();
+
+	/// <summary>
+	/// Appends records that do not state a format as JSON instead of taking the format from the
+	/// message type. A format stated on the record still wins. Off by default.
+	/// </summary>
+	public bool AppendAsJson { get; set; }
 
 	/// <summary>
 	/// The registry is not involved. Schema names map locally, produced records carry names

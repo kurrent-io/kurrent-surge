@@ -70,7 +70,7 @@ public class KurrentClient : IKurrentClient {
         Registry   = new RegistryClient(this);
         Governance = SchemaGovernance.Create(this, Catalogs, options.Schema, Lifetime.Token);
 
-        WritePipeline = WriteRecordPipeline.Create(messageResolver, codecs, Governance);
+        WritePipeline = WriteRecordPipeline.Create(messageResolver, options.Schema, codecs, Governance);
         ReadPipeline  = ReadRecordPipeline.Create(messageResolver, options.Schema, codecs, Governance);
 
         Streams    = new StreamsClient(this);
