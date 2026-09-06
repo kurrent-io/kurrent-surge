@@ -196,6 +196,7 @@ export default defineConfig({
           items: [
             { label: 'Connection strings', slug: 'client/connection-strings' },
             { label: 'Configuring the client', slug: 'client/configuring-the-client' },
+            { label: 'Dependency injection', slug: 'client/dependency-injection' },
             { label: 'Clusters and load balancing', slug: 'client/clusters-and-discovery' },
             { label: 'Security', slug: 'client/security' },
             { label: 'Troubleshooting', slug: 'client/troubleshooting' },

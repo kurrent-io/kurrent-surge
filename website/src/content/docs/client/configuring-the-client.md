@@ -65,9 +65,8 @@ seconds unless you change it.
 ```csharp
 opts.Resilience = KurrentClientResilienceOptions.Subscription;
 
-opts.Resilience = KurrentClientResilienceOptions.Default with {
-    KeepAliveInterval = TimeSpan.FromSeconds(20)
-};
+opts.Resilience = KurrentClientResilienceOptions.Default;
+opts.Resilience.KeepAliveInterval = TimeSpan.FromSeconds(20);
 ```
 
 :::caution
@@ -98,26 +97,18 @@ opts.Security = KurrentClientSecurityOptions.MutualTls(
 
 ## Dependency injection
 
-Two entry points, and they differ in what happens when configuration is registered twice.
+`AddKurrentSurge` is the single entry point, and it registers a `KurrentClient` for injection.
 
 ```csharp
-// Fluent builder. A later registration wins.
-builder.Services.AddKurrent(kurrent => kurrent
+builder.Services.AddKurrentSurge(surge => surge
     .Connection("kurrentdb://admin:changeit@localhost:2113?tls=false"));
-
-// Direct registration. The first registration wins.
-builder.Services.AddKurrentClient("kurrentdb://admin:changeit@localhost:2113?tls=false");
-
-builder.Services.AddKurrentClient(opts => {
-    opts.Resilience = KurrentClientResilienceOptions.HighAvailability;
-});
 ```
 
-Pick one and use it throughout. Mixing them in one application makes which configuration survives
-depend on registration order.
-
-`AddKurrentClient` with no connection string and no configuration source throws
+A client resolved when nothing configured a connection throws
 `KurrentClientNotConfiguredException` rather than connecting to a default.
+
+[Dependency injection](/kurrent-surge/client/dependency-injection/) covers the three entry points,
+the connection precedence and configuration binding.
 
 ## Two clients for two node preferences
 
@@ -125,9 +116,9 @@ Node preference is bound to the client. An application that writes to the leader
 followers builds two clients rather than sharing one.
 
 ```csharp
-builder.Services.AddKurrent(kurrent => kurrent
-    .Connection("kurrentdb+discover://cluster:2113?nodePreference=leader"));
+var writes = KurrentClient.Create("kurrentdb+discover://cluster:2113?nodePreference=leader");
+var reads  = KurrentClient.Create("kurrentdb+discover://cluster:2113?nodePreference=follower");
 ```
 
-The read client takes `nodePreference=follower` on its own connection string. They share nothing
-internally, so there is no cost beyond the second set of channels.
+They share nothing internally, so there is no cost beyond the second set of channels. The
+registration scope registers at most one client, so hand the second one over explicitly.

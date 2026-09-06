@@ -20,7 +20,7 @@ dotnet add package Kurrent.Surge
 ```
 
 Requires .NET 10.0 or a subsequent version. `Kurrent.Surge` carries the client and the processors;
-the [other three packages](/kurrent-surge/what-is-surge/) are opt in.
+the [other two packages](/kurrent-surge/what-is-surge/) are opt in.
 
 ## Declare your messages
 
@@ -79,7 +79,8 @@ Reading a stream by hand suits a query. A **processor** suits everything else. I
 subscription, the checkpoints, the retries and the batching, and leaves you one method.
 
 ```csharp
-using Kurrent.Surge.Streaming;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Processors;
 
 public sealed class OrderNotifier : IRecordProcessor {
     public ValueTask ProcessRecord(ProcessRecordContext context) {

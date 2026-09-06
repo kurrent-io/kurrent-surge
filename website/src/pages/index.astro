@@ -3,6 +3,7 @@
 // stylesheets itself rather than receiving them from customCss. Typefaces come
 // from the <Font /> components in the head below, matching Head.astro.
 import { Font } from "astro:assets";
+import { Code } from "@astrojs/starlight/components";
 import "../styles/surge.css";
 import "../styles/home.css";
 
@@ -14,6 +15,23 @@ const withBase = (path: string) => `${base}${path}`;
 const DOCS_HREF = "/getting-started/";
 const PROCESSORS_HREF = "/processors/";
 
+const processorSample = `using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Processors;
+
+public sealed class TemperatureMonitor : IRecordProcessor {
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        if (context.Record.Value is SensorReading reading)
+            Evaluate(reading);
+
+        return ValueTask.CompletedTask;
+    }
+}
+
+await KurrentProcessor.Create(new TemperatureMonitor(), opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'");
+}).RunWithGracefulShutdownAsync();`;
+
 const packages = [
   { name: "Kurrent.Surge", body: "The client and the processors. What you install." },
   { name: "Kurrent.Surge.Core", body: "Contracts, value types, and the JSON, Protobuf, and Avro codecs. No gRPC, no transport." },
@@ -23,10 +41,10 @@ const packages = [
 const sections = [
   {
     num: "01",
-    label: "PROCESSORS",
-    title: "Write a handler.\nThe runtime runs it.",
-    body: "No subscription loop, no checkpoint bookkeeping, no retry policy to hand-roll. Implement one method and the runtime owns the rest.",
-    link: { href: PROCESSORS_HREF, text: "Read the guide" },
+    label: "CLIENT",
+    title: "Five modules,\none surface.",
+    body: "Append, read and manage streams. Plus the schema registry, secondary indexes, connectors and node administration, through one client over two gRPC protocols.",
+    link: { href: "/client/", text: "Browse the client" },
   },
   {
     num: "02",
@@ -37,31 +55,31 @@ const sections = [
   },
   {
     num: "03",
-    label: "CLIENT",
-    title: "Five modules,\none surface.",
-    body: "Streams, schema registry, secondary indexes, connectors and node administration. One client over two gRPC protocols.",
-    link: { href: "/client/", text: "Browse the client" },
+    label: "PROCESSORS",
+    title: "Write a handler.\nThe runtime runs it.",
+    body: "No subscription loop, no checkpoint bookkeeping, no reconnect policy to hand-roll. Implement one method and the runtime owns the rest.",
+    link: { href: PROCESSORS_HREF, text: "Read the guide" },
   },
   {
     num: "04",
+    label: "WIREUP",
+    title: "One entry point.\nOne using.",
+    body: "AddKurrentSurge opens a scope that carries the connection and everything that runs against it. Processors register as hosted services, and the connection precedence is documented rather than emergent.",
+    link: { href: "/client/dependency-injection/", text: "See the registration" },
+  },
+  {
+    num: "05",
     label: "LOAD BALANCING",
     title: "Routing runs inside\nthe channel.",
     body: "A gRPC load balancing policy of our own, not a wrapper around one address. Gossip discovery, nodes ranked by preference, and a leader change followed without a reconnect you write.",
     link: { href: "/client/clusters-and-discovery/", text: "See how it routes" },
   },
   {
-    num: "05",
-    label: "RESILIENCE",
-    title: "Retries on the client\nand the processor.",
-    body: "The client retries at the gRPC channel, declared in the service config so the transport enforces it. A processor reconnects its subscription on a pipeline you can extend or replace. Two layers, one vocabulary, no reconnect loop of your own.",
-    link: { href: "/client/configuring-the-client/", text: "Configure resilience" },
-  },
-  {
     num: "06",
-    label: "AOT",
-    title: "Built for\nNative AOT.",
-    body: "Catalogs, unions and Avro codecs are generated at compile time. All four packages are IsAotCompatible and IsTrimmable, and trim analysis runs unsuppressed on every build.",
-    link: { href: "/what-is-surge/", text: "How it is designed" },
+    label: "RESILIENCE",
+    title: "Retries on the channel.\nReconnects on the processor.",
+    body: "The client retries at the gRPC channel, declared in the service config so the transport enforces it. A processor reconnects its subscription on a pipeline you can extend or replace. A handler exception is never retried, and error handling says so plainly.",
+    link: { href: "/client/configuring-the-client/", text: "Configure resilience" },
   },
 ];
 ---
@@ -88,7 +106,7 @@ const sections = [
 
 <section class="hero">
   <div class="wrap">
-    <h1 class="hero__h1 hero__h1--name">Kurrent Surge</h1>
+    <h1 class="hero__h1 hero__h1--name">Kurrent <span class="accent">Surge</span></h1>
 
     <p class="hero__lede">
       The state&#8209;of&#8209;the&#8209;art .NET SDK for KurrentDB and the Kurrent Platform.
@@ -122,23 +140,9 @@ const sections = [
     <p class="sect__lbl">A COMPLETE STREAM PROCESSOR</p>
     <h2 class="sect__h">One method. That is the program.</h2>
 
-    <pre class="mono" style="
-      margin: 24px 0 0; padding: 22px 24px;
-      background: #141414; border: 1px solid var(--border);
-      border-radius: 10px; color: var(--fg-1); font-size: 13.5px;
-      line-height: 1.7; overflow-x: auto;"><code>public sealed class TemperatureMonitor : IRecordProcessor &#123;
-    public ValueTask ProcessRecord(ProcessRecordContext context) &#123;
-        if (context.Record.Value is SensorReading reading)
-            Evaluate(reading);
-
-        return ValueTask.CompletedTask;
-    &#125;
-&#125;
-
-await KurrentProcessor.Create(new TemperatureMonitor(), opts =&gt; &#123;
-    opts.Connection("kurrentdb://localhost:2113");
-    opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'");
-&#125;).RunWithGracefulShutdownAsync();</code></pre>
+    <div style="margin-top: 24px;">
+      <Code code={processorSample} lang="csharp" />
+    </div>
 
     <p style="margin-top: 24px; color: var(--fg-dim); max-width: 68ch;">
       The runtime owns the subscription, the checkpoints, the batching, the resilience,

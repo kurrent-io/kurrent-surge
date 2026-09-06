@@ -15,7 +15,7 @@ whether it checks them before use. One options object carries both.
 | `Strict` | manual | on | production consumers that must fail fast on drift |
 
 ```csharp
-builder.Services.AddKurrent(kurrent => kurrent
+builder.Services.AddKurrentSurge(surge => surge
     .Connection("kurrentdb://localhost:2113", opts =>
         opts.Schema = KurrentClientSchemaOptions.AutoRegister));
 ```

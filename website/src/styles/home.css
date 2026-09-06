@@ -231,6 +231,13 @@ a {
   max-width: none;
 }
 
+/* The name sits at 300, so 500 is the smallest step that still reads as
+   deliberate at 112px rather than as a rendering artefact. */
+.hero__h1--name .accent {
+  color: var(--accent);
+  font-weight: 500;
+}
+
 /* The one-line descriptor, between the name and the detail paragraph. Sized so
    the three tiers read in order: name, what it is, what it does. */
 .hero__lede {

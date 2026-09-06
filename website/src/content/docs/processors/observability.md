@@ -96,12 +96,12 @@ A processor emits spans through `System.Diagnostics`, so any OpenTelemetry setup
 subscribing to the source.
 
 ```
-ActivitySource: Kurrent.Surge.Streaming
+ActivitySource: Kurrent.Surge.Processors
 ```
 
 ```csharp
 builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing
-    .AddSource("Kurrent.Surge.Streaming")
+    .AddSource("Kurrent.Surge.Processors")
     .AddOtlpExporter());
 ```
 

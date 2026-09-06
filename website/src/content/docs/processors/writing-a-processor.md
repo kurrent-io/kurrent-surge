@@ -63,10 +63,13 @@ resources opened in `OnInitialize` have somewhere to go.
 
 ## Failure
 
-Throw from a handler and the runtime treats it as a processing failure: the exception is wrapped
-with the operation that failed, resilience policy applies, and the position is not committed past
+Throw from a handler and the run ends. The exception is wrapped with the operation that failed, the
+processor transitions to stopped, and the task you awaited faults. The position is not committed past
 the record that threw. Cancellation propagates unwrapped, because a stopping processor is not a
 failing one.
+
+The resilience options govern the subscription, not your handler. A handler exception is never
+retried.
 
 [Error handling](/kurrent-surge/processors/error-handling/) covers the retry policy, stopping deliberately, and
 what happens when a checkpoint fails.
@@ -83,7 +86,27 @@ await KurrentProcessor.Create(new OrderProcessor(), opts => {
 `RunWithGracefulShutdownAsync` wires SIGINT and SIGTERM so an in-flight batch finishes and its
 position is committed before the process exits.
 
-:::caution[Dependency injection]
-Registering a processor as a hosted service through `IServiceCollection` is not settled yet. Every
-example today constructs the processor directly, as above. Expect this to change.
-:::
+## Under dependency injection
+
+`AddKurrentSurge` registers the processor as a hosted service, so the host starts it and stops it.
+
+```csharp
+builder.Services.AddSingleton<OrderProcessor>();
+
+builder.Services.AddKurrentSurge(surge => {
+    surge.Connection("kurrentdb://localhost:2113");
+    surge.AddProcessor<OrderProcessor>(opts =>
+        opts.Subscription.Filter = RecordFilter.ByCategory("orders"));
+});
+```
+
+`AddProcessor<T>` resolves `T` from the container and never registers it, so register it yourself.
+Pass an instance or a factory instead when that suits the processor better:
+
+```csharp
+surge.AddProcessor(new OrderProcessor());
+surge.AddProcessor(sp => new OrderProcessor(sp.GetRequiredService<IOrderStore>()));
+```
+
+Neither of those two adds the type to the container. `AddBatchProcessor` carries the same six
+overloads for `IRecordBatchProcessor`.

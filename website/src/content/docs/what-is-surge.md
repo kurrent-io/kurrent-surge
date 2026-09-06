@@ -59,7 +59,7 @@ See [Processors](/kurrent-surge/processors/).
 ## How it is designed
 
 **Built for Native AOT.** Catalogs, discriminated unions and Avro codecs come from source generators.
-All four packages are `IsAotCompatible` and `IsTrimmable`, trim and AOT analysis runs unsuppressed
+All three packages are `IsAotCompatible` and `IsTrimmable`, trim and AOT analysis runs unsuppressed
 across the repository, and both the map from CLR type to schema name and the table of codecs are
 frozen dictionaries built once at startup. JSON goes through a source-generated
 `JsonSerializerContext`, with the reflection fallback behind a feature switch the linker removes.

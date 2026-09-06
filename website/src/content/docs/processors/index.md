@@ -1,15 +1,16 @@
 ---
 title: Processors
-description: Write two methods. The runtime handles the subscription, checkpoints, retries and partitions.
+description: Write two methods. The runtime handles the subscription, checkpoints, reconnects and batching.
 ---
 
 A processor replaces hand-written subscription code. You do not manage a subscription, a checkpoint,
-a retry loop or a partition assignment. You write the handler.
+a reconnect loop or a partition assignment. You write the handler.
 
 This is a complete program:
 
 ```csharp
-using Kurrent.Surge.Streaming;
+using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Processors;
 
 await KurrentProcessor.Create(new TemperatureMonitorProcessor(), opts => {
     opts.Connection("kurrentdb://localhost:2113");
@@ -72,7 +73,7 @@ Configured through `ProcessorOptions`:
 | Position tracking | `Checkpoint` |
 | Batch shape | `Batching` |
 | Reconnecting a dropped subscription | `Resilience` |
-| Checkpoint partition count | `MaxParallelism`, default 1 |
+| Checkpoint partition count | `MaxParallelism`, fixed at 1 — see [partitioning](/kurrent-surge/processors/partitioning/) |
 | [Observability](/kurrent-surge/processors/observability/) | `Observers`, `MeterFactory`, `TrackSourceLag` |
 
 Read on for [writing a processor](/kurrent-surge/processors/writing-a-processor/),

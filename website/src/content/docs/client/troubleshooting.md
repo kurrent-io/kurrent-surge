@@ -61,8 +61,9 @@ connection addresses exactly one node.
 
 ### `KurrentClientNotConfiguredException`
 
-`AddKurrentClient` was called with no connection string and no configuration source. It throws rather
-than guessing a default.
+Nothing configured a connection. Either `AddKurrentSurge(connectionName)` found no entry for that
+name under `ConnectionStrings`, or a client was resolved with no `Connection` call and no
+`ConnectionStrings` key the scope recognises. It throws rather than guessing a default.
 
 ## It connects, then fails later
 

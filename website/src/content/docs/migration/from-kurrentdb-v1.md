@@ -144,7 +144,8 @@ catch (StreamRevisionConflictException ex) {
 services.AddKurrentDBClient("kurrentdb://admin:changeit@localhost:2113?tls=false");
 
 // New
-services.AddKurrentClient("kurrentdb://admin:changeit@localhost:2113?tls=false");
+services.AddKurrentSurge(surge => surge
+    .Connection("kurrentdb://admin:changeit@localhost:2113?tls=false"));
 ```
 
 ## Checklist
@@ -174,7 +175,8 @@ services.AddKurrentClient("kurrentdb://admin:changeit@localhost:2113?tls=false")
 6. **Concurrency.** `StreamRevision` becomes `Revision`, and `StreamState` becomes
    `ExpectedStreamState`.
 7. **Exceptions.** Replace `WrongExpectedVersionException` with `StreamRevisionConflictException`.
-8. **Registration.** `AddKurrentDBClient` becomes `AddKurrentClient`.
+8. **Registration.** `AddKurrentDBClient` becomes `AddKurrentSurge`, which takes a scope rather than
+   a connection string. See [Dependency injection](/kurrent-surge/client/dependency-injection/).
 9. **Declare your message types.** Kurrent Surge does not infer schema names, so an append of an
    undeclared type throws. This has no v1 equivalent and is the step most likely to surprise you.
    See [Catalogs](/kurrent-surge/schema/catalogs/).

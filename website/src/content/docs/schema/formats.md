@@ -59,7 +59,7 @@ For AOT, register a source-generated context so nothing resolves by reflection:
 [JsonSerializable(typeof(OrderPlaced))]
 public partial class OrdersJsonContext : JsonSerializerContext;
 
-opts.Messages.Json = JsonSchemaCodecOptions.Default with {
+opts.Messages.Json = new JsonSchemaCodecOptions {
     UserJsonContexts = [OrdersJsonContext.Default]
 };
 ```
