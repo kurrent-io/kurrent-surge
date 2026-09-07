@@ -9,8 +9,7 @@ namespace Kurrent.Surge.Processors.Partitioning;
 /// Used to determine which partition a record belongs to for parallel processing.
 /// The extracted key is then hashed by <see cref="PartitionCalculator"/> to assign a partition number.
 /// </remarks>
-[PublicAPI]
-public interface IPartitionKeyExtractor {
+internal interface IPartitionKeyExtractor {
     /// <summary>
     /// Extracts the partition key value from a record.
     /// </summary>
@@ -39,8 +38,7 @@ public interface IPartitionKeyExtractor {
 /// }
 /// </code>
 /// </example>
-[PublicAPI]
-public static class PartitionKeyExtractor {
+internal static class PartitionKeyExtractor {
     /// <summary>
     /// An extractor that always returns <c>null</c> (no partitioning).
     /// </summary>

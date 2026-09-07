@@ -35,8 +35,7 @@ namespace Kurrent.Surge.Processors.Partitioning;
 /// var partition = PartitionAssigner.Default.GetPartition("customer-123", maxParallelism: 128);
 /// </code>
 /// </example>
-[PublicAPI]
-public sealed class PartitionAssigner {
+internal sealed class PartitionAssigner {
     readonly IDistributionStrategy _strategy;
     readonly PartitionCalculator _calculator;
 

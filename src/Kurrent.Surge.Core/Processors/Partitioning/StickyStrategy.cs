@@ -25,8 +25,7 @@ namespace Kurrent.Surge.Processors.Partitioning;
 /// </list>
 /// </para>
 /// </remarks>
-[PublicAPI]
-public sealed class StickyStrategy : IDistributionStrategy {
+internal sealed class StickyStrategy : IDistributionStrategy {
     /// <summary>
     /// Singleton instance of the sticky strategy.
     /// </summary>

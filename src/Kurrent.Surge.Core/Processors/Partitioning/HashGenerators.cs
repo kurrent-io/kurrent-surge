@@ -5,15 +5,14 @@ using static System.Text.Encoding;
 
 namespace Kurrent.Surge.Processors.Partitioning;
 
-public delegate uint GenerateHash(string input);
+internal delegate uint GenerateHash(string input);
 
-public delegate uint GenerateHashFromBytes(ReadOnlySpan<byte> input);
+internal delegate uint GenerateHashFromBytes(ReadOnlySpan<byte> input);
 
 /// <summary>
 /// Provides a collection of hash generation utilities for both string and byte array inputs.
 /// </summary>
-[PublicAPI]
-public static class HashGenerators {
+internal static class HashGenerators {
     [PublicAPI]
     public static class FromBytes {
         public static GenerateHashFromBytes XXHash =>

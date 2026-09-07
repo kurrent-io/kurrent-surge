@@ -13,8 +13,7 @@ namespace Kurrent.Surge.Processors.Partitioning;
 ///   <item><see cref="RangeStrategy"/>: Deterministic contiguous ranges (testing, initial assignment)</item>
 /// </list>
 /// </remarks>
-[PublicAPI]
-public interface IDistributionStrategy {
+internal interface IDistributionStrategy {
     /// <summary>
     /// Distributes partitions across drones, computing both assignments and transfers.
     /// </summary>

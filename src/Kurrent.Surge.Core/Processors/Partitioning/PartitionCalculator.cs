@@ -27,8 +27,7 @@ namespace Kurrent.Surge.Processors.Partitioning;
 /// Debug.Assert(calculator.For("customer-123", 128) == partition1);
 /// </code>
 /// </example>
-[PublicAPI]
-public sealed class PartitionCalculator(GenerateHashFromBytes hashGenerator) {
+internal sealed class PartitionCalculator(GenerateHashFromBytes hashGenerator) {
     /// <summary>
     /// Stack allocation threshold - keys shorter than this use stackalloc (zero allocation).
     /// </summary>

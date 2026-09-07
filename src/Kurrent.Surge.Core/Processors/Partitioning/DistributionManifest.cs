@@ -10,8 +10,7 @@ namespace Kurrent.Surge.Processors.Partitioning;
 /// and the delta from the previous state (what moved where). This enables efficient
 /// rebalancing by knowing exactly which partitions need state transfer.
 /// </remarks>
-[PublicAPI]
-public sealed record DistributionManifest {
+internal sealed record DistributionManifest {
     /// <summary>
     /// Empty manifest representing no distribution (initial state).
     /// </summary>
@@ -73,8 +72,7 @@ public sealed record DistributionManifest {
 /// <param name="Kept">Partitions retained from the previous assignment.</param>
 /// <param name="Gained">Partitions newly assigned to this drone.</param>
 /// <param name="Lost">Partitions removed from this drone.</param>
-[PublicAPI]
-public sealed record PartitionAssignment(
+internal sealed record PartitionAssignment(
     Partition[] Kept,
     Partition[] Gained,
     Partition[] Lost
@@ -106,8 +104,7 @@ public sealed record PartitionAssignment(
 /// <param name="From">The drone losing the partitions (<c>string.Empty</c> if partitions are new).</param>
 /// <param name="To">The drone gaining the partitions.</param>
 /// <param name="Partitions">The partitions being transferred.</param>
-[PublicAPI]
-public sealed record PartitionTransfer(
+internal sealed record PartitionTransfer(
     string From,
     string To,
     Partition[] Partitions

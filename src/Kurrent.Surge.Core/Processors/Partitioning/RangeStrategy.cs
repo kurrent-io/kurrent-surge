@@ -24,8 +24,7 @@ namespace Kurrent.Surge.Processors.Partitioning;
 /// </list>
 /// </para>
 /// </remarks>
-[PublicAPI]
-public sealed class RangeStrategy : IDistributionStrategy {
+internal sealed class RangeStrategy : IDistributionStrategy {
     /// <summary>
     /// Singleton instance of the range strategy.
     /// </summary>
