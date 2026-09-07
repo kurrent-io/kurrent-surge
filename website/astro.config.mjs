@@ -225,8 +225,8 @@ export default defineConfig({
               label: 'Connectors',
               collapsed: true,
               items: [
-                { label: 'Managing connectors', slug: 'client/connectors' },
-                { label: 'Understanding connectors', slug: 'client/connectors/intro' },
+                { label: 'Managing connectors', slug: 'client/connectors/manage' },
+                { label: 'Understanding connectors', slug: 'client/connectors' },
                 { label: 'Features', slug: 'client/connectors/features' },
                 { label: 'Configure connector', slug: 'client/connectors/settings' },
                 { label: 'Metrics', slug: 'client/connectors/metrics' },
