@@ -27,9 +27,8 @@
 
 | Package                       | Purpose                                                              | Depends on (NuGet)                          | AOT |
 |-------------------------------|----------------------------------------------------------------------|---------------------------------------------|-----|
-| `Kurrent.Surge.Core`          | Contract layer: client + streaming interfaces, options, value types, wire contracts, message vocabulary (`SchemaName`, catalogs, `MessageResolver`, naming strategies) | bundles `Variant`; packs the catalog generator | yes |
+| `Kurrent.Surge.Core`          | Contract layer: client + streaming interfaces, options, value types, wire contracts, message vocabulary (`SchemaName`, catalogs, `MessageResolver`, naming strategies), JSON/Protobuf/Avro codecs | bundles `Variant` and `Kurrent.Surge.RecordFilters`; packs `Kurrent.Surge.Generators` and the catalog generator | yes |
 | `Kurrent.Surge`               | Implementation: gRPC client (`Client/`) + stream processing (`Streaming/`) | `Kurrent.Surge.Core`                        | yes |
-| `Kurrent.Surge.Codecs.Avro`   | Opt-in Avro codec; packs its own generator                           | `Kurrent.Surge.Core`                        | yes |
 
 ### Solution-level libraries (not published)
 
@@ -37,9 +36,9 @@
 |-------------------------------------|----------------------------------------------------------------------|----------------|
 | `Variant`                           | `IVariant` discriminated-union runtime + `Result<T,E>` (assembly name `Kurrent.Variant`) | net10.0 |
 | `Variant.SourceGenerators`          | Generates `IVariant` union plumbing                                  | netstandard2.0 |
-| `Kurrent.Surge.SourceGenerators`    | Generates `[UniqueIdentifier]` value-type plumbing                    | netstandard2.0 |
+| `Kurrent.Surge.Generators`          | Generates `[UniqueIdentifier]` value-type plumbing and the Avro message types + AOT-safe codecs from `.avsc` files (ships inside `Kurrent.Surge.Core` under `analyzers/dotnet/cs/`) | netstandard2.0 |
+| `Kurrent.Surge.RecordFilters`       | Filter engine behind `RecordFilter`/`ExpressionFilter` (bundled into `Kurrent.Surge.Core`) | net10.0 |
 | `Kurrent.Surge.Schema.Catalogs.Generators` | The message-catalog generator (ships inside `Kurrent.Surge.Core` under `analyzers/dotnet/cs/`) | netstandard2.0 |
-| `Kurrent.Surge.Codecs.Avro.Generators` | The Avro codec generator (ships bundled inside the Codecs.Avro package) | netstandard2.0 |
 | `Kurrent.CodeAnalysis`              | Shared Roslyn infrastructure (type pipeline, source writer, symbol model) | netstandard2.0 |
 | `Kurrent.Surge.Arrow`               | Arrow Flight SQL query helper over the client                        | net10.0        |
 
@@ -134,7 +133,7 @@ transport (gossip discovery, channel selection, interceptors, `Uuid`/`X509` help
 ### Schema system (three layers)
 
 `CLR type → MessageResolver/MessageTypeMapper → SchemaManager → ISchemaSerializer → bytes`, split across the
-three packages:
+two packages:
 
 | Layer                                   | Where                                              | Key types                                                                 |
 |-----------------------------------------|----------------------------------------------------|---------------------------------------------------------------------------|
@@ -227,8 +226,8 @@ commented out — those RPCs do not exist in the proto yet.
 | Generator                        | Project                              | Trigger                                             | Generates                                                     |
 |----------------------------------|--------------------------------------|-----------------------------------------------------|---------------------------------------------------------------|
 | `VariantGenerator`               | `Variant.SourceGenerators`           | type implementing `Kurrent.Variant.IVariant<...>`   | union case enum, `Match`/switch, implicit ops                 |
-| `UniqueIdentifierGenerator`      | `Kurrent.Surge.SourceGenerators`     | `[Kurrent.Surge.UniqueIdentifierAttribute]` on a partial type | value-type members, explicit `Guid` operators, JSON converter |
-| `AvroCodecGenerator`             | `Kurrent.Surge.Codecs.Avro.Generators` | Avro schema files and annotated types             | Avro types, codecs, equality, schema text                     |
+| `UniqueIdentifierGenerator`      | `Kurrent.Surge.Generators`           | `[Kurrent.Surge.UniqueIdentifierAttribute]` on a partial type | value-type members, explicit `Guid` operators, JSON converter |
+| `AvroCodecGenerator`             | `Kurrent.Surge.Generators`           | Avro schema files and annotated types             | Avro types, codecs, equality, schema text                     |
 | `MessageCatalogGenerator`        | `Kurrent.Surge.Schema.Catalogs.Generators` | `[assembly: MessageCatalog(...)]` + `[MessageType]` + `[CustomMessageCatalog]` | `{Assembly}.MessageCatalogs`, provider attribute, `Use{X}Catalog()` extensions |
 
 `VariantGenerator` and `UniqueIdentifierGenerator` build on `Kurrent.CodeAnalysis` (shared Roslyn pipeline
