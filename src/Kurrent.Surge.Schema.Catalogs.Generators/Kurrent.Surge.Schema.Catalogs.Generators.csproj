@@ -2,9 +2,9 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <!-- Unlike the SDK-internal generators, this one is a PRODUCT FEATURE: it ships to
-         consumers inside the Kurrent.Surge.Schema.Catalogs package (analyzers/dotnet/cs) so message
+         consumers inside the Kurrent.Surge.Core package (analyzers/dotnet/cs) so message
          catalogs are generated in THEIR compilations. Packing is orchestrated by
-         Kurrent.Surge.Schema.Catalogs.csproj; this project itself is not independently packable. -->
+         Kurrent.Surge.Core.csproj; this project itself is not independently packable. -->
     <IsPackable>false</IsPackable>
     <IsRoslynComponent>true</IsRoslynComponent>
     <IncludeBuildOutput>false</IncludeBuildOutput>

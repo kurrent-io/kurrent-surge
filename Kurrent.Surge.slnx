@@ -59,7 +59,6 @@
   <Folder Name="/Extensions/">
     <Project Path="src/Kurrent.Surge.Cli/Kurrent.Surge.Cli.csproj" />
     <Project Path="src/Kurrent.Surge.Schema.Catalogs.Generators/Kurrent.Surge.Schema.Catalogs.Generators.csproj" />
-    <Project Path="src/Kurrent.Surge.Schema.Catalogs/Kurrent.Surge.Schema.Catalogs.csproj" />
     <Project Path="src/Kurrent.Surge.Schema.Validation/Kurrent.Surge.Schema.Validation.csproj" />
     <Project Path="src/Kurrent.Surge.Arrow/Kurrent.Surge.Arrow.csproj" />
     <Project Path="src/Kurrent.Surge.RecordFilters/Kurrent.Surge.RecordFilters.csproj" />

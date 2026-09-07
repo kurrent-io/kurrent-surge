@@ -5,11 +5,10 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace Kurrent.Surge.Schema.Catalogs.Tests.Unit;
 
 /// <summary>
-/// Drives <see cref="MessageCatalogGenerator"/> directly over hand-built compilations to prove the
-/// client-coupled emission gate: a contracts-only compilation (no <c>KurrentClientMessageOptions</c>)
-/// must get the catalog + provider but NOT the <c>Use*Catalog()</c> extensions, while a compilation
-/// that has the client type must get them. The physical samples project
-/// (Kurrent.Surge.Schema.Catalogs.Tests.Samples) covers the real-build side of the same guarantee.
+/// Drives <see cref="MessageCatalogGenerator"/> directly over hand-built compilations: a catalog
+/// declaration yields the catalog + provider, and the <c>Use*Catalog()</c> extensions bind to
+/// <c>KurrentClientMessageOptions</c>, which ships in the same assembly as the attributes. The
+/// physical samples project covers the real-build side of the same guarantee.
 /// </summary>
 [Category("Schema")]
 public class MessageCatalogGeneratorTests {
@@ -46,16 +45,6 @@ public class MessageCatalogGeneratorTests {
         await Assert.That(generated).Contains("class MessageCatalogs");
         await Assert.That(generated).Contains("MessageCatalogProviderAttribute");
         await Assert.That(generated).Contains("Devices");
-    }
-
-    [Test]
-    public async ValueTask omits_use_catalog_extensions_when_no_client_is_referenced() {
-        // Arrange + Act — the compilation has no KurrentClientMessageOptions, so the gate stays shut.
-        var generated = RunGenerator(ContractsSource);
-
-        // Assert — nothing client-coupled is emitted; a contracts assembly would otherwise fail to build.
-        await Assert.That(generated).DoesNotContain("KurrentClientMessageOptions");
-        await Assert.That(generated).DoesNotContain("UseDevicesCatalog");
     }
 
     [Test]

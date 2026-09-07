@@ -6,7 +6,6 @@
   <!-- Kurrent SDK packages — version shared across all, overridden in CI via -p:Version -->
   <ItemGroup>
     <PackageVersion Include="Kurrent.Surge" Version="$(Version)" />
-    <PackageVersion Include="Kurrent.Surge.Schema.Catalogs" Version="$(Version)" />
   </ItemGroup>
   <!--- Packages for Client & Processors -->
   <ItemGroup>

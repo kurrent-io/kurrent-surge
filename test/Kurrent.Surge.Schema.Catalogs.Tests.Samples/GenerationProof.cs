@@ -2,9 +2,8 @@ namespace Kurrent.Surge.Schema.Catalogs.Tests.Samples;
 
 /// <summary>
 /// Compile-time proof that the catalog generator ran in this contracts-only assembly — it references
-/// ONLY Kurrent.Surge.Schema.Catalogs, no Kurrent.Surge.Client. Referencing the generated <c>MessageCatalogs</c>
-/// aggregate fails the build if generation was skipped, or if the emission gate wrongly produced the
-/// client-coupled Use*Catalog extensions (which reference the absent KurrentClientMessageOptions).
+/// ONLY Kurrent.Surge.Core, no Kurrent.Surge. Referencing the generated <c>MessageCatalogs</c>
+/// aggregate fails the build if generation was skipped.
 /// The Kurrent.Surge.Schema.Catalogs.Tests suite reads these at runtime.
 /// </summary>
 public static class GenerationProof {

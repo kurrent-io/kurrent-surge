@@ -6,7 +6,7 @@
     <RootNamespace>Kurrent.Surge</RootNamespace>
     <Title>Kurrent .NET Abstractions</Title>
     <Product>Kurrent .NET Abstractions</Product>
-    <Description>The contract layer for the Kurrent .NET SDK: the client and stream-processing interfaces and the data types they exchange — options, results, value objects, filters, and the streaming wire contracts — plus the built-in JSON, Protobuf, and Avro codecs and the compile-time Avro codec generator, with no gRPC client or transport. Reference this to depend on the Kurrent contracts without the implementation.</Description>
+    <Description>The contract layer for the Kurrent .NET SDK: the client and stream-processing interfaces and the data types they exchange — options, results, value objects, filters, and the streaming wire contracts — plus the message declaration layer (catalogs, schema names, naming strategies) with its compile-time catalog generator, and the built-in JSON, Protobuf, and Avro codecs with the compile-time Avro codec generator. No gRPC client or transport. Reference this to depend on the Kurrent contracts without the implementation.</Description>
     <PackageTags>kurrent kurrentdb abstractions contracts sdk event-sourcing stream-processing</PackageTags>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 
@@ -38,12 +38,12 @@
     <!-- The filter engine behind RecordFilter/ExpressionFilter. Bundled rather than referenced as a
          package: it is not published on its own, so its assembly ships inside this one. -->
     <ProjectReference Include="..\Kurrent.Surge.RecordFilters\Kurrent.Surge.RecordFilters.csproj" Bundle="true" />
-    <!-- PrivateAssets="none": the filename triggers the in-repo packed-analyzer wiring in
-         Directory.Build.targets so the message-catalog generator runs on THIS compilation (the
-         streaming proto contracts need their generated catalog — checkpoint appends fail to map
-         without it), and the nuspec dependency carries all assets so consumers get the generator
-         too (analyzers are excluded on dependency edges by default). -->
-    <ProjectReference Include="..\Kurrent.Surge.Schema.Catalogs\Kurrent.Surge.Schema.Catalogs.csproj" PrivateAssets="none" />
+    <!-- The message-catalog generator. It runs on THIS compilation (the streaming proto contracts need
+         their generated catalog — checkpoint appends fail to map without it) and ships in
+         analyzers/dotnet/cs so it runs in consumer compilations. @(PackedAnalyzerProject) is the shared
+         list (Directory.Build.props); Directory.Build.targets wires the same set onto in-repo source
+         consumers, since analyzers are not transitive through a ProjectReference. -->
+    <ProjectReference Include="@(PackedAnalyzerProject)" PackedAnalyzer="true" />
   </ItemGroup>
 
   <ItemGroup>
