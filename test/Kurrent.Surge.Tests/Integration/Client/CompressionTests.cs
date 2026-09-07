@@ -28,10 +28,10 @@ public class CompressionTests {
         // random bytes, so the codec does real work instead of just round-tripping a no-op.
         var payload = Encoding.UTF8.GetBytes(string.Concat(Enumerable.Repeat(Fixture.Faker.Lorem.Paragraphs(3), 50)));
 
-        var record = AppendRecord.Create(payload, r => {
-            r.Stream     = stream;
-            r.DataFormat = SchemaDataFormat.Bytes;
-            r.SchemaName = $"compressed-payload-{TestId.New()}";
+        var record = AppendRecord.Create(payload, r => r with {
+            Stream     = stream,
+            DataFormat = SchemaDataFormat.Bytes,
+            SchemaName = $"compressed-payload-{TestId.New()}"
         });
 
         // Act
@@ -64,10 +64,10 @@ public class CompressionTests {
 
         var stream = (await Fixture.TestData.GenerateSet(1, ct)).Stream;
 
-        var record = AppendRecord.Create(Fixture.Faker.Random.Bytes(32), r => {
-            r.Stream     = stream;
-            r.DataFormat = SchemaDataFormat.Bytes;
-            r.SchemaName = $"unsupported-algorithm-{TestId.New()}";
+        var record = AppendRecord.Create(Fixture.Faker.Random.Bytes(32), r => r with {
+            Stream     = stream,
+            DataFormat = SchemaDataFormat.Bytes,
+            SchemaName = $"unsupported-algorithm-{TestId.New()}"
         });
 
         // Act

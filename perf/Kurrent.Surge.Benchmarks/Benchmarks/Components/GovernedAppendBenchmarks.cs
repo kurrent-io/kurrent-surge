@@ -65,7 +65,7 @@ public class GovernedAppendBenchmarks {
 
         _records = new AppendRecord[RecordCount];
         for (var i = 0; i < RecordCount; i++)
-            _records[i] = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = stream);
+            _records[i] = AppendRecord.Create(RaceCar.Generate(), r => r with { Stream = stream });
     }
 
     [Benchmark(Baseline = true, Description = "Client AppendRecords (ToContract mapping)")]

@@ -109,7 +109,7 @@ public class AppenderVsClientBenchmarks {
     // type through the catalog, and the server rejects records whose schema name is empty.
     // Fresh AppendRecord per append (new record id); the value itself is pre-generated.
     AppendRecord NewRecord(int index) =>
-        AppendRecord.Create(_values[index], r => r.Stream = _stream);
+        AppendRecord.Create(_values[index], r => r with { Stream = _stream });
 
     [GlobalCleanup]
     public async Task Cleanup() {

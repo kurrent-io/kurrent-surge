@@ -23,11 +23,11 @@ public class AppendRecordFactoryTests {
         var metadata = new Metadata().With("key", "value");
 
         // Act
-        var record = AppendRecord.Create("payload", r => {
-            r.Stream     = "my-stream";
-            r.DataFormat = SchemaDataFormat.Json;
-            r.RecordId   = recordId;
-            r.Metadata   = metadata;
+        var record = AppendRecord.Create("payload", r => r with {
+            Stream     = "my-stream",
+            DataFormat = SchemaDataFormat.Json,
+            RecordId   = recordId,
+            Metadata   = metadata
         });
 
         // Assert
@@ -41,10 +41,10 @@ public class AppendRecordFactoryTests {
     [Test]
     public async ValueTask create_configure_merges_metadata_in_place() {
         // Act
-        var record = AppendRecord.Create("payload", r => {
-            r.Stream = "test-stream";
-            r.Metadata.With("existing", "one")
-                      .With("added", "two");
+        var record = AppendRecord.Create("payload", r => r with {
+            Stream   = "test-stream",
+            Metadata = r.Metadata.With("existing", "one")
+                                 .With("added", "two")
         });
 
         // Assert

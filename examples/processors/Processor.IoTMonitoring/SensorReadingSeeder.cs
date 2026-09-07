@@ -34,7 +34,7 @@ sealed class SensorReadingSeeder(KurrentClient client, ILogger<SensorReadingSeed
                 sensor.SensorId, sensor.DeviceId, Math.Round(temperature, 1),
                 Math.Round(40 + Random.Shared.NextDouble() * 20, 1), sensor.Location, DateTimeOffset.UtcNow);
 
-            await client.Streams.AppendStream(stream, [AppendRecord.Create(reading, r => r.Stream = stream)], stoppingToken);
+            await client.Streams.AppendStream(stream, [AppendRecord.Create(reading, r => r with { Stream = stream })], stoppingToken);
 
             logger.LogInformation("[seed] {SensorId} {Temp:F1}°C", reading.SensorId, reading.Temperature);
 

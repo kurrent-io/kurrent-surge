@@ -30,7 +30,7 @@ sealed class PageViewSeeder(KurrentClient client, ILogger<PageViewSeeder> logger
 
             var view = new PageView(user, Pages[step], step == 0 ? "" : Pages[step - 1], UserAgent, clocks[user]);
 
-            await client.Streams.AppendStream(stream, [AppendRecord.Create(view, r => r.Stream = stream)], stoppingToken);
+            await client.Streams.AppendStream(stream, [AppendRecord.Create(view, r => r with { Stream = stream })], stoppingToken);
 
             logger.LogInformation("[seed] {User} {Page} @ {Time:HH:mm}", user, view.PageUrl, view.Timestamp);
 

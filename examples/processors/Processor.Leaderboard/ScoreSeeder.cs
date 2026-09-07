@@ -23,7 +23,7 @@ public sealed class ScoreSeeder(KurrentClient client, ILogger<ScoreSeeder> logge
             var stream = $"leaderboard-player-{playerId}";
             var joined = new PlayerJoined(playerId, displayName, country, DateTimeOffset.UtcNow);
 
-            await client.Streams.AppendStream(stream, [AppendRecord.Create(joined, r => r.Stream = stream)], stoppingToken);
+            await client.Streams.AppendStream(stream, [AppendRecord.Create(joined, r => r with { Stream = stream })], stoppingToken);
         }
 
         logger.LogInformation("[seed] {Count} players joined game {GameId}", Players.Length, GameId);
@@ -33,7 +33,7 @@ public sealed class ScoreSeeder(KurrentClient client, ILogger<ScoreSeeder> logge
             var score  = new ScoreSubmitted(GameId, player.PlayerId, Random.Shared.Next(100, 10_000), DateTimeOffset.UtcNow);
             var stream = $"leaderboard-game-{GameId}";
 
-            await client.Streams.AppendStream(stream, [AppendRecord.Create(score, r => r.Stream = stream)], stoppingToken);
+            await client.Streams.AppendStream(stream, [AppendRecord.Create(score, r => r with { Stream = stream })], stoppingToken);
 
             logger.LogInformation("[seed] {PlayerId} scored {Score}", score.PlayerId, score.Score);
 

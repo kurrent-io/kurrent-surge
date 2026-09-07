@@ -366,9 +366,9 @@ public partial class StreamsClient {
     #endregion
 
     async ValueTask<Revision> SetStreamMetadata(StreamName stream, StreamMetadata metadata, Revision rev, CancellationToken ct) {
-        var record = AppendRecord.Create(metadata, r => {
-            r.Stream     = stream.Metastream;
-            r.DataFormat = SchemaDataFormat.Json;
+        var record = AppendRecord.Create(metadata, r => r with {
+            Stream     = stream.Metastream,
+            DataFormat = SchemaDataFormat.Json
         });
 
         // Revision.Unset means "no optimistic-concurrency expectation". The removed builder dropped an

@@ -39,7 +39,7 @@ sealed class OrderSeeder(KurrentClient client, ILogger<OrderSeeder> logger) : Ba
             var order  = new OrderPlaced($"ord-{i:D4}", customer.CustomerId, items, DateTimeOffset.UtcNow);
             var stream = $"order-{order.OrderId}";
 
-            await client.Streams.AppendStream(stream, [AppendRecord.Create(order, r => r.Stream = stream)], stoppingToken);
+            await client.Streams.AppendStream(stream, [AppendRecord.Create(order, r => r with { Stream = stream })], stoppingToken);
 
             logger.LogInformation("[seed] {OrderId} by {CustomerId} with {Items} item(s)", order.OrderId, order.CustomerId, items.Count);
 
@@ -52,12 +52,12 @@ sealed class OrderSeeder(KurrentClient client, ILogger<OrderSeeder> logger) : Ba
     async Task SeedReferenceData(CancellationToken ct) {
         foreach (var customer in Customers) {
             var stream = $"customer-{customer.CustomerId}";
-            await client.Streams.AppendStream(stream, [AppendRecord.Create(customer, r => r.Stream = stream)], ct);
+            await client.Streams.AppendStream(stream, [AppendRecord.Create(customer, r => r with { Stream = stream })], ct);
         }
 
         foreach (var product in Products) {
             var stream = $"product-{product.ProductId}";
-            await client.Streams.AppendStream(stream, [AppendRecord.Create(product, r => r.Stream = stream)], ct);
+            await client.Streams.AppendStream(stream, [AppendRecord.Create(product, r => r with { Stream = stream })], ct);
         }
 
         logger.LogInformation("[seed] Reference data: {Customers} customers, {Products} products", Customers.Length, Products.Length);

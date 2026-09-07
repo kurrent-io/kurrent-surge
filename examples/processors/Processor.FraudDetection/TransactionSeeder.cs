@@ -37,7 +37,7 @@ sealed class TransactionSeeder(KurrentClient client, ILogger<TransactionSeeder> 
     }
 
     async Task Append(string stream, Transaction tx, CancellationToken ct) {
-        await client.Streams.AppendStream(stream, [AppendRecord.Create(tx, r => r.Stream = stream)], ct);
+        await client.Streams.AppendStream(stream, [AppendRecord.Create(tx, r => r with { Stream = stream })], ct);
 
         logger.LogInformation("[seed] {Account} ${Amount} at {Location}", tx.AccountId, tx.Amount, tx.Location);
     }

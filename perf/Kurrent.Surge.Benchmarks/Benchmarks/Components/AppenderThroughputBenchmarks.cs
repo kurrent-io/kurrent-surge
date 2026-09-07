@@ -96,10 +96,7 @@ public class AppenderThroughputBenchmarks {
             // duplicate record ids. The value is pre-generated and catalog-mapped, not raw
             // bytes: the wire schema name resolves from the value's type, and the server
             // rejects an empty schema name.
-            var record = AppendRecord.Create(_values[i], r => {
-                r.Stream = _stream;
-                r.OrderingKey(key);
-            });
+            var record = AppendRecord.Create(_values[i], r => (r with { Stream = _stream }).OrderingKey(key));
 
             await _appender.Append(record, _ => Interlocked.Increment(ref _acked), CancellationToken.None);
         }

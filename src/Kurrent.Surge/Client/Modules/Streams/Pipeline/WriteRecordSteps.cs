@@ -13,9 +13,10 @@ using Contracts = KurrentDB.Protocol.V2.Streams;
 namespace Kurrent.Surge.Client.Streams;
 
 /// <summary>
-/// Typestate carrier after catalog resolution: the source record and its schema name.
+/// Typestate carrier after catalog resolution: the source record, its schema name, and the
+/// wire format the routing step settled on.
 /// </summary>
-readonly record struct NamedWrite(AppendRecord Source, SchemaName Schema);
+readonly record struct NamedWrite(AppendRecord Source, SchemaName Schema, SchemaDataFormat Format);
 
 /// <summary>
 /// The routing verdict at the chain's head: a catalog record carrying its resolved schema
@@ -50,12 +51,16 @@ sealed class ClassifyWriteStep(MessageResolver messages, bool appendAsJson) : IP
 
         var messageType = input.Value!.GetType();
 
-        // Settled here rather than at encode because the format is also a governance lookup key,
-        // and it lands on the record so the caller can see what was actually written.
-        if (input.DataFormat == SchemaDataFormat.Unspecified)
-            input.DataFormat = appendAsJson ? SchemaDataFormat.Json : FromMessageType(messageType);
+        // Settled here rather than at encode because the format is also a governance lookup key.
+        // It rides the typestate rather than the record: an unstated format is the common case,
+        // and putting it back on the record would cost a record copy per append.
+        var format = input.DataFormat != SchemaDataFormat.Unspecified
+            ? input.DataFormat
+            : appendAsJson
+                ? SchemaDataFormat.Json
+                : FromMessageType(messageType);
 
-        return new((WriteResolution)new NamedWrite(input, messages.ResolveSchemaName(messageType)));
+        return new((WriteResolution)new NamedWrite(input, messages.ResolveSchemaName(messageType), format));
     }
 
     /// <summary>
@@ -112,11 +117,11 @@ sealed class GovernWriteStep(ISchemaGovernance governance) : IPipelineStep<Named
         var registered = await governance.CatalogRegistration.WaitAsync(ct).ConfigureAwait(false);
 
         // The registration is keyed by type and carries the format its definition was registered
-        // under, which is not this record's encoding — the record's own format has to win, or a
+        // under, which is not this record's encoding — the settled format has to win, or a
         // Protobuf payload frames itself as the registration's format.
         var schemaInfo = registered.TryGet(source.Value!.GetType(), out var info)
-            ? info with { DataFormat = source.DataFormat }
-            : new RecordSchemaInfo { Schema = input.Schema, DataFormat = source.DataFormat };
+            ? info with { DataFormat = input.Format }
+            : new RecordSchemaInfo { Schema = input.Schema, DataFormat = input.Format };
 
         return new(source, schemaInfo);
     }
@@ -129,13 +134,13 @@ sealed class EncodeWriteStep(SchemaCodecProvider codecs) : IPipelineStep<Resolve
     public ValueTask<EncodedWrite> Execute(ResolvedWrite input, CancellationToken ct) {
         var source = input.Source;
 
-        var codec = codecs.GetCodec(source.DataFormat);
+        var codec = codecs.GetCodec(input.Schema.DataFormat);
 
         try {
             return new(new EncodedWrite(source, input.Schema, codec.Encode(source.Value)));
         }
         catch (Exception ex) {
-            throw new SchemaCodecEncodingException(source.DataFormat, source.Value!.GetType(), ex);
+            throw new SchemaCodecEncodingException(input.Schema.DataFormat, source.Value!.GetType(), ex);
         }
     }
 }

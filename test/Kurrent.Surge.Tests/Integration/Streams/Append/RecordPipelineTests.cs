@@ -46,16 +46,18 @@ public class RecordPipelineTests {
         SchemaGovernance.Create(Fixture.Client, Catalogs, Schema);
 
     // The frame invariants shared by every catalog-record write case: no minted id, the
-    // resolved (or overridden) schema name, the record's own id/stream/format carried through
-    // untouched. Payload correctness belongs to the round-trip test — comparing bytes against
-    // the output of the same codec that produced them here would be a tautology, so a
-    // non-empty check is enough.
-    static async ValueTask AssertCatalogRecordFrame(Contracts.AppendRecord actual, AppendRecord record, string expectedSchemaName) {
+    // resolved (or overridden) schema name, the expected wire format, and the record's own
+    // id/stream carried through untouched. Payload correctness belongs to the round-trip test —
+    // comparing bytes against the output of the same codec that produced them here would be a
+    // tautology, so a non-empty check is enough.
+    static async ValueTask AssertCatalogRecordFrame(
+        Contracts.AppendRecord actual, AppendRecord record, string expectedSchemaName, SchemaDataFormat expectedFormat
+    ) {
         await Assert.That(actual.RecordId).IsEqualTo(record.RecordId.ToGuidString());
         await Assert.That(actual.Stream).IsEqualTo(record.Stream);
         await Assert.That(actual.Schema.Id).IsEmpty();
         await Assert.That(actual.Schema.Name).IsEqualTo(expectedSchemaName);
-        await Assert.That(actual.Schema.Format).IsEqualTo((Contracts.SchemaFormat)record.DataFormat);
+        await Assert.That(actual.Schema.Format).IsEqualTo((Contracts.SchemaFormat)expectedFormat);
         await Assert.That(actual.Data.Length).IsGreaterThan(0);
     }
 
@@ -65,7 +67,7 @@ public class RecordPipelineTests {
         // abandon the wait instead of blocking until the client lifetime ends.
         var pipeline = WriteRecordPipeline.Create(Resolver, Schema, Codecs, new PendingGovernance());
 
-        var record = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"validation-cancel-{TestId.New()}");
+        var record = AppendRecord.Create(RaceCar.Generate(), r => r with { Stream = $"validation-cancel-{TestId.New()}" });
 
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cancellation.CancelAfter(TimeSpan.FromMilliseconds(250));
@@ -82,9 +84,9 @@ public class RecordPipelineTests {
 
         var metadataValue = Faker.Random.AlphaNumeric(12);
 
-        var record = AppendRecord.Create(RaceCar.Generate(), r => {
-            r.Stream = $"governed-parity-{TestId.New()}";
-            r.Metadata.With("parity-key", metadataValue);
+        var record = AppendRecord.Create(RaceCar.Generate(), r => r with {
+            Stream   = $"governed-parity-{TestId.New()}",
+            Metadata = r.Metadata.With("parity-key", metadataValue)
         });
 
         var expectedSchemaName = Resolver.ResolveSchemaName(record.Value!.GetType()).Value;
@@ -93,7 +95,7 @@ public class RecordPipelineTests {
         var actual = await pipeline.Execute(record, ct);
 
         // Assert
-        await AssertCatalogRecordFrame(actual, record, expectedSchemaName);
+        await AssertCatalogRecordFrame(actual, record, expectedSchemaName, SchemaDataFormat.Json);
         await Assert.That(actual.Properties["parity-key"].StringValue).IsEqualTo(metadataValue);
     }
 
@@ -103,9 +105,9 @@ public class RecordPipelineTests {
         // so accepting one here would frame a name and a schema id describing different schemas.
         var pipeline = WriteRecordPipeline.Create(Resolver, Schema, Codecs, CreateGovernance());
 
-        var record = AppendRecord.Create(RaceCar.Generate(), r => {
-            r.Stream     = $"governed-parity-{TestId.New()}";
-            r.SchemaName = $"parity-override-{TestId.New()}";
+        var record = AppendRecord.Create(RaceCar.Generate(), r => r with {
+            Stream     = $"governed-parity-{TestId.New()}",
+            SchemaName = $"parity-override-{TestId.New()}"
         });
 
         // Act & Assert
@@ -122,10 +124,10 @@ public class RecordPipelineTests {
         var payload    = Faker.Random.Bytes(64);
         var schemaName = $"raw-bytes-{TestId.New()}";
 
-        var record = AppendRecord.Create(payload, r => {
-            r.Stream     = $"governed-parity-bytes-{TestId.New()}";
-            r.DataFormat = SchemaDataFormat.Bytes;
-            r.SchemaName = schemaName;
+        var record = AppendRecord.Create(payload, r => r with {
+            Stream     = $"governed-parity-bytes-{TestId.New()}",
+            DataFormat = SchemaDataFormat.Bytes,
+            SchemaName = schemaName
         });
 
         // Act
@@ -171,10 +173,10 @@ public class RecordPipelineTests {
         var stream     = (await Fixture.TestData.GenerateSet(1, ct)).Stream;
         var schemaName = $"raw-bytes-{TestId.New()}";
 
-        var record = AppendRecord.Create(Faker.Random.Bytes(32), r => {
-            r.Stream     = stream;
-            r.DataFormat = SchemaDataFormat.Bytes;
-            r.SchemaName = schemaName;
+        var record = AppendRecord.Create(Faker.Random.Bytes(32), r => r with {
+            Stream     = stream,
+            DataFormat = SchemaDataFormat.Bytes,
+            SchemaName = schemaName
         });
 
         await Fixture.Client.Streams.AppendRecords([record], ct);
@@ -202,7 +204,7 @@ public class RecordPipelineTests {
         var streams  = new StreamsClient(Fixture.Client);
         var pipeline = WriteRecordPipeline.Create(Resolver, Schema, Codecs, CreateGovernance());
 
-        var record   = AppendRecord.Create(RaceCar.Generate(), r => r.Stream = $"governed-wire-{TestId.New()}");
+        var record   = AppendRecord.Create(RaceCar.Generate(), r => r with { Stream = $"governed-wire-{TestId.New()}" });
         var contract = await pipeline.Execute(record, ct);
 
         var request = new KurrentDB.Protocol.V2.Streams.AppendRecordsRequest();
@@ -240,7 +242,7 @@ public class RecordPipelineTests {
 
         var request = new KurrentDB.Protocol.V2.Streams.AppendRecordsRequest();
         foreach (var car in expected)
-            request.Records.Add(await write.Execute(AppendRecord.Create(car, r => r.Stream = stream), ct));
+            request.Records.Add(await write.Execute(AppendRecord.Create(car, r => r with { Stream = stream }), ct));
 
         // Act — one raw append, then read back undecoded and decode through the governed chain.
         await streams.ServiceClient.AppendRecordsAsync(request, cancellationToken: ct);
@@ -277,14 +279,13 @@ public class RecordPipelineTests {
         var pipeline     = WriteRecordPipeline.Create(resolver, schema, Codecs, governance);
 
         // Unstated, so the type decides: Empty is an IMessage, which resolves to Protobuf.
-        var record = AppendRecord.Create(new Protocol.Empty(), r => r.Stream = $"proto-frame-{TestId.New()}");
+        var record = AppendRecord.Create(new Protocol.Empty(), r => r with { Stream = $"proto-frame-{TestId.New()}" });
 
         // Act
         var actual = await pipeline.Execute(record, ct);
 
-        // Assert — the record settled on Protobuf, the frame agrees, and the schema id is
-        // present, which proves the type-keyed registration lookup hit rather than missing.
-        await Assert.That(record.DataFormat).IsEqualTo(SchemaDataFormat.Protobuf);
+        // Assert — the frame carries Protobuf, which is what the type resolves to, and the schema
+        // id is present, which proves the type-keyed registration lookup hit rather than missing.
         await Assert.That(actual.Schema.Format).IsEqualTo((Contracts.SchemaFormat)SchemaDataFormat.Protobuf);
         await Assert.That(actual.Schema.Id).IsNotEmpty();
     }
@@ -306,9 +307,9 @@ public class RecordPipelineTests {
         // one reaches the codec and fails there rather than being silently corrected.
         var pipeline = WriteRecordPipeline.Create(Resolver, Schema, Codecs, CreateGovernance());
 
-        var record = AppendRecord.Create(RaceCar.Generate(), r => {
-            r.Stream     = $"encode-fail-stated-{TestId.New()}";
-            r.DataFormat = stated;
+        var record = AppendRecord.Create(RaceCar.Generate(), r => r with {
+            Stream     = $"encode-fail-stated-{TestId.New()}",
+            DataFormat = stated
         });
 
         // Act & Assert
@@ -354,7 +355,7 @@ public class RecordPipelineTests {
                 resolver, schema, Codecs, SchemaGovernance.Create(Fixture.Client, [catalog], schema, ct));
 
         AppendRecord NewRecord() =>
-            AppendRecord.Create(value, r => r.Stream = $"json-override-{TestId.New()}");
+            AppendRecord.Create(value, r => r with { Stream = $"json-override-{TestId.New()}" });
 
         // Act — control first: with the override off the type decides, which proves the value
         // really is native to something other than Json.
@@ -366,10 +367,7 @@ public class RecordPipelineTests {
             .Execute(overridden, ct);
 
         // Assert
-        await Assert.That(untouched.DataFormat).IsEqualTo(native);
         await Assert.That(controlled.Schema.Format).IsEqualTo((Contracts.SchemaFormat)native);
-
-        await Assert.That(overridden.DataFormat).IsEqualTo(SchemaDataFormat.Json);
         await Assert.That(actual.Schema.Format).IsEqualTo((Contracts.SchemaFormat)SchemaDataFormat.Json);
     }
 

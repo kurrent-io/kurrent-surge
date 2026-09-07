@@ -24,10 +24,7 @@ public class AppenderTests {
     // per-test mapper registration is gone: resolvers snapshot at client construction.
 
     AppendRecord NewRecord(StreamName stream, string? orderingKey = null) =>
-        AppendRecord.Create(RaceCar.Generate(), r => {
-            r.Stream = stream;
-            r.OrderingKey(orderingKey);
-        });
+        AppendRecord.Create(RaceCar.Generate(), r => (r with { Stream = stream }).OrderingKey(orderingKey));
 
     AppendRecord[] NewRecords(StreamName stream, int count, string? orderingKey = null) =>
         Enumerable.Range(0, count).Select(_ => NewRecord(stream, orderingKey)).ToArray();
@@ -505,9 +502,9 @@ public class AppenderTests {
         // thread, so it never reaches a lane; the follow-up record must still flow through.
         var stream = $"appender-rejected-{TestId.New()}";
 
-        var invalid = AppendRecord.Create(Faker.Random.Bytes(8), r => {
-            r.Stream     = stream;
-            r.DataFormat = SchemaDataFormat.Bytes;
+        var invalid = AppendRecord.Create(Faker.Random.Bytes(8), r => r with {
+            Stream     = stream,
+            DataFormat = SchemaDataFormat.Bytes
         });
 
         var valid = NewRecord(stream);

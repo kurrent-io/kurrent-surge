@@ -42,7 +42,7 @@ public class PaymentPlanService(KurrentClient client, ILogger<PaymentPlanService
                         Amount: Math.Round(Random.Shared.NextDouble() * 100 + 5, 2),
                         currency,
                         CollectedAt: DateTimeOffset.UtcNow),
-                    r => r.Stream = stream);
+                    r => r with { Stream = stream });
 
                 await client.Streams.AppendStream(req, stoppingToken);
 

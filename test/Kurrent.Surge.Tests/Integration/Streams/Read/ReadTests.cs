@@ -1,6 +1,7 @@
 using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Catalogs;
 using Serilog;
 
@@ -179,7 +180,9 @@ public class ReadTests {
             await Assert.That(record.Position.LogPosition).IsLessThanOrEqualTo(data.Position);
 
             await Assert.That(record.Schema.Schema.Value).IsNotEmpty();
-            await Assert.That(record.Schema.DataFormat).IsEqualTo(iotEvent.DataFormat);
+            // The seeded records state no format, and a race event is a plain type, so the
+            // write path settles them to Json.
+            await Assert.That(record.Schema.DataFormat).IsEqualTo(SchemaDataFormat.Json);
             await Assert.That(record.Schema.VersionId).IsNotEqualTo(SchemaVersionId.Unset);
 
             await Assert.That(record.Value).IsEquivalentTo(iotEvent.Value);

@@ -86,7 +86,7 @@ public interface ISelfValidating {
 /// a class implementing <see cref="IValidator{TValidator,T}"/> and include a parameterless constructor.
 /// </typeparam>
 [PublicAPI]
-public abstract record SelfValidating<T, TValidator> : SelfValidating
+public abstract record SelfValidatingRecord<T, TValidator> : SelfValidatingRecord
     where TValidator : class, IValidator<TValidator, T>, new()
     where T : class {
 
@@ -99,25 +99,29 @@ public abstract record SelfValidating<T, TValidator> : SelfValidating
 
 /// <summary>
 /// Base record for types that carry invariants validated via cached validation.
-/// Provides lazy, cached, thread-safe validation with automatic invalidation on mutation.
+/// Provides lazy, cached, thread-safe validation.
 /// <para>
-/// Derived records call <see cref="ResetValidation"/> in their <c>init</c> setters for validated
-/// properties and implement <see cref="RunValidation"/> with the actual validation logic.
+/// Derived records declare their validated properties as <c>init</c> and implement
+/// <see cref="RunValidation"/> with the actual validation logic.
 /// </para>
 /// </summary>
+/// <remarks>
+/// A <c>with</c> expression yields an instance that validates on first use rather than
+/// carrying the source's result forward.
+/// </remarks>
 [PublicAPI]
-public abstract record SelfValidating : ISelfValidating {
+public abstract record SelfValidatingRecord : ISelfValidating {
     volatile ValidationResult? _validationResult;
 
-    /// <summary>
-    /// Call from every <c>init</c> setter that participates in validation
-    /// to invalidate the cached result.
-    /// </summary>
-    protected void ResetValidation() => _validationResult = null;
+    protected SelfValidatingRecord() { }
+
+    // `with` routes through here. Not carrying the cached result is the point: a derived
+    // instance must re-validate rather than inherit the source's verdict.
+    protected SelfValidatingRecord(SelfValidatingRecord other) { }
 
     /// <summary>
-    /// Returns the cached validation result, computing it on first call
-    /// or after invalidation. Thread-safe via volatile + benign race.
+    /// Returns the cached validation result, computing it on first call.
+    /// Thread-safe via volatile + benign race.
     /// </summary>
     public ValidationResult Validate() =>
         _validationResult is { } result ? result : _validationResult = RunValidation();

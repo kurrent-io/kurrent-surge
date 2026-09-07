@@ -9,7 +9,7 @@ namespace Kurrent.Surge.Client.Streams;
 #pragma warning disable CS8604
 
 [PublicAPI]
-public record AppendRecord : SelfValidating {
+public record AppendRecord : SelfValidatingRecord {
     public static readonly AppendRecord None = new() {
         RecordId   = RecordId.None,
         Value      = null!,
@@ -29,11 +29,8 @@ public record AppendRecord : SelfValidating {
     /// Creates a record carrying <paramref name="value"/> as its payload, then applies
     /// <paramref name="configure"/> to set the stream, data format, metadata, or any other field.
     /// </summary>
-    public static AppendRecord Create(object value, Action<AppendRecord> configure) {
-        var record = new AppendRecord { Value = value };
-        configure(record);
-        return record;
-    }
+    public static AppendRecord Create(object value, Func<AppendRecord, AppendRecord> configure) =>
+        configure(new AppendRecord { Value = value });
 
     /// <summary>
     /// Creates a raw-payload record carrying <paramref name="value"/> under
@@ -53,11 +50,8 @@ public record AppendRecord : SelfValidating {
     /// <paramref name="schemaName"/>, then applies <paramref name="configure"/> to set the
     /// stream, metadata, or any other field.
     /// </summary>
-    public static AppendRecord Create(ReadOnlyMemory<byte> value, SchemaName schemaName, Action<AppendRecord> configure) {
-        var record = Create(value, schemaName);
-        configure(record);
-        return record;
-    }
+    public static AppendRecord Create(ReadOnlyMemory<byte> value, SchemaName schemaName, Func<AppendRecord, AppendRecord> configure) =>
+        configure(Create(value, schemaName));
 
     /// <summary>
     /// Creates a raw-payload record carrying <paramref name="value"/> under
@@ -76,80 +70,47 @@ public record AppendRecord : SelfValidating {
     /// <paramref name="schemaName"/>, then applies <paramref name="configure"/> to set the
     /// stream, metadata, or any other field.
     /// </summary>
-    public static AppendRecord Create(ReadOnlySequence<byte> value, SchemaName schemaName, Action<AppendRecord> configure) {
-        var record = Create(value, schemaName);
-        configure(record);
-        return record;
-    }
+    public static AppendRecord Create(ReadOnlySequence<byte> value, SchemaName schemaName, Func<AppendRecord, AppendRecord> configure) =>
+        configure(Create(value, schemaName));
 
     /// <summary>
     /// The assigned record id.
     /// </summary>
-    public RecordId RecordId {
-        get;
-        set {
-            field = value;
-            ResetValidation();
-        }
-    } = RecordId.New();
+    public RecordId RecordId { get; init; } = RecordId.New();
 
     /// <summary>
     /// The message payload.
     /// </summary>
     [MaybeNull]
-    public object Value {
-        get;
-        set {
-            field = value;
-            ResetValidation();
-        }
-    } = null!;
+    public object Value { get; init; } = null!;
 
     /// <summary>
     /// The wire format for the payload. A stated format is used as given; left unstated, it is
     /// taken from the message type.
     /// </summary>
-    public SchemaDataFormat DataFormat {
-        get;
-        set {
-            field = value;
-            ResetValidation();
-        }
-    } = SchemaDataFormat.Unspecified;
+    public SchemaDataFormat DataFormat { get; init; } = SchemaDataFormat.Unspecified;
 
     /// <summary>
     /// The schema name for a raw payload. A <see cref="SchemaDataFormat.Bytes"/> record bypasses
     /// catalog resolution and has no type to resolve a name from, so it carries its name here.
     /// Every other format takes its name from the message catalog.
     /// </summary>
-    internal string? SchemaName {
-        get;
-        set {
-            field = value;
-            ResetValidation();
-        }
-    }
+    internal string? SchemaName { get; init; }
 
     /// <summary>
     /// Optional metadata associated with the record.
     /// </summary>
-    public Metadata Metadata { get; set; } = new();
+    public Metadata Metadata { get; init; } = new();
 
     /// <summary>
     /// The stream to which this record will be appended.
     /// </summary>
-    public StreamName Stream {
-        get;
-        set {
-            field = value;
-            ResetValidation();
-        }
-    } = StreamName.Unset;
+    public StreamName Stream { get; init; } = StreamName.Unset;
 
     /// <summary>
     /// When the record was created.
     /// </summary>
-    public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 
     protected override ValidationResult RunValidation() {
         // Lazy list: the valid case is the hot path and must not allocate.

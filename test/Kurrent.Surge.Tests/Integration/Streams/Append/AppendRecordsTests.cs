@@ -16,10 +16,10 @@ public class AppendRecordsTests {
         var stream     = (await Fixture.TestData.GenerateSet(1, ct)).Stream;
         var schemaName = $"raw-bytes-{TestId.New()}";
 
-        var record = AppendRecord.Create(Fixture.Faker.Random.Bytes(32), r => {
-            r.Stream     = stream;
-            r.DataFormat = SchemaDataFormat.Bytes;
-            r.SchemaName = schemaName;
+        var record = AppendRecord.Create(Fixture.Faker.Random.Bytes(32), r => r with {
+            Stream     = stream,
+            DataFormat = SchemaDataFormat.Bytes,
+            SchemaName = schemaName
         });
 
         // Act

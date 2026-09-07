@@ -68,17 +68,17 @@ public class GovernedWriteMappingBenchmarks {
         var request = NewAppendRequest();
 
         _record = Payload switch {
-            "json"  => AppendRecord.Create(request, r => r.Stream = "governed-mapping-bench"),
+            "json"  => AppendRecord.Create(request, r => r with { Stream = "governed-mapping-bench" }),
 
-            "proto" => AppendRecord.Create(request, r => {
-                r.Stream     = "governed-mapping-bench";
-                r.DataFormat = SchemaDataFormat.Protobuf;
+            "proto" => AppendRecord.Create(request, r => r with {
+                Stream     = "governed-mapping-bench",
+                DataFormat = SchemaDataFormat.Protobuf
             }),
 
-            _ => AppendRecord.Create(RandomBytes(), r => {
-                r.Stream     = "governed-mapping-bench";
-                r.DataFormat = SchemaDataFormat.Bytes;
-                r.SchemaName = "raw-bytes";
+            _ => AppendRecord.Create(RandomBytes(), r => r with {
+                Stream     = "governed-mapping-bench",
+                DataFormat = SchemaDataFormat.Bytes,
+                SchemaName = "raw-bytes"
             })
         };
 

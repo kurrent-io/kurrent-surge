@@ -19,7 +19,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
         string sku, int quantity, string warehouse, string purchaseOrderId
     ) {
         var result = await client.Streams.AppendStream(
-            AppendRecord.Create(new StockReceived(sku, quantity, warehouse, purchaseOrderId, DateTimeOffset.UtcNow), r => r.Stream = StreamFor(sku)));
+            AppendRecord.Create(new StockReceived(sku, quantity, warehouse, purchaseOrderId, DateTimeOffset.UtcNow), r => r with { Stream = StreamFor(sku) }));
 
         logger.LogStockReceived(quantity, sku, warehouse, purchaseOrderId, result.Revision);
 
@@ -39,7 +39,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
                 $"Cannot ship {quantity} units of {sku}: only {currentLevel} in stock.");
 
         var stream = StreamFor(sku);
-        var record = AppendRecord.Create(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow), r => r.Stream = stream);
+        var record = AppendRecord.Create(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow), r => r with { Stream = stream });
 
         var result = await client.Streams.AppendStream(stream, [record], revision);
 
@@ -54,7 +54,7 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
     /// </summary>
     public async ValueTask<Revision> AdjustStock(string sku, int quantity, string reason) {
         var stream = StreamFor(sku);
-        var record = AppendRecord.Create(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow), r => r.Stream = stream);
+        var record = AppendRecord.Create(new StockAdjusted(sku, quantity, reason, DateTimeOffset.UtcNow), r => r with { Stream = stream });
 
         var result = await client.Streams.AppendStream(stream, [record], ExpectedStreamState.Exists);
 
@@ -78,8 +78,8 @@ public sealed class InventoryService(KurrentClient client, ILogger<InventoryServ
 
         await client.Streams.AppendRecords(
             new[] {
-                AppendRecord.Create(transferEvent, r => r.Stream = skuStream),
-                AppendRecord.Create(transferEvent, r => r.Stream = "transfer-log")
+                AppendRecord.Create(transferEvent, r => r with { Stream = skuStream }),
+                AppendRecord.Create(transferEvent, r => r with { Stream = "transfer-log" })
             },
             new AppendRecordsOptions().AddChecks(ConsistencyCheck.StreamExists(skuStream)),
             CancellationToken.None);

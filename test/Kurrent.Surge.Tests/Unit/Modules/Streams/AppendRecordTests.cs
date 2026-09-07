@@ -9,7 +9,7 @@ namespace Kurrent.Surge.Tests.Modules.Streams;
 public class AppendRecordTests {
     [Test]
     public void ensure_valid_passes_for_valid_record() {
-        var record = AppendRecord.Create("test-payload", r => r.Stream = "test-stream");
+        var record = AppendRecord.Create("test-payload", r => r with { Stream = "test-stream" });
 
         record.EnsureValid();
     }
@@ -123,7 +123,7 @@ public class AppendRecordTests {
             _                      => throw new InvalidOperationException($"Unhandled payload shape '{payload.GetType().Name}'.")
         };
 
-        record.Stream = "test-stream";
+        record = record with { Stream = "test-stream" };
 
         // Act
         record.EnsureValid();
@@ -136,7 +136,7 @@ public class AppendRecordTests {
 
     [Test]
     public void create_accepts_an_empty_raw_payload() {
-        var record = AppendRecord.Create(ReadOnlyMemory<byte>.Empty, "test-tombstone-schema", r => r.Stream = "test-stream");
+        var record = AppendRecord.Create(ReadOnlyMemory<byte>.Empty, "test-tombstone-schema", r => r with { Stream = "test-stream" });
 
         record.EnsureValid();
     }

@@ -13,7 +13,7 @@ sealed class FactSeeder(string stream, KurrentClient client, IUselessFactsApi fa
 
         while (!stoppingToken.IsCancellationRequested) {
             var fact   = await FetchFact(stoppingToken);
-            var record = AppendRecord.Create(new TextSubmitted(Guid.NewGuid().ToString(), fact, DateTimeOffset.UtcNow), r => r.Stream = stream);
+            var record = AppendRecord.Create(new TextSubmitted(Guid.NewGuid().ToString(), fact, DateTimeOffset.UtcNow), r => r with { Stream = stream });
 
             await client.Streams.AppendStream(stream, [record], stoppingToken);
 

@@ -62,8 +62,8 @@ public sealed class TransferSeeder(KurrentClient client, ILogger<TransferSeeder>
                 };
 
                 var records = new[] {
-                    AppendRecord.Create(registered, r => r.Stream = stream),
-                    AppendRecord.Create(transferred, r => r.Stream = stream)
+                    AppendRecord.Create(registered, r => r with { Stream = stream }),
+                    AppendRecord.Create(transferred, r => r with { Stream = stream })
                 };
 
                 var result = await client.Streams.AppendStream(stream, records, ExpectedStreamState.NoStream, stoppingToken);

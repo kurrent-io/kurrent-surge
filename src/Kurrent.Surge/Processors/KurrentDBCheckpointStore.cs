@@ -183,11 +183,11 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     #region ->> Mapping <<-
 
     AppendRecord CreateRecord<T>(string droneId, T evt) where T : class =>
-        AppendRecord.Create(evt, r => {
-            r.Stream     = _stream;
-            r.DataFormat = SchemaDataFormat.Protobuf;
-            r.Metadata.With("processor_id", ProcessorId)
-                      .With("drone_id", droneId);
+        AppendRecord.Create(evt, r => r with {
+            Stream     = _stream,
+            DataFormat = SchemaDataFormat.Protobuf,
+            Metadata   = r.Metadata.With("processor_id", ProcessorId)
+                                   .With("drone_id", droneId)
         });
 
     static PartitionPosition[] ToContractPositions(RecordPosition[] positions) =>

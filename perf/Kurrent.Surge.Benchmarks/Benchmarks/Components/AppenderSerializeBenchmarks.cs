@@ -41,9 +41,9 @@ public class AppenderSerializeBenchmarks {
         var payload = new byte[PayloadSize];
         _rng.NextBytes(payload);
 
-        _record = AppendRecord.Create(payload, r => {
-            r.Stream     = "appender-serialize-bench";
-            r.DataFormat = SchemaDataFormat.Bytes;
+        _record = AppendRecord.Create(payload, r => r with {
+            Stream     = "appender-serialize-bench",
+            DataFormat = SchemaDataFormat.Bytes
         });
     }
 

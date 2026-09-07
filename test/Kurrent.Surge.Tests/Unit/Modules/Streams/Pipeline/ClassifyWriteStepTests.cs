@@ -18,10 +18,10 @@ public class ClassifyWriteStepTests {
     static async ValueTask<ReadOnlyMemory<byte>> Classify(object value) {
         var sut = new ClassifyWriteStep(MessageResolver.From(), appendAsJson: false);
 
-        var record = AppendRecord.Create(value, r => {
-            r.Stream     = "classify-write-step-tests";
-            r.DataFormat = SchemaDataFormat.Bytes;
-            r.SchemaName = "classify-write-step-schema";
+        var record = AppendRecord.Create(value, r => r with {
+            Stream     = "classify-write-step-tests",
+            DataFormat = SchemaDataFormat.Bytes,
+            SchemaName = "classify-write-step-schema"
         });
 
         var resolution = await sut.Execute(record, CancellationToken.None);
@@ -101,8 +101,8 @@ public class ClassifyWriteStepTests {
     sealed record AvroPayload(string Value);
 
     /// <summary>
-    /// Runs the step and returns the format it settled on. Resolution lands on the record, so
-    /// the record is what gets inspected.
+    /// Runs the step and returns the format it settled on, read off the resolution the step
+    /// returns.
     /// </summary>
     static async ValueTask<SchemaDataFormat> Resolve(
         object value, bool appendAsJson = false, SchemaDataFormat stated = SchemaDataFormat.Unspecified
@@ -111,14 +111,16 @@ public class ClassifyWriteStepTests {
         var resolver = MessageResolver.From(new MessageCatalog("classify-resolution").Map(type.Name, type));
         var sut      = new ClassifyWriteStep(resolver, appendAsJson);
 
-        var record = AppendRecord.Create(value, r => {
-            r.Stream     = "classify-resolution";
-            r.DataFormat = stated;
+        var record = AppendRecord.Create(value, r => r with {
+            Stream     = "classify-resolution",
+            DataFormat = stated
         });
 
-        await sut.Execute(record, CancellationToken.None);
+        var resolution = await sut.Execute(record, CancellationToken.None);
 
-        return record.DataFormat;
+        return resolution.Match(
+            named   => named.Format,
+            encoded => encoded.Schema.DataFormat);
     }
 
     #region ->> Unstated: the type decides <<-

@@ -29,7 +29,7 @@ public class ValidatorTests {
 
     enum ConnectionMode { Direct, Discover, Invalid = 99 }
 
-    record SelfValidatingPerson : SelfValidating<SelfValidatingPerson, SelfValidatingPerson.PersonValidator> {
+    record SelfValidatingPerson : SelfValidatingRecord<SelfValidatingPerson, SelfValidatingPerson.PersonValidator> {
         public string Name { get; init; } = "";
         public int Age { get; init; }
 
