@@ -52,7 +52,7 @@ public partial class StreamsClient {
         }
 
         var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(
-            options.Filter, start, options.ResolveLinks, options.MaxSearchWindow);
+            options.Filter, start, options.ResolveLinks, (uint)options.FilterMaxSearchWindow);
 
         AsyncServerStreamingCall<ReadResp> grpcSession;
         SessionId                          sessionId;
@@ -184,7 +184,7 @@ public partial class StreamsClient {
                         // consumer never sees and so could never checkpoint on. (When the filter is
                         // fully server-side this is off: deliveries advance progress on their own,
                         // and a filtered $all already gets server checkpoints.)
-                        if (filtersLocally && ++scannedSinceCheckpoint >= options.MaxSearchWindow) {
+                        if (filtersLocally && ++scannedSinceCheckpoint >= options.FilterMaxSearchWindow) {
                             scannedSinceCheckpoint = 0;
 
                             // Carry the full record position (stream + revision), but pin the log

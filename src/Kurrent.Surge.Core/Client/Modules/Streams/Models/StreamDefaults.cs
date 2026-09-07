@@ -5,5 +5,5 @@ namespace Kurrent.Surge.Client.Streams;
 // ReadStreamOptions) moved here, while StreamsClientMapping — the original home — stays in the
 // client. StreamsClientMapping.DefaultMaxSearchWindow now forwards to this single source.
 static class StreamDefaults {
-    internal const uint DefaultMaxSearchWindow = 4096;
+    internal const int DefaultMaxSearchWindow = 4096;
 }

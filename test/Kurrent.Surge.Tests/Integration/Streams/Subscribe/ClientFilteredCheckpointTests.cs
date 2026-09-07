@@ -50,7 +50,7 @@ public class ClientFilteredCheckpointTests {
             .Subscribe(new SubscribeOptions {
                 Start           = anchor,
                 Filter          = ClientSideFilter(target.Stream),
-                MaxSearchWindow = 1,
+                FilterMaxSearchWindow = 1,
                 SkipDecoding    = true,
                 ResolveLinks    = true
             }, ct)
@@ -105,7 +105,7 @@ public class ClientFilteredCheckpointTests {
             await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
                                Start           = anchor,
                                Filter          = filter,
-                               MaxSearchWindow = 1,
+                               FilterMaxSearchWindow = 1,
                                SkipDecoding    = true,
                                // Raw log, no link resolution: each target record is delivered
                                // exactly once at its own position, so resume math is exact.
@@ -133,7 +133,7 @@ public class ClientFilteredCheckpointTests {
             .Subscribe(new SubscribeOptions {
                 Start           = resumeFrom,
                 Filter          = filter,
-                MaxSearchWindow = 1,
+                FilterMaxSearchWindow = 1,
                 SkipDecoding    = true,
                 ResolveLinks    = false
             }, ct)
@@ -170,7 +170,7 @@ public class ClientFilteredCheckpointTests {
         // (before any target match), so the cursor is guaranteed to sit before every target record.
         using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)) {
             await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
-                               Start = anchor, Filter = filter, MaxSearchWindow = 1,
+                               Start = anchor, Filter = filter, FilterMaxSearchWindow = 1,
                                SkipDecoding = true, ResolveLinks = true
                            }, cts.Token).ConfigureAwait(false)) {
                 if (msg.Value is not Checkpoint checkpoint)
@@ -188,7 +188,7 @@ public class ClientFilteredCheckpointTests {
 
         using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)) {
             await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
-                               Start = resumeFrom, Filter = filter, MaxSearchWindow = 1,
+                               Start = resumeFrom, Filter = filter, FilterMaxSearchWindow = 1,
                                SkipDecoding = true, ResolveLinks = true
                            }, cts.Token).ConfigureAwait(false)) {
                 if (msg.Value is not Record record)
@@ -230,7 +230,7 @@ public class ClientFilteredCheckpointTests {
             await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
                                Start           = anchor,
                                Filter          = filter,
-                               MaxSearchWindow = 1,
+                               FilterMaxSearchWindow = 1,
                                SkipDecoding    = true,
                                ResolveLinks    = false
                            }, cts.Token).ConfigureAwait(false)) {
@@ -268,7 +268,7 @@ public class ClientFilteredCheckpointTests {
         // With window = 5, the SDK must still report scan progress at the configured cadence.
         var target = await Fixture.SeedTestStream(20, ct);
 
-        const uint window = 5;
+        const int window = 5;
         var        filter = RecordFilter.ByExpression($"stream = '{target.Stream}' AND log_position < 0");
 
         var checkpoints      = new List<FilterCheckpoint>();
@@ -279,7 +279,7 @@ public class ClientFilteredCheckpointTests {
             await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
                                Start           = RecordPosition.Earliest,
                                Filter          = filter,
-                               MaxSearchWindow = window,
+                               FilterMaxSearchWindow = window,
                                SkipDecoding    = true,
                                ResolveLinks    = false
                            }, cts.Token).ConfigureAwait(false)) {
@@ -293,7 +293,7 @@ public class ClientFilteredCheckpointTests {
 
         // Assert — everything discarded, yet the watermark advanced via synthesized checkpoints at
         // roughly one per window over the 20 scanned records, monotonically.
-        var perWindow = target.Records.Length / (int)window;
+        var perWindow = target.Records.Length / window;
 
         await Assert.That(deliveredRecords).IsEqualTo(0);
         await Assert.That(checkpoints).IsNotEmpty();
@@ -322,7 +322,7 @@ public class ClientFilteredCheckpointTests {
             .Subscribe(new SubscribeOptions {
                 Start           = RecordPosition.Earliest,
                 Filter          = RecordFilter.ByStream(target.Stream),
-                MaxSearchWindow = 1,
+                FilterMaxSearchWindow = 1,
                 SkipDecoding    = true
             }, ct)
             .Records(checkpoints.Add, ct)
@@ -344,7 +344,7 @@ public class ClientFilteredCheckpointTests {
         var anchor = await Fixture.LatestRecordPosition(ct);
         await Fixture.SeedTestStream(30, ct); // guarantee enough records ahead of the anchor
 
-        const uint window = 5;
+        const int window = 5;
         const int  take   = 20;
 
         var checkpoints = new List<Checkpoint>();
@@ -354,7 +354,7 @@ public class ClientFilteredCheckpointTests {
             .Subscribe(new SubscribeOptions {
                 Start           = anchor,
                 Filter          = MatchAllClientSide(),
-                MaxSearchWindow = window,
+                FilterMaxSearchWindow = window,
                 SkipDecoding    = true,
                 ResolveLinks    = false
             }, ct)
@@ -365,7 +365,7 @@ public class ClientFilteredCheckpointTests {
         // Assert — one synthetic checkpoint per `window` records. The boundary checkpoint at
         // exactly `take` is not pulled (Take stops at the record before it), so the count is
         // take/window, give or take one.
-        var perWindow = take / (int)window;
+        var perWindow = take / window;
 
         await Assert.That(records.Count).IsEqualTo(take);
         await Assert.That(checkpoints.OfType<FilterCheckpoint>().Count())

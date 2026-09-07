@@ -12,7 +12,7 @@ sealed class KdbDataSourceOptions {
     public RecordFilter Filter               { get; set; } = RecordFilter.None;
     public bool         SkipDecoding         { get; set; } = false;
     public bool         ResolveLinks         { get; set; } = true;
-    public uint         MaxSearchWindow      { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
+    public int          FilterMaxSearchWindow { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
     public string       PartitionKeySelector { get; set; } = "";
 
     public int MaxParallelism { get; set; } = 1;
@@ -61,7 +61,7 @@ class KdbDataSource : IDataSource {
             Filter          = _options.Filter,
             SkipDecoding    = _options.SkipDecoding,
             ResolveLinks    = _options.ResolveLinks,
-            MaxSearchWindow = _options.MaxSearchWindow
+            FilterMaxSearchWindow = _options.FilterMaxSearchWindow
         };
 
         var context = ResilienceContextPool.Shared.Get(ct);

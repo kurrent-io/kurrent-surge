@@ -33,7 +33,7 @@ static partial class StreamsClientMapping {
     // Forwards to the single source in the contract layer (StreamDefaults), where the option
     // types that default to it now live. Kept here so the existing StreamsClientMapping callers
     // (and `using static StreamsClientMapping`) stay unchanged.
-    internal const uint DefaultMaxSearchWindow = StreamDefaults.DefaultMaxSearchWindow;
+    internal const int DefaultMaxSearchWindow = StreamDefaults.DefaultMaxSearchWindow;
 
     static readonly Contracts.ReadReq.Types.Options.Types.ControlOption       DefaultControlOption       = new() { Compatibility = 1 };
     static readonly Contracts.ReadReq.Types.Options.Types.SubscriptionOptions DefaultSubscriptionOptions = new();

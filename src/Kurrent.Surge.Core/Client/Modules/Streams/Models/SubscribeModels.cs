@@ -112,7 +112,7 @@ public class SubscribeOptions {
 
     public bool SkipDecoding    { get; set; }
     public bool ResolveLinks    { get; set; } = true;
-    public uint MaxSearchWindow { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
+    public int FilterMaxSearchWindow { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
 
     /// <summary>
     /// When true, a record whose schema name has no mapped type fails the subscription

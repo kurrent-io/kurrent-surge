@@ -117,7 +117,7 @@ public sealed class KurrentProcessor {
 		var streams = new StreamsClient(client);
 
 		// Feed-only data source: maps the subscription knobs off ProcessorOptions and reuses the processor's
-		// reconnection pipeline. ResolveLinks / MaxSearchWindow stay at their KdbDataSourceOptions defaults —
+		// reconnection pipeline. ResolveLinks / FilterMaxSearchWindow stay at their KdbDataSourceOptions defaults —
 		// the same values the previous subscription wiring left unset — so behavior is unchanged.
 		var dataSource = new KdbDataSource(
 			new KdbDataSourceOptions {

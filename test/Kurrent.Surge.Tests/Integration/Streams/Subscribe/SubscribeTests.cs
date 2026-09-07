@@ -222,7 +222,7 @@ public class SubscribeTests {
             Filter          = RecordFilter.ByExpression($"stream LIKE '{data.Stream}%'"),
             Start           = lastPosition,
             SkipDecoding    = true,
-            MaxSearchWindow = 10
+            FilterMaxSearchWindow = 10
         };
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);

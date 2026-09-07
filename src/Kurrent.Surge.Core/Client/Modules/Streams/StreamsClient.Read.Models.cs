@@ -43,7 +43,7 @@ public sealed class ReadRecordsOptions : SelfValidatingClass<ReadRecordsOptions,
     /// <see cref="FilterCheckpoint"/> and returning results. Only applies when a server-side
     /// filter routes the read through <c>$all</c>. Default matches the SDK-wide scan window.
     /// </summary>
-    public int FilterMaxSearchWindow { get; set; } = (int)StreamDefaults.DefaultMaxSearchWindow;
+    public int FilterMaxSearchWindow { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
     
     /// <summary>
     /// Direction for reading records through the log.
@@ -109,7 +109,7 @@ public sealed class ReadStreamOptions : SelfValidatingClass<ReadStreamOptions, R
     /// <see cref="Filter"/> re-routes the read through <c>$all</c>; a direct stream read ignores it.
     /// Default matches the SDK-wide scan window.
     /// </summary>
-    public int FilterMaxSearchWindow { get; set; } = (int)StreamDefaults.DefaultMaxSearchWindow;
+    public int FilterMaxSearchWindow { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
 
     /// <summary>Direction for reading records through the stream.</summary>
     public ReadDirection Direction { get; set; } = ReadDirection.Forwards;

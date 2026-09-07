@@ -104,7 +104,7 @@ public class RecordsExtensionsTests {
             .Subscribe(new SubscribeOptions {
                 Start           = anchor,
                 Filter          = RecordFilter.ByExpression($"stream LIKE '{target.Stream}%'"),
-                MaxSearchWindow = 1,
+                FilterMaxSearchWindow = 1,
                 SkipDecoding    = true
             }, ct)
             .Records(checkpoints.Add, ct)
@@ -139,7 +139,7 @@ public class RecordsExtensionsTests {
             .Subscribe(new SubscribeOptions {
                 Start           = anchor,
                 Filter          = RecordFilter.ByExpression($"stream LIKE '{target.Stream}%'"),
-                MaxSearchWindow = 1,
+                FilterMaxSearchWindow = 1,
                 SkipDecoding    = true
             }, ct)
             .Records(checkpoint => {
