@@ -1,12 +1,13 @@
 ---
 title: "Webhook Source"
+description: Accepting inbound webhook calls and writing each payload to a KurrentDB stream.
 ---
 
 ## Overview
 
 The Webhook Source connector lets external systems deliver webhook calls
-directly to KurrentDB. Each incoming payload is written as an event to a
-KurrentDB stream, with no middleware required in between.
+directly to KurrentDB. The connector writes each incoming payload as a record
+to a KurrentDB stream, with no middleware in between.
 
 ## Prerequisites
 
@@ -27,7 +28,7 @@ You can create the Webhook Source connector as follows. Replace `{id}` with your
 The Webhook Source requires a `routingScript`: a base64-encoded UTF-8
 JavaScript snippet defining a `route(request)` function. For each inbound
 request, the function returns the target stream name and optionally a
-schema name to tag the event with.
+schema name to tag the record with.
 
 For example, the following function:
 
@@ -79,7 +80,7 @@ Content-Type: application/json
 The example above writes the payload to stream `webhook-order-created` with
 event type `order.created`. By default, the connector returns `202 Accepted`
 as soon as it accepts the payload for processing. You can find a list of
-available management API endpoints in the [API Reference](https://docs.kurrent.io/server/v26.1/features/connectors/manage).
+available management API endpoints in the [Managing Connectors](/kurrent-surge/client/connectors/manage/).
 
 ## Settings
 
@@ -94,14 +95,14 @@ documented on the [Source Options](/kurrent-surge/client/connectors/settings/#so
 | Name                            | Details                                                                                                                                                                                                                                                                                                                |
 |---------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `routingScript`                 | _required_<br/><br/>**Description:**<br/>Base64-encoded UTF-8 JavaScript that defines a `route(request)` function. The function returns the target stream name and an optional schema name for each inbound request. See [Routing Script](#routing-script).                                                              |
-| `waitForWrite`                  | **Description:**<br/>When enabled, the HTTP request waits for the event to be durably written before returning a response. See [Write Confirmation](#write-confirmation).<br/><br/>**Default**: `"false"`                                                                                                                 |
+| `waitForWrite`                  | **Description:**<br/>When enabled, the HTTP request waits for the record to be durably written before returning a response. See [Write Confirmation](#write-confirmation).<br/><br/>**Default**: `"false"`                                                                                                                 |
 | `confirmationTimeout`           | **Description:**<br/>How long the request waits for a durable-write confirmation when `waitForWrite` is enabled. Exceeding this returns `504 Gateway Timeout`.<br/><br/>**Default**: `"00:00:30"` (30 seconds)                                                                                                            |
 | `signature:scheme`              | **Description:**<br/>Pre-configured provider scheme for HMAC signature validation. Required when the `signature` block is present; you must pick a provider explicitly. Each scheme fully defines the header name, encoding, payload shape, and replay-protection behavior expected by that provider. See [Signature Validation](#signature-validation).<br/><br/>**Accepted Values:** `"GitHub"`, `"Shopify"`, `"Slack"`, `"Stripe"`<br/><br/>**Default**: not set (must be specified) |
 | `signature:secret`              | **Description:**<br/>Shared HMAC secret, interpreted as UTF-8. When the `signature` block is present, this must be a non-empty string. When the `signature` block is omitted entirely, signature validation is disabled.<br/><br/>**Default**: not set (validation disabled)                                              |
 | `signature:timestampTolerance`  | **Description:**<br/>Maximum allowed clock skew when the chosen scheme requires timestamp validation (Slack, Stripe). Ignored for schemes that do not include a timestamp.<br/><br/>**Default**: `"00:05:00"` (5 minutes)                                                                                                 |
-| `allowedHeaders`                | **Description:**<br/>Allowlist of inbound HTTP header names (case-insensitive) persisted on the written event. Each allowed header becomes its own metadata entry on the record, keyed by its lowercased name (e.g. `content-type`). Anything not on this list is never stored. Webhook providers routinely send headers that carry credentials (`Authorization`, `Cookie`, API keys), so only add headers you have verified do not contain secrets.<br/><br/>**Default**: `["Content-Type", "User-Agent", "X-Request-Id"]` |
+| `allowedHeaders`                | **Description:**<br/>Allowlist of inbound HTTP header names (case-insensitive) persisted on the written record. Each allowed header becomes its own metadata entry on the record, keyed by its lowercased name (e.g. `content-type`). Anything not on this list is never stored. Webhook providers routinely send headers that carry credentials (`Authorization`, `Cookie`, API keys), so add only headers you have verified do not contain secrets.<br/><br/>**Default**: `["Content-Type", "User-Agent", "X-Request-Id"]` |
 
-## Ingest Endpoint
+## Ingest endpoint
 
 ```http
 POST /webhook/{connectorId}
@@ -110,12 +111,12 @@ POST /webhook/{connectorId}
 The Webhook Source connector accepts `POST` requests only. Each request must use
 a JSON content type such as `application/json` (including `application/json;
 charset=utf-8`) and contain a non-empty UTF-8 JSON payload. The JSON payload
-becomes the event data written to KurrentDB.
+becomes the record data written to KurrentDB.
 
 | Response                      | When it is returned                                                                                                                       |
 |-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | `202 Accepted`                | The payload was accepted into the connector pipeline. This is the default behavior.                                                       |
-| `201 Created`                 | `waitForWrite` is enabled and the event was durably written.                                                                              |
+| `201 Created`                 | `waitForWrite` is enabled and the record was durably written.                                                                             |
 | `400 Bad Request`             | The JSON payload is empty or is not valid UTF-8 JSON, or the routing script returned `null`/an empty stream name (request was skipped).   |
 | `401 Unauthorized`            | Signature validation is enabled and the signature header is missing, malformed, or the timestamp is outside the tolerance window.         |
 | `404 Not Found`               | No active connector with that ID exists on the current node.                                                                              |
@@ -124,11 +125,11 @@ becomes the event data written to KurrentDB.
 | `503 Service Unavailable`     | The connector could not accept the payload, or it stopped while a `waitForWrite` request was waiting for confirmation.                    |
 | `504 Gateway Timeout`         | `waitForWrite` is enabled and the write did not complete within `confirmationTimeout`.                                                    |
 
-## Routing Script
+## Routing script
 
 The routing script is a base64-encoded UTF-8 JavaScript snippet that must
-define a function named `route`. The function is invoked once per inbound
-request to compute the target stream and (optionally) the schema name.
+define a function named `route`. The connector invokes the function once per
+inbound request to compute the target stream and, optionally, the schema name.
 
 ### Request shape
 
@@ -141,30 +142,30 @@ The function receives a single `request` argument with the following fields:
 | `path`    | string   | Request path, e.g. `"/webhook/my-connector"`.                                |
 | `query`   | object   | Parsed query string, keyed by name with string values.                       |
 
-Header keys are always lowercased before they are passed to the script.
+The connector lowercases header keys before passing them to the script.
 
 ### Return value
 
 The function must return an object containing a `stream` property, which is
-the target stream name to write the event to. The stream must be a non-empty
+the target stream name to write the record to. The stream must be a non-empty
 string and must not start with `$`. An optional `schema` property tags the
-event with a custom event type; when omitted, events are written with the
-default event type `WebhookReceived`.
+record with a custom event type. When omitted, the connector writes records
+with the default event type `WebhookReceived`.
 
 ### Routing outcomes
 
 The function's return value determines what happens to the request. To
-route a request, return an object with a non-empty `stream` (and optionally
-a `schema`); the request is written to that stream. To skip a request,
-return `null`, `undefined`, or an object with an empty `stream`, and the
-connector responds with `400 Bad Request` without writing an event. If the
-function throws, runs too long, returns something other than an object, or
-returns an invalid `stream` or `schema`, the connector responds with
-`500 Internal Server Error`.
+route a request, return an object with a non-empty `stream` and, optionally,
+a `schema`. The connector writes the request to that stream. To skip a
+request, return `null`, `undefined`, or an object with an empty `stream`.
+The connector then responds with `400 Bad Request` without writing a record.
+If the function throws, runs too long, returns something other than an
+object, or returns an invalid `stream` or `schema`, the connector responds
+with `500 Internal Server Error`.
 
 ### Example
 
-Route Stripe events to per-account streams and tag each event with its Stripe
+Route Stripe events to per-account streams and tag each record with its Stripe
 event type:
 
 ```js
@@ -176,24 +177,25 @@ function route(request) {
 }
 ```
 
-## Write Confirmation
+## Write confirmation
 
 By default, the connector returns `202 Accepted` as soon as the payload
 enters the in-memory pipeline. A `202` confirms acceptance for processing,
 not durable persistence. Enable `waitForWrite` to receive `201 Created`
-only once the event has been durably written.
+only once the record has been durably written.
 
-## Signature Validation
+## Signature validation
 
 When a `signature` block is configured, the connector validates the HMAC-SHA256
 signature of every incoming request using the rules of the chosen `scheme`.
-Requests with missing, malformed, or invalid signatures are rejected with
-`401 Unauthorized`. For schemes that include a timestamp, requests outside the
-configured tolerance window are also rejected with `401 Unauthorized`.
+The connector rejects requests with missing, malformed, or invalid signatures,
+returning `401 Unauthorized`. For schemes that include a timestamp, it also
+rejects requests outside the configured tolerance window with
+`401 Unauthorized`.
 
 Each scheme fully defines the header name, encoding, signed-payload shape, and
-replay-protection behavior expected by that provider, so you only need to pick
-the scheme and supply the secret.
+replay-protection behavior expected by that provider. You need only pick the
+scheme and supply the secret.
 
 | Scheme    | Header(s)                                                            | Encoding | Signed Payload          | Timestamp Validation |
 |-----------|----------------------------------------------------------------------|----------|-------------------------|----------------------|

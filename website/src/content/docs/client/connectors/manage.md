@@ -1,57 +1,18 @@
 ---
-title: Connectors
-description: Create, configure, run and inspect connectors.
+title: Managing Connectors
+description: Create, configure, run and inspect connectors from the SDK.
 ---
 
-Connectors move records between KurrentDB and an external system. Each one runs **on the server**,
-where it holds its own catch-up subscription, filters or transforms what it reads, and pushes the
-result out. That is the point of them: nobody has to host, checkpoint and babysit a subscription
-service of their own.
+`client.Connectors` manages a connector's lifecycle. It does not implement connectors, and it does
+not validate their settings.
 
-This module manages their lifecycle. It does not implement them, and it does not validate their
-settings.
-
-## What you can create
-
-`instanceTypeName` picks the implementation. Because the implementations ship with the server, this
-list tracks the **server** version, not the SDK. It is current for KurrentDB 26.1.
-
-### Sinks, which move records out
-
-| `instanceTypeName` | Writes to | Since |
-|---|---|---|
-| [`http-sink`](/kurrent-surge/client/connectors/sinks/http/) | Any HTTP endpoint | 24.10 |
-| [`serilog-sink`](/kurrent-surge/client/connectors/sinks/serilog/) | A Serilog sink: console, file or Seq | 24.10 |
-| [`kafka-sink`](/kurrent-surge/client/connectors/sinks/kafka/) | A Kafka topic | 24.10 |
-| [`mongo-db-sink`](/kurrent-surge/client/connectors/sinks/mongo/) | A MongoDB collection | 24.10 |
-| [`rabbit-mq-sink`](/kurrent-surge/client/connectors/sinks/rabbitmq/) | A RabbitMQ exchange | 24.10 |
-| [`elasticsearch-sink`](/kurrent-surge/client/connectors/sinks/elasticsearch/) | An Elasticsearch index | 25.0 |
-| [`pulsar-sink`](/kurrent-surge/client/connectors/sinks/pulsar/) | A Pulsar topic | 25.1 |
-| [`sql-sink`](/kurrent-surge/client/connectors/sinks/sql/) | SQL Server or PostgreSQL | 26.0 |
-
-### Sources, which move records in
-
-| `instanceTypeName` | Reads from | Since |
-|---|---|---|
-| [`kafka-source`](/kurrent-surge/client/connectors/sources/kafka/) | A Kafka topic | 26.0 |
-| [`webhook-source`](/kurrent-surge/client/connectors/sources/webhook/) | `POST /webhook/{connectorId}` | 26.1 |
-
-Each page carries that connector's settings and says whether it needs a license. Two sinks run
-without a license key, `http-sink` and `serilog-sink`, and the server refuses to start a licensed
-feature without one. Reach for `serilog-sink` when you want to watch a connector work before buying
-anything.
-
-:::caution
-A source is not a sink with the arrow reversed. Of the shared settings below, a source takes
-`instanceTypeName` and nothing else. The subscription, transformer, resilience and autocommit blocks
-are sink-only, and setting them on a source does nothing. A source still has required settings of
-its own, on its own page.
-:::
+For what a connector is and which ones exist, see
+[Connectors](/kurrent-surge/client/connectors/).
 
 ## Settings every sink takes
 
 These are independent of which sink you chose. Per-connector keys live on the pages linked above,
-and there are a lot of them, so this page does not mirror them.
+and there are a lot of those keys, so this page does not mirror them.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -72,7 +33,7 @@ Retry backoff is three bounds, each a pair: `resilience:firstDelayBound:upperLim
 forever.
 
 `resilience:enabled` is not universal in practice. The Kafka, Pulsar and RabbitMQ sinks carry their
-own retry mechanisms and ignore it, which their own pages say explicitly.
+own retry mechanisms and ignore it, as their own pages say explicitly.
 
 ## Create
 
@@ -113,15 +74,15 @@ await client.Connectors.Create("orders-to-kafka", """
     """);
 ```
 
-**The SDK does not validate any of this.** Settings are copied into the request as you wrote them,
-so a misspelled key is not rejected here. It reaches the server, the connector fails to start, and
-the reason arrives in `ErrorDetails` on the next `List`. Check the key against the connector's own
-page before you deploy it.
+**The SDK does not validate any of these settings.** It copies them into the request as you wrote
+them, so a misspelled key is not rejected here. The key reaches the server, the connector fails to
+start, and the reason arrives in `ErrorDetails` on the next `List`. Check the key against the
+connector's own page before you deploy it.
 
 ## Reconfigure
 
 `Reconfigure` **replaces** the settings wholesale. It is not a merge. The connector keeps its id,
-its name, and its current state. It accepts the same three input shapes as `Create`.
+its name, and its current state. `Reconfigure` accepts the same three input shapes as `Create`.
 
 ```csharp
 await client.Connectors.Reconfigure("orders-to-kafka", new() { ["topic"] = "orders-v2" });
@@ -154,7 +115,7 @@ await client.Connectors.Start("orders-to-kafka", 12_345);
 
 ## Reset
 
-Rewinds the stored position so the connector reprocesses from there. This changes data, not
+Rewinds the stored position so the connector reprocesses from there. `Reset` changes data, not
 lifecycle. It is the one operation here that can cause records to be delivered twice.
 
 **The connector must be stopped first.** Reset fails on a running connector.
@@ -213,9 +174,10 @@ an error. You get an empty `Items` and `TotalSize = 0`.
 | `State` | `ConnectorState` | See below |
 | `Position` | `LogPosition` | Last processed |
 | `Settings` | `IReadOnlyDictionary<string,string>` | Only with `IncludeSettings` |
-| `Configuration` | `Struct?` | Only with `IncludeConfiguration` |
+| `Configuration` | `JsonObject?` | Only with `IncludeConfiguration` |
 | `ErrorDetails` | `string?` | Last reported error |
 | `CreateTime` / `UpdateTime` / `DeleteTime` | `DateTimeOffset` | `DeleteTime` is `default` while active |
+| `StateUpdateTime` / `SettingsUpdateTime` / `ConfigurationUpdateTime` / `PositionUpdateTime` | `DateTimeOffset` | When that field last changed |
 | `IsRunning` / `IsStopped` / `IsDeleted` | `bool` | Shortcuts |
 
 ### States
@@ -238,11 +200,11 @@ foreach (var (key, value) in settings.Settings)
     Console.WriteLine("{0} = {1}", key, value);
 
 var config = await client.Connectors.GetConfiguration("orders-to-kafka");
-var flat   = config.Configuration.FlattenStruct();
+Console.WriteLine(config.Configuration.ToJsonString());
 ```
 
 `GetSettings` returns the flat dictionary plus `SettingsUpdateTime`. `GetConfiguration` returns a
-Protobuf `Struct`, which preserves nesting and types, plus `ConfigurationUpdateTime`.
+`JsonObject`, which preserves nesting and types, plus `ConfigurationUpdateTime`.
 
 ## Exceptions
 

@@ -1,5 +1,5 @@
 ---
-title: Connection strings
+title: Connection String Reference
 description: Every scheme and parameter the client accepts, with its unit and default.
 ---
 
@@ -131,4 +131,4 @@ options.ToConnectionString(legacy: true);  // keepAliveInterval=10
 The legacy form carries whole units only, so a sub-second value rounds down. `ToString()` returns the
 default form.
 
-Parameters left at their default are omitted from the output.
+`ToConnectionString` omits parameters left at their default.

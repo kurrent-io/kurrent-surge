@@ -7,7 +7,7 @@ A processor emits metrics through `System.Diagnostics.Metrics`, so anything that
 reads these: OpenTelemetry, Prometheus through the OTLP exporter, or `dotnet-counters` at a terminal.
 
 ```
-Meter name: Kurrent.Surge.Client.Processors
+Meter name: Kurrent.Surge.Processors
 ```
 
 ## The metrics
@@ -20,12 +20,14 @@ Meter name: Kurrent.Surge.Client.Processors
 | `kurrent_processor_batch_size` | histogram | `processor_id` |
 | `kurrent_processor_checkpoints_completed` | counter | `processor_id`, `drone_id`, `trigger` |
 | `kurrent_processor_checkpoints_failed` | counter | `processor_id`, `drone_id`, `trigger` |
-| `kurrent_processor_checkpoint_duration_seconds` | histogram | |
-| `kurrent_processor_drone_errors` | counter | |
-| `kurrent_processor_uncommitted_records` | gauge | |
-| `kurrent_processor_uncommitted_bytes` | gauge | |
-| `kurrent_processor_source_lag_bytes` | gauge | opt in |
-| `kurrent_processor_source_lag_seconds` | gauge | opt in |
+| `kurrent_processor_checkpoint_duration_seconds` | histogram | `processor_id` |
+| `kurrent_processor_drone_errors` | counter | `processor_id` |
+| `kurrent_processor_uncommitted_records` | gauge | `processor_id`, `drone_id` |
+| `kurrent_processor_uncommitted_bytes` | gauge | `processor_id`, `drone_id` |
+| `kurrent_processor_source_lag_bytes` | gauge | `processor_id`, `drone_id` |
+| `kurrent_processor_source_lag_seconds` | gauge | `processor_id`, `drone_id` |
+
+The two `source_lag_*` gauges are the only ones you opt into. See [Lag](#lag).
 
 `record_duration_seconds` means different things on the two dispatch paths. On the per-record path it
 is the true per-record time. On the batch path it is the batch duration divided by the committed
@@ -45,9 +47,10 @@ Source lag is opt in.
 opts.TrackSourceLag = true;
 ```
 
-Each refresh costs an extra unfiltered backward read of `$all` to find the head, which is why it is
-off by default. Turn it on when "how far behind are we" is a question you actually ask, and leave it
-off on a processor you already know keeps up.
+The probe reads the head every 10 seconds by default, and each read is an extra unfiltered backward
+read of `$all`. That cost is why it is off by default. Change the cadence with
+`opts.SourceLagRefreshInterval`, turn it on when "how far behind are we" is a question you actually
+ask, and leave it off on a processor you already know keeps up.
 
 ## Wiring a meter
 
@@ -110,6 +113,11 @@ builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing
 | `processor.process_record` | One record through your handler |
 | `processor.process_batch` | One batch through your handler |
 | `process {stream}` | A record, named by the stream it came from |
+| `process` | A batch, before it is dispatched |
+
+The two `processor.*` spans come from the drone. The two `process*` spans come from the telemetry
+observer and carry the OpenTelemetry `messaging.*` conventions, with `messaging.system` set to
+`kurrentdb`. They nest, so a record appears under both.
 
 Spans start only when something is listening, so an application with no tracing configured pays
 nothing.
@@ -121,6 +129,7 @@ them. That links a consumer's work back to whatever caused the record, across pr
 across time, which a span alone cannot do once the producing process is gone.
 
 ```csharp
-if (context.Record.Metadata.TryGetValue<string>("$traceId", out var traceId))
-    using var scope = context.Logger.BeginScope("{TraceId}", traceId);
+context.Record.Metadata.TryGetValue<string>("$traceId", out var traceId);
+
+using var scope = context.Logger.BeginScope("{TraceId}", traceId);
 ```

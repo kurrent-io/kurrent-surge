@@ -49,7 +49,7 @@ and you start it explicitly.
 ```csharp
 var response = await client.Admin.StartScavenge();
 
-var response = await client.Admin.StartScavenge(threadCount: 4, startFromChunk: 100);
+var tuned = await client.Admin.StartScavenge(threadCount: 4, startFromChunk: 100);
 ```
 
 | Parameter | Default | Constraint |

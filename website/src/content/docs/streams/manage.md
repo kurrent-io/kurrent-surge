@@ -54,7 +54,7 @@ LogPosition at = await client.Streams.Delete("order-123");
 ```
 
 Afterwards the stream reads as though it were never there. Append to the same name and it **comes
-back to life**, picking up from where it left off: if the last event was revision `3`, the next one
+back to life**, picking up from where it left off. If the last event was revision `3`, the next one
 is `4`, and readers see only `4` onward.
 
 The deletion is itself recorded, so subscribers observe it. The call returns its log position. The
@@ -67,13 +67,18 @@ shape when tidying up a per-job stream after reading its final state:
 LogPosition at = await client.Streams.Delete("order-123", 9);
 ```
 
-If someone appended in the meantime, the call fails rather than discarding their write.
+If someone appended in the meantime, the call throws `StreamRevisionConflictException` rather than
+discarding their write. A stream that is already deleted, tombstoned, or was never there throws
+`StreamDeletedException`, `StreamTombstonedException` or `StreamNotFoundException` instead.
 
 :::caution
 Deleting is not erasing. KurrentDB keeps one event behind to record that the stream existed and what
 its last revision was. That residue matters if you are removing data because you must, for a
-subject-erasure request say. Append a `StreamDeleted` event and set `MaxCount` to 1, or use
-redaction.
+subject-erasure request say. Append your own deletion event and set `MaxCount` to 1.
+
+A soft delete is also reversible by accident: an append with no consistency check
+[revives the stream](/kurrent-surge/streams/append/#appending-to-a-soft-deleted-stream-revives-it).
+Reach for `Tombstone` when it must stay gone.
 :::
 
 ## Tombstone a stream
@@ -147,7 +152,10 @@ Revision rev = await client.Streams.ConfigureDataRetention("order-123", options 
 | `MaxCount` | Keep at most this many records |
 | `MaxAge` | Keep records younger than this |
 
-Set both and either can retire a record. When only one bound matters, a shorter form says so:
+Set both and either can retire a record. Zero is rejected for either bound with an
+`ArgumentException` — use [Truncate](#truncate-a-stream) to drop everything.
+
+When only one bound matters, a shorter form says so:
 
 ```csharp
 await client.Streams.ConfigureDataRetention("order-123", maxCount: 500);
@@ -166,10 +174,10 @@ Revision rev = await client.Streams.SetCustomMetadata("order-123", Metadata.New
     .With("compliance", "pii"));
 ```
 
-Keys you supply are added or overwritten; keys already there and not mentioned survive.
+That form **replaces** the whole bag. Any key not in the `Metadata` you pass is gone.
 
-To remove a key, or to decide what to write based on what is already there, use the callback form.
-It reads the current metadata, hands it to you, and writes the result back.
+To add or change keys and keep the rest, use the callback form. It reads the current metadata, hands
+it to you, and writes the merged result back. It is also how you remove a single key.
 
 ```csharp
 await client.Streams.SetCustomMetadata("order-123", meta =>
@@ -193,6 +201,12 @@ await client.Streams.SetCustomMetadata("order-123", metadata, info.InfoRevision)
 If anyone wrote first, the call fails with `StreamRevisionConflictException` instead of overwriting
 them. Both `SetCustomMetadata` and `ConfigureDataRetention` return the metadata stream's new
 revision, so you can chain edits without re-reading.
+
+:::caution
+The revision-guarded overload replaces the bag, like the plain `Metadata` form. It guards against
+another writer, not against your own omissions. Read the current metadata, merge your change into
+it, and pass the result — or use the callback form, which merges and reads the revision for you.
+:::
 
 ## When things go wrong
 

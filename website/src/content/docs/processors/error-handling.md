@@ -1,5 +1,5 @@
 ---
-title: Error handling
+title: Error Handling
 description: What happens when a handler throws, what the runtime retries, and where a position stops.
 ---
 

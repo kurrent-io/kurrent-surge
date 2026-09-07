@@ -43,7 +43,7 @@ public record OrderShipped(string OrderId);
 public record OrderCancelled(string OrderId);
 ```
 
-Pin anything long-lived. See [Schema names](/kurrent-surge/schema/names/) for why.
+Pin anything long-lived. See [Schema Names](/kurrent-surge/schema/names/) for why.
 
 ## Types you do not own
 

@@ -1,7 +1,22 @@
 ---
-title: Configuring the client
-description: Build a client, pick a resilience and security profile, and register it for injection.
+title: Configuring the Client
+description: One object, five modules, one connection. Build it, tune it, and register it for injection.
 ---
+
+`KurrentClient` is one object with five modules hanging off it and **one connection behind all of
+them**. You do not build a client per feature, you do not authenticate five times, and a call into
+any module travels the channel the others already opened.
+
+Almost all of an application's traffic goes through **streams**, where records are written and read.
+The other four are operational, and most projects touch them rarely. The **registry** holds schemas
+and their versions, **indexes** builds secondary indexes over the log, **connectors** manages the
+server-side pipelines that move data out of KurrentDB, and **admin** runs scavenges and node
+operations.
+
+```csharp
+await client.Streams.AppendStream("order-001", records, ExpectedStreamState.NoStream);
+var schema = await client.Registry.GetSchema("order-placed");
+```
 
 A connection string covers most configuration. `KurrentClientOptions` covers the rest, and everything
 a connection string sets is reachable there too.
@@ -23,8 +38,8 @@ await using var client = KurrentClient.Create(options);
 The client is `IAsyncDisposable`, so dispose it with `await using`.
 
 Build one client per process and keep it. It holds a channel per node and multiplexes every call over
-them, so constructing one per request pays a TCP handshake, a TLS handshake and, on a cluster, a
-gossip round trip that it did not need to.
+them. Constructing one per request pays a TCP handshake, a TLS handshake and, on a cluster, a gossip
+round trip that it did not need to.
 
 ## What the options carry
 
@@ -36,11 +51,10 @@ gossip round trip that it did not need to.
 | `Gossip` | Discovery and node preference |
 | `Security` | TLS and credentials |
 | `Resilience` | Retries, keepalive, call deadline |
-| `Schema` | Registration and validation |
+| `Schema` | Registration, validation, schema naming, and the append-format opt-out |
 | `Messages` | Message catalogs and codecs |
 | `Compression` | Wire compression |
 | `Initialization` | Work that runs before the first operation |
-| `Interceptors` | gRPC interceptors added to the channel |
 | `LoggerFactory` | Where the client logs |
 | `MetadataDecoder` | How record metadata is decoded |
 
@@ -107,7 +121,7 @@ builder.Services.AddKurrentSurge(surge => surge
 A client resolved when nothing configured a connection throws
 `KurrentClientNotConfiguredException` rather than connecting to a default.
 
-[Dependency injection](/kurrent-surge/client/dependency-injection/) covers the three entry points,
+[Wiring Up Surge](/kurrent-surge/client/dependency-injection/) covers the three entry points,
 the connection precedence and configuration binding.
 
 ## Two clients for two node preferences

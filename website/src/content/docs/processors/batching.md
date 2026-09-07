@@ -38,7 +38,7 @@ public sealed class BulkIndexer : IRecordBatchProcessor {
 ```
 
 The whole batch succeeds or fails together. Throw and the position is not committed past the batch,
-so the entire batch is redelivered. Handlers must be idempotent.
+so the runtime redelivers the whole batch. Handlers must be idempotent.
 
 ## Tuning
 

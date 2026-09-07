@@ -1,5 +1,5 @@
 ---
-title: Getting started
+title: Getting Started
 description: Install Kurrent Surge, then take the producer path or the consumer path.
 ---
 
@@ -19,8 +19,8 @@ For what Surge is and how it is designed, read [What is Kurrent Surge](/kurrent-
 dotnet add package Kurrent.Surge
 ```
 
-Requires .NET 10.0 or a subsequent version. `Kurrent.Surge` carries the client and the processors;
-the [other two packages](/kurrent-surge/what-is-surge/) are opt in.
+Requires .NET 10.0 or a subsequent version. That one package carries the client, the processors and
+the codecs.
 
 ## Declare your messages
 
@@ -42,14 +42,25 @@ See [Catalogs](/kurrent-surge/schema/catalogs/) for the other ways to declare on
 
 ## Produce: append and read
 
-A producer talks to KurrentDB through `KurrentClient`. One client reaches all five modules, and
-streams is the one you want first.
+A producer talks to KurrentDB through `KurrentClient`. `AddKurrentSurge` registers one for
+injection. One client reaches all five modules, and streams is the one you want first.
 
 ```csharp title="Program.cs"
+using Kurrent.Surge;
 using Kurrent.Surge.Client;
+using Kurrent.Surge.Client.Streams;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
-// tls=false is the local development mode. Production drops it: /client/security/
-await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddKurrentSurge(surge =>
+    // tls=false is the local development mode. Production drops it: /kurrent-surge/client/security/
+    surge.Connection("kurrentdb://localhost:2113?tls=false"));
+
+using var host = builder.Build();
+
+var client = host.Services.GetRequiredService<KurrentClient>();
 
 var records = new[] { AppendRecord.Create(new OrderPlaced("ORD-001", "Alice", 3)) };
 var result  = await client.Streams.AppendStream("order-001", records, ExpectedStreamState.NoStream);
@@ -68,10 +79,13 @@ await foreach (var message in client.Streams.ReadStream("order-001")) {
 
 **The whole program runs:**
 [`examples/streams/Streams.QuickStart`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/streams/Streams.QuickStart)
-is 31 lines that append three order events and read them back, with the output it produces.
+is 38 lines that append three order events and read them back, with the output it produces.
+
+Building a client directly with `KurrentClient.Create` is also supported, for scenarios the
+container does not own. See [Configuring the Client](/kurrent-surge/client/configuring-the-client/).
 
 Next: [Append](/kurrent-surge/streams/append/) for concurrency control, [Read](/kurrent-surge/streams/read/) for the live tail,
-[Client](/kurrent-surge/client/) for the other four modules.
+[Configuring the Client](/kurrent-surge/client/configuring-the-client/) for the other four modules.
 
 ## Consume: run a processor
 
@@ -79,7 +93,6 @@ Reading a stream by hand suits a query. A **processor** suits everything else. I
 subscription, the checkpoints, the retries and the batching, and leaves you one method.
 
 ```csharp
-using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors;
 
 public sealed class OrderNotifier : IRecordProcessor {
@@ -92,21 +105,32 @@ public sealed class OrderNotifier : IRecordProcessor {
 }
 ```
 
-Give it a connection and run it. The processor builds and owns its own client, so you do not pass in
-the one from the producer path:
+Register it in the same scope as the connection. It runs as a hosted service that the host starts
+and stops:
 
 ```csharp
-await KurrentProcessor
-    .Create(new OrderNotifier(), opts => {
-        // tls=false is the local development mode. Production drops it: /client/security/
-        opts.Connection("kurrentdb://localhost:2113?tls=false");
-        opts.Subscription.Filter = RecordFilter.ByStream("order-001");
-    })
-    .RunWithGracefulShutdownAsync();
+using Kurrent.Surge;
+using Kurrent.Surge.Client.Streams;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.AddSingleton<OrderNotifier>();
+
+builder.Services.AddKurrentSurge(surge => {
+    // tls=false is the local development mode. Production drops it: /kurrent-surge/client/security/
+    surge.Connection("kurrentdb://localhost:2113?tls=false");
+    surge.AddProcessor<OrderNotifier>(opts =>
+        opts.Subscription.Filter = RecordFilter.ByStream("order-001"));
+});
+
+await builder.Build().RunAsync();
 ```
 
-Without a filter the processor reads every stream. `RunWithGracefulShutdownAsync` handles SIGINT and
-SIGTERM, so a container stop drains rather than kills.
+`AddProcessor<T>` resolves `T` from the container and never registers it, so register it yourself.
+Without a filter the processor reads every stream. SIGINT and SIGTERM stop the host, and the
+processor commits what it has handled before it exits, so a container stop drains rather than kills.
 
 **The whole program runs:**
 [`examples/processors/Processor.WordCount`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Processor.WordCount)
@@ -114,15 +138,15 @@ seeds a stream and counts words across it.
 [`Processor.AspNetMinimal`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Processor.AspNetMinimal)
 hosts one as an ASP.NET Core background service, which is how you would deploy it.
 
-Next: [Writing a processor](/kurrent-surge/processors/writing-a-processor/),
-[Checkpointing](/kurrent-surge/processors/checkpointing/), [Error handling](/kurrent-surge/processors/error-handling/).
+Next: [Writing a Processor](/kurrent-surge/processors/writing-a-processor/),
+[Checkpointing](/kurrent-surge/processors/checkpointing/), [Error Handling](/kurrent-surge/processors/error-handling/).
 
 ## More examples
 
 Eighteen runnable projects live in
 [`examples/`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples), covering fraud
 detection, IoT thresholds, leaderboards, stream-table joins, Postgres and Redis persistence, Kafka
-connectors and the schema registry. Each one has its own README and runs with `dotnet run`.
+connectors and the schema registry. Sixteen carry a README, and each project runs with `dotnet run`.
 
 To connect to a cluster, or to configure TLS, discovery or keepalive, see
-[Connection strings](/kurrent-surge/client/connection-strings/).
+the [Connection String Reference](/kurrent-surge/client/connection-strings/).

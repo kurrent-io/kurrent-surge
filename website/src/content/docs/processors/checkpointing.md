@@ -28,8 +28,8 @@ something asynchronous and "processed" does not mean "done".
 `AutoCheckpoint` decides whether tracked positions are committed on the interval. Turn it off and
 you request a commit explicitly.
 
-They are independent. Tracking is *what* has been processed; checkpointing is *when* that is made
-durable.
+They are independent. Tracking is *what* has been processed; checkpointing is *when* the tracked
+position becomes durable.
 
 ## Interval
 

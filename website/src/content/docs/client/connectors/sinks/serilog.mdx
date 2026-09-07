@@ -1,12 +1,13 @@
 ---
 title: 'Serilog Sink'
+description: Configuration and log output destinations for the Serilog sink connector.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Overview
 
-The Serilog sink logs detailed messages about the connector and record details.
+The Serilog sink logs details about the connector and the records it processes.
 
 The Serilog sink supports writing logs to the following outputs:
 
@@ -14,7 +15,7 @@ The Serilog sink supports writing logs to the following outputs:
 - [File](https://github.com/serilog/serilog-sinks-file)
 - [Seq](https://github.com/serilog/serilog-sinks-seq)
 
-These outputs can be configured using the Serilog settings in the configuration file.
+Configure these outputs with the Serilog settings in the configuration file.
 
 ## Prerequisites
 
@@ -42,10 +43,9 @@ Content-Type: application/json
 }
 ```
 
-After creating and starting the serilog sink connector, every time an event is
-appended to the `example-stream`, the serilog sink connector will print the
-record to the console. You can find a list of available management API endpoints
-in the [API Reference](https://docs.kurrent.io/server/v26.1/features/connectors/manage).
+After you create and start the Serilog sink connector, it prints each record
+appended to `example-stream` to the console. You can find a list of available
+management API endpoints in the [Managing Connectors](/kurrent-surge/client/connectors/manage/).
 
 Here is an example:
 
@@ -59,7 +59,7 @@ Here is an example:
 
 ## Settings
 
-Adjust these settings to specify the behavior and interaction of your serilog sink connector with KurrentDB, ensuring it operates according to your requirements and preferences.
+Adjust these settings to control how the Serilog sink connector behaves and how it interacts with KurrentDB.
 
 :::tip
 The serilog sink inherits a set of common settings that are used to configure the connector. The settings can be found in
@@ -70,10 +70,12 @@ The Serilog sink can be configured with the following options:
 
 | Name                | Details                                                                                                                                                                                                                     |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `configuration`     | **Description:**<br/>The JSON serilog configuration.<br/><br/>**Accepted Values:** A base64 encoded string of the serilog configuration<br/><br/>**Default**: If not provided, it will write to the console |
+| `configuration`     | **Description:**<br/>The JSON serilog configuration.<br/><br/>**Accepted Values:** A base64 encoded string of the serilog configuration<br/><br/>**Default**: If not provided, it writes to the console |
 | `includeRecordData` | **Description:**<br/>Whether the record data should be included in the log output.<br/><br/>**Default**: `"true"`                                                                                             |
 
-## Write to Seq
+## Examples
+
+### Write to Seq
 
 1. Refer to the [Seq documentation](https://docs.datalust.co/docs/getting-started) for installation instructions.
 
@@ -120,7 +122,7 @@ Content-Type: application/json
 
 Follow the configuration guide from [Serilog Seq](https://github.com/serilog/serilog-sinks-seq) for more details.
 
-## Write to a File
+### Write to a file
 
 Encode the JSON configuration to base64, then provide the base64 encoded configuration to the Serilog sink connector.
 
@@ -160,6 +162,6 @@ Content-Type: application/json
 </Tabs>
 
 
-This will write logs to `/tmp/logs/log.txt`.
+This writes logs to `/tmp/logs/log.txt`.
 
 Follow the configuration guide from [Serilog File](https://github.com/serilog/serilog-sinks-file) for more details.

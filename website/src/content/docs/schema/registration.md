@@ -43,9 +43,11 @@ version, fails at initialization rather than at the first append.
 
 ## The pieces
 
-`RegistrationMode` is `Manual` or `Auto`. `ValidationMode` is `Disabled` or `Enabled`. `NameStrategy`
-decides how a schema name is derived when the type does not pin one. The three presets are just
-combinations, and you can set them individually.
+`RegistrationMode` takes `SchemaRegistrationMode.Manual` or `.Auto`. `ValidationMode` takes
+`SchemaValidationMode.Disabled` or `.Enabled`. `NameStrategy` decides how a schema name is derived
+when the type does not pin one. `AppendAsJson` appends records that state no format as JSON instead
+of taking the format from the message type. The three presets are just combinations of the first
+two, and you can set every member individually.
 
 ## What gets registered
 
@@ -55,7 +57,7 @@ one does.
 
 That is what lets [compatibility modes](/kurrent-surge/schema/evolution/) work uniformly: one comparable shape per
 schema name, regardless of encoding. The exception is `Bytes`, which never reaches the registry at
-all. See [Formats](/kurrent-surge/schema/formats/).
+all. See [Data Formats](/kurrent-surge/schema/formats/).
 
 ## Timing
 

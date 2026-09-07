@@ -1,5 +1,5 @@
 ---
-title: Formats
+title: Data Formats
 description: What JSON, Protobuf, Avro and raw bytes each do, and where they genuinely differ.
 ---
 
@@ -8,15 +8,37 @@ name, and the pair tells the read path which codec to use and which CLR type to 
 
 | Format | Codec | Content type | Catalog | Registry |
 |---|---|---|---|---|
-| `Json` | built in, **default** | `application/json` | yes | yes |
+| `Json` | built in | `application/json` | yes | yes |
 | `Protobuf` | built in | `application/vnd.google.protobuf` | yes | yes |
 | `Avro` | built in | `application/vnd.apache.avro+json` | yes | yes |
 | `Bytes` | none | `application/octet-stream` | **no** | **no** |
 
+## How the format is chosen
+
+A record that states a format gets it. A record that states none takes its format from the message
+type:
+
+| The type | Format |
+|---|---|
+| has a generated Avro codec | `Avro` |
+| is a Protocol Buffers message | `Protobuf` |
+| is anything else | `Json` |
+
+`AppendRecord.DataFormat` defaults to `SchemaDataFormat.Unspecified`, which is what "states none"
+means. A stated format is never narrowed.
+
+To append everything as JSON whatever the type, set `AppendAsJson` on the client:
+
+```csharp
+opts.Schema.AppendAsJson = true;
+```
+
+A stated format still wins over it, and it is off by default.
+
 ## The registry stores JSON Schema, whatever the wire format
 
-This is the part worth reading twice. JSON, Protobuf and Avro all participate in the registry, and
-all three register **the same kind of definition**: a JSON Schema, exported from your CLR type.
+JSON, Protobuf and Avro all participate in the registry, and all three register **the same kind of
+definition**: a JSON Schema, exported from your CLR type.
 
 The wire encoding and the registered definition are separate decisions. An Avro-encoded record still
 has its type exported to JSON Schema and registered under its schema name. That is what gives
@@ -27,7 +49,8 @@ registration, same compatibility modes. What differs is how the bytes are produc
 
 ## JSON
 
-The default. Records appended without an explicit format are encoded by `System.Text.Json`.
+The fallback. A type with no generated Avro codec and no Protocol Buffers heritage encodes through
+`System.Text.Json`.
 
 ```csharp
 var record = new AppendRecord {
@@ -71,38 +94,36 @@ Encoding calls `ToByteArray()`, and decoding uses the generated `Parser`. Plain 
 supported.
 
 ```csharp
-var record = AppendRecord.Create(
-    new OrderPlaced { OrderId = "order-123", Product = "Widget" },
-    r => {
-        r.Stream     = "order-123";
-        r.DataFormat = SchemaDataFormat.Protobuf;
-    });
+var record = new AppendRecord {
+    Stream = "order-123",
+    Value  = new OrderPlaced { OrderId = "order-123", Product = "Widget" }
+};
 
 await client.Streams.AppendStream(record);
 ```
 
-The codec is built in. There is no extra package and no opt-in call.
+Nothing states the format. A Protocol Buffers message is recognised from its type.
+
+The codec is built in. There is no extra package, no opt-in call, and no property to set.
 
 ## Avro
 
 The codec is built in — it ships inside `Kurrent.Surge.Core` with its compile-time generator. There
-is no extra package and no opt-in call.
+is no extra package, no opt-in call, and no property to set.
 
 ```csharp
-var record = AppendRecord.Create(orderPlaced, r => {
-    r.Stream     = "order-123";
-    r.DataFormat = SchemaDataFormat.Avro;
-});
+var record = new AppendRecord { Stream = "order-123", Value = orderPlaced };
 
 await client.Streams.AppendStream(record);
 ```
 
-Codecs are **generated at compile time**, one per message type. A type with no generated codec throws
-`AvroCodecNotGeneratedException` on encode rather than falling back to reflection. The failure is
-loud, and it happens on the first append rather than in production six weeks later.
+A generated codec is what marks the type as Avro, so nothing states the format here either.
 
-The encoder is thread-static and reuses its buffer, dropping it when a single outsized message pushes
-it past 64 KB so one large record cannot pin a large buffer to a thread forever.
+Codecs are **generated at compile time**, one per message type. A type with no generated codec throws
+`AvroCodecNotGeneratedException` on encode rather than falling back to reflection.
+
+The encoder is thread-static and reuses its buffer. A message that pushes the buffer past 64 KB
+causes the encoder to drop it, so one large record never pins a large buffer to a thread.
 
 ## Raw bytes
 
@@ -114,7 +135,7 @@ never consults the catalog and never reaches the registry. You supply the schema
 ```csharp
 byte[] payload = Encoding.UTF8.GetBytes("{\"custom\":\"data\"}");
 
-var record = AppendRecord.Create(payload, "my.opaque.blob", r => r.Stream = "blobs");
+var record = AppendRecord.Create(payload, "my.opaque.blob", r => r with { Stream = "blobs" });
 ```
 
 The schema name is an argument, not a settable field. These overloads set the format to `Bytes` for
@@ -134,7 +155,7 @@ entirely.
 
 | Situation | Format |
 |---|---|
-| Anything, by default | `Json` |
+| A plain CLR record or class | `Json`, chosen for you |
 | You already maintain `.proto` contracts | `Protobuf` |
 | You need compact binary and a compile-time schema | `Avro` |
 | The payload must stay opaque to the SDK | `Bytes` |

@@ -6,7 +6,24 @@ description: Write two methods. The runtime handles the subscription, checkpoint
 A processor replaces hand-written subscription code. You do not manage a subscription, a checkpoint,
 a reconnect loop or a partition assignment. You write the handler.
 
-This is a complete program:
+```d2 layout=elk
+direction: right
+
+KurrentDB: {
+  Streams
+  Checkpoints
+}
+
+Processor: {
+  Subscription -> Batch -> Handler -> Track
+  Track -> Subscription: next
+}
+
+KurrentDB.Streams -> Processor.Subscription: records
+Processor.Track -> KurrentDB.Checkpoints: committed position
+```
+
+Everything in that loop except **Handler** is the runtime's job. This is a complete program:
 
 ```csharp
 using Kurrent.Surge.Client.Streams;
@@ -56,7 +73,7 @@ need:
 | `OnConnected` | when the subscription is live |
 | `OnCheckpoint` | when a position is committed |
 
-On top of it, implement one of two shapes:
+On top of `IProcessor`, implement one of two shapes:
 
 | Interface | Method | Use it for |
 |---|---|---|
@@ -73,9 +90,11 @@ Configured through `ProcessorOptions`:
 | Position tracking | `Checkpoint` |
 | Batch shape | `Batching` |
 | Reconnecting a dropped subscription | `Resilience` |
-| Checkpoint partition count | `MaxParallelism`, fixed at 1 — see [partitioning](/kurrent-surge/processors/partitioning/) |
+| Checkpoint partition count | internal, and pinned to 1 in this release |
 | [Observability](/kurrent-surge/processors/observability/) | `Observers`, `MeterFactory`, `TrackSourceLag` |
 
-Read on for [writing a processor](/kurrent-surge/processors/writing-a-processor/),
-[checkpointing](/kurrent-surge/processors/checkpointing/), [partitioning](/kurrent-surge/processors/partitioning/) and
-[batching](/kurrent-surge/processors/batching/).
+- [Writing a Processor](/kurrent-surge/processors/writing-a-processor/)
+- [Checkpointing](/kurrent-surge/processors/checkpointing/)
+- [Batching](/kurrent-surge/processors/batching/)
+- [Error Handling](/kurrent-surge/processors/error-handling/)
+- [Observability](/kurrent-surge/processors/observability/)

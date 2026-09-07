@@ -1,5 +1,6 @@
 ---
 title: 'Pulsar Sink'
+description: Write records from a KurrentDB stream to an Apache Pulsar topic.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -8,7 +9,7 @@ import { Badge } from '@astrojs/starlight/components';
 
 ## Overview
 
-The Apache Pulsar Sink connector writes events from your KurrentDB stream to a specified Pulsar topic.
+The Apache Pulsar Sink connector writes records from your KurrentDB stream to a specified Pulsar topic.
 
 ## Prerequisites
 
@@ -43,11 +44,11 @@ Content-Type: application/json
 }
 ```
 
-After running the command, verify the connector status by checking the management API or connector logs. See [Management API Reference](https://docs.kurrent.io/server/v26.1/features/connectors/manage).
+After running the command, verify the connector status by checking the management API or connector logs. See [Managing Connectors](/kurrent-surge/client/connectors/manage/).
 
 ## Settings
 
-The connector settings control how it interacts with Pulsar, manages message partitioning, and ensures resilience in message handling. 
+These settings control how the connector interacts with Pulsar, partitions messages, and stays resilient while handling them.
 
 :::tip
 The Pulsar sink inherits a set of common settings that are used to configure the connector. The settings can be found in
@@ -58,14 +59,14 @@ the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page
 
 | Name                   | Details                                                                                                     |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `topic`                | _required_<br/><br/>**Description:**<br/>The Pulsar topic where records are published to.                     |
+| `topic`                | _required_<br/><br/>**Description:**<br/>The Pulsar topic that the connector publishes records to.            |
 | `url`                  | **Description:**<br/>The service URL for the Pulsar cluster.<br/><br/>**Default**: `"pulsar://localhost:6650"` |
 | `defaultHeaders`       | **Description:**<br/>Headers included in all produced messages.<br/><br/>**Default**: Empty                    |
 | `authentication:token` | **Description:**<br/>A JSON web token for authenticating the connector with Pulsar.                          |
 
 ### Partitioning
 
-Partitioning options determine how the connector assigns partition keys, which affect message routing and topic compaction. 
+Partitioning options determine how the connector assigns partition keys, which affect message routing and topic compaction.
 
 | Name                                | Details                                                                                                                                                                                                                                                           |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -86,8 +87,8 @@ The Pulsar sink connector relies on its own retry mechanism and doesn't include 
 
 The Pulsar sink connector lets you include custom headers in the message headers
 it sends to your topic. To add custom headers, use the `defaultHeaders` setting
-in your connector configuration. Each custom header should be specified with the
-prefix `defaultHeaders:` followed by the header name.
+in your connector configuration. Specify each custom header with the prefix
+`defaultHeaders:` followed by the header name.
 
 Example:
 
@@ -103,24 +104,24 @@ Content-Type: application/json
 }
 ```
 
-These headers will be included in every message sent by the connector, in addition to the [default headers](/kurrent-surge/client/connectors/features/#headers) automatically added by the connector's plugin.
+The connector includes these headers in every message it sends, alongside the [default headers](/kurrent-surge/client/connectors/features/#headers) its plugin adds automatically.
 
 
 ## Examples
 
 ### Partitioning
 
-The Pulsar sink connector allows customizing the partition keys that are sent
-with the message. 
+The Pulsar sink connector lets you customize the partition keys sent with the
+message.
 
-By default, it will use `"partitionKey"` and the message will be distributed
-using round-robin partitioning across the available partitions in the topic. 
+`partitionKeyExtraction:enabled` defaults to `"false"`, so the connector extracts no key unless you enable it.
+Without a key, Pulsar distributes messages round-robin across the available partitions in the topic.
 
 **Partition using Stream ID**
 
 You can extract part of the stream name using a regular expression (regex) to
-define the partition key. The expression is optional and can be customized based
-on your naming convention. In this example, the expression captures the stream
+define the partition key. The expression is optional, and you can adapt it to
+your naming convention. In this example, the expression captures the stream
 name up to `_data`.
 
 ```http
@@ -136,7 +137,7 @@ Content-Type: application/json
 }
 ```
 
-Alternatively, if you only need the last segment of the stream name (after a
+Alternatively, if you need only the last segment of the stream name (after a
 hyphen), you can use the `streamSuffix` source. This
 doesn't require an expression since it automatically extracts the suffix.
 
@@ -154,7 +155,7 @@ Content-Type: application/json
 
 The `streamSuffix` source is useful when stream names follow a structured
 format, and you want to use only the trailing part as the partition key. For
-example, if the stream is named `user-123`, the partition key would be `123`.
+example, if the stream is named `user-123`, the partition key is `123`.
 
 **Partition using header values**
 
@@ -172,6 +173,6 @@ Content-Type: application/json
 }
 ```
 
-Specify the header keys you want to use in the `partitionKeyExtraction:expression` field (e.g., `key1,key2`). The connector will concatenate the header values with a hyphen (`-`) to create the partition key.
+Specify the header keys you want to use in the `partitionKeyExtraction:expression` field (e.g., `key1,key2`). The connector concatenates the header values with a hyphen (`-`) to create the partition key.
 
-For example, if your event has headers `key1: regionA` and `key2: zone1`, the partition key will be `regionA-zone1`.
+For example, if your record has headers `key1: regionA` and `key2: zone1`, the partition key is `regionA-zone1`.

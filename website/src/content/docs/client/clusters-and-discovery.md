@@ -1,5 +1,5 @@
 ---
-title: Clusters and load balancing
+title: Clusters and Load Balancing
 description: How the client discovers nodes, ranks them, holds a connection, and follows a leader election.
 ---
 
@@ -7,9 +7,10 @@ A single-node connection has one address and no decisions to make. A cluster has
 one a call should go to changes over time, because the leader changes. Discovery is how the client
 answers that question continuously rather than once at startup.
 
-It answers it a level lower than most clients do. Node selection here is a gRPC load balancing policy
-registered on the channel, so the channel itself resolves addresses, ranks them, holds the connection,
-queues calls while it reconnects, and follows an election. Most clients wrap the channel instead:
+Discovery answers that question a level lower than most clients do. Node selection here is a gRPC
+load balancing policy registered on the channel. The channel itself resolves addresses, ranks them,
+holds the connection, queues calls while it reconnects, and follows an election. Most clients wrap
+the channel instead:
 resolve an address, construct a `GrpcChannel` for it, and rebuild the whole thing when that address
 stops working.
 
@@ -97,13 +98,13 @@ S -> F: rank 0 unreachable
 ```
 
 The balancer keeps one subchannel at a time, pointed at rank 0 and carrying the whole ranked list.
-When rank 0 changes, because the leader moved or the preferred node went away, the subchannel is
-replaced so traffic follows the new target instead of staying on a connection that still works but is
-no longer the one you asked for.
+When rank 0 changes, because the leader moved or the preferred node went away, the balancer replaces
+the subchannel. Traffic then follows the new target instead of staying on a connection that still
+works but is no longer the one you asked for.
 
-That is a deliberate shape, not a limit of the policy. Calls are not spread across nodes, because a
-client that writes wants the leader, and one that reads from followers says so with `nodePreference`
-and gets a follower. Spreading writes would only add redirects.
+One subchannel is a deliberate shape, not a limit of the policy. Calls are not spread across nodes,
+because a client that writes wants the leader, and one that reads from followers says so with
+`nodePreference` and gets a follower. Spreading writes would only add redirects.
 
 ## What a call sees while the connection moves
 
@@ -116,8 +117,8 @@ Each state has a picker, and the picker is what a call actually hits.
 | Idle | `RequestConnectionPicker` | Sent, and reconnection is triggered |
 | TransientFailure | `FailurePicker` | Failed with the underlying status |
 
-Queuing is the part worth knowing. A call issued while the balancer is replacing a subchannel waits
-for the new one rather than throwing, so a leader election is not something your code has to catch.
+A call issued while the balancer is replacing a subchannel waits for the new one rather than
+throwing, so a leader election is not something your code has to catch.
 
 A resolver failure while the channel is connected is logged and ignored. Gossip being briefly
 unreachable is not a reason to drop a working connection.
@@ -146,8 +147,8 @@ C -> N2.retry: append
 N2.retry -> C: succeeds
 ```
 
-No gossip query happens on that path, which is why a leader change costs a retry rather than an
-outage, and why `nodePreference=leader` is inexpensive to hold: the client is told when it is wrong
+No gossip query happens on that path. That is why a leader change costs a retry rather than an
+outage, and why `nodePreference=leader` is inexpensive to hold. The client is told when it is wrong
 instead of discovering it by timing out. Discovery resumes on the next scheduled refresh, so an
 announcement is a shortcut rather than a replacement for gossip.
 
@@ -161,15 +162,15 @@ when the path between them is slower or less reliable than that.
 |---|---|---|
 | `maxDiscoverAttempts` | `10` | A single lost packet should not collapse discovery, such as over a VPN or between regions |
 | `discoveryInterval` | `100` ms | A cluster is mid-election and backing off is better than hammering it |
-| `gossipTimeout` | `5` s | The round trip to the cluster legitimately approaches five seconds |
+| `gossipTimeout` | `5` s | The round trip to the cluster approaches five seconds |
 
 Tune `gossipTimeout` against measured latency. Tune `keepAliveInterval` against the idle timeout of
 whatever sits between the client and the cluster, which is a different question with a different
-answer. See [Connection strings](/kurrent-surge/client/connection-strings/) for both.
+answer. See the [Connection String Reference](/kurrent-surge/client/connection-strings/) for both.
 
 Retries live in the same `ServiceConfig` as the balancing policy, as a gRPC method config, so a retry
 is enforced by the transport rather than by a loop above it. See
-[Configuring the client](/kurrent-surge/client/configuring-the-client/).
+[Configuring the Client](/kurrent-surge/client/configuring-the-client/).
 
 ## Reads and writes on different nodes
 

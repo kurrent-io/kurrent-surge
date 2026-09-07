@@ -1,5 +1,5 @@
 ---
-title: Troubleshooting connections
+title: Troubleshooting Connections
 description: Work from the symptom to the cause, for failures that happen at startup or later.
 ---
 
@@ -56,7 +56,7 @@ verification fails as well.
 ### `InvalidConnectionStringException`
 
 The string itself did not parse. Two causes account for most of it: a scheme outside the six that are
-supported, and several hosts under a direct scheme, which is a contradiction because a direct
+supported, and several hosts under a direct scheme. The second is a contradiction, because a direct
 connection addresses exactly one node.
 
 ### `KurrentClientNotConfiguredException`

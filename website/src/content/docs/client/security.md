@@ -19,9 +19,9 @@ Every example in these docs connects to a local development node, which is why t
 | Credentials | The seeded `admin` account | An identity you created, read from configuration |
 
 :::danger
-`tls=false` turns transport security off completely. Every record you write, every record you read
-and the password in the connection string cross the network in the clear, and the client will talk
-to whatever answers on that port. It exists so a local container works without certificates. Never
+`tls=false` turns transport security off. Every record you write, every record you read and the
+password in the connection string cross the network in the clear. The client will also talk to
+whatever answers on that port. It exists so a local container works without certificates. Never
 deploy it.
 :::
 
@@ -53,7 +53,7 @@ opts.Security = KurrentClientSecurityOptions.MutualTls(
     rootCaPath:     "/certs/ca.crt");
 ```
 
-This keeps verification on. It changes who the client trusts, not whether it checks.
+Both forms keep verification on. They change who the client trusts, not whether it checks.
 
 ## Authenticate
 
@@ -106,8 +106,6 @@ The three TLS parameters combine into one transport mode.
 | `true` | set | any | Verify against that CA bundle |
 | `true` | unset | `true` | Verify against the system trust store |
 | `true` | unset | `false` | Encrypted, **not verified** |
-
-The last row is the one to be careful with.
 
 :::caution
 `tlsVerifyCert=false` encrypts the connection and then accepts any certificate presented, which

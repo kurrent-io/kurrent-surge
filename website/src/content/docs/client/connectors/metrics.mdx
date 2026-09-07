@@ -1,11 +1,11 @@
 ---
 title: Metrics
+description: The time series a running connector reports.
 ---
 
 
-KurrentDB connectors expose a variety of metrics to help you monitor the health,
-performance, and reliability of your system. These metrics are organized by type
-and can be used to track different aspects of your connectors.
+KurrentDB connectors expose metrics for the health, performance, and reliability
+of your system. The tables below group them by type.
 
 ## Usage
 
@@ -20,7 +20,7 @@ and can be used to track different aspects of your connectors.
 | `kurrent_sink_written_total_records` | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Records written per operation. A batching sink records the batch size, a per-record sink records 1                |
 | `kurrent_sink_errors_total`          | [Counter](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types)   | Total number of errors encountered during sink operations               |
 | `kurrent_sink_transform_duration_s`  | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Duration of data transformation before writing to the sink (in seconds) |
-| `kurrent_sink_write_latency_s`       | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Time between event creation and sink write acknowledgment (in seconds)  |
+| `kurrent_sink_write_latency_s`       | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Time between record creation and sink write acknowledgment (in seconds) |
 
 ## Consumer
 

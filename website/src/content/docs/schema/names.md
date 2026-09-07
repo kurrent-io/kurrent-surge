@@ -1,5 +1,5 @@
 ---
-title: Schema names
+title: Schema Names
 description: The string identity a record carries, and how to pick one that survives a refactor.
 ---
 
@@ -8,8 +8,7 @@ shows up in tooling, in cross-service contracts, and in every consumer written i
 
 **Schema names are append-only.** Once a record carries a name, readers of that record exist forever,
 so a name can never be reused for a different shape. It can only be retired. Picking well up front
-is cheap.
-Retrofitting is not.
+is cheap. Retrofitting is not.
 
 ## Resolution order
 

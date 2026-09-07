@@ -1,5 +1,6 @@
 ---
-title: 'Sql Sink'
+title: 'SQL Sink'
+description: Statement mappings, settings and a worked example for the SQL sink connector.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -8,15 +9,15 @@ import { Badge } from '@astrojs/starlight/components';
 
 ## Overview
 
-The SQL sink connector writes events from KurrentDB to SQL databases by executing configurable SQL statements. You can define mappings between event types and SQL statement templates to control how events are persisted.
+The SQL sink connector writes records from KurrentDB to SQL databases by executing configurable SQL statements. Map event types to SQL statement templates to control how the connector persists each record.
 
-### Supported Databases
+### Supported databases
 
 - Microsoft SQL Server
 - PostgreSQL
 
 :::caution
-This connector only processes events with the `application/json` content type. Events with other content types will fail processing.
+This connector processes only records with the `application/json` content type. Records with any other content type fail processing.
 :::
 
 ## Prerequisites
@@ -31,7 +32,7 @@ Before using the SQL sink connector, ensure you have:
 See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
 :::
 
-## Quick Start
+## Quickstart
 
 ### SQL Server
 
@@ -71,55 +72,9 @@ Content-Type: application/json
 }
 ```
 
-## Specifying SQL Statements
-
-Define SQL statement templates with parameter placeholders (prefixed with `@`) and JavaScript extractor functions that extract values from records. 
-
-**Example configuration:**
-
-```javascript
-{
-  "VehicleRegistered": {
-    "Statement": "INSERT INTO vehicle_registrations (id, vin) VALUES (@id, @vin)",
-    "Extractor": "(record) => ({ id: record.value.registrationId, vin: record.value.vin })"
-  },
-  "VehicleTransferred": {
-    "Statement": "UPDATE vehicle_registrations SET owner_name = @newOwnerName WHERE vin = @vin",
-    "Extractor": "(record) => ({ vin: record.value.vin, newOwnerName: record.value.newOwnerName })"
-  }
-}
-```
-
-The configuration is passed as a base64-encoded JSON string using the `reducer:mappings` option.
-
-:::note
-The extractor function receives a `record` parameter following the [KurrentDB record structure](/kurrent-surge/client/connectors/features/#kurrentdb-record). It must return an object with properties matching the parameter placeholders in the SQL statement (without the `@` prefix).
-:::
-
-### Helper Functions
-
-Use helper functions to ensure values are correctly typed for your database columns:
-
-| Function           | Use For                           | Example                            |
-|--------------------|-----------------------------------|------------------------------------|
-| `Guid(string)`     | `UUID`/`UNIQUEIDENTIFIER` columns | `Guid(record.value.id)`            |
-| `DateTime(string)` | `TIMESTAMP`/`DATETIME` columns    | `DateTime(record.value.createdAt)` |
-| `TimeSpan(string)` | `TIME`/`INTERVAL` columns         | `TimeSpan(record.value.duration)`  |
-
-**Example:**
-
-```javascript
-{
-  "OrderPlaced": {
-    "Statement": "INSERT INTO orders (id, placed_at, customer_name) VALUES (@id, @placedAt, @customerName)",
-    "Extractor": "(record) => ({ id: Guid(record.value.orderId), placedAt: DateTime(record.value.timestamp), customerName: record.value.customer.name })"
-  }
-}
-```
-
 ## Settings
 
-Adjust these settings to specify the behavior and interaction of your SQL sink connector with KurrentDB, ensuring it operates according to your requirements and preferences.
+Adjust these settings to control how the SQL sink connector behaves and how it interacts with KurrentDB.
 
 :::tip
 The SQL sink connector inherits a set of common settings that are used to configure the connector. The settings can be found in
@@ -127,26 +82,26 @@ the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page
 :::
 
 The SQL sink connector can be configured with the following options:
-### Core Options
+### Core options
 
 | Name               | Details                                                                                                                                                             |
 | ------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `type`             | **Type**: Enum<br/><br/>**Description:**<br/>Type of SQL database to connect to.<br/><br/>**Accepted Values:** `SqlServer`, `PostgreSql`<br/><br/>**Default**: `SqlServer` |
-| `connectionString` | _required_<br/><br/>**Description:**<br/>Connection string to the SQL database. Authentication options will override credentials in the connection string.             |
+| `connectionString` | _required_<br/><br/>**Description:**<br/>Connection string to the SQL database. Authentication options override credentials in the connection string.             |
 | `reducer:mappings` | **Description:**<br/>Base64-encoded JSON object mapping schema names to SQL statement templates and parameter extractors.                                            |
 
 ### Authentication
 
-#### Username/Password
+#### Username/password
 
 | Name                      | Details                                                |
 |---------------------------|:-------------------------------------------------------|
 | `authentication:username` | **Description:** Username for database authentication. |
 | `authentication:password` | **Description:** Password for database authentication. |
 
-This will overwrite any username/password specified in the connection string.
+These settings overwrite any username/password specified in the connection string.
 
-#### Client Certificate (PostgreSQL)
+#### Client certificate (PostgreSQL)
 
 | Name                                 | Details                                                            |
 |--------------------------------------|:-------------------------------------------------------------------|
@@ -170,20 +125,66 @@ This will overwrite any username/password specified in the connection string.
 | `resilience:thirdDelayBound:upperLimitMs`  | **Type**: double<br/><br/>**Description:** Upper time limit in milliseconds for the third backoff delay bound. `-1` means unlimited.<br/><br/>**Default**: `-1`                                                          |
 | `resilience:thirdDelayBound:delayMs`       | **Type**: double<br/><br/>**Description:** Delay in milliseconds for the third backoff bound.<br/><br/>**Default**: `3600000` (1 hour)                                                                                   |
 
-The settings `commandTimeout`, `connectionTimeout`, `minPoolSize`, `maxPoolSize`, and `connectionLifetime` will override any corresponding values specified in the connection string.
+The settings `commandTimeout`, `connectionTimeout`, `minPoolSize`, `maxPoolSize`, and `connectionLifetime` override any corresponding values specified in the connection string.
 
+
+## Specifying SQL statements
+
+Define SQL statement templates with parameter placeholders, prefixed with `@`. Pair each template with a JavaScript extractor function that pulls values from the record.
+
+**Example configuration:**
+
+```javascript
+{
+  "VehicleRegistered": {
+    "Statement": "INSERT INTO vehicle_registrations (id, vin) VALUES (@id, @vin)",
+    "Extractor": "(record) => ({ id: record.value.registrationId, vin: record.value.vin })"
+  },
+  "VehicleTransferred": {
+    "Statement": "UPDATE vehicle_registrations SET owner_name = @newOwnerName WHERE vin = @vin",
+    "Extractor": "(record) => ({ vin: record.value.vin, newOwnerName: record.value.newOwnerName })"
+  }
+}
+```
+
+The configuration is passed as a base64-encoded JSON string using the `reducer:mappings` option.
+
+:::note
+The extractor function receives a `record` parameter following the [KurrentDB record structure](/kurrent-surge/client/connectors/features/#kurrentdb-record). It must return an object with properties matching the parameter placeholders in the SQL statement (without the `@` prefix).
+:::
+
+### Helper functions
+
+Use helper functions to type values correctly for your database columns:
+
+| Function           | Use For                           | Example                            |
+|--------------------|-----------------------------------|------------------------------------|
+| `Guid(string)`     | `UUID`/`UNIQUEIDENTIFIER` columns | `Guid(record.value.id)`            |
+| `DateTime(string)` | `TIMESTAMP`/`DATETIME` columns    | `DateTime(record.value.createdAt)` |
+| `TimeSpan(string)` | `TIME`/`INTERVAL` columns         | `TimeSpan(record.value.duration)`  |
+
+**Example:**
+
+```javascript
+{
+  "OrderPlaced": {
+    "Statement": "INSERT INTO orders (id, placed_at, customer_name) VALUES (@id, @placedAt, @customerName)",
+    "Extractor": "(record) => ({ id: Guid(record.value.orderId), placedAt: DateTime(record.value.timestamp), customerName: record.value.customer.name })"
+  }
+}
+```
 
 ## Examples
 
 ### Inserting into PostgreSQL
 
-This example demonstrates how to insert vehicle registration records into a local PostgreSQL instance on Supabase using the SQL sink connector.
+This example uses the SQL sink connector to insert vehicle registration records into a local PostgreSQL instance on Supabase.
 
-#### Prerequisites
+#### What you need for this example
 
 - [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started#installing-the-supabase-cli) installed and running locally
 
-#### Step 1: Get the Database Connection String
+#### Step 1: Get the database connection string
 
 Run the following command to get your local Supabase connection details:
 
@@ -201,7 +202,7 @@ Studio URL: http://127.0.0.1:54323
 
 Note down the **Studio URL** because you'll need it to verify the data insertion in step 6.
 
-#### Step 2: Format the Connection String
+#### Step 2: Format the connection string
 
 The SQL connector requires the connection string in ADO.NET format:
 
@@ -215,7 +216,7 @@ Host=<host>;Port=<port>;Database=<database>;Username=<username>;Password=<passwo
 Host=127.0.0.1;Port=54322;Database=postgres;Username=postgres;Password=postgres
 ```
 
-#### Step 3: Create the Database Table
+#### Step 3: Create the database table
 
 1. Open the Supabase Studio at `http://127.0.0.1:54323`
 2. Navigate to the **SQL Editor**
@@ -229,7 +230,7 @@ CREATE TABLE vehicle_registrations (
 );
 ```
 
-#### Step 4: Create the Statement Mappings
+#### Step 4: Create the statement mappings
 
 Define SQL statement templates with parameter extractors for each schema name. Use helper functions like `Guid()` to convert string values to their proper types:
 
@@ -246,7 +247,7 @@ Define SQL statement templates with parameter extractors for each schema name. U
 The `Guid()` helper function converts the string `registrationId` to a proper `System.Guid` type, which maps to PostgreSQL's `UUID` type.
 :::
 
-#### Step 5: Encode the Mappings to Base64
+#### Step 5: Encode the mappings to base64
 
 **PowerShell:**
 
@@ -278,10 +279,10 @@ echo -n '{
 **Expected output:**
 
 ```
-ewogICJWZWhpY2xlUmVnaXN0ZXJlZCI6IHsKICAgICJTdGF0ZW1lbnQiOiAiSU5TRVJUIElOVE8gdmVoaWNsZV9yZWdpc3RyYXRpb25zIChpZCwgdmluKSBWQUxVRVMgKEBpZCwgQHZpbikiLAogICAgIkV4dHJhY3RvciI6ICIocmVjb3JkKSA9PiAoeyBpZDogcmVjb3JkLnZhbHVlLnJlZ2lzdHJhdGlvbklkLCB2aW46IHJlY29yZC52YWx1ZS52aW4gfSkiCiAgfQp9
+ewogICJWZWhpY2xlUmVnaXN0ZXJlZCI6IHsKICAgICJTdGF0ZW1lbnQiOiAiSU5TRVJUIElOVE8gdmVoaWNsZV9yZWdpc3RyYXRpb25zIChpZCwgdmluKSBWQUxVRVMgKEBpZCwgQHZpbikiLAogICAgIkV4dHJhY3RvciI6ICIocmVjb3JkKSA9PiAoeyBpZDogR3VpZChyZWNvcmQudmFsdWUucmVnaXN0cmF0aW9uSWQpLCB2aW46IHJlY29yZC52YWx1ZS52aW4gfSkiCiAgfQp9
 ```
 
-#### Step 6: Create and Start the Connector
+#### Step 6: Create and start the connector
 
 **Create the connector:**
 
@@ -311,12 +312,12 @@ Host: localhost:2113
 ```
 
 :::tip
-The connector will now listen for records on the `vehicles` stream and insert them into the database.
+The connector now listens for records on the `vehicles` stream and inserts them into the database.
 :::
 
-#### Step 7: Test with Sample Data
+#### Step 7: Test with sample data
 
-Append a test event to the `vehicles` stream:
+Append a test record to the `vehicles` stream:
 
 ```http
 POST /streams/vehicles
@@ -335,7 +336,7 @@ Content-Type: application/vnd.eventstore.events+json
 ]
 ```
 
-#### Step 8: Verify the Results
+#### Step 8: Verify the results
 
 1. Open Supabase Studio at `http://127.0.0.1:54323`
 2. Navigate to **Table Editor** → **vehicle_registrations**

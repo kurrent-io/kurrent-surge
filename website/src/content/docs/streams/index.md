@@ -15,7 +15,7 @@ here, and it divides into three:
 All three come off the same `client.Streams`:
 
 ```csharp
-// tls=false is the local development mode. Production drops it: /client/security/
+// tls=false is the local development mode. Production drops it: /kurrent-surge/client/security/
 await using var client = KurrentClient.Create("kurrentdb://localhost:2113?tls=false");
 
 await client.Streams.AppendStream(record);

@@ -43,7 +43,7 @@ var descriptor = await client.Registry.CreateSchema(
 |---|---|---|
 | `SchemaName` | `SchemaName` | Unique per registry |
 | `SchemaDefinition` | `string` | The definition itself |
-| `DataFormat` | `SchemaDataFormat` | `Json`, `Protobuf`, `Avro`, `Bytes` |
+| `DataFormat` | `SchemaDataFormat` | `Json`, `Protobuf`, `Avro`, or `Bytes`. Defaults to `Unspecified`, which the request rejects — set it |
 | `CompatibilityMode` | `CompatibilityMode` | Defaults to `None` |
 | `Description` | `string` | Free text |
 | `Tags` | `IDictionary<string,string>` | For search and discovery |
@@ -69,7 +69,11 @@ version.
 
 ```csharp
 SchemaVersionId matched = await client.Registry.CheckSchemaCompatibility(
-    SchemaName.From("order-placed"), proposedJson, SchemaDataFormat.Json);
+    SchemaName.From("order-placed"),
+    opts => {
+        opts.SchemaDefinition = proposedJson;
+        opts.DataFormat       = SchemaDataFormat.Json;
+    });
 ```
 
 `Identifier` accepts either a `SchemaName`, which checks against the latest version, or a

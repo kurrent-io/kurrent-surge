@@ -12,8 +12,10 @@ it.
 
 ## Compatibility modes
 
-Seven modes. Each decides which direction of readers must keep working, and whether the check runs
-against the previous version only or against every version in the schema's history.
+Seven modes to choose from. `CompatibilityMode` carries an eighth, `Unspecified`, which is the proto
+default and never a valid choice. Each mode decides which direction of readers must keep working, and
+whether the check runs against the previous version only or against every version in the schema's
+history.
 
 | Mode | Reads previous | Read by previous | Checked against |
 |---|---|---|---|

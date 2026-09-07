@@ -1,5 +1,6 @@
 ---
 title: 'Kafka Source'
+description: Consuming messages from a Kafka topic and appending them to a KurrentDB stream.
 ---
 
 import { Badge } from '@astrojs/starlight/components';
@@ -8,10 +9,22 @@ import { Badge } from '@astrojs/starlight/components';
 
 ## Overview
 
-The Kafka Source Connector enables you to consume messages from an existing
-Kafka topic and append them into a KurrentDB stream.
+The Kafka Source Connector consumes messages from an existing Kafka topic and
+appends them to a KurrentDB stream.
 
-## Quick Start
+## Prerequisites
+
+Before using the Kafka source connector, ensure you have:
+
+- A data protection token configured in your KurrentDB instance (required to encrypt sensitive fields like passwords)
+- A Kafka cluster with accessible broker addresses
+- Appropriate authentication credentials if using SASL
+
+:::tip
+See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+:::
+
+## Quickstart
 
 You can create the Kafka Source connector as follows. Replace `{id}` with your desired connector ID:
 
@@ -32,17 +45,17 @@ Content-Type: application/json
 
 ## Settings
 
-### Core Options
+### Core options
 
 | Name                | Details                                                                                                    |
 |---------------------|------------------------------------------------------------------------------------------------------------|
 | `topic`             | _required_<br/><br/>**Description:** Kafka topic to consume from.                                            |
-| `schemaName`        | _required_<br/><br/>**Description:** Name of the schema used for message.                                    |
+| `schemaName`        | _required_<br/><br/>**Description:** Name of the schema used for the message.                                |
 | `partition`         | **Description:** Specific partition to consume from (leave empty for all partitions).                      |
 | `offset`            | **Description:** Starting offset position (leave empty for default behavior).                              |
 | `preserveMagicByte` | **Description:** Whether to preserve Kafka's schema registry magic byte.<br/><br/>**Default**: `false`       |
 
-### Concurrency Configuration
+### Concurrency configuration
 
 The Kafka Source Connector processes messages in parallel with multiple consumer tasks. Each task has its own consumer
 and buffer, all sharing the group `kurrentdb-{ConnectorId}`. Their channels run independently and merge into one output
@@ -53,7 +66,7 @@ stream for efficient multi-partition handling.
 | `concurrency:channelCapacity` | **Description:** Capacity of each consumer's bounded channel. Higher values provide more buffering but consume more memory.<br/><br/>**Default**: `10000` |
 | `concurrency:tasks`           | **Description:** The maximum number of tasks to create for this connector.<br/><br/>**Default**: `1`                                                      |
 
-### Consumer Configuration
+### Consumer configuration
 
 The `Consumer` section accepts standard Confluent Kafka consumer configuration options. Key options include:
 
@@ -73,9 +86,9 @@ The `Consumer` section accepts standard Confluent Kafka consumer configuration o
 | `consumer:saslUsername`         | **Description:** SASL username for use with the PLAIN mechanism.                                                                                                    |
 | `consumer:saslPassword`         | **Description:** SASL password for use with the PLAIN mechanism.                                                                                                    |
 
-### Stream Routing Configuration
+### Stream routing configuration
 
-The `stream` section configures how Kafka messages are routed to KurrentDB streams:
+The `stream` section configures how the connector routes Kafka messages to KurrentDB streams:
 
 | Name                | Details                                                                                                                                                                                                                                                                                                                        |
 |---------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -84,8 +97,12 @@ The `stream` section configures how Kafka messages are routed to KurrentDB strea
 
 ### Authentication
 
-The default authentication method is `plaintext`. You can configure the authentication method to use by setting the
-`consumer:securityProtocol` option.
+The default authentication method is `plaintext`. Set the `consumer:securityProtocol` option to choose another
+method. See [Examples](#examples) for worked configurations.
+
+## Examples
+
+### Authentication
 
 #### SSL/TLS
 

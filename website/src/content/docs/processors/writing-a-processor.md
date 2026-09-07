@@ -1,5 +1,5 @@
 ---
-title: Writing a processor
+title: Writing a Processor
 description: The contracts, the contexts, and what each hook is for.
 ---
 
@@ -71,7 +71,7 @@ failing one.
 The resilience options govern the subscription, not your handler. A handler exception is never
 retried.
 
-[Error handling](/kurrent-surge/processors/error-handling/) covers the retry policy, stopping deliberately, and
+[Error Handling](/kurrent-surge/processors/error-handling/) covers the retry policy, stopping deliberately, and
 what happens when a checkpoint fails.
 
 ## Running it

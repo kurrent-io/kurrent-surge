@@ -1,5 +1,5 @@
 ---
-title: Breaking changes
+title: Breaking Changes
 description: Behaviour that changed in the client, and what each change means for existing code.
 ---
 

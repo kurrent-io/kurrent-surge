@@ -31,9 +31,10 @@ var result = await client.Streams.AppendStream(record);
 Console.WriteLine("now at revision {0}", result.Revision);
 ```
 
-Payloads serialise as JSON unless you say otherwise, and the schema name comes from your
-[catalog](/kurrent-surge/schema/catalogs/). The same shape works for events, commands, and snapshots, because
-KurrentDB does not distinguish them.
+Payloads take their wire format from the message type unless you set `DataFormat`, and the schema
+name comes from your [catalog](/kurrent-surge/schema/catalogs/). See
+[Data Formats](/kurrent-surge/schema/formats/). The same shape works for events, commands, and
+snapshots, because KurrentDB does not distinguish them.
 
 You get back where the write landed: a `Position`, plus the `Stream` and `Revision` read off it.
 
@@ -49,8 +50,9 @@ await client.Streams.AppendStream("order-456", new[] {
 ## Guarding against concurrent writes
 
 Two services appending to the same stream will eventually collide. `ExpectedStreamState` tells the
-server what the stream must look like for your write to be accepted, and rejects it otherwise. This
-is optimistic concurrency: you do not lock anything, you state an assumption and find out if it held.
+server what the stream must look like for your write to be accepted, and the server rejects it
+otherwise. This is optimistic concurrency: you do not lock anything, you state an assumption and find
+out if it held.
 
 The usual shape is read-then-write. Read where the stream is, decide, and append against that
 revision:
@@ -105,7 +107,7 @@ await client.Streams.AppendRecords(
     default);
 ```
 
-Every check is evaluated against the real state at commit time. One failure rejects the whole
+The server evaluates every check against the real state at commit time. One failure rejects the whole
 transaction.
 
 | Check | Asserts that the stream |
@@ -140,8 +142,26 @@ catch (AppendConsistencyViolationException ex) {
 | `StreamRevisionConflictException` | Someone wrote first. Carries `ExpectedRevision` and `ActualRevision` |
 | `StreamAlreadyExistsException` | You expected `NoStream`, but records were there |
 | `StreamNotFoundException` | You expected `Exists`, and it does not |
-| `StreamDeletedException` | The stream was soft-deleted |
+| `StreamDeletedException` | Your consistency check expected a live stream and the stream was soft-deleted. See below |
 | `StreamTombstonedException` | The stream was tombstoned. No append will ever succeed |
 | `AppendConsistencyViolationException` | One or more consistency checks failed. See `Violations` |
-| `MaxAppendRecordSizeExceededException` | A single record exceeds the server's limit |
-| `MaxAppendTransactionSizeExceededException` | The whole transaction exceeds the server's limit |
+| `MaxAppendRecordSizeExceededException` | A single record exceeds the server's per-record limit. Carries `RecordActualSize` and `RecordMaxSize` |
+| `MaxAppendTransactionSizeExceededException` | The whole transaction exceeds the server's limit. Carries `TransactionActualSize` and `TransactionMaxSize` |
+
+Both sizes are measured on the **serialized record**, not on your payload: the schema name, the
+record id and any metadata count toward the total. Budget for that headroom rather than treating the
+ceiling as a payload allowance. The client measures the same unit the server enforces, so an
+oversized append fails immediately instead of after a round trip.
+
+### Appending to a soft-deleted stream revives it
+
+`StreamDeletedException` is a concurrency outcome, not a rule about where you may write. An append
+that carries **no** consistency check succeeds against a soft-deleted stream, and the stream comes
+back to life with its history truncated away. You only see the exception when you asked for a
+specific state and the server found the stream deleted instead.
+
+Tombstoning is the opposite. It is permanent, and no append to a tombstoned stream ever succeeds.
+
+If you need "write only if this stream is alive", say so with `ExpectedStreamState.Exists` and handle
+`StreamDeletedException`. Without a check, the next write silently undoes a delete you did not
+expect.

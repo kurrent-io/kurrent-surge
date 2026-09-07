@@ -1,5 +1,5 @@
 ---
-title: Dependency injection
+title: Wiring Up Surge
 description: One entry point. AddKurrentSurge opens a scope that carries the connection and everything that runs against it.
 ---
 
@@ -22,8 +22,8 @@ builder.Services.AddKurrentSurge(surge => {
 await builder.Build().RunAsync();
 ```
 
-That is the whole wireup. The scope registers a `KurrentClient` for injection, and the processor
-runs as a hosted service that the host starts and stops.
+The scope registers a `KurrentClient` for injection, and the processor runs as a hosted service that
+the host starts and stops.
 
 One `using` covers the lambda. The builder's methods are declared on `IKurrentSurgeBuilder` rather
 than as extension methods, so a call site needs no `using` for the options namespaces.
@@ -91,7 +91,7 @@ surge.AddProcessor(new OrderProcessor());
 ```
 
 The type overload resolves `T` and never registers it, so an unregistered processor fails at host
-startup. The factory and instance overloads do not add the type to the container at all.
+startup. The factory and instance overloads do not add the type to the container.
 
 Each of the three takes per-processor settings, either as `Action<ProcessorOptions>` or as
 `Action<ProcessorOptions, IServiceProvider>` when those settings need something resolved.
@@ -126,15 +126,15 @@ overrides the file.
 }
 ```
 
-The section is matched by the processor's type name first. `ProcessorId` defaults to the type name
-in kebab-case, so `OrderProcessor` reads `order-processor` with no configuration on your part.
+The scope matches the section by the processor's type name first. `ProcessorId` defaults to the type
+name in kebab-case, so `OrderProcessor` reads `order-processor` with no configuration on your part.
 
 Set a custom `ProcessorId` and a section named after it is read too, this time **over** the
 configure delegate. A section named by a deliberate per-deployment id is treated as an override, so
 it can retarget one processor without a code change. The connection is the one exception: an
 explicit `Connection` call in your code still wins.
 
-Configuration problems are logged as warnings, and invalid values fail host startup.
+The scope logs configuration problems as warnings, and invalid values fail host startup.
 
 ## Connection precedence
 
@@ -171,9 +171,9 @@ builder.Services.AddSingleton(new OrderReader(reads));
 Node preference is bound to the client, so two preferences means two clients. They share nothing
 internally, and the cost is one extra set of channels.
 
-**Module clients.** `StreamsClient`, `RegistryClient`, `IndexesClient` and `ConnectorsClient` have
-no registration surface. Reach them through the injected client: `client.Streams`,
-`client.Registry`, `client.Indexes`, `client.Connectors`.
+**Module clients.** `StreamsClient`, `RegistryClient`, `IndexesClient`, `ConnectorsClient` and
+`AdminClient` have no registration surface. Reach them through the injected client:
+`client.Streams`, `client.Registry`, `client.Indexes`, `client.Connectors`, `client.Admin`.
 
 **Catalogs and codecs.** Catalogs come from the assembly attribute or from
 `opts.Messages.UseCatalog(...)`, and the codecs are built in. See

@@ -1,97 +1,115 @@
 ---
-title: 'Understanding Connectors'
-order: 1
+title: Connectors
+description: Server-side pipelines that move records in and out of KurrentDB, managed from the client.
 ---
 
-Connectors make it easy to integrate data from KurrentDB into other systems.
-
-Each connector runs on the server-side and uses a catch-up subscription to receive events, filter or transform them, and push them to an external system via a [sink](https://en.wikipedia.org/wiki/Sink_(computing)).
-
-{/* ![Connectors anatomy](./images/connector-anatomy.svg#light)
-![Connectors anatomy](./images/connector-anatomy-dark.svg#dark) */}
+A connector is a pipeline that runs **on the server**. A **sink** subscribes to the log and pushes
+records out to an external system. A **source** does the reverse: it receives from an external system
+and appends to a stream. Nothing runs in your application.
 
 ```d2 layout=elk
 direction: right
 
+Producer: Producer system
+
 KurrentDB: {
+  Source connector: {
+    Receive -> Append
+  }
+
   Streams
 
-  Connector: {
+  Sink connector: {
     Subscription -> Filter -> Sink
   }
 
-  Streams -> Connector.Subscription
+  Source connector.Append -> Streams
+  Streams -> Sink connector.Subscription
 }
 
-External: External System
-KurrentDB.Connector.Sink -> External
+Consumer: Consumer system
+
+Producer -> KurrentDB.Source connector.Receive
+KurrentDB.Sink connector.Sink -> Consumer
 ```
 
-This reduces the amount of work needed to process data from KurrentDB instances and makes it easy to create data pipelines to implement complex use cases.
+That placement is the whole point. A subscription service you write yourself has to be hosted,
+observed and checkpointed. A catch-up subscription must also run as a single instance to preserve
+order, which makes that instance a single point of failure. The connector runtime is the server's
+problem instead of yours.
 
 :::note
-The Connector plugin is pre-installed in all KurrentDB binaries and is enabled by default.
+The connector plugin ships in every KurrentDB binary and is enabled by default.
 :::
 
-## Motivation
+## What you can create
 
-Currently, a pain point that users experience is that, on one hand, they have a convenient Kurrent cloud service, on the other hand, they have a convenient downstream database or processing engine, but there's nothing in between.
-As a result, users need to host and maintain their own solution in their own infrastructure for subscribing to KurrentDB and sending the events to a downstream service.
-This solution in the middle often needs to be highly available and needs to manage its own checkpoints: this quickly becomes cumbersome.
+`instanceTypeName` picks the implementation. Because the implementations ship with the server, this
+list tracks the **server** version, not the SDK. It is current for KurrentDB 26.1.
 
-Kurrent Connectors remove the need for users to develop, host and maintain such a solution.
+### Sinks, which move records out
 
-As an example, a developer want to send events to a lambda function, which projects events to an RDS instance.
+| `instanceTypeName` | Writes to | Since |
+|---|---|---|
+| [`http-sink`](/kurrent-surge/client/connectors/sinks/http/) | Any HTTP endpoint | 24.10 |
+| [`serilog-sink`](/kurrent-surge/client/connectors/sinks/serilog/) | A Serilog sink: console, file or Seq | 24.10 |
+| [`kafka-sink`](/kurrent-surge/client/connectors/sinks/kafka/) | A Kafka topic | 24.10 |
+| [`mongo-db-sink`](/kurrent-surge/client/connectors/sinks/mongo/) | A MongoDB collection | 24.10 |
+| [`rabbit-mq-sink`](/kurrent-surge/client/connectors/sinks/rabbitmq/) | A RabbitMQ exchange | 24.10 |
+| [`elasticsearch-sink`](/kurrent-surge/client/connectors/sinks/elasticsearch/) | An Elasticsearch index | 25.0 |
+| [`pulsar-sink`](/kurrent-surge/client/connectors/sinks/pulsar/) | A Pulsar topic | 25.1 |
+| [`sql-sink`](/kurrent-surge/client/connectors/sinks/sql/) | SQL Server or PostgreSQL | 26.0 |
 
-Without connectors, it requires the developer to implement a subscription service. Such service then needs to be hosted, observed, and maintained. It also needs to manage its own checkpoints.
+### Sources, which move records in
 
-In addition, the subscription service that uses a catch-up subscription would need to run as a single instance to ensure ordered event processing. As a consequence, it becomes a single point of failure.
+| `instanceTypeName` | Reads from | Since |
+|---|---|---|
+| [`kafka-source`](/kurrent-surge/client/connectors/sources/kafka/) | A Kafka topic | 26.0 |
+| [`webhook-source`](/kurrent-surge/client/connectors/sources/webhook/) | `POST /webhook/{connectorId}` | 26.1 |
 
-{/* ![Example with EKS and Lambda](./images/example-lambda-eks.svg#light)
-![Example with EKS and Lambda](./images/example-lambda-eks-dark.svg#dark) */}
+Each page carries that connector's settings and says whether it needs a license. Three connectors run
+without a license key: `http-sink`, `serilog-sink` and `webhook-source`. The server refuses to start
+a licensed feature without a key. Reach for `serilog-sink` when you want to watch a connector work
+before buying anything.
+
+A source is not a sink with the arrow reversed. It receives and appends, and there is no filter or
+transformer in the path:
 
 ```d2 layout=elk
 direction: right
 
-KurrentDB
+Origin: Kafka, a webhook caller
 
-EKS: {
-  Sub: Self-hosted subscription
+Source connector: {
+  Receive -> Append
 }
 
-Lambda
-
-RDS: {
-  Tables: Data tables
+KurrentDB: {
+  Streams
   Checkpoints
 }
 
-KurrentDB -> EKS.Sub
-EKS.Sub -> Lambda: events
-Lambda -> RDS.Tables: SQL updates
-EKS.Sub -> RDS.Checkpoints: checkpoints
+Origin -> Source connector.Receive: messages
+Source connector.Append -> KurrentDB.Streams: records
+Source connector.Append -> KurrentDB.Checkpoints: position
 ```
 
-With connectors, the subscription service is provided natively by KurrentDB and the lambda function acts as the sink. For this particular example, the lambda function requires an accessible HTTP endpoint, or to be exposed via the AWS API Gateway.
+:::caution
+A source therefore takes `instanceTypeName` and nothing else from the shared settings. The
+subscription, transformer, resilience and autocommit blocks are sink-only, and setting them on a
+source does nothing. A source still has required settings of its own, on its own page.
+:::
 
-{/* ![Example with Connector and Lambda](./images/example-lambda-connector.svg#light)
-![Example with Connector and Lambda](./images/example-lambda-connector-dark.svg#dark) */}
+## Managing them from the SDK
 
-```d2 layout=elk
-direction: right
+`client.Connectors` creates and controls connectors. It manages their lifecycle; it does not
+implement them and it does not validate their settings.
 
-KurrentDB
-Lambda: Lambda function
-RDS
-
-Data Tables: {
-  direction: right
-  T1: Data Table 1
-  T2: Data Table 2
-}
-
-KurrentDB -> Lambda: events
-Lambda -> RDS: SQL updates
-RDS -> Data Tables.T1
-RDS -> Data Tables.T2
+```csharp
+await client.Connectors.Create("orders-to-kafka", settings);
 ```
+
+[Managing connectors](/kurrent-surge/client/connectors/manage/) is the full lifecycle,
+[Features](/kurrent-surge/client/connectors/features/) covers filters, transformations and delivery,
+[Configure connector](/kurrent-surge/client/connectors/settings/) lists every setting, and
+[Metrics](/kurrent-surge/client/connectors/metrics/) is what a running connector reports.

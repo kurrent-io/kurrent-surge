@@ -1,5 +1,5 @@
 ---
-title: Record metadata
+title: Record Metadata
 description: Attach your own keys to a record, and read them back with the type you wrote.
 ---
 

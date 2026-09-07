@@ -31,7 +31,7 @@ change before you migrate. Every parameter behaves identically across all six sc
 `tls`, `tlsVerifyCert`, `keepAliveInterval`, and `nodePreference`.
 
 Durations in a connection string are read in the same units every KurrentDB SDK uses. See
-[Breaking changes](/kurrent-surge/migration/breaking-changes/) for the behaviour that moved.
+[Breaking Changes](/kurrent-surge/migration/breaking-changes/) for the behaviour that moved.
 
 ## What actually breaks
 

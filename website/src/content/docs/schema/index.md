@@ -12,9 +12,15 @@ Four things decide what happens to a message:
 | Step | Decides | Page |
 |---|---|---|
 | **Catalog** | Which types this client can append and decode | [Catalogs](/kurrent-surge/schema/catalogs/) |
-| **Name** | The string identity a record carries on the wire | [Schema names](/kurrent-surge/schema/names/) |
-| **Format** | How the payload becomes bytes | [Formats](/kurrent-surge/schema/formats/) |
+| **Name** | The string identity a record carries on the wire | [Schema Names](/kurrent-surge/schema/names/) |
+| **Format** | How the payload becomes bytes | [Data Formats](/kurrent-surge/schema/formats/) |
 | **Registry** | Whether the shape is registered and checked | [Registration](/kurrent-surge/schema/registration/) |
+
+## How the format is chosen
+
+A record that states a format gets it. A record that states none takes its format from the message
+type: `Avro` when a codec was generated for it, `Protobuf` when it is a Protocol Buffers message,
+`Json` otherwise. See [Data Formats](/kurrent-surge/schema/formats/).
 
 ## Nothing is inferred
 
@@ -39,12 +45,12 @@ The default is `KurrentClientSchemaOptions.Disabled`: schema names resolve local
 catalog, and the registry is never consulted. Turn it on when you want registration, validation, or
 both. See [Registration](/kurrent-surge/schema/registration/).
 
-## One definition format, four wire formats
+## One definition format, three registered encodings
 
-This is the part that surprises people. Your payload can be JSON, Protobuf or Avro on the wire. But
-whatever the encoding, **the definition stored in the registry is a JSON Schema**, exported from your
-CLR type.
+Your payload can be JSON, Protobuf or Avro on the wire. Whatever the encoding, **the definition
+stored in the registry is a JSON Schema**, exported from your CLR type. `Bytes` is the fourth format
+and the exception: it never reaches the registry at all.
 
 That is deliberate. It gives one comparable shape to run compatibility rules against, no matter how
-the bytes were encoded. [Formats](/kurrent-surge/schema/formats/) covers what each encoding does and where they
+the bytes were encoded. [Data Formats](/kurrent-surge/schema/formats/) covers what each encoding does and where they
 genuinely differ.

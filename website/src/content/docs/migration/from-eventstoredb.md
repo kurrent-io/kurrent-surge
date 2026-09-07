@@ -209,7 +209,7 @@ services.AddKurrentSurge(surge => surge
    `ExpectedStreamState` is wanted.
 7. **Exceptions.** Replace `WrongExpectedVersionException` with `StreamRevisionConflictException`.
 8. **Registration.** `AddEventStoreClient` becomes `AddKurrentSurge`, which takes a scope rather than
-   a connection string. See [Dependency injection](/kurrent-surge/client/dependency-injection/).
+   a connection string. See [Wiring Up Surge](/kurrent-surge/client/dependency-injection/).
 9. **Declare your message types.** This step has no equivalent in the old client and is the one that
    will bite you. Kurrent Surge does not infer schema names, so an append of an undeclared type throws.
    See [Catalogs](/kurrent-surge/schema/catalogs/).

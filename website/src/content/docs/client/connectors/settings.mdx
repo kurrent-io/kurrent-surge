@@ -1,16 +1,14 @@
 ---
 title: 'Configure Connector'
-order: 3
+description: Every configuration key a sink or source connector accepts.
 ---
 
-All connectors share a common set of configuration options that can be used to
-customize their behavior.
+All connectors share a common set of configuration options.
 
-## Sink Options
+## Sink options
 
-Below, you will find a comprehensive list of configuration settings that you can
-use to define the connection parameters and other necessary details for your
-sink connector.
+These configuration settings define the connection parameters and other
+necessary details for a sink connector.
 
 :::tip
 Individual connectors also include their own specific settings. To view them, go to their individual pages.
@@ -20,16 +18,16 @@ Individual connectors also include their own specific settings. To view them, go
 
 | Name               | Details                                                                                                                                                                                                                                                                                                                                                                       |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `instanceTypeName` | _required_<br/><br/>**Description:**<br/>Specifies the type of connector instance.<br/><br/>**Accepted Values:**<br/><ul><li>`elasticsearch-sink`</li><li>`http-sink`</li><li>`kafka-sink`</li><li>`mongo-db-sink`</li><li>`rabbit-mq-sink`</li><li>`serilog-sink`</li><li>`sql-sink`</li></ul>For details about each type, see the individual connector [page](/kurrent-surge/client/connectors/). |
+| `instanceTypeName` | _required_<br/><br/>**Description:**<br/>Specifies the type of connector instance.<br/><br/>**Accepted Values:**<br/><ul><li>`elasticsearch-sink`</li><li>`http-sink`</li><li>`kafka-sink`</li><li>`mongo-db-sink`</li><li>`pulsar-sink`</li><li>`rabbit-mq-sink`</li><li>`serilog-sink`</li><li>`sql-sink`</li></ul>For details about each type, see the individual connector [page](/kurrent-surge/client/connectors/). |
 
 ### Subscription configuration
 
 | Name                             | Details                                                                                                                                                                                                                                                                                            |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `subscription:filter:scope`      | **Description:**<br/>Determines the scope of event filtering for the subscription. Use `"stream"` to filter events by stream ID, or `"record"` to filter events by event type.<br/><br/>**Accepted Values:**<br/>- `"stream"`, `"record"`.<br/><br/>**Default**: unspecified        |
-| `subscription:filter:filterType` | **Description:**<br/>Specifies the method used to filter events.<br/><br/>**Accepted Values:**<br/>- `"streamId"`, `"regex"`, `"prefix"`, `"jsonPath"`.<br/><br/>**Default**: unspecified                                                                                           |
-| `subscription:filter:expression` | **Description:**<br/>A filter expression (regex, JsonPath, or prefix) for records. If `scope` is specified and the expression is empty, it consumes from `$all` including system events. If `scope` is not specified, it consumes from `$all` excluding system events.<br/><br/>**Default**: `""` |
-| `subscription:initialPosition`   | **Description:**<br/>The position in the message stream from which a consumer starts consuming messages when there is no prior checkpoint.<br/><br/>**Accepted Values:**<br/>- `"latest"`, `"earliest"`.<br/><br/>**Default**: `"latest"`                                                                |
+| `subscription:filter:scope`      | **Description:**<br/>Determines the scope of record filtering for the subscription. Use `"stream"` to filter records by stream ID, or `"record"` to filter records by event type.<br/><br/>**Accepted Values:**<br/>- `"stream"`, `"record"`.<br/><br/>**Default**: unspecified        |
+| `subscription:filter:filterType` | **Description:**<br/>Specifies the method used to filter records.<br/><br/>**Accepted Values:**<br/>- `"streamId"`, `"regex"`, `"prefix"`, `"jsonPath"`.<br/><br/>**Default**: unspecified                                                                                           |
+| `subscription:filter:expression` | **Description:**<br/>A filter expression (regex, JsonPath, or prefix) for records. If `scope` is specified and the expression is empty, the connector consumes from `$all` including system events. If `scope` is not specified, the connector consumes from `$all` excluding system events.<br/><br/>**Default**: `""` |
+| `subscription:initialPosition`   | **Description:**<br/>The position in the stream from which a consumer starts reading records when there is no prior checkpoint.<br/><br/>**Accepted Values:**<br/>- `"latest"`, `"earliest"`.<br/><br/>**Default**: `"latest"`                                                                |
 
 For details and examples on subscriptions, see [Filters](/kurrent-surge/client/connectors/features/#filters).
 
@@ -37,8 +35,8 @@ For details and examples on subscriptions, see [Filters](/kurrent-surge/client/c
 
 | Name                   | Details                                                                                                                                                                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `transformer:enabled`  | **Description:**<br/>Enables or disables the event transformer.<br/><br/>**Default**: `"false"`                                                                                                                   |
-| `transformer:function` | _required_<br/><br/>**Description:**<br/>Base64 encoded JavaScript function for transforming events. See [Transformations](/kurrent-surge/client/connectors/features/#transformations) for examples.<br/><br/>**Default**: `""` |
+| `transformer:enabled`  | **Description:**<br/>Enables or disables the transformer.<br/><br/>**Default**: `"false"`                                                                                                                   |
+| `transformer:function` | _required_<br/><br/>**Description:**<br/>Base64 encoded JavaScript function for transforming records. See [Transformations](/kurrent-surge/client/connectors/features/#transformations) for examples.<br/><br/>**Default**: `""` |
 
 For details and examples on transformations, see [Transformations](/kurrent-surge/client/connectors/features/#transformations).
 
@@ -55,17 +53,17 @@ For details and examples on transformations, see [Transformations](/kurrent-surg
 | `resilience:thirdDelayBound:delayMs`       | **Description:**<br/>The delay for the third delay bound in milliseconds.<br/><br/>**Default**: `"3600000"`                                       |
 
 :::note
-Not all connectors use every resilience setting listed here. Some may have additional or different resilience options. If a connector’s individual documentation page does not explicitly mention support for these settings, it does not use them.
+Not all connectors use every resilience setting listed here. Some have additional or different resilience options. If a connector’s individual documentation page does not mention support for these settings, that connector does not use them.
 :::
 
 For more details on resilience, see [Resilience](/kurrent-surge/client/connectors/features/#resilience).
 
-### Auto-Commit configuration
+### Auto-commit configuration
 
 | Name                          | Details                                                                                                    |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `autocommit:enabled`          | **Description:**<br/>Enable or disables auto-commit<br/><br/>**Default:** `"true"`                            |
-| `autocommit:interval`         | **Description:**<br/>The interval, in milliseconds at which auto-commit occurs<br/><br/>**Default**: `"5000"` |
+| `autocommit:enabled`          | **Description:**<br/>Enables or disables auto-commit<br/><br/>**Default:** `"true"`                           |
+| `autocommit:interval`         | **Description:**<br/>The interval, in milliseconds, at which auto-commit occurs<br/><br/>**Default**: `"5000"` |
 | `autocommit:recordsThreshold` | **Description:**<br/>The threshold of records that triggers an auto-commit<br/><br/>**Default**: `"1000"`     |
 
 ### Logging configuration
@@ -74,11 +72,10 @@ For more details on resilience, see [Resilience](/kurrent-surge/client/connector
 | ----------------- | ----------------------------------------------------------------------------- |
 | `logging:enabled` | **Description:**<br/>Enables or disables logging.<br/><br/>**Default**: `"true"` |
 
-## Source Options
+## Source options
 
-Below, you will find a comprehensive list of configuration settings that you can
-use to define the connection parameters and other necessary details for your
-source connector.
+These configuration settings define the connection parameters and other
+necessary details for a source connector.
 
 :::tip
 Individual connectors also include their own specific settings. To view them, go to their individual pages.
@@ -96,11 +93,11 @@ Individual connectors also include their own specific settings. To view them, go
 | ----------------- | ----------------------------------------------------------------------------- |
 | `logging:enabled` | **Description:**<br/>Enables or disables logging.<br/><br/>**Default**: `"true"` |
 
-## Disable the Plugin
+## Disable the plugin
 
-The Connector plugin is pre-installed in all KurrentDB binaries and is enabled by default. It can be disabled with the following configuration.
+The Connector plugin is pre-installed in all KurrentDB binaries and enabled by default. To disable it, use the following configuration.
 
-Refer to the [configuration guide](https://docs.kurrent.io/server/v26.1/configuration/) for configuration mechanisms other than YAML.
+For configuration mechanisms other than YAML, refer to the [configuration guide](https://docs.kurrent.io/server/v26.1/configuration/).
 
 ```yaml
 Connectors:

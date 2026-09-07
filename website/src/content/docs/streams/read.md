@@ -44,11 +44,14 @@ work the client does per record.
 
 | Setting | What it decides |
 |---|---|
-| `Start` | Where to begin. A revision, or a log position |
+| `Start` | The revision to begin at. Defaults to the natural edge for the direction |
 | `Direction` | `Forwards` from the start, or `Backwards` from the end |
 | `Limit` | Stop after this many records |
 | `Filter` | Which records the read returns at all |
+| `FilterMaxSearchWindow` | How far the server scans for a match before yielding |
 | `SkipDecoding` | Leave payloads as raw bytes, when you only need positions and metadata |
+| `ResolveLinks` | Follow link records to their target. On by default |
+| `ThrowOnUnresolved` | Throw instead of returning a record whose schema name has no mapping |
 
 Reading newest-first is a backwards read anchored at the end. It is the shape you want for "what
 happened most recently":
@@ -85,7 +88,7 @@ slice is one category, one schema type, or one indexed field.
 
 ## Fetch a single record
 
-Three ways to get exactly one record, when a loop is more than you need.
+Three calls return exactly one record.
 
 ```csharp
 Record at42   = await client.Streams.InspectRecord(LogPosition.From(42));
@@ -148,7 +151,7 @@ established, `Record` is your data, and `Checkpoint` carries progress.
 | `SkipDecoding` | Leave payloads as raw bytes |
 | `ResolveLinks` | Resolve link records to their targets. Default true |
 | `ThrowOnUnresolved` | Fail on a schema name with no mapped type, rather than passing it through raw |
-| `MaxSearchWindow` | Records scanned per filter page before a checkpoint is emitted |
+| `FilterMaxSearchWindow` | Records scanned per filter page before a checkpoint is emitted |
 
 What you take on by using it directly: storing the position yourself, resuming from it after a
 restart, reconnecting when the server goes away, and making sure a redeploy does not replay from the
