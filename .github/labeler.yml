@@ -11,7 +11,7 @@ area-client:
       - src/Variant.SourceGenerators/**
       - test/Kurrent.Surge.Tests/**
       - test/Kurrent.Surge.Schema.Catalogs.Tests/**
-      - test/Kurrent.Surge.Schema.Catalogs.Tests.Samples/**
+      - test/Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples/**
       - test/Kurrent.Surge.Arrow.Tests/**
       - test/Kurrent.CodeAnalysis.Tests/**
       - test/Variant.Tests/**

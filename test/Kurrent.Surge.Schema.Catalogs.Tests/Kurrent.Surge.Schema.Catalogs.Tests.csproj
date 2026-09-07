@@ -17,7 +17,7 @@
     <!-- The contracts-only samples project: runtime-visible generated catalogs, and it pulls in
          Kurrent.Surge.Core transitively (referencing it directly would trip the
          source-consumer analyzer flow and run the generator on this test assembly too). -->
-    <ProjectReference Include="..\Kurrent.Surge.Schema.Catalogs.Tests.Samples\Kurrent.Surge.Schema.Catalogs.Tests.Samples.csproj" />
+    <ProjectReference Include="..\Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples\Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples.csproj" />
     <ProjectReference Include="..\Kurrent.Testkit\Kurrent.Testkit.csproj" />
   </ItemGroup>
 
