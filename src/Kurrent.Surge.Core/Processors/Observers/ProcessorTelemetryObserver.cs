@@ -52,7 +52,7 @@ sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObs
     /// Meter name for every processor instrument. Unchanged from the retired bus-listener observer so
     /// existing dashboards keep resolving.
     /// </summary>
-    internal const string MeterName = "Kurrent.Surge.Client.Processors";
+    internal const string MeterName = "Kurrent.Surge.Processors";
 
     /// <summary>
     /// Process-wide meter for processors built without a container.
