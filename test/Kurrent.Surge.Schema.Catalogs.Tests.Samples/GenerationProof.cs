@@ -1,10 +1,10 @@
-namespace Kurrent.Surge.Schema.Catalogs.Tests.Samples;
+namespace Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples;
 
 /// <summary>
 /// Compile-time proof that the catalog generator ran in this contracts-only assembly — it references
 /// ONLY Kurrent.Surge.Core, no Kurrent.Surge. Referencing the generated <c>MessageCatalogs</c>
 /// aggregate fails the build if generation was skipped.
-/// The Kurrent.Surge.Schema.Catalogs.Tests suite reads these at runtime.
+/// The Kurrent.Surge.Schema.Catalogs.Generators.Tests suite reads these at runtime.
 /// </summary>
 public static class GenerationProof {
     public static IReadOnlyList<MessageCatalog> All => MessageCatalogs.All;

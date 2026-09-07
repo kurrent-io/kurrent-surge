@@ -2,7 +2,7 @@ using Kurrent.Surge.Schema.Catalogs.Generators;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-namespace Kurrent.Surge.Schema.Catalogs.Tests.Unit;
+namespace Kurrent.Surge.Schema.Catalogs.Generators.Tests.Unit;
 
 /// <summary>
 /// Drives <see cref="MessageCatalogGenerator"/> directly over hand-built compilations: a catalog
@@ -60,7 +60,7 @@ public class MessageCatalogGeneratorTests {
     [Test]
     public async ValueTask generates_catalog_in_the_contracts_only_samples_assembly() {
         // Arrange — climate events the namespace-scan catalog should have collected in the real
-        // contracts-only Kurrent.Surge.Schema.Catalogs.Tests.Samples assembly (references no Kurrent.Surge.Client).
+        // contracts-only Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples assembly (references no Kurrent.Surge).
         var temperatureMeasured = typeof(Samples.SmartHome.Climate.TemperatureMeasured);
         var humidityMeasured    = typeof(Samples.SmartHome.Climate.HumidityMeasured);
 

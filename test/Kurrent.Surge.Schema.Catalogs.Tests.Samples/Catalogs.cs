@@ -1,15 +1,15 @@
 using Kurrent.Surge.Schema.Catalogs;
-using Kurrent.Surge.Schema.Catalogs.Tests.Samples.SmartHome;
-using Kurrent.Surge.Schema.Catalogs.Tests.Samples.SmartHome.Security;
+using Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples.SmartHome;
+using Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples.SmartHome.Security;
 
 // Declaration form 1 — group scan: every event type under the Climate namespace joins the "Climate"
 // catalog, named by the default convention.
-[assembly: MessageCatalog("Kurrent.Surge.Schema.Catalogs.Tests.Samples.SmartHome.Climate", Key = "Climate")]
+[assembly: MessageCatalog("Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples.SmartHome.Climate", Key = "Climate")]
 
 // Declaration form 2 — per-type with a pinned wire name; lands in the Default catalog.
 [assembly: MessageType<DevicePaired>("smart-home.device-paired.v1")]
 
-namespace Kurrent.Surge.Schema.Catalogs.Tests.Samples;
+namespace Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples;
 
 /// <summary>
 /// Declaration form 3 — a hand-written catalog (<see cref="CustomMessageCatalogAttribute"/>) for the

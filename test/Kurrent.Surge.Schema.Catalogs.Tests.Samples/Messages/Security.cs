@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Schema.Catalogs.Tests.Samples.SmartHome.Security;
+namespace Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples.SmartHome.Security;
 
 /// <summary>A motion sensor was triggered in a room.</summary>
 public record MotionDetected(string DeviceId, string Room, DateTimeOffset DetectedAt);

@@ -1,6 +1,7 @@
+using Kurrent.Surge.Schema.Catalogs;
 using Kurrent.Surge.Schema.Naming;
 
-namespace Kurrent.Surge.Schema.Catalogs.Tests.Unit;
+namespace Kurrent.Surge.Core.Tests.Unit.Schema.Catalogs;
 
 [Category("Schema")]
 public class MessageResolverTests {

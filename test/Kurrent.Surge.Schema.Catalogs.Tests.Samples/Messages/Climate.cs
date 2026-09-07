@@ -1,4 +1,4 @@
-namespace Kurrent.Surge.Schema.Catalogs.Tests.Samples.SmartHome.Climate;
+namespace Kurrent.Surge.Schema.Catalogs.Generators.Tests.Samples.SmartHome.Climate;
 
 /// <summary>A thermostat or sensor reported the ambient temperature in a room.</summary>
 public record TemperatureMeasured(string DeviceId, double Celsius, DateTimeOffset MeasuredAt);
