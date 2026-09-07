@@ -25,26 +25,25 @@ See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protec
 
 ## Quickstart
 
-You can create the Pulsar Sink connector as follows. Replace `{id}` with your desired connector ID:
+Create the Pulsar sink with `client.Connectors`. Replace `example-pulsar` with your own
+connector id:
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]               = "pulsar-sink",
+    ["topic"]                          = "customers",
+    ["url"]                            = "pulsar://localhost:6650",
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "streamId",
+    ["subscription:filter:expression"] = "example-stream"
+};
 
-{
-  "settings": {
-    "instanceTypeName": "pulsar-sink",
-    "topic": "customers",
-    "url": "pulsar://localhost:6650",
-    "subscription:filter:scope": "stream",
-    "subscription:filter:filterType": "streamId",
-    "subscription:filter:expression": "example-stream"
-  }
-}
+await client.Connectors.Create("example-pulsar", settings);
+await client.Connectors.Start("example-pulsar");
 ```
 
-After running the command, verify the connector status by checking the management API or connector logs. See [Managing Connectors](/kurrent-surge/client/connectors/manage/).
+Check the connector's state with `client.Connectors.List`, or read the connector logs.
+[Managing Connectors](/kurrent-surge/client/connectors/manage/) covers the rest of the lifecycle.
 
 ## Settings
 
@@ -92,11 +91,7 @@ in your connector configuration. Specify each custom header with the prefix
 
 Example:
 
-```http
-PUT /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "defaultHeaders:X-API-Key": "your-api-key-here",
   "defaultHeaders:X-Tenant-ID": "production-tenant",
@@ -124,12 +119,7 @@ define the partition key. The expression is optional, and you can adapt it to
 your naming convention. In this example, the expression captures the stream
 name up to `_data`.
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
-
+```json
 {
   "partitionKeyExtraction:enabled": "true",
   "partitionKeyExtraction:source": "stream",
@@ -141,12 +131,7 @@ Alternatively, if you need only the last segment of the stream name (after a
 hyphen), you can use the `streamSuffix` source. This
 doesn't require an expression since it automatically extracts the suffix.
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
-
+```json
 {
   "partitionKeyExtraction:enabled": "true",
   "partitionKeyExtraction:source": "streamSuffix"
@@ -161,11 +146,7 @@ example, if the stream is named `user-123`, the partition key is `123`.
 
 You can create partition keys by combining values from a record's metadata.
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "partitionKeyExtraction:enabled": "true",
   "partitionKeyExtraction:source": "headers",

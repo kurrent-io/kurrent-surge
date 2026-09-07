@@ -29,28 +29,25 @@ See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protec
 
 ## Quickstart
 
-You can create the Kafka Sink connector as follows. Replace `{id}` with your desired connector ID:
+Create the Kafka sink with `client.Connectors`. Replace `example-kafka` with your own
+connector id:
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]               = "kafka-sink",
+    ["bootstrapServers"]               = "localhost:9092",
+    ["topic"]                          = "customers",
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "streamId",
+    ["subscription:filter:expression"] = "example-stream"
+};
 
-{
-  "settings": {
-    "instanceTypeName": "kafka-sink",
-    "bootstrapServers": "localhost:9092",
-    "topic": "customers",
-    "subscription:filter:scope": "stream",
-    "subscription:filter:filterType": "streamId",
-    "subscription:filter:expression": "example-stream"
-  }
-}
+await client.Connectors.Create("example-kafka", settings);
+await client.Connectors.Start("example-kafka");
 ```
 
-After you create and start the Kafka sink connector, it sends each record
-appended to `example-stream` to the specified Kafka topic. You can find a list
-of available management API endpoints in the [Managing Connectors](/kurrent-surge/client/connectors/manage/).
+Once started, the connector sends each record appended to `example-stream` to the Kafka topic.
+[Managing Connectors](/kurrent-surge/client/connectors/manage/) covers the rest of the lifecycle.
 
 ## Settings
 
@@ -141,11 +138,7 @@ in your connector configuration. Specify each custom header with the prefix
 
 Example:
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "defaultHeaders:X-API-Key": "your-api-key-here",
   "defaultHeaders:X-Tenant-ID": "production-tenant",
@@ -172,11 +165,7 @@ certificates, add them to your system's trust store first.
 :::
 
 #### SASL/PLAINTEXT with PLAIN authentication
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:securityProtocol": "saslPlaintext",
   "authentication:saslMechanism": "plain",
@@ -186,11 +175,7 @@ Content-Type: application/json
 ```
 
 #### SASL/PLAINTEXT with SCRAM-SHA-256 authentication
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:securityProtocol": "saslPlaintext",
   "authentication:saslMechanism": "scramSha256",
@@ -200,11 +185,7 @@ Content-Type: application/json
 ```
 
 #### SASL/PLAINTEXT with SCRAM-SHA-512 authentication
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:securityProtocol": "saslPlaintext",
   "authentication:saslMechanism": "scramSha512",
@@ -216,11 +197,7 @@ Content-Type: application/json
 #### SASL/SSL with PLAIN authentication
 
 For production environments with encryption (recommended for managed Kafka services):
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:securityProtocol": "saslSsl",
   "authentication:saslMechanism": "plain",
@@ -230,11 +207,7 @@ Content-Type: application/json
 ```
 
 #### SASL/SSL with SCRAM-SHA-256 authentication
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:securityProtocol": "saslSsl",
   "authentication:saslMechanism": "scramSha256",
@@ -244,11 +217,7 @@ Content-Type: application/json
 ```
 
 #### SASL/SSL with SCRAM-SHA-512 authentication
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:securityProtocol": "saslSsl",
   "authentication:saslMechanism": "scramSha512",
@@ -278,11 +247,7 @@ define the partition key. The expression is optional, and you can adapt it to
 your naming convention. In this example, the expression captures the stream
 name up to `_data`.
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "partitionKeyExtraction:enabled": "true",
   "partitionKeyExtraction:source": "stream",
@@ -294,11 +259,7 @@ Alternatively, if you need only the last segment of the stream name (after a
 hyphen), you can use the `streamSuffix` source. This
 doesn't require an expression since it automatically extracts the suffix.
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "partitionKeyExtraction:enabled": "true",
   "partitionKeyExtraction:source": "streamSuffix"
@@ -313,11 +274,7 @@ example, if the stream is named `user-123`, the partition key is `123`.
 
 You can create partition keys by combining values from a record's metadata.
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "partitionKeyExtraction:enabled": "true",
   "partitionKeyExtraction:source": "headers",

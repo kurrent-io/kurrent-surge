@@ -36,40 +36,39 @@ See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protec
 
 ### SQL Server
 
-You can create the SQL Server sink connector as follows. Replace `{id}` with your desired connector ID:
+Create the SQL Server sink with `client.Connectors`. Replace `example-sql` with your own
+connector id:
 
-```http request
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]               = "sql-sink",
+    ["type"]                           = "SqlServer",
+    ["connectionString"]               = "Server=127.0.0.1,1433;Database=master;User Id=sa;Password=YourPassword123;TrustServerCertificate=True",
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "streamId",
+    ["subscription:filter:expression"] = "vehicles",
+    ["reducer:mappings"]               = "<base64-encoded-mappings-json>"
+};
 
-{
-    "instanceTypeName": "sql-sink",
-    "type": "SqlServer",
-    "connectionString": "Server=127.0.0.1,1433;Database=master;User Id=sa;Password=YourPassword123;TrustServerCertificate=True",
-    "subscription:filter:scope": "stream",
-    "subscription:filter:filterType": "streamId",
-    "subscription:filter:expression": "vehicles",
-    "reducer:mappings": "<base64-encoded-mappings-json>"
-}
+await client.Connectors.Create("example-sql", settings);
+await client.Connectors.Start("example-sql");
 ```
 
 ### PostgreSQL
 
-```http request
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]               = "sql-sink",
+    ["type"]                           = "PostgreSql",
+    ["connectionString"]               = "Host=127.0.0.1;Port=54322;Database=postgres;Username=postgres;Password=postgres",
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "streamId",
+    ["subscription:filter:expression"] = "vehicles",
+    ["reducer:mappings"]               = "<base64-encoded-mappings-json>"
+};
 
-{
-    "instanceTypeName": "sql-sink",
-    "type": "PostgreSql",
-    "connectionString": "Host=127.0.0.1;Port=54322;Database=postgres;Username=postgres;Password=postgres",
-    "subscription:filter:scope": "stream",
-    "subscription:filter:filterType": "streamId",
-    "subscription:filter:expression": "vehicles",
-    "reducer:mappings": "<base64-encoded-mappings-json>"
-}
+await client.Connectors.Create("example-sql", settings);
+await client.Connectors.Start("example-sql");
 ```
 
 ## Settings
@@ -286,29 +285,24 @@ ewogICJWZWhpY2xlUmVnaXN0ZXJlZCI6IHsKICAgICJTdGF0ZW1lbnQiOiAiSU5TRVJUIElOVE8gdmVo
 
 **Create the connector:**
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]               = "sql-sink",
+    ["type"]                           = "PostgreSql",
+    ["connectionString"]               = "Host=127.0.0.1;Port=54322;Database=postgres;Username=postgres;Password=postgres",
+    ["reducer:mappings"]               = "<base64-encoded-mappings-from-step-5>",
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "streamId",
+    ["subscription:filter:expression"] = "vehicles"
+};
 
-{
-  "settings": {
-    "instanceTypeName": "sql-sink",
-    "type": "PostgreSql",
-    "connectionString": "Host=127.0.0.1;Port=54322;Database=postgres;Username=postgres;Password=postgres",
-    "reducer:mappings": "<base64-encoded-mappings-from-step-5>",
-    "subscription:filter:scope": "stream",
-    "subscription:filter:filterType": "streamId",
-    "subscription:filter:expression": "vehicles"
-  }
-}
+await client.Connectors.Create("vehicles-to-postgres", settings);
 ```
 
 **Start the connector:**
 
-```http
-POST /connectors/{id}/start
-Host: localhost:2113
+```csharp
+await client.Connectors.Start("vehicles-to-postgres");
 ```
 
 :::tip
@@ -317,23 +311,16 @@ The connector now listens for records on the `vehicles` stream and inserts them 
 
 #### Step 7: Test with sample data
 
-Append a test record to the `vehicles` stream:
+Append a test record to the `vehicles` stream. The record's schema name must match the mapping
+key from step 4, and properties serialize to camelCase, which is what the extractor reads:
 
-```http
-POST /streams/vehicles
-Host: localhost:2113
-Content-Type: application/vnd.eventstore.events+json
+```csharp
+public record VehicleRegistered(string RegistrationId, string Vin);
 
-[
-  {
-    "eventId": "{{$guid}}",
-    "eventType": "VehicleRegistered",
-    "data": {
-      "registrationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "vin": "1HGBH41JXMN109186"
-    }
-  }
-]
+await client.Streams.AppendStream(new AppendRecord {
+    Stream = "vehicles",
+    Value  = new VehicleRegistered("a1b2c3d4-e5f6-7890-abcd-ef1234567890", "1HGBH41JXMN109186")
+});
 ```
 
 #### Step 8: Verify the results

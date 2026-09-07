@@ -26,27 +26,24 @@ See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protec
 
 ## Quickstart
 
-You can create the HTTP Sink connector as follows. Replace `{id}` with your desired connector ID:
+Create the HTTP sink with `client.Connectors`. Replace `example-http` with your own
+connector id:
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]               = "http-sink",
+    ["url"]                            = "https://api.example.com/",
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "streamId",
+    ["subscription:filter:expression"] = "example-stream"
+};
 
-{
-  "settings": {
-    "instanceTypeName": "http-sink",
-    "url": "https://api.example.com/",
-    "subscription:filter:scope": "stream",
-    "subscription:filter:filterType": "streamId",
-    "subscription:filter:expression": "example-stream"
-  }
-}
+await client.Connectors.Create("example-http", settings);
+await client.Connectors.Start("example-http");
 ```
 
-After you create and start the HTTP sink connector, it sends each record
-appended to `example-stream` to the specified URL. You can find a list of
-available management API endpoints in the [Managing Connectors](/kurrent-surge/client/connectors/manage/).
+Once started, the connector posts each record appended to `example-stream` to the URL.
+[Managing Connectors](/kurrent-surge/client/connectors/manage/) covers the rest of the lifecycle.
 
 ## Settings
 
@@ -107,13 +104,9 @@ sends to your specified URL. To add custom headers, use the `defaultHeaders`
 setting in your connector configuration. Specify each custom header with the
 prefix `defaultHeaders:` followed by the header name.
 
-**Example Request**:
+**Example**:
 
-```http
-PUT /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "defaultHeaders:X-API-Key": "your-api-key-here",
   "defaultHeaders:X-Tenant-ID": "production-tenant",

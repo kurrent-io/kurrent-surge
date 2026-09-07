@@ -26,26 +26,23 @@ Before using the Serilog sink connector, ensure you have:
 
 ## Quickstart
 
-You can create the Serilog Sink connector as follows. Replace `{id}` with your desired connector ID:
+Create the Serilog sink with `client.Connectors`. Replace `example-serilog` with your own
+connector id:
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]               = "serilog-sink",
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "streamId",
+    ["subscription:filter:expression"] = "example-stream"
+};
 
-{
-  "settings": {
-    "instanceTypeName": "serilog-sink",
-    "subscription:filter:scope": "stream",
-    "subscription:filter:filterType": "streamId",
-    "subscription:filter:expression": "example-stream"
-  }
-}
+await client.Connectors.Create("example-serilog", settings);
+await client.Connectors.Start("example-serilog");
 ```
 
-After you create and start the Serilog sink connector, it prints each record
-appended to `example-stream` to the console. You can find a list of available
-management API endpoints in the [Managing Connectors](/kurrent-surge/client/connectors/manage/).
+Once started, the connector prints each record appended to `example-stream` to the console.
+[Managing Connectors](/kurrent-surge/client/connectors/manage/) covers the rest of the lifecycle.
 
 Here is an example:
 
@@ -102,13 +99,9 @@ The Serilog sink can be configured with the following options:
 ```
 
 </TabItem>
-<TabItem label="Example Request">
+<TabItem label="Connector setting">
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "configuration": "ewogICJTZXJpbG9nIjogewogICAgIlVzaW5nIjogWyJTZXJpbG9nLlNpbmtzLlNlcSJdLAogICAgIldyaXRlVG8iOiBbCiAgICAgIHsKICAgICAgICAiTmFtZSI6ICJTZXEiLAogICAgICAgICJBcmdzIjogewogICAgICAgICAgInNlcnZlclVybCI6ICJodHRwOi8vbG9jYWxob3N0OjUzNDEiLAogICAgICAgICAgInBheWxvYWRGb3JtYXR0ZXIiOiAiU2VyaWxvZy5Gb3JtYXR0aW5nLkNvbXBhY3QuQ29tcGFjdEpzb25Gb3JtYXR0ZXIsIFNlcmlsb2cuRm9ybWF0dGluZy5Db21wYWN0IgogICAgICAgIH0KICAgICAgfQogICAgXQogIH0KfQ=="
 }
@@ -146,13 +139,9 @@ Encode the JSON configuration to base64, then provide the base64 encoded configu
 ```
 
 </TabItem>
-<TabItem label="cURL">
+<TabItem label="Connector setting">
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "configuration": "ewogICJTZXJpbG9nIjogewogICAgIldyaXRlVG8iOiBbCiAgICAgIHsKICAgICAgICAiTmFtZSI6ICJGaWxlIiwKICAgICAgICAiQXJncyI6IHsKICAgICAgICAgICJwYXRoIjogIi90bXAvbG9ncy9sb2cudHh0IiwKICAgICAgICAgICJyb2xsaW5nSW50ZXJ2YWwiOiAiSW5maW5pdGUiCiAgICAgICAgfQogICAgICB9CiAgICBdCiAgfQp9"
 }

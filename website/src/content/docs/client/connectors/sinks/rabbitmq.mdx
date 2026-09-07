@@ -27,29 +27,27 @@ See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protec
 
 ## Quickstart
 
-You can create the RabbitMQ Sink connector as follows. Replace `{id}` with your desired connector ID:
+Create the RabbitMQ sink with `client.Connectors`. Replace `example-rabbitmq` with your own
+connector id:
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]               = "rabbit-mq-sink",
+    ["exchange:name"]                  = "example-exchange",
+    ["exchange:type"]                  = "direct",
+    ["routingKey"]                     = "my-routing-key",
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "streamId",
+    ["subscription:filter:expression"] = "example-stream"
+};
 
-{
-  "settings": {
-    "instanceTypeName": "rabbit-mq-sink",
-    "exchange:name": "example-exchange",
-    "exchange:type": "direct",
-    "routingKey": "my-routing-key",
-    "subscription:filter:scope": "stream",
-    "subscription:filter:filterType": "streamId",
-    "subscription:filter:expression": "example-stream"
-  }
-}
+await client.Connectors.Create("example-rabbitmq", settings);
+await client.Connectors.Start("example-rabbitmq");
 ```
 
-After you create and start the RabbitMQ sink connector, it sends each record
-appended to `example-stream` to the specified queue in RabbitMQ. You can find a
-list of available management API endpoints in the [Managing Connectors](/kurrent-surge/client/connectors/manage/).
+Once started, the connector sends each record appended to `example-stream` to the exchange,
+which routes it to the bound queues. [Managing Connectors](/kurrent-surge/client/connectors/manage/)
+covers the rest of the lifecycle.
 
 ## Settings
 
@@ -92,11 +90,7 @@ The RabbitMQ sink connector relies on its own RabbitMQ retry mechanism and doesn
 By default, the connector does not wait for broker acknowledgment. Enable it, and the broker confirms each message sent
 to RabbitMQ before the connector treats the publish operation as complete:
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "waitForBrokerAck": "true"
 }

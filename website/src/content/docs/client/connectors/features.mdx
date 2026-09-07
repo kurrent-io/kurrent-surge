@@ -272,29 +272,26 @@ Convert your JavaScript function to a base64-encoded string. You must encode the
 
 #### 3. Configure the connector with the encoded transformation
 
-If you created the connector without transformations enabled, update its configuration to enable them and supply the function. Use the following API call to reconfigure your sink connector:
+Two settings turn the transformer on and supply the function:
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "transformer:enabled": "true",
   "transformer:function": "ZnVuY3Rpb24gdHJhbnNmb3JtKHJlY29yZCkgewogIGNvbnN0IHsgZmlyc3ROYW1lLCBsYXN0TmFtZSwgZW1haWwgfSA9IHJlY29yZC52YWx1ZTsKICByZWNvcmQudmFsdWUuZnVsbE5hbWUgPSBgJHtmaXJzdE5hbWV9ICR7bGFzdE5hbWV9YDsKICByZWNvcmQudmFsdWUuZW1haWwgPSBlbWFpbC50b0xvd2VyQ2FzZSgpOwp9"
 }
 ```
 
-[Managing Connectors](/kurrent-surge/client/connectors/manage/) lists the available management API endpoints.
+Set them when you create the connector. To add them to a connector that already exists, use
+`Reconfigure`, which **replaces the settings wholesale** — send the connector's existing settings
+alongside these two, or the rest are lost. See
+[Managing Connectors](/kurrent-surge/client/connectors/manage/).
 
 #### 4. Start the connector
 
 Once configured, start the connector to process records with the transformation applied:
 
-```http
-POST /connectors/{id}/start
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+await client.Connectors.Start("example-connector");
 ```
 
 When you append a record to the target KurrentDB stream, the connector applies the transformation function before sending the record to the destination.

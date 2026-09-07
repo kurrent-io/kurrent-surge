@@ -27,28 +27,25 @@ See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protec
 
 ## Quickstart
 
-You can create the Elasticsearch Sink connector as follows. Replace `{id}` with your desired connector ID:
+Create the Elasticsearch sink with `client.Connectors`. Replace `example-elastic` with your own
+connector id:
 
-```http
-POST /connectors/{id}
-Host: localhost:2113
-Content-Type: application/json
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]               = "elasticsearch-sink",
+    ["url"]                            = "http://localhost:9200",
+    ["indexName"]                      = "sample-index",
+    ["subscription:filter:scope"]      = "stream",
+    ["subscription:filter:filterType"] = "streamId",
+    ["subscription:filter:expression"] = "example-stream"
+};
 
-{
-  "settings": {
-    "instanceTypeName": "elasticsearch-sink",
-    "url": "http://localhost:9200",
-    "indexName": "sample-index",
-    "subscription:filter:scope": "stream",
-    "subscription:filter:filterType": "streamId",
-    "subscription:filter:expression": "example-stream"
-  }
-}
+await client.Connectors.Create("example-elastic", settings);
+await client.Connectors.Start("example-elastic");
 ```
 
-After you create and start the Elasticsearch sink connector, it sends each
-record appended to `example-stream` to the specified index in Elasticsearch.
-You can find a list of available management API endpoints in the [Managing Connectors](/kurrent-surge/client/connectors/manage/).
+Once started, the connector writes each record appended to `example-stream` into the index.
+[Managing Connectors](/kurrent-surge/client/connectors/manage/) covers the rest of the lifecycle.
 
 ## Settings
 
@@ -127,11 +124,7 @@ define the document id. The expression is optional, and you can adapt it to
 your naming convention. In this example, the expression captures the stream
 name up to `_data`.
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "documentId:source": "stream",
   "documentId:expression": "^(.*)_data$"
@@ -142,11 +135,7 @@ Alternatively, if you need only the last segment of the stream name (after a
 hyphen), you can use the `streamSuffix` source. This doesn't require an
 expression since it automatically extracts the suffix.
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "documentId:source": "streamSuffix"
 }
@@ -160,11 +149,7 @@ example, if the stream is named `user-123`, the document ID is `123`.
 
 You can create the document ID by combining values from a record's metadata.
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "documentId:source": "headers",
   "documentId:expression": "key1,key2"
@@ -183,11 +168,7 @@ The Elasticsearch sink connector supports multiple authentication methods.
 
 To use Basic Authentication, set the method to `basic` and provide the username and password:
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:method": "basic",
   "authentication:username": "elastic",
@@ -199,11 +180,7 @@ Content-Type: application/json
 
 To use API Key authentication, set the method to `apiKey` and provide the API key:
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:method": "apiKey",
   "authentication:apiKey": "your_api_key"
@@ -214,11 +191,7 @@ Content-Type: application/json
 
 To use Token authentication, set the method to `token` and provide the Base64 encoded API key:
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:method": "token",
   "authentication:base64ApiKey": ".."
@@ -229,11 +202,7 @@ Content-Type: application/json
 
 To configure Mutual TLS authentication, provide the client and root certificates:
 
-```http
-PUT /connectors/{id}/settings
-Host: localhost:2113
-Content-Type: application/json
-
+```json
 {
   "authentication:clientCertificate:rawData": "..",
   "authentication:clientCertificate:password": "..",
