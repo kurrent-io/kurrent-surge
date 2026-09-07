@@ -12,7 +12,7 @@ catalog holds the wire name independently.
 
 ## Declare a type
 
-Put the attribute next to the contract. A source generator in `Kurrent.Surge.Schema.Catalogs` turns
+Put the attribute next to the contract. A source generator in `Kurrent.Surge.Core` turns
 it into a catalog at compile time. There is no reflection, and the result is AOT-safe.
 
 ```csharp

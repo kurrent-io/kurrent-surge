@@ -36,7 +36,7 @@ Language/runtime. Always apply, for cross-project visibility.
 |-----------------------|---------------------------------------------------------------------------------------|
 | `sdk-client`          | Kurrent.Surge — streams, schema registry client, admin, management                   |
 | `sdk-streaming`       | Stream processing — processors, projectors core, checkpointing                       |
-| `sdk-schema-catalogs` | Kurrent.Surge.Schema.Catalogs — catalogs, attributes, naming, coders, catalog generator |
+| `sdk-schema-catalogs` | Kurrent.Surge.Core `Schema/Catalogs` + `Schema/Naming` — catalogs, attributes, naming, coders, catalog generator |
 
 ### Projectors
 

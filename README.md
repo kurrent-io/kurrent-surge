@@ -13,8 +13,7 @@ There is no meta-package; each package is independently installable, so you pull
 | Package                                                                 | What it does                                                                                          | Install                                              |
 |-------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|--------------------------------------------------------|
 | [Kurrent.Surge](src/Kurrent.Surge/)                                     | Append and read records, manage streams, work with the schema registry, drive indexes and connectors, and process records with checkpointing and partitioning | `dotnet add package Kurrent.Surge`                   |
-| [Kurrent.Surge.Core](src/Kurrent.Surge.Core/)                           | The contract layer: client interfaces, the data types they accept and return, and the JSON, Protobuf, and Avro codecs — with no transport dependencies | `dotnet add package Kurrent.Surge.Core`              |
-| [Kurrent.Surge.Schema.Catalogs](src/Kurrent.Surge.Schema.Catalogs/)     | Declare your message types and map each one to a schema name                                          | `dotnet add package Kurrent.Surge.Schema.Catalogs`   |
+| [Kurrent.Surge.Core](src/Kurrent.Surge.Core/)                           | The contract layer: client interfaces, the data types they accept and return, message declaration and schema names, and the JSON, Protobuf, and Avro codecs — with no transport dependencies | `dotnet add package Kurrent.Surge.Core`              |
 
 See each package's README for quick-start guides, code samples, and detailed feature documentation.
 

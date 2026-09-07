@@ -1,8 +1,7 @@
 # Architecture
 
-> Two-layer SDK: `Kurrent.Surge.Core` holds the contracts, `Kurrent.Surge` holds the implementation
-> (gRPC client **and** stream processing, fused into one package). `Kurrent.Surge.Schema.Catalogs` is a
-> standalone message-vocabulary package both depend on.
+> Two-layer SDK: `Kurrent.Surge.Core` holds the contracts and the message vocabulary, `Kurrent.Surge`
+> holds the implementation (gRPC client **and** stream processing, fused into one package).
 
 ## Architectural Style
 
@@ -28,9 +27,8 @@
 
 | Package                       | Purpose                                                              | Depends on (NuGet)                          | AOT |
 |-------------------------------|----------------------------------------------------------------------|---------------------------------------------|-----|
-| `Kurrent.Surge.Core`          | Contract layer: client + streaming interfaces, options, value types, wire contracts | `Kurrent.Surge.Schema.Catalogs`; bundles `Variant` | yes |
-| `Kurrent.Surge`               | Implementation: gRPC client (`Client/`) + stream processing (`Streaming/`) | `Kurrent.Surge.Core`, `Kurrent.Surge.Schema.Catalogs` | yes |
-| `Kurrent.Surge.Schema.Catalogs` | Message vocabulary: `SchemaName`, catalogs, `MessageResolver`, naming strategies (BCL-only, standalone) | none (bundles its own generator)          | yes |
+| `Kurrent.Surge.Core`          | Contract layer: client + streaming interfaces, options, value types, wire contracts, message vocabulary (`SchemaName`, catalogs, `MessageResolver`, naming strategies) | bundles `Variant`; packs the catalog generator | yes |
+| `Kurrent.Surge`               | Implementation: gRPC client (`Client/`) + stream processing (`Streaming/`) | `Kurrent.Surge.Core`                        | yes |
 | `Kurrent.Surge.Codecs.Avro`   | Opt-in Avro codec; packs its own generator                           | `Kurrent.Surge.Core`                        | yes |
 
 ### Solution-level libraries (not published)
@@ -40,14 +38,14 @@
 | `Variant`                           | `IVariant` discriminated-union runtime + `Result<T,E>` (assembly name `Kurrent.Variant`) | net10.0 |
 | `Variant.SourceGenerators`          | Generates `IVariant` union plumbing                                  | netstandard2.0 |
 | `Kurrent.Surge.SourceGenerators`    | Generates `[UniqueIdentifier]` value-type plumbing                    | netstandard2.0 |
-| `Kurrent.Surge.Schema.Catalogs.Generators` | The message-catalog generator (ships bundled inside the Schema.Catalogs package) | netstandard2.0 |
+| `Kurrent.Surge.Schema.Catalogs.Generators` | The message-catalog generator (ships inside `Kurrent.Surge.Core` under `analyzers/dotnet/cs/`) | netstandard2.0 |
 | `Kurrent.Surge.Codecs.Avro.Generators` | The Avro codec generator (ships bundled inside the Codecs.Avro package) | netstandard2.0 |
 | `Kurrent.CodeAnalysis`              | Shared Roslyn infrastructure (type pipeline, source writer, symbol model) | netstandard2.0 |
 | `Kurrent.Surge.Arrow`               | Arrow Flight SQL query helper over the client                        | net10.0        |
 
 `Variant` is bundled into `Kurrent.Surge.Core` (`Bundle="true"`, not a separate NuGet dependency) and reaches
-`Kurrent.Surge` transitively. `Kurrent.Surge.Schema.Catalogs` is referenced with `PrivateAssets="none"` so its
-bundled generator flows to downstream consumers.
+`Kurrent.Surge` transitively. `Kurrent.Surge.Core` is referenced with `PrivateAssets="none"` so its packed
+generators flow to downstream consumers.
 
 ### Separate implementation package
 
@@ -140,7 +138,7 @@ three packages:
 
 | Layer                                   | Where                                              | Key types                                                                 |
 |-----------------------------------------|----------------------------------------------------|---------------------------------------------------------------------------|
-| Vocabulary (naming + catalogs)          | `Kurrent.Surge.Schema.Catalogs`                    | `SchemaName`, `MessageCatalog`, `MessageResolver`, `MessageTypeDescriptor`, naming strategies, `SchemaUrn` |
+| Vocabulary (naming + catalogs)          | `Kurrent.Surge.Core/Schema/{Catalogs,Naming}`      | `SchemaName`, `MessageCatalog`, `MessageResolver`, `MessageTypeDescriptor`, naming strategies, `SchemaUrn` |
 | Serializer contracts + options/context  | `Kurrent.Surge.Core/Client/Schema[/Serialization]` | `ISchemaSerializer`, `SchemaSerializerProvider`, Json/Protobuf options + `JsonSerializerContext`s, `BytesPassthroughSerializer`, `ISchemaExporter`, `SystemJsonSchemaExporter`, `SchemaRegistrationOptions` |
 | Governance + codecs                     | `Kurrent.Surge/Client/Schema`                      | `ISchemaGovernance` / `SchemaGovernance` (talks to `RegistryClient`), `CatalogSchemaMap`, `SystemMessageCatalog` (always-active `$metadata`/link/scavenge mappings). Codecs live in `Kurrent.Surge.Core/Schema/Codecs` — `ISchemaCodec`, `SchemaCodecProvider`, `Json/`, `Protobuf/` |
 
@@ -235,9 +233,9 @@ commented out — those RPCs do not exist in the proto yet.
 
 `VariantGenerator` and `UniqueIdentifierGenerator` build on `Kurrent.CodeAnalysis` (shared Roslyn pipeline
 + source writer); `MessageCatalogGenerator` uses raw Roslyn APIs. The catalog generator is wired onto
-`Kurrent.Surge` and `Kurrent.Surge.Core` compilations via `Directory.Build.targets` (`_SdkSourceRef`,
-keyed on the `Kurrent.Surge.Schema.Catalogs` project filename) and ships bundled in the Schema.Catalogs
-package so it also runs in consumer projects.
+`Kurrent.Surge.Core` directly (`PackedAnalyzer="true"`) and onto in-repo source consumers via
+`Directory.Build.targets` (`_SdkSourceRef`, keyed on the `Kurrent.Surge` and `Kurrent.Surge.Core` project
+filenames), and ships inside `Kurrent.Surge.Core` so it also runs in consumer projects.
 
 ## Gotchas
 

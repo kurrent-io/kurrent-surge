@@ -5,8 +5,7 @@ efforts of security researchers and the community in responsibly disclosing vuln
 
 ## Supported versions
 
-The SDK is published as independent NuGet packages: `Kurrent.Surge`, `Kurrent.Surge.Core`,
-and `Kurrent.Surge.Schema.Catalogs`.
+The SDK is published as independent NuGet packages: `Kurrent.Surge` and `Kurrent.Surge.Core`.
 Security fixes are released against the **latest published version** of each package. We
 recommend always running the latest release.
 

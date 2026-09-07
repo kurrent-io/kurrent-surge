@@ -23,8 +23,8 @@ flags) produces a `.nuspec` with a NuGet dependency that doesn't exist on any fe
 `NU1101`.
 
 **Analyzer flow:** NuGet excludes `Build,Analyzers` on dependency edges by default. A consumer that
-installs only `Kurrent.Surge` would NOT get the catalog generator shipped inside
-`Kurrent.Surge.Schema.Catalogs` — which is why Surge's reference to Schema.Catalogs carries
+installs only `Kurrent.Surge` would NOT get the generators shipped inside
+`Kurrent.Surge.Core` — which is why Surge's reference to Core carries
 `PrivateAssets="none"` (→ `include="All"` in the nuspec dependency). The **in-repo** counterpart — getting that same generator to run on projects that
 reference the SDK by source — is a separate problem (analyzers aren't transitive through `ProjectReference`);
 see [In-repo source consumers](#in-repo-source-consumers-packedanalyzerproject).
@@ -62,7 +62,7 @@ detects `IsPackable=true` and wires the pack pipeline (`_CollectVendoredAndBundl
 `_CollectPackedAnalyzers`) automatically. There are no per-project `PackProjectDependencies` /
 `PackSourceGenerators` targets to copy anymore; everything is centralized.
 
-Currently packable: `Kurrent.Surge`, `Kurrent.Surge.Core`, `Kurrent.Surge.Schema.Catalogs`.
+Currently packable: `Kurrent.Surge`, `Kurrent.Surge.Core`.
 
 How a reference is treated is controlled by **metadata flags** on the `<ProjectReference>` /
 `<PackageReference>` item. The next section covers each flag; [How Suppression Works](#how-suppression-works)
@@ -79,8 +79,8 @@ nuspec.
 
 No special metadata. The SDK declares it as a package dependency in the `.nuspec`. Use only when the
 referenced project is itself a published NuGet package. Example: `Kurrent.Surge` references
-`Kurrent.Surge.Schema.Catalogs` this way — with `PrivateAssets="none"` so the Catalogs package's packed
-analyzer flows to consumers that install only Surge (see [Analyzer flow](#tldr)). External `<PackageReference>` items
+`Kurrent.Surge.Core` this way — with `PrivateAssets="none"` so Core's packed
+analyzers flow to consumers that install only Surge (see [Analyzer flow](#tldr)). External `<PackageReference>` items
 (`Google.Protobuf`, `kurrent.quack`, …) are handled conventionally by the SDK.
 
 ### Embedded library (bundled in `lib/{tfm}/`)
@@ -150,16 +150,16 @@ the message-catalog generator (`Kurrent.Surge.Schema.Catalogs.Generators`).
 A packed generator reaches real NuGet consumers automatically (it ships under `analyzers/dotnet/cs/`). But
 **in-repo** projects (examples, tests, sibling packages) reference the SDK by *source* (`ProjectReference`),
 and **Roslyn analyzers are NOT transitive through a `ProjectReference`** — by design in the SDK. So a
-project that references `Kurrent.Surge`/`Kurrent.Surge.Schema.Catalogs` from source does not get the catalog generator
+project that references `Kurrent.Surge`/`Kurrent.Surge.Core` from source does not get the catalog generator
 the way a packaged consumer does; without help its `[MessageCatalog]` / `[MessageType]` declarations would
 generate nothing.
 
 The fix is centralized:
 
 - **`@(PackedAnalyzerProject)`** (`Directory.Build.props`) is the single source of truth — the generators
-  that ship to consumers. `Kurrent.Surge.Schema.Catalogs` references it with `PackedAnalyzer="true"`.
+  that ship to consumers. `Kurrent.Surge.Core` references it with `PackedAnalyzer="true"`.
 - A rule in `Directory.Build.targets` wires that **same list** as analyzers onto any in-repo project that
-  references `Kurrent.Surge` or `Kurrent.Surge.Schema.Catalogs` by source. It is skipped when `TestPackages=true` (in
+  references `Kurrent.Surge` or `Kurrent.Surge.Core` by source. It is skipped when `TestPackages=true` (in
   package mode the package already supplies the generator; adding it again would emit the types twice →
   `CS0101`).
 
@@ -212,15 +212,10 @@ Kurrent.Surge.Core.nupkg
 │   ├── Kurrent.Variant.dll                         ← Bundle (_CollectVendoredAndBundledFiles)
 │   └── Kurrent.Surge.RecordFilters.dll             ← Bundle (_CollectVendoredAndBundledFiles)
 ├── analyzers/dotnet/cs/
-│   └── Kurrent.Surge.Generators.dll                ← PackedAnalyzer (_CollectPackedAnalyzers)
-├── build/
-│   └── Kurrent.Surge.Core.props                    ← KurrentAvro* generator knobs (NuGet auto-import)
-
-Kurrent.Surge.Schema.Catalogs.nupkg
-├── lib/net10.0/
-│   └── Kurrent.Surge.Schema.Catalogs.dll           ← main assembly (SDK default)
-└── analyzers/dotnet/cs/
-    └── Kurrent.Surge.Schema.Catalogs.Generators.dll  ← PackedAnalyzer (_CollectPackedAnalyzers)
+│   ├── Kurrent.Surge.Generators.dll                ← PackedAnalyzer (_CollectPackedAnalyzers)
+│   └── Kurrent.Surge.Schema.Catalogs.Generators.dll ← PackedAnalyzer (_CollectPackedAnalyzers)
+└── build/
+    └── Kurrent.Surge.Core.props                    ← KurrentAvro* generator knobs (NuGet auto-import)
 ```
 
 `Variant.SourceGenerators` is `Analyzer="true"` (SDK-internal) — it runs while building

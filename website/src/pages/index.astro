@@ -34,8 +34,7 @@ await KurrentProcessor.Create(new TemperatureMonitor(), opts => {
 
 const packages = [
   { name: "Kurrent.Surge", body: "The client and the processors. What you install." },
-  { name: "Kurrent.Surge.Core", body: "Contracts, value types, and the JSON, Protobuf, and Avro codecs. No gRPC, no transport." },
-  { name: "Kurrent.Surge.Schema.Catalogs", body: "Declares message types and maps them to schema names." },
+  { name: "Kurrent.Surge.Core", body: "Contracts, value types, message catalogs, and the JSON, Protobuf, and Avro codecs. No gRPC, no transport." },
 ];
 
 const sections = [

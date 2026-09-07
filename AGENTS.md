@@ -77,19 +77,19 @@ The V2 read path is commented out; those RPCs do not exist in the proto yet. Pro
 
 ## Structure
 
-Three publishable packages:
+Two publishable packages:
 
 ```
 Kurrent.Surge                  ← gRPC client (streams, registry, indexes, connectors, admin)
-Kurrent.Surge.Core             ← contracts and shared foundation; JSON, Protobuf, and Avro codecs; ships the Avro codec generator
-Kurrent.Surge.Schema.Catalogs  ← message declaration layer; ships the catalog generator
+Kurrent.Surge.Core             ← contracts and shared foundation; message declaration layer; JSON, Protobuf, and Avro codecs; ships the Avro codec and catalog generators
 ```
 
 Verify the live list with `grep -l "IsPackable>true" src/*/*.csproj`.
 
 Solution-level shared libraries — `Variant` and `Kurrent.CodeAnalysis` — are not published as
-NuGet packages. `Kurrent.Surge.Generators` (unique identifiers + the Avro codec generator) is not a
-package either, but its DLL ships inside `Kurrent.Surge.Core` under `analyzers/dotnet/cs/`.
+NuGet packages. `Kurrent.Surge.Generators` (unique identifiers + the Avro codec generator) and
+`Kurrent.Surge.Schema.Catalogs.Generators` are not packages either, but their DLLs ship inside
+`Kurrent.Surge.Core` under `analyzers/dotnet/cs/`.
 
 `Kurrent.Surge` contains a `Client/Legacy/` folder with V1 gRPC compatibility — not a separate package.
 

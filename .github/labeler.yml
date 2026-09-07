@@ -3,7 +3,6 @@ area-client:
     - any-glob-to-any-file:
       - src/Kurrent.Surge/**
       - src/Kurrent.Surge.Core/**
-      - src/Kurrent.Surge.Schema.Catalogs/**
       - src/Kurrent.Surge.Schema.Catalogs.Generators/**
       - src/Kurrent.Surge.Arrow/**
       - src/Kurrent.Surge.Generators/**
