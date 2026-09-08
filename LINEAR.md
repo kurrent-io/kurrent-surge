@@ -74,7 +74,8 @@ scopes and commit types are owned by the `devx-git-conventions` skill, not repea
 
 ## Definition of done
 
-- `docs/` updated if the change affects user-facing behavior.
+- `website/` updated if the change affects user-facing behavior. That is the live docs site, not the
+  legacy `docs/` tree.
 - `examples/` updated if the change introduces new API surface or patterns.
 
 ## Scope fences

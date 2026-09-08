@@ -6,7 +6,7 @@ pipeline for the Kurrent .NET SDK.
 ## Workflow Overview
 
 ```
-  PR opened ──► CI + CI-Checks ──► merged to main ──► CI (push) ──► tag v* ──► Release
+  PR opened ──► CI + PR Triage ──► merged to main ──► CI (push) ──► tag v* ──► Release
                     │                                   │                         │
                     │                                   │                         │
                unit tests                          build + version          stable version
@@ -16,17 +16,20 @@ pipeline for the Kurrent .NET SDK.
 ```
 
 `ci.yml` is the single build/test/package pipeline — it runs on both pull requests and pushes to
-`main`, computing the right version for each event. Jobs are capped at `timeout-minutes: 10` and use
-`concurrency` with `cancel-in-progress` so a new push supersedes an in-flight run.
+`main`, computing the right version for each event. The build job is capped at `timeout-minutes: 15`, and
+`concurrency` with `cancel-in-progress` makes a new push supersede an in-flight run.
 
 ## Workflows
 
 ### [`ci.yml`](ci.yml) — Build, Test & Package
 
-Triggers on pushes to `main`/`release/*`, pull requests to those branches, and manual dispatch. Source
-change detection skips the pipeline for docs-only changes. One job builds, versions (via
+Triggers on pushes to `main`/`release/*`, pull requests to those branches, and manual dispatch. Two jobs
+run. `markdown` lints every markdown file with
+[markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2), configured by
+[`.markdownlint-cli2.jsonc`](../../.markdownlint-cli2.jsonc). `ci` builds, versions (via
 [`bumpcraft`](../actions/bumpcraft/) in pre-release mode), packs and validates packages, runs tests, and
-publishes preview/PR packages to GitHub Packages.
+publishes preview/PR packages to GitHub Packages; path filters in
+[`ci-path-filters.yml`](../ci-path-filters.yml) skip its work for changes outside the build surface.
 
 **What runs:**
 
@@ -40,11 +43,15 @@ publishes preview/PR packages to GitHub Packages.
 Integration tests and container setup are skipped on draft PRs. Packages go to GitHub Packages; the
 version is chosen by `bumpcraft` from the triggering event (PR → `pr.*` template, push → `preview.*`).
 
-### [`ci-checks.yml`](ci-checks.yml) — PR Validation
+### [`pr-triage.yml`](pr-triage.yml) — PR Triage
 
-Triggers on `pull_request_target` (opened, edited, synchronize, ready_for_review). Validates the PR title
-follows [conventional commits](https://www.conventionalcommits.org/) (the
-[`conventional-commits`](../actions/conventional-commits/) action) and runs markdownlint.
+Triggers on `pull_request_target` (opened, edited, synchronize, ready_for_review). Metadata only — no job
+in this workflow checks out or executes PR code, which is what makes the write token safe on forks.
+
+| Job     | What it does                                                                                      |
+|---------|---------------------------------------------------------------------------------------------------|
+| `title` | Required gate. Validates the PR title as a [conventional commit](https://www.conventionalcommits.org/) via `amannn/action-semantic-pull-request`, since the title becomes the squash commit `semver-bump` reads. |
+| `label` | Best-effort, never blocking. Labels by changed path via `actions/labeler` reading [`labeler.yml`](../labeler.yml), and by conventional-commit type via `actions/github-script`. |
 
 ### [`release.yml`](release.yml) — Stable Release Pipeline
 
@@ -62,17 +69,16 @@ publishes to both GitHub Packages and NuGet.org, and creates a GitHub Release. C
 
 ### [`benchmark.yml`](benchmark.yml) — Performance Benchmarks
 
-Triggers on manual dispatch. Runs BenchmarkDotNet benchmarks, generates an HTML report, and uploads
-results as artifacts.
+Triggers on manual dispatch, merge groups, pushes touching `perf/**`, and pull requests labeled
+`run-benchmarks`. Runs BenchmarkDotNet on the self-hosted runners across a category matrix, generates an
+HTML report, and uploads results as artifacts.
 
 ### Auxiliary workflows
 
-- [`labeler.yml`](labeler.yml) — **Pull Request Labeler.** Applies labels to PRs (`pull_request_target` +
-  manual dispatch).
-- [`prime-runners.yml`](prime-runners.yml) — **Prime Runners.** Daily cron (06:00 UTC) + manual dispatch;
-  warms the self-hosted runners' tool and package caches so real pipeline runs start warm.
+- [`docs.yml`](docs.yml) — **Docs.** Builds the Starlight site in `website/` and publishes it to GitHub
+  Pages, on pushes touching `website/**` + manual dispatch.
 - [`devcontainer.yml`](devcontainer.yml) — **Build Devcontainer.** Builds and pushes the devcontainer
-  image on relevant pushes + manual dispatch.
+  image on pushes touching `.devcontainer/**` + manual dispatch.
 
 ## Package Version Scheme
 

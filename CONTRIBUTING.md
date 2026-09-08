@@ -18,7 +18,6 @@ git clone https://github.com/kurrent-io/kurrent-surge.git
 cd kurrent-surge
 
 dotnet restore        # restore package dependencies
-dotnet tool restore   # restore local tools used by tools/ and CI
 dotnet build -c Release
 ```
 

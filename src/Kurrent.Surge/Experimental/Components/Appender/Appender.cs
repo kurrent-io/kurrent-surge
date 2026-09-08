@@ -25,7 +25,7 @@ namespace Kurrent.Surge.Experimental;
 /// with the same key are ordered, different keys may flush in parallel.
 /// Set the ordering key via <c>AppendRecord.Create(value, r =&gt; r.OrderingKey("key"))</c>.
 /// </summary>
-sealed class Appender : IAppender {
+public sealed class Appender : IAppender {
     readonly KurrentClient           _client;
     readonly StreamsClient           _streams;
     readonly FlushLane               _defaultLane;

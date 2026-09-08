@@ -2,7 +2,10 @@ using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Experimental;
 
-static class AppendRecordExtensions {
+/// <summary>
+/// Ordering-key accessors for records appended through the <see cref="Appender"/>.
+/// </summary>
+public static class AppendRecordExtensions {
     const string OrderingKeyProperty = "$ordering-key";
 
     extension(AppendRecord record) {

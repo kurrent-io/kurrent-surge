@@ -17,7 +17,6 @@ Read the two convention files for every review. Read the area docs only when the
 | Repo-level rules (stack, TFM policy, protocol split, package structure) | [CLAUDE.md](CLAUDE.md) | Always |
 | Domain vocabulary | [CONTEXT.md](CONTEXT.md) | Naming new public concepts |
 | Module and file organization | [.claude/context/project/module-organization.md](.claude/context/project/module-organization.md) | New files, models, mappers |
-| Builders, factories, fluent APIs | [.claude/context/project/builder-conventions.md](.claude/context/project/builder-conventions.md) | Builder or options changes |
 | XML documentation | devx standard bundled with the `devx-xmldoc-audit` skill; repo addenda in [AGENTS.md](AGENTS.md) | Public API doc changes |
 | Packaging and project references | [.claude/context/project/packaging.md](.claude/context/project/packaging.md) | csproj / reference changes |
 | Architecture boundaries | [.claude/context/project/architecture.md](.claude/context/project/architecture.md) | Structural or cross-module changes |

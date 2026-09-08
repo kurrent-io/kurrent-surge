@@ -460,6 +460,7 @@ Temporary Items
 !.claude/context/
 CLAUDE.local.md
 settings.local.json
+.mcp.json
 
 # Cursor
 .cursor/
@@ -556,11 +557,6 @@ wip/
 .certs-*/
 certs-*/
 certs/**
-
-# act (local GitHub Actions runner)
-.secrets
-.vars
-.actrc
 
 # Others
 docs/plans/

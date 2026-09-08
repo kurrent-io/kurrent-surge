@@ -1,0 +1,696 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-08T00:00:00.000Z",
+  "title": "Design System: Kurrent Surge Docs",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Signal Azure",
+        "canonical": "oklch(78.0% 0.127 239)",
+        "scope": "dark",
+        "note": "Text stop. 9.10:1 on the ground. Never a fill — white on it measures 1.97:1.",
+        "tonalRamp": [
+          "oklch(22% 0.055 239)",
+          "oklch(34% 0.090 241)",
+          "oklch(45% 0.120 244)",
+          "oklch(56.9% 0.174 253)",
+          "oklch(66% 0.150 245)",
+          "oklch(78.0% 0.127 239)",
+          "oklch(88% 0.080 238)",
+          "oklch(96% 0.030 238)"
+        ]
+      },
+      "accent-fill": {
+        "role": "primary",
+        "displayName": "Azure Fill",
+        "canonical": "oklch(56.9% 0.174 253)",
+        "scope": "both",
+        "note": "Fill stop. Carries white at 4.53:1. Shared unchanged across both themes.",
+        "tonalRamp": [
+          "oklch(18% 0.060 254)",
+          "oklch(28% 0.100 254)",
+          "oklch(38% 0.135 254)",
+          "oklch(49.5% 0.166 256)",
+          "oklch(56.9% 0.174 253)",
+          "oklch(68% 0.140 248)",
+          "oklch(82% 0.085 243)",
+          "oklch(94% 0.035 240)"
+        ]
+      },
+      "accent-deep": {
+        "role": "primary",
+        "displayName": "Azure Deep",
+        "canonical": "oklch(49.5% 0.166 256)",
+        "scope": "both",
+        "note": "Pressed and hover states on a filled surface. White at 6.23:1."
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Azure Ink",
+        "canonical": "oklch(54.3% 0.169 253)",
+        "scope": "light",
+        "note": "The light theme's text stop. 4.86:1 on its ground."
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "oklch(20.4% 0.019 242)",
+        "scope": "dark",
+        "note": "Deliberately off the floor of the lightness range so a cast shadow has something beneath it to darken.",
+        "tonalRamp": [
+          "oklch(14.0% 0.016 241)",
+          "oklch(20.4% 0.019 242)",
+          "oklch(26.1% 0.025 239)",
+          "oklch(30.9% 0.026 240)",
+          "oklch(36.0% 0.029 243)",
+          "oklch(52.0% 0.036 241)",
+          "oklch(72.0% 0.032 240)",
+          "oklch(90.0% 0.020 240)"
+        ]
+      },
+      "frost": {
+        "role": "neutral",
+        "displayName": "Frost",
+        "canonical": "oklch(96.1% 0.016 239)",
+        "scope": "dark",
+        "note": "Cool ramp — every step keeps B >= R, the inverse of the warm ramp it replaced. Lowest step still reaches 4.67:1 on the ground.",
+        "tonalRamp": [
+          "oklch(30.0% 0.030 241)",
+          "oklch(45.0% 0.038 241)",
+          "oklch(60.5% 0.038 242)",
+          "oklch(64.0% 0.042 241)",
+          "oklch(67.9% 0.042 240)",
+          "oklch(82.0% 0.028 241)",
+          "oklch(90.0% 0.022 240)",
+          "oklch(96.1% 0.016 239)"
+        ]
+      },
+      "daylight": {
+        "role": "neutral",
+        "displayName": "Daylight",
+        "canonical": "oklch(98.7% 0.005 258)",
+        "scope": "light",
+        "note": "The light page. Its lifted surface goes to pure white — raised is lighter here, not darker.",
+        "tonalRamp": [
+          "oklch(90.0% 0.014 245)",
+          "oklch(93.0% 0.012 243)",
+          "oklch(95.9% 0.010 253)",
+          "oklch(96.0% 0.010 239)",
+          "oklch(97.5% 0.007 250)",
+          "oklch(98.7% 0.005 258)",
+          "oklch(99.4% 0.003 258)",
+          "oklch(100% 0 0)"
+        ]
+      },
+      "slate": {
+        "role": "neutral",
+        "displayName": "Slate",
+        "canonical": "oklch(19.0% 0.016 236)",
+        "scope": "light",
+        "note": "Light-theme foreground ramp. Lowest step reaches 4.64:1.",
+        "tonalRamp": [
+          "oklch(19.0% 0.016 236)",
+          "oklch(28.0% 0.024 238)",
+          "oklch(38.1% 0.028 238)",
+          "oklch(48.0% 0.032 240)",
+          "oklch(53.0% 0.033 240)",
+          "oklch(70.0% 0.028 240)",
+          "oklch(85.0% 0.018 240)",
+          "oklch(96.0% 0.010 239)"
+        ]
+      },
+      "ground-lifted": {
+        "role": "neutral",
+        "displayName": "Ground Lifted",
+        "canonical": "oklch(26.1% 0.025 239)",
+        "scope": "dark"
+      },
+      "ground-raised": {
+        "role": "neutral",
+        "displayName": "Ground Raised",
+        "canonical": "oklch(30.9% 0.026 240)",
+        "scope": "dark"
+      },
+      "frost-quiet": {
+        "role": "neutral",
+        "displayName": "Frost Quiet",
+        "canonical": "oklch(82.0% 0.028 241)",
+        "scope": "dark",
+        "note": "Body copy. 10.33:1."
+      },
+      "frost-muted": {
+        "role": "neutral",
+        "displayName": "Frost Muted",
+        "canonical": "oklch(67.9% 0.042 240)",
+        "scope": "dark",
+        "note": "6.25:1."
+      },
+      "frost-faint": {
+        "role": "neutral",
+        "displayName": "Frost Faint",
+        "canonical": "oklch(64.0% 0.042 241)",
+        "scope": "dark",
+        "note": "5.38:1."
+      },
+      "frost-ghost": {
+        "role": "neutral",
+        "displayName": "Frost Ghost",
+        "canonical": "oklch(60.5% 0.038 242)",
+        "scope": "dark",
+        "note": "Resting navigation and the table-of-contents rail. 4.67:1 — the lowest role in the system, still above AA body text."
+      },
+      "cta-fg": {
+        "role": "neutral",
+        "displayName": "CTA Foreground",
+        "scope": "both",
+        "note": "White. It sits on --accent-fill, never on the bright text stop."
+      },
+      "code-ground": {
+        "role": "neutral",
+        "displayName": "Code Ground",
+        "canonical": "oklch(18.5% 0.023 241)",
+        "scope": "dark",
+        "note": "The only surface that goes darker than the page, but narrower in reach than the name suggests. Expressive Code frames paint --bg-1 (#19262f dark, #ffffff light) at the shared 8px radius; this trio is consumed by bare <pre> blocks, of which the landing's install line is the only live instance."
+      },
+      "code-fg": {
+        "role": "neutral",
+        "displayName": "Code Foreground",
+        "scope": "dark",
+        "note": "10.72:1 on the code ground."
+      },
+      "code-ground-light": {
+        "role": "neutral",
+        "displayName": "Code Ground Light",
+        "canonical": "oklch(95.9% 0.010 253)",
+        "scope": "light",
+        "note": "Code surfaces follow the theme. Pinning them dark made light-theme syntax tokens vanish into their own background — verified on `Record.Value` and `CompletedTask`."
+      },
+      "code-fg-light": {
+        "role": "neutral",
+        "displayName": "Code Foreground Light",
+        "scope": "light",
+        "note": "8.81:1 on the light code ground."
+      },
+      "daylight-raised": {
+        "role": "neutral",
+        "displayName": "Daylight Raised",
+        "canonical": "oklch(100% 0 0)",
+        "scope": "light"
+      },
+      "daylight-recessed": {
+        "role": "neutral",
+        "displayName": "Daylight Recessed",
+        "canonical": "oklch(96.0% 0.010 239)",
+        "scope": "light"
+      },
+      "slate-quiet": {
+        "role": "neutral",
+        "displayName": "Slate Quiet",
+        "canonical": "oklch(38.1% 0.028 238)",
+        "scope": "light",
+        "note": "9.56:1."
+      },
+      "slate-muted": {
+        "role": "neutral",
+        "displayName": "Slate Muted",
+        "scope": "light",
+        "note": "5.07:1."
+      },
+      "slate-faint": {
+        "role": "neutral",
+        "displayName": "Slate Faint",
+        "scope": "light",
+        "note": "4.73:1."
+      },
+      "slate-ghost": {
+        "role": "neutral",
+        "displayName": "Slate Ghost",
+        "scope": "light",
+        "note": "4.64:1."
+      },
+      "aside-note": {
+        "role": "tertiary",
+        "displayName": "Note Violet",
+        "canonical": "oklch(75.8% 0.147 301)",
+        "scope": "dark",
+        "note": "7.89:1. Not a brand token."
+      },
+      "aside-tip": {
+        "role": "tertiary",
+        "displayName": "Tip Green",
+        "canonical": "oklch(75.9% 0.150 150)",
+        "scope": "dark",
+        "note": "8.83:1. Not a brand token."
+      },
+      "aside-caution": {
+        "role": "tertiary",
+        "displayName": "Caution Amber",
+        "canonical": "oklch(76.0% 0.150 76)",
+        "scope": "dark",
+        "note": "8.19:1. Not a brand token."
+      },
+      "aside-danger": {
+        "role": "tertiary",
+        "displayName": "Danger Coral",
+        "canonical": "oklch(75.6% 0.146 25)",
+        "scope": "dark",
+        "note": "7.76:1. Not a brand token."
+      },
+      "aside-note-light": {
+        "role": "tertiary",
+        "displayName": "Note Violet Light",
+        "canonical": "oklch(52.0% 0.170 300)",
+        "scope": "light",
+        "note": "5.76:1."
+      },
+      "aside-tip-light": {
+        "role": "tertiary",
+        "displayName": "Tip Green Light",
+        "canonical": "oklch(52.8% 0.159 147)",
+        "scope": "light",
+        "note": "4.79:1."
+      },
+      "aside-caution-light": {
+        "role": "tertiary",
+        "displayName": "Caution Amber Light",
+        "canonical": "oklch(52.4% 0.125 58)",
+        "scope": "light",
+        "note": "5.44:1."
+      },
+      "aside-danger-light": {
+        "role": "tertiary",
+        "displayName": "Danger Coral Light",
+        "canonical": "oklch(51.9% 0.170 25)",
+        "scope": "light",
+        "note": "5.83:1."
+      },
+      "ink": {
+        "role": "tertiary",
+        "displayName": "Ink",
+        "note": "Live. Colours D2 diagram text under the light theme. ThemeInspector.astro still lists it as unused; that entry is stale."
+      },
+      "ink-dim": {
+        "role": "tertiary",
+        "displayName": "Ink Dim",
+        "note": "Live. Colours muted D2 diagram text under the light theme. Also stale in ThemeInspector.astro."
+      }
+    },
+    "hueAudit": {
+      "accentBand": "Measured 239 / 253 / 256 degrees across the three stops — a 17-degree spread. surge.css:49 describes the family as 'locked at OKLCH 240 deg'; the lock is approximate, and the comment overstates it. The prior pairing it replaced spanned 37 degrees, so the tightening is real.",
+      "asideWheel": "Isoluminant by construction. Dark: L 75.6-76.0%, C 0.146-0.150, hues 25 / 76 / 150 / 301. Light: L 51.9-52.8%, C 0.125-0.170, hues 25 / 58 / 147 / 300. Every hue sits at least 60 degrees off the accent band."
+    },
+    "accentMixLadder": [
+      {
+        "value": "3%",
+        "base": "--accent",
+        "purpose": "Ambient wash, light theme"
+      },
+      {
+        "value": "6%",
+        "base": "--aside / --accent",
+        "purpose": "Callout fill; D2 surface tint"
+      },
+      {
+        "value": "8%",
+        "base": "--accent",
+        "purpose": "Active sidebar row wash; breadcrumb current crumb"
+      },
+      {
+        "value": "12%",
+        "base": "--aside / --accent",
+        "purpose": "Callout border; D2 alternate surface; ambient wash, dark theme"
+      },
+      {
+        "value": "16%",
+        "base": "--accent",
+        "purpose": "Select item highlighted; Starlight accent-low alias"
+      },
+      {
+        "value": "22%",
+        "base": "--accent",
+        "purpose": "Hero wash on the landing, scoped to the hero"
+      },
+      {
+        "value": "24%",
+        "base": "--accent",
+        "purpose": "Segmented-control indicator; select item selected; sidebar filter hit"
+      },
+      {
+        "value": "30%",
+        "base": "--accent-fill",
+        "purpose": "Primary button hover ring, both themes"
+      },
+      {
+        "value": "40%",
+        "base": "--accent",
+        "purpose": "Focus border on filter wrap, search hover, sidebar toggle hover"
+      },
+      {
+        "value": "70%",
+        "base": "--accent",
+        "purpose": "D2 arrowhead deepening, light theme — a hue shift, not an emphasis tint"
+      }
+    ],
+    "shadows": [
+      {
+        "name": "lift-dark",
+        "value": "inset 0 1px 0 rgba(190,220,250,0.10), 0 1px 2px rgba(0,6,12,0.45)",
+        "purpose": "Raised surfaces. The inset edge is where a lit surface would catch the light; the shadow beneath reads because the ground sits at L 20.4% rather than on the floor."
+      },
+      {
+        "name": "lift-light",
+        "value": "0 1px 2px rgba(13,21,26,0.07), 0 6px 20px rgba(13,21,26,0.06)",
+        "purpose": "The same surfaces under the light theme. --lift-edge is `transparent` there: a raised surface cannot get meaningfully lighter than a near-white page, so the shadow carries alone."
+      },
+      {
+        "name": "code-frame",
+        "value": "inset 0 1px 0 rgba(245,243,240,0.06), 0 2px 10px rgba(0,0,0,0.55)",
+        "purpose": "Code and terminal frames, which cross the ambient wash and need a deeper fall."
+      },
+      {
+        "name": "popup",
+        "value": "0 1rem 2.5rem color-mix(in srgb, var(--sl-color-black) 32%, transparent), inset 0 1px 0 color-mix(in srgb, var(--sl-color-white) 7%, transparent)",
+        "purpose": "The select popup — the only genuinely floating surface in the system."
+      },
+      {
+        "name": "accent-ring",
+        "value": "0 0 0 4px var(--accent-ring)",
+        "purpose": "Primary button hover. --accent-ring mixes from --accent-fill: 30% on dark, 26% on light."
+      },
+      {
+        "name": "trigger-highlight",
+        "value": "inset 0 1px 0 color-mix(in srgb, var(--sl-color-white) 5%, transparent)",
+        "purpose": "The footer select trigger's top edge, at half the strength of a full lift."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state",
+        "value": "150ms ease",
+        "purpose": "Colour, border-colour and background-colour state changes on the footer controls."
+      },
+      {
+        "name": "transform-state",
+        "value": "160ms ease",
+        "purpose": "Transform on the footer controls; also the primary button's hover ring."
+      },
+      {
+        "name": "indicator",
+        "value": "180ms ease",
+        "purpose": "The segmented control's sliding indicator."
+      },
+      {
+        "name": "disclosure",
+        "value": "200ms ease",
+        "purpose": "Breadcrumb chevron rotation."
+      },
+      {
+        "name": "pane",
+        "value": "250ms ease",
+        "purpose": "Sidebar collapse — pane width, main-frame padding, the toggle's inline-start position, and the toggle chevron all share it."
+      },
+      {
+        "name": "press",
+        "value": "120ms ease",
+        "purpose": "Primary button active translate."
+      },
+      {
+        "name": "link",
+        "value": "150ms ease",
+        "purpose": "Breadcrumb link colour."
+      },
+      {
+        "name": "live-log",
+        "value": "requestAnimationFrame, ~2.2 records/sec",
+        "purpose": "The landing hero's live log field, the page's one authored moment. Worker-driven OffscreenCanvas; main-thread fallback; single static frame under reduced motion. Paused off-screen and on a hidden tab."
+      }
+    ],
+    "motionNotes": "Easing is the `ease` keyword everywhere. No cubic-bezier, no steps, and no authored @keyframes exist in the site's own components. surge.css carries a global `@media (prefers-reduced-motion: reduce)` block that collapses every animation and transition to 0.01ms with !important and forces scroll-behavior to auto, so the whole site is guarded at the root; the footer's local prefers-reduced-motion guard is redundant belt-and-braces. Third-party motion (the Starwind switch and the tw-animate-css select popup) declares no local duration or easing and inherits Tailwind defaults.",
+    "verification": {
+      "method": "Rendered in Chrome via agent-browser at 1920x1080 against the dev server, both themes, on /streams/, /client/connectors/features/, /client/security/ and the landing. Every probe returned a control value naming the element it queried; two probes were discarded and re-run when their controls proved they had queried the wrong node.",
+      "date": "2026-09-08",
+      "confirmed": [
+        "All 40 colour tokens resolve to the documented values in both themes.",
+        "Reading column reaches exactly 935.0px at a 1920 viewport; 55rem is a ceiling, not a fixed width — it measures 591.5px at 1280 and 897.8px at 1600.",
+        "Prose link outside a callout renders #60c2ff at 9.10:1 dark and #006fce at 4.86:1 light.",
+        "All eight callout hues render at their computed ratios: dark 7.76-8.83, light 4.79-5.83.",
+        "Type scale renders exactly: h1 48/300/-0.96px, h2 28/400 with 48/16 margins, h3 20/500 with 36/12, body 17/300/28.9px, root 17px.",
+        "--font-eyebrow resolves to Poppins on sidebar group labels, the TOC heading and both landing eyebrow variants; --font-mono remains Fira Code on code only.",
+        "Elevation inverts as documented: dark renders the inset edge plus shadow, light renders rgba(0,0,0,0) inset and the two-layer shadow alone.",
+        "Ambient wash renders at 0.12 alpha dark and 0.03 light on docs pages; hero::before at 0.22 on the landing.",
+        "Primary button fill renders #0077d9 with white text at 4.53:1.",
+        "::selection resolves to background var(--accent-fill) / color var(--cta-fg).",
+        "Feature lattice renders zero gap, zero radius, 1px shared borders, 32px cells.",
+        "Table renders display:table at full column width, 8px radius, 10px/14px cells.",
+        "Radius scale renders clean after a dev-server restart: aside/table/filter/search/pager/code-frame all 8px, inline code 4px, nav row 6px, active nav 0px. No off-scale value on the page. Expressive Code composes 7px + 1px border = 8px, confirming the borderRadius+borderWidth rule."
+      ],
+      "resolved": [
+        "home.css — .btn-primary carried `border: 1px solid var(--accent)` against an --accent-fill background, rendering a #60c2ff halo at 2.30:1 on its own fill. Border moved to --accent-fill; verified rgb(0,119,217) on both, box still 1px and dimensionally identical to .btn-secondary.",
+        "home.css declared no focus rule; landing buttons fell through to Chrome's `auto` outline at 3.00:1 against the ground. A shared :focus-visible rule now rings .btn-primary, .btn-secondary and .btn-tertiary at 2px --accent, 2px offset; verified by real Tab press (`:focus-visible` matched true) at 9.10:1.",
+        "surge.css — the accent comment said 'locked at OKLCH 240 deg'; reworded to the measured 239 / 253 / 256.",
+        "ThemeInspector.astro — --ink and --ink-dim were listed as unused; both now describe their D2 light-theme role.",
+        "surge.css — the surfaces and light-sections comments implied --bg-3, --bone and --pale-blue were consumed. Superseded: the tokens were subsequently removed outright on explicit instruction, and the comments now describe only what remains.",
+        "The six remaining unfocusable-looking controls now carry rings, each verified by landing on it with a real key press: site title, header KurrentDB link and filter clear button (2px offset), sidebar repository link (-2px offset, because the row spans the pane), breadcrumb links including the collapsed dropdown rows, the breadcrumb disclosure summary at a 400px viewport, and the landing's feature-lattice links. Rules live in SiteTitle.astro, SocialIcons.astro, Sidebar.astro, Breadcrumb.astro, surge.css and home.css. Breadcrumb.astro uses --sl-color-text-accent to match its file's local form; the rest use --accent. Both resolve to the same value.",
+        "Radius scale collapsed from nine values to five (2/4/6/8/999). Footer and Breadcrumb rem radii converted to px, the bare <pre> and landing install block folded 10px to 8px, the pagination card given an explicit 8px over Starlight's 0.5rem, and Expressive Code set to 7px so its composed outer radius lands on 8. Verified in a production build.",
+        "Accent mix ladder collapsed from 16 distinct percentages to 10, by folding same-role near-duplicates: ring 26->30, accent-low 18->16, filter hit 28->24, aside border 14->12, D2 dark surfaces 4->6 and 7->12, D2 light alt 14->12, breadcrumb current 10->8. Every change is at most 5 points on a translucent overlay.",
+        "Five zero-consumer tokens removed on explicit instruction: --plum, --plum-lift, --bg-3, --bone, --pale-blue. Verified absent from the production build with no consumer left in src/.",
+        "ThemeInspector.astro carried three further staleness items, two of them pre-existing rather than caused by this work: preset chips offering a coral/plum palette from two accents ago, a light-preview object still holding the amber-era palette (#f5f3f0 ground, #7a4f00 accent, 22% glow), a glow slider defaulting to 16 rather than 12, and a note claiming four literal-colour bypasses where the array holds one. All corrected.",
+        "Live log field shipped on the landing hero. Verified: worker path active (transferControlToOffscreen), hero animates (3 distinct captures), reduced motion static (3 identical captures), no copy overlap at 1600x1000 or 390x844, backing store exact at both, hero contrast unchanged (h1 16.07, lede/sub 10.33, CTA 4.53), detector clean, production build exit 0 with the worker emitted as a base-prefixed chunk.",
+        "Defect found and fixed during that verification: the IntersectionObserver fires on attach, so its resume message restarted the render loop that init had deliberately not started under reduced motion. Both the worker and the main-thread fallback now gate start() on reduced and visible together rather than at the call sites."
+      ],
+      "probeNote": "Programmatic .focus() is not a reliable way to verify :focus-visible in Chrome. Element.matches(':focus-visible') returned true while style resolution disagreed, which produced a false negative on four rules that were in fact applying. Every focus finding here was re-taken by pressing Tab, or by focusing then pressing Shift+Tab and Tab so the final landing was a genuine keyboard move.",
+      "defectsOpen": [],
+      "build": {
+        "command": "bun run build",
+        "result": "exit 0, 52 pages, all internal links valid",
+        "date": "2026-09-08"
+      }
+    },
+    "breakpoints": [
+      {
+        "name": "breadcrumb-collapse",
+        "value": "480px",
+        "note": "@media — the inline trail swaps for a disclosure."
+      },
+      {
+        "name": "sidebar-desktop",
+        "value": "800px",
+        "note": "@media (min-width: 50rem). rem resolves at 16px in media queries, not the declared 17px root."
+      },
+      {
+        "name": "toc-side-column",
+        "value": "1152px",
+        "note": "@media (min-width: 72rem). Below this the right rail wraps inline as a disclosure."
+      },
+      {
+        "name": "footer-two-column",
+        "value": "306px",
+        "note": "@container (min-width: 18rem). Container queries resolve rem at the computed 17px root."
+      },
+      {
+        "name": "footer-three-column",
+        "value": "442px",
+        "note": "@container (min-width: 26rem)."
+      }
+    ],
+    "radiusScale": {
+      "steps": [
+        "2px",
+        "4px",
+        "6px",
+        "8px",
+        "999px"
+      ],
+      "note": "Literal pixels only. rem at a 17px root previously produced 8.5px and 6.8px, which read as extra steps. Expressive Code is configured at 7px because it composes its outer radius as borderRadius + borderWidth; verified baked as --ec-brdRad:7px in dist."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single call to action. Takes the fill stop with white text, ringed on hover.",
+      "html": "<a class='ds-btn-primary' href='#'>Get started<svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14M12 5l7 7-7 7'/></svg></a>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 12px; background: var(--accent-fill); color: var(--cta-fg); font-family: var(--font-sans); font-size: 17px; font-weight: 500; padding: 16px 22px; border-radius: 4px; text-decoration: none; border: 1px solid var(--accent-fill); transition: transform 120ms ease, box-shadow 160ms ease; } .ds-btn-primary:hover { box-shadow: 0 0 0 4px var(--accent-ring); } .ds-btn-primary:active { transform: translateY(1px); background: var(--accent-deep); border-color: var(--accent-deep); } .ds-btn-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The alternative action. No fill, one hairline, text that lifts on hover.",
+      "html": "<a class='ds-btn-secondary' href='#'>Read the docs</a>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 8px; background: transparent; color: var(--fg-1); font-family: var(--font-sans); font-size: 16px; padding: 15px 18px; border-radius: 4px; text-decoration: none; border: 1px solid var(--border-1); transition: border-color 160ms ease, color 160ms ease; } .ds-btn-secondary:hover { color: var(--fg); border-color: var(--border-strong); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Sidebar Nav Link",
+      "kind": "nav",
+      "refersTo": "sidebar-link",
+      "description": "The navigation row in all three states. The 3px left border is held transparent at rest so the active state shifts nothing.",
+      "html": "<nav class='ds-nav'><a class='ds-nav-link' href='#'>Appending records</a><a class='ds-nav-link' href='#'>Reading streams</a><a class='ds-nav-link' href='#' aria-current='page'>Filters and projections</a><a class='ds-nav-link' href='#'>Schema registry</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 2px; } .ds-nav-link { display: block; font-family: var(--font-sans); font-size: 14px; font-weight: 400; color: var(--fg-dim); padding: 6px 12px; border-radius: 6px; border-left: 3px solid transparent; text-decoration: none; } .ds-nav-link:hover { color: var(--fg); background: var(--tint); } .ds-nav-link[aria-current='page'] { color: var(--accent); background: color-mix(in oklab, var(--accent) 8%, transparent); border-left-color: var(--accent); border-radius: 0; font-weight: 500; } .ds-nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Inline Code Chip",
+      "kind": "custom",
+      "refersTo": "inline-code",
+      "description": "A chip that sits inside the line without breaking its rhythm — smaller than the prose, hairline border, no heavy fill.",
+      "html": "<p class='ds-prose'>Call <code class='ds-code'>AppendRecordsAsync</code> to write to a stream.</p>",
+      "css": ".ds-prose { font-family: var(--font-sans); font-size: 17px; font-weight: 300; line-height: 1.7; color: var(--fg-1); margin: 0; } .ds-code { font-family: var(--font-mono); background: var(--tint-1); border: 1px solid var(--tint-2); border-radius: 4px; font-size: 15px; padding: 0.12em 0.42em; color: var(--fg-1); }"
+    },
+    {
+      "name": "Code Frame",
+      "kind": "custom",
+      "refersTo": "code-frame",
+      "description": "A code surface that follows the theme. Pinning it to one theme hides syntax tokens that share its colour.",
+      "html": "<pre class='ds-code-frame'><code>await client.AppendRecordsAsync(stream, records);</code></pre>",
+      "css": ".ds-code-frame { margin: 0; padding: 18px 22px; background: var(--code-bg); color: var(--code-fg); border: 1px solid var(--code-border); border-radius: 10px; font-family: var(--font-mono); font-size: 14px; line-height: 1.7; overflow-x: auto; box-shadow: inset 0 1px 0 rgba(245,243,240,0.06), 0 2px 10px rgba(0,0,0,0.55); } .ds-code-frame code { font-family: inherit; }"
+    },
+    {
+      "name": "Callout",
+      "kind": "card",
+      "refersTo": "aside-note",
+      "description": "A tinted rounded card keyed by kind. One shared rule reads a single --aside property for title colour, a 6% fill and a 14% border, so icon, title and border stay in step.",
+      "html": "<aside class='ds-aside ds-aside--note'><p class='ds-aside__title'><svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><path d='M12 16v-4M12 8h.01'/></svg>Note</p><div class='ds-aside__body'>The reading column is governed by one lever, and no CSS max-width competes with it.</div></aside>",
+      "css": ".ds-aside { --aside: #c099ff; border: 1px solid; border-radius: 8px; padding: 20px 24px; margin: 24px 0 28px; background: color-mix(in oklab, var(--aside) 6%, transparent); border-color: color-mix(in oklab, var(--aside) 14%, transparent); } .ds-aside--tip { --aside: #61cb7c; } .ds-aside--caution { --aside: #e7a226; } .ds-aside--danger { --aside: #ff8880; } .ds-aside__title { display: flex; align-items: center; gap: 8px; font-family: var(--font-sans); font-size: 15px; font-weight: 600; letter-spacing: 0; margin: 0 0 10px; color: var(--aside); } .ds-aside__body { font-family: var(--font-sans); font-size: 15px; font-weight: 300; line-height: 1.65; color: var(--fg-1); }"
+    },
+    {
+      "name": "Pagination Card",
+      "kind": "card",
+      "refersTo": "pagination-card",
+      "description": "Elevation in its clearest form: a lifted surface, a 1px highlight along the top on dark, and a shadow that now reads because the ground was raised off the floor.",
+      "html": "<a class='ds-page-card' href='#'><span class='ds-page-card__label'>Next</span><span class='ds-page-card__name'>Schema registry</span></a>",
+      "css": ".ds-page-card { display: flex; flex-direction: column; gap: 4px; width: fit-content; color: var(--accent); text-decoration: none; padding: 16px 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-1); box-shadow: inset 0 1px 0 var(--lift-edge), var(--lift-shadow); transition: border-color 160ms ease, background 160ms ease; } .ds-page-card:hover { border-color: var(--accent); background: var(--bg-2); } .ds-page-card__label { font-family: var(--font-sans); font-size: 14px; } .ds-page-card__name { font-family: var(--font-sans); font-size: 17px; font-weight: 500; color: var(--fg); } .ds-page-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Trigger",
+      "kind": "input",
+      "refersTo": "search-trigger",
+      "description": "A filled rounded field rather than a hairline chip. The keyboard hint is transparent and sits on the ghost step.",
+      "html": "<button class='ds-search'><svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='m21 21-4.3-4.3'/></svg><span>Search</span><kbd>&#8984;K</kbd></button>",
+      "css": ".ds-search { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-sans); font-size: 15px; letter-spacing: normal; color: var(--fg-fade); background: var(--tint); border: 1px solid var(--tint-2); border-radius: 8px; padding: 8px 12px; cursor: pointer; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; } .ds-search:hover { background: var(--tint-1); border-color: color-mix(in oklab, var(--accent) 40%, transparent); color: var(--fg); } .ds-search kbd { font-family: var(--font-mono); background: transparent; color: var(--fg-fade); margin-left: 8px; } .ds-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "toggle-cell",
+      "description": "Signature component. Selection is carried entirely by a sliding marker; the cells never change background, only their text step. The marker takes the bright stop because nothing sits on top of it.",
+      "html": "<div class='ds-seg' style='--cells: 3; --index: 1'><button class='ds-seg__cell'>System</button><button class='ds-seg__cell' data-state='on'>Dark</button><button class='ds-seg__cell'>Light</button></div>",
+      "css": ".ds-seg { position: relative; isolation: isolate; display: grid; grid-template-columns: repeat(var(--cells), minmax(0, 1fr)); align-items: center; gap: 0; width: 100%; min-height: 42.5px; padding: 4.25px; background: var(--tint); border: 1px solid var(--tint-2); border-radius: 8px; } .ds-seg::before { content: ''; position: absolute; z-index: 0; top: 4.25px; bottom: 4.25px; left: 4.25px; width: calc((100% - 8.5px) / var(--cells)); box-sizing: border-box; border-radius: 6px; border: 1px solid var(--accent); background: color-mix(in oklab, var(--accent) 24%, transparent); transform: translateX(calc(var(--index) * 100%)); transition: transform 180ms ease; } .ds-seg:hover { border-color: var(--border-1); } .ds-seg:has(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; } .ds-seg__cell { position: relative; z-index: 1; height: 30.6px; padding: 0 8.5px; min-width: 0; border: 0; border-radius: 4px; box-shadow: none; background: transparent; color: var(--fg-fade); font-family: var(--font-sans); font-size: 13.81px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; outline: none; } .ds-seg__cell:hover { color: var(--fg-1); } .ds-seg__cell[data-state='on'] { color: var(--fg); }"
+    },
+    {
+      "name": "Sidebar Toggle Tab",
+      "kind": "custom",
+      "refersTo": "sidebar-toggle",
+      "description": "Signature component. A half-pill welded to the pane seam — the missing inline-start border and the one-sided radius make it read as extruded rather than floating.",
+      "html": "<button class='ds-pane-toggle'><svg class='ds-pane-toggle__chevron' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m15 18-6-6 6-6'/></svg></button>",
+      "css": ".ds-pane-toggle { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; background: var(--bg); color: var(--fg-fade); border: 1px solid var(--tint-2); border-inline-start: 0; border-radius: 0 6px 6px 0; cursor: pointer; transition: inset-inline-start 250ms ease; } .ds-pane-toggle:hover { color: var(--accent); border-color: color-mix(in oklab, var(--accent) 40%, transparent); } .ds-pane-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; } .ds-pane-toggle__chevron { transform-origin: 14.5px 12px; transition: transform 250ms ease; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lit Page",
+    "overview": "An editorial page printed on blue-black stock, with one light source above it. Everything in this system follows from that image. Type does the work: the largest text carries the least weight, and each step down gains weight as it loses size, so hierarchy is read from proportion rather than from boxes, rules, or colour. Colour is rationed to a single azure family, and every emphasis in the interface is a percentage mix of it against transparency. Nothing is painted with an unrelated hue, so the whole page repaints from one small set of tokens.\n\nThe ground is deliberately not black. It sits at OKLCH lightness 20.4%, well off the floor of the range, because a cast shadow needs something beneath it to darken. At the bottom of the range nothing can be darker than the page and every elevation cue disappears at once. Raising the ground is what lets the system use real shadows, and the neutral ramps above it are cool throughout — every step keeps blue at or above red, because beside an azure accent a warm grey reads yellow-brown.\n\nThe accent is split rather than shaded. No single value can be both a legible link and a saturated fill on this ground, so the family carries three stops: a bright one for text, a saturated one for fills that must hold white, and a deeper one for pressed states. The register is restrained, editorial, and engineered. Confidence shows in the omissions that were made deliberately and recorded — the film grain was removed so dark fields stay flat, and the rule under the page title was removed because it read as a divider between a heading and its own first paragraph.",
+    "keyCharacteristics": [
+      "One azure family, three stops, split by role rather than by shade",
+      "Inverse weight hierarchy — 300 at 48px, 500 at 20px",
+      "A raised ground, so shadow has somewhere to fall",
+      "Cool neutrals throughout; every step of both ramps clears 4.5:1",
+      "Flat fields, hairline borders, no boxes where a rule will do",
+      "One fixed radial wash as the sole ambient gradient",
+      "17px root, so every rem in the system is 17-based",
+      "Dark-first: bare :root is dark, light is the override"
+    ],
+    "rules": [
+      {
+        "name": "The Text/Fill Split Rule",
+        "body": "--accent is a text colour and never a fill. --accent-fill is a fill and never text. The split is not cosmetic: on this ground the bright stop reads text at 9.10:1 but would put white at 1.97:1, and the fill stop carries white at 4.53:1 but would read as text at only 3.96:1. Reaching for the wrong stop breaks contrast in one direction or the other, every time.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mix, Never Match Rule",
+        "body": "Every accent emphasis is written color-mix(in oklab, var(--accent…) N%, transparent). No emphasis colour is ever spelled as a literal. Text emphases mix from --accent; the hover ring mixes from --accent-fill.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "All accent stops sit in one narrow hue band — measured at 239, 253 and 256 degrees. There is no secondary brand colour. When two things must be told apart, they are told apart by weight, size, position, or mix percentage.",
+        "section": "colors"
+      },
+      {
+        "name": "The Isoluminant Asides Rule",
+        "body": "The four callout hues are matched in lightness and chroma and separated by hue alone — dark at L 76% and C 0.15 across hues 25 / 76 / 150 / 301, light at L 52% across hues 25 / 58 / 147 / 300. Each sits at least 60 degrees off the accent band, so no callout title can be mistaken for a link, and each is far enough from the others to be told apart at a glance. They are not brand tokens and must not be promoted into the palette.",
+        "section": "colors"
+      },
+      {
+        "name": "The Inverse Weight Rule",
+        "body": "The largest type carries the least weight. Size falls and weight rises: 300 at 48px, 400 at 28px, 500 at 20px. This is the single most identifying property of the system, and it is why headings need no colour or rule to separate them.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Is For Code Only Rule",
+        "body": "Fira Code sets code and nothing else. Uppercase index labels take the sans, because a monospace fixes every glyph to one advance, and the wide tracking an uppercase label wants then pushes the letters past the point where they read as words at all.",
+        "section": "typography"
+      },
+      {
+        "name": "The Reader Owns The Face Rule",
+        "body": "OpenDyslexic is a first-class option, not an afterthought. It runs 41% wider than Poppins at matched x-height, so its scope sets font-size-adjust: 0.397 — the measured width match — and the switch reflows no line. Code is exempt from the adjustment.",
+        "section": "typography"
+      },
+      {
+        "name": "The Two Rem Bases Rule",
+        "body": "Root font-size is 17px, so 1rem is 17px in every declaration — but @media resolves rem against the initial 16px while @container resolves it against the computed 17px. @media (min-width: 50rem) is 800px; @container (min-width: 18rem) is 306px. Never carry a breakpoint figure from one context to the other.",
+        "section": "layout"
+      },
+      {
+        "name": "The Raised Floor Rule",
+        "body": "The dark ground sits at OKLCH lightness 20.4%, deliberately off the bottom of the range, because a cast shadow needs something beneath it to darken. Never push the ground toward black to gain contrast: it removes every elevation cue in the system at once.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Edge Inverts Rule",
+        "body": "Elevation reverses with the theme. A raised dark surface is lighter than its ground and catches a highlight along its top edge, so the dark theme uses the inset edge and the shadow. A raised light surface cannot get meaningfully lighter than an already-near-white page, so the light theme drops the edge to transparent and the shadow carries alone.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Wash Rule",
+        "body": "A page carries exactly one gradient and it belongs to the page or its hero, never to a component. Its strength is theme-specific and not symmetric: 12% on dark, 3% on light, because an accent wash over a near-white ground reads as a smudge rather than as light. The landing runs its own at 22% because that one is scoped to a hero, not to a whole page — home.css sets `body { background: var(--bg) }`, whose shorthand resets the docs theme's body background-image to none.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Hairline Rule",
+        "body": "Every structural border is 1px. Reach for 2px only for a focus outline or a selection marker, and for 3px only where an existing 3px marker already establishes the weight.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Lattice, Not Cards Rule",
+        "body": "Where a grid of related items is needed, draw single shared 1px borders conditionally per index at zero gap and zero radius, so the group reads as one ruled table. The landing's six-cell feature grid is the reference implementation. Do not turn it into cards.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do use --accent for text and --accent-fill for fills, every time. --accent-deep is the pressed state on a filled surface.",
+      "Do express every accent emphasis as color-mix(in oklab, var(--accent…) N%, transparent), so a hue change stays a token edit.",
+      "Do keep the dark ground off the floor of the lightness range. Shadow depends on it.",
+      "Do pair the inset light edge with the shadow on dark, and drop the edge on light.",
+      "Do keep the ambient wash accent-tinted and anchored to body, and keep its light-theme strength far below its dark-theme strength.",
+      "Do let size fall as weight rises. A heading is established by proportion, not by a rule or a colour.",
+      "Do give a focus ring a 2px accent outline with a 2px offset, and move the signal to the wrapper when the control itself must suppress its outline.",
+      "Do reserve borders in a transparent state when a state change would otherwise shift layout — the sidebar row and the social icon both do this.",
+      "Do hold every colour in surge.css. D2 diagrams, code frames, and Starwind components all resolve from it, and a colour written anywhere else stops following the theme toggle.",
+      "Do adopt the 42.5px / 1px / 8px / faint-tint contract for any new control added to the footer rail."
+    ],
+    "donts": [
+      "Don't put --accent under white text or on a fill, and don't use --accent-fill as text. Each fails contrast in the opposite direction.",
+      "Don't introduce a hue outside the azure band for anything structural. Distinguish by weight, size, position, or mix percentage.",
+      "Don't promote a callout hue into the palette, and don't use the brand accent to mean \"information\".",
+      "Don't pin a code surface to one theme. The syntax themes swap, and a pinned surface hides tokens that share its colour.",
+      "Don't put a gradient on a panel, card, button, or field. The system's one gradient belongs to the page.",
+      "Don't set a structural border above 1px. 2px is for focus and selection markers, and 3px only where a 3px marker already exists.",
+      "Don't write a colour as a literal hex outside the token block.",
+      "Don't carry a rem breakpoint figure between @media and @container. They resolve against different bases here.",
+      "Don't add a max-width that competes with --sl-content-width. It is the only lever on the reading column.",
+      "Don't ship a new interactive element with no focus style. home.css declares no focus rule at all, so every button on the landing page — the primary call to action included — falls through to the browser default; measured, the primary button rings at Chrome's `auto` outline. The same gap exists on breadcrumb links, the site title, the header link, the repository link, and the filter clear button. That is a defect to be repaired, not a pattern to copy.",
+      "Don't add a step to the radius scale, and don't express one in rem. Every radius in the system is a literal pixel value drawn from 2 / 4 / 6 / 8 / 999. rem at a 17px root produced 8.5px and 6.8px values that read as a fourth and fifth step; they are gone."
+    ]
+  }
+}

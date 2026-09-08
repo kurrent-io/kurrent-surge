@@ -1,116 +1,136 @@
 # Kurrent .NET SDK
 
-> .NET monorepo SDK for the Kurrent platform — independently installable gRPC client and stream processing packages.
+> .NET monorepo SDK for the Kurrent platform. It ships two independently installable packages: a gRPC
+> client and a stream-processing runtime.
 
-This file documents only what breaks convention. If a senior developer would guess it correctly from the codebase, it
-does not belong here. Do not add standard patterns, paraphrased docs, or facts discoverable from a single config file.
-When editing, preserve this bar.
+This file documents only what breaks convention. If a senior developer would guess it correctly from the
+codebase, it does not belong here. Do not add standard patterns, paraphrased docs, or facts you can find in
+a single config file. When you edit this file, hold that bar.
 
 ## Working rules
 
-Earned the hard way. Each one cost a session.
+Each one cost a session.
 
-- **Read the reference before designing.** When a site, repo, or product is named as the thing to
-  match, read its source config first. Clone it if needed. Never reverse-engineer it from a
-  screenshot — the answer is usually a dozen lines someone already wrote.
-- **Check the skills list before the first edit in a domain**, not after failing. Same for the
-  framework's own docs and its source in `node_modules`.
-- **Solve the stated problem.** Do not invent requirements, and do not build a mechanism beside the
-  framework when configuring the framework would do.
-- **UI changes are verified in a browser**, by measuring the rendered elements. A green build, a
-  passing grep, or correct markup in `dist/` is not verification.
-- **A probe returning "missing" is unproven** until it shows it queried the right element. Return a
-  control value beside the value under test. Never change code on a negative result alone.
-- **One environment, named once.** Confirm which URL and which server the reader is on before
-  reporting anything about it.
-- **An earlier recommendation never outranks a current instruction.** If they conflict, say so in one
-  line and follow the instruction.
+- **Read the reference before you design.** When someone names a site, repo, or product as the thing to
+  match, read its source config first. Clone it if you need to. Never reverse-engineer it from a
+  screenshot. The answer is usually a dozen lines someone already wrote.
+- **Check the skills list before the first edit in a domain**, not after you fail. Do the same for the
+  framework's own docs and for its source in `node_modules`.
+- **Solve the stated problem.** Do not invent requirements. Do not build a mechanism beside the framework
+  when configuring the framework would do.
+- **Verify a UI change in a browser** by measuring the rendered elements. A green build, a passing grep,
+  or correct markup in `dist/` is not verification.
+- **A probe that reports "missing" is unproven** until it shows which element it queried. Return a control
+  value beside the value under test. Never change code on a negative result alone.
+- **Name the environment once.** Confirm which URL and which server the reader is on before you report
+  anything about it.
+- **An earlier recommendation never outranks a current instruction.** If the two conflict, say so in one
+  line, then follow the instruction.
 
 ## Stack
 
-Targets net10.0 only. Use the latest net10 APIs. Source generators are the exception — they target
-netstandard2.0 (Roslyn requirement). Never pass `--framework` to solution-wide `dotnet build` or `dotnet test`
-— it forces a single TFM onto the whole solution and breaks the source generator projects with `NETSDK1005`.
+The SDK targets net10.0 only. Use the latest net10 APIs. Source generators are the exception. They target
+netstandard2.0 because Roslyn requires it.
 
-C# 14 extension members (`extension(Type t)`) are in active use in the Streams module.
+Never pass `--framework` to a solution-wide `dotnet build` or `dotnet test`. It forces one TFM onto the
+whole solution and breaks the source-generator projects with `NETSDK1005`.
 
-No meta-package — consumers install only what they need.
+The Streams module uses C# 14 extension members (`extension(Type t)`).
 
-Greenfield project: no legacy compatibility constraints, no existing user base.
+There is no meta-package. Consumers install only what they need.
 
-## Build & Test
+This is a greenfield project. There are no legacy compatibility constraints and no existing user base.
 
-Test containers are managed by Aspire (`test/Aspire.Hosting.KurrentDB`). TLS certificates are generated
-automatically by the test harness — no manual setup required.
+## Build and test
 
-When consolidating multiple experimental versions into a single implementation, do not delete the old files
-until the new version builds and its tests pass.
+Aspire manages the test containers (`test/Aspire.Hosting.KurrentDB`). The test harness generates the TLS
+certificates, so you do not set them up by hand.
 
-When a failing test reveals a mismatch between test expectation and code output (e.g. test expects snake_case,
-code produces kebab-case), do not unilaterally change either side. Report the mismatch, offer both options,
-and wait for direction. Heuristics like "majority of call sites" are not permission to decide.
+When you consolidate several experimental versions into one implementation, keep the old files until the
+new version builds and its tests pass.
 
-Before referring to any project, file, or path by name — verify it exists on disk. Do not assume sibling
-projects exist from naming convention alone.
+When a failing test shows a mismatch between what the test expects and what the code produces, for example
+the test expects snake_case and the code produces kebab-case, do not change either side on your own.
+Report the mismatch, offer both options, and wait for direction. A heuristic such as "the majority of call
+sites do it this way" is not permission to decide.
 
-Playground, probe, and throwaway projects (`playground/`, `.claude/context/.scratch/`) always target net10.0 — they
-are not consumer-facing, so the minimum-supported TFM rule does not apply. `playground/` is tracked and ships with
-the repository; only `.claude/context/.scratch/` is throwaway.
+Before you refer to any project, file, or path by name, verify that it exists on disk. Do not assume a
+sibling project exists because the naming convention suggests it.
 
-When debugging CI or workflow issues, create a minimal throwaway workflow targeting just the failing step
+Playground and throwaway projects (`playground/`, `.claude/context/.scratch/`) always target net10.0. They
+are not consumer-facing, so the minimum-supported-TFM rule does not apply. `playground/` is tracked and
+ships with the repository. Only `.claude/context/.scratch/` is throwaway.
+
+To debug a CI or workflow problem, create a minimal throwaway workflow that targets the failing step
 instead of running the full pipeline.
 
-`tools/` contains .NET 10 file-based apps (`.cs` files with `#:` directives). Restore once after cloning:
-`dotnet tool restore`.
+`tools/` holds .NET 10 file-based apps: `.cs` files with `#:` directives. There is no tool manifest and the
+tools are not published to any feed, so run them from source:
 
-| Method     | Example                                    | Notes                          |
-|------------|--------------------------------------------|--------------------------------|
-| Local tool | `dotnet semver-bump check`                 | Requires `dotnet tool restore` |
-| dnx        | `dnx semver-bump check`                    | No install needed              |
-| Script     | `dotnet run tools/semver-bump.cs -- check` | Runs from source directly      |
+```bash
+dotnet run tools/semver-bump.cs -- --help
+dotnet run tools/semver-bump.cs -- check   # needs GITHUB_TOKEN and GITHUB_REPOSITORY
+```
+
+CI is the exception. `.github/actions/install-tools/action.yml` packs every `.cs` file under `tools/` and
+`scripts/` that declares `ToolCommandName`, installs it to `.artifacts/tools`, and appends that directory
+to `PATH`. Only in CI does `semver-bump` resolve as a bare command.
+
+Three scripts are the **only** supported way to do their job. Never hand-roll a substitute for one:
+
+| Job | Script |
+|---|---|
+| Run tests | `scripts/testing/test-runner.cs`, never `dotnet test` |
+| Run benchmarks | `scripts/benchmarks/run-benchmarks.sh` |
+| Validate a package | `scripts/verify-package.py`, never unzip a `.nupkg` by hand |
 
 ## Protocols
 
-Dual gRPC split — V2 handles appends, registry, indexes, and connectors; V1 legacy handles reads and management.
-The V2 read path is commented out; those RPCs do not exist in the proto yet. Proto definitions live in
-`proto/kurrentdb/protocol/{v0,v1,v2}/`.
+The gRPC surface is split across two protocol versions. V2 handles appends, registry, indexes, and
+connectors. V1 legacy handles reads and management. The V2 read path is commented out because those RPCs
+do not exist in the proto yet. Proto definitions live in `proto/kurrentdb/protocol/{v0,v1,v2}/`.
 
 ## Structure
 
-Two publishable packages:
+Two packages ship:
 
+```text
+Kurrent.Surge         gRPC client and processor runtime
+Kurrent.Surge.Core    contracts, message catalogs, and the JSON, Protobuf, and Avro codecs
 ```
-Kurrent.Surge                  ← gRPC client (streams, registry, indexes, connectors, admin)
-Kurrent.Surge.Core             ← contracts and shared foundation; message declaration layer; JSON, Protobuf, and Avro codecs; ships the Avro codec and catalog generators
-```
 
-Verify the live list with `grep -l "IsPackable>true" src/*/*.csproj`.
+Regenerate that list with `grep -l "IsPackable>true" src/*/*.csproj`.
 
-Solution-level shared libraries — `Variant` and `Kurrent.CodeAnalysis` — are not published as
-NuGet packages. `Kurrent.Surge.Generators` (unique identifiers + the Avro codec generator) and
-`Kurrent.Surge.Schema.Catalogs.Generators` are not packages either, but their DLLs ship inside
-`Kurrent.Surge.Core` under `analyzers/dotnet/cs/`.
+`Variant` and `Kurrent.CodeAnalysis` are solution-level libraries and are not published.
+`Kurrent.Surge.Generators` and `Kurrent.Surge.Schema.Catalogs.Generators` are not packages either, but
+their DLLs ship inside `Kurrent.Surge.Core` under `analyzers/dotnet/cs/`.
 
-`Kurrent.Surge` contains a `Client/Legacy/` folder with V1 gRPC compatibility — not a separate package.
+`Kurrent.Surge.Generators` emits three things: unique-identifier value types, Avro codecs, and options
+validation.
 
-Streams module split across 13 partial class files. Naming convention documented in
+`Kurrent.Surge/Client/Legacy/` holds V1 gRPC compatibility. It is a folder, not a package.
+
+The Streams module is split across 13 partial class files. The naming convention is in
 [Module Organization](.claude/context/project/module-organization.md).
 
 Sum types use source-generated `IVariant` discriminated unions.
 
 ### Two docs trees, one is dead
 
-`website/` is the live documentation site, Astro and Starlight. `docs/` at the repo root is the
-legacy VuePress KurrentDB product site and has nothing to do with the SDK. Reach for `website/`.
-`.github/workflows/docs.yml` still filters on `docs/**`, so it never fires for the live site.
+`website/` is the live documentation site, built with Astro and Starlight.
+`.github/workflows/docs.yml` builds it on any push that touches `website/**` and publishes it to GitHub
+Pages.
+
+`docs/` at the repo root is the legacy VuePress KurrentDB product site. It has nothing to do with the SDK.
+Reach for `website/`.
 
 ### Examples
 
-Eighteen runnable projects under `examples/`, carried by `examples/Examples.slnx` and by
-`Kurrent.Surge.slnx`. Read one before hand-writing a usage sample.
+`examples/` holds 18 runnable projects, carried by `examples/Examples.slnx` and by `Kurrent.Surge.slnx`.
+Read one before you hand-write a usage sample.
 
-```
-examples/streams/     QuickStart (31 lines, the minimal complete program), InventoryManagement
+```text
+examples/streams/     QuickStart (38 lines, the minimal complete program), InventoryManagement
 examples/processors/  WordCount, FraudDetection, IoTMonitoring, Leaderboard, OrderEnrichment,
                       ClickstreamSessions, WithPostgres, WithRedisCache, FullExample,
                       AspNetMinimal, Connector.Management
@@ -120,69 +140,69 @@ examples/             PackageTest, PackageTest.Streaming, Transfermarkt.Domain
 
 No example covers indexes, the Avro codec, or the admin API.
 
-`examples/README.md` is not an index. It documents message-catalog naming only and name-drops three
-projects as illustrations. Every example carries its own README except the two `PackageTest`
-projects and `Transfermarkt.Domain`, which are a package-resolution smoke test and a shared domain
-library rather than usage samples.
+`examples/README.md` is not an index. It documents message-catalog naming and names three projects as
+illustrations. Every example carries its own README except the two `PackageTest` projects and
+`Transfermarkt.Domain`. Those three are a package-resolution smoke test and a shared domain library, not
+usage samples.
 
-CI builds them twice: once inside the root solution, then again as
+CI builds the examples twice. The first pass runs inside the root solution. The second runs
 `dotnet build examples/Examples.slnx -c Release -p:TestPackages=true`, which flips the `PackageTest`
-projects from `ProjectReference` to a real `PackageReference` against the locally packed feed. A
-failure in that second pass means the published package is broken, not the example.
+projects from a `ProjectReference` to a real `PackageReference` against the locally packed feed. A failure
+in the second pass means the published package is broken, not the example.
 
 ## Project context
 
-Knowledge base at `.claude/context/` — structure, frontmatter shapes, and rules live in the
-`devx-knowledge-base` skill.
-Plan-mode scratch at `.claude/plans/`. Throwaway files at `.claude/context/.scratch/`.
+The knowledge base lives at `.claude/context/`. Its structure, frontmatter shapes, and rules live in the
+`devx-knowledge-base` skill. Plan-mode scratch goes in `.claude/plans/`, throwaway files in
+`.claude/context/.scratch/`.
 
 ## Reference
 
-Read these before working on related areas. Do not read all upfront.
+Read these before you work on the related area. Do not read them all up front.
 
-| Document                                                              | When to read                                             |
-|-----------------------------------------------------------------------|----------------------------------------------------------|
-| [Architecture](.claude/context/project/architecture.md)               | Before structural changes, new modules, or protocol work |
-| [Kurrent.Surge](.claude/context/project/client.md)                    | Before working on the client library                     |
-| [Builder Conventions](.claude/context/project/builder-conventions.md) | Before adding builders, factories, or fluent APIs        |
-| [Packaging](.claude/context/project/packaging.md)                     | Before adding project references to packable projects    |
-| [Module Organization](.claude/context/project/module-organization.md) | Before adding files, models, or mappers to a module      |
-| [Docs Guidelines](.claude/context/project/docs-guidelines.md)         | Before writing or updating documentation                 |
+| Document | When to read |
+|---|---|
+| [Architecture](.claude/context/project/architecture.md) | Before structural changes, new modules, or protocol work |
+| [Kurrent.Surge client](.claude/context/project/client.md) | Before working on the client library |
+| [Packaging](.claude/context/project/packaging.md) | Before adding project references to packable projects |
+| [Module Organization](.claude/context/project/module-organization.md) | Before adding files, models, or mappers to a module |
+| [Docs Guidelines](.claude/context/project/docs-guidelines.md) | Before writing or updating documentation |
 
 ### XML documentation
 
-XML docs follow the devx standard bundled with the `devx-xmldoc-audit` skill: docs state current behavior
-only (never a changelog); public members get complete, terse docs with multiline summaries; `<remarks>` only
-for hazards and contracts; internal members documented only when non-obvious; cross-references
-actionable-only; `<example>` and `<seealso>` banned. Domain vocabulary lives in [CONTEXT.md](CONTEXT.md).
+XML docs follow the devx standard bundled with the `devx-xmldoc-audit` skill. Docs state current behavior
+and never read as a changelog. Public members get complete, terse docs with multiline summaries. Use
+`<remarks>` only for hazards and contracts. Document internal members only when they are non-obvious. Keep
+cross-references actionable. `<example>` and `<seealso>` are banned. Domain vocabulary lives in
+[CONTEXT.md](CONTEXT.md).
 
-Repo addenda for the audit:
+Two repo addenda for the audit:
 
-- Module client summaries read `Provides operations for [module] in KurrentDB.`
-- Exemption: source-generator-emitted implicit conversion operators on `IVariant` types.
+- A module client summary reads `Provides operations for [module] in KurrentDB.`
+- Implicit conversion operators emitted by a source generator on `IVariant` types are exempt.
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues live in **Linear** — DevEx team, `Kurrent SDK .NET` project, referenced as `DEV-XXXX` and operated
-through the Linear MCP. PRs are not a request surface.
+Issues live in Linear, on the DevEx team, in the `Kurrent SDK .NET` project. They are referenced as
+`DEV-XXXX` and operated through the Linear MCP. Pull requests are not a request surface.
 
-Repo coordinates and label taxonomy live in `LINEAR.md` (repo root) — the contract read by the global
-`devx-linear-workflow` skill (MUST be consulted before any Linear operation). Background on the current
-rules is also written up in `.claude/context/project/issue-tracker-linear.md`.
+`LINEAR.md` at the repo root holds the repo coordinates and the label taxonomy. It is the contract that
+the global `devx-linear-workflow` skill reads, and you MUST consult it before any Linear operation. The
+generic process and the fixed DevEx facts live in that skill, not in this repo.
 
 ### Triage labels
 
 The five canonical triage roles map onto Linear's native workflow states plus the classification labels in
-`devx-linear-workflow`; the role strings are not configured labels and issue status is never set manually.
+`devx-linear-workflow`. The role strings are not configured labels. Never set issue status by hand.
 
 ### Domain docs
 
 - Single-context: `CONTEXT.md` at the repo root.
-- Existing reference docs under `.claude/context/project/`.
-- ADRs are not part of our doc workflow, but some skills under evaluation emit them — if one is ever created
-  it goes in `.claude/context/docs/adr/`, reserved so those skills work.
+- Reference docs: `.claude/context/project/`.
+- ADRs are not part of this doc workflow, but some skills under evaluation emit them. If one is ever
+  created it goes in `.claude/context/docs/adr/`, which is reserved so those skills work.
 
 <!-- markdownlint-disable MD025 MD013 -->
 <!-- jbcontext-instructions-start -->

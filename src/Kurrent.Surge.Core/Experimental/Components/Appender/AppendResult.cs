@@ -6,7 +6,7 @@ namespace Kurrent.Surge.Experimental;
 /// Outcome of an appended record. Wraps the server response on success, or
 /// carries error/drop information on failure.
 /// </summary>
-sealed record AppendResult {
+public sealed record AppendResult {
     AppendResult(AppendResultStatus status) => Status = status;
 
     internal AppendResult(AppendRecordsResponse response) {
@@ -50,7 +50,7 @@ sealed record AppendResult {
 /// <summary>
 /// Status of an individual append operation.
 /// </summary>
-enum AppendResultStatus {
+public enum AppendResultStatus {
     /// <summary>
     /// The record's batch was acknowledged by the server.
     /// </summary>
@@ -71,4 +71,4 @@ enum AppendResultStatus {
 /// <summary>
 /// Error information passed to <see cref="AppenderOptions.OnError"/>.
 /// </summary>
-sealed record AppendError(Exception Exception);
+public sealed record AppendError(Exception Exception);

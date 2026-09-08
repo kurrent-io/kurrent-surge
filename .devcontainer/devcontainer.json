@@ -94,10 +94,7 @@
     }
   },
 
-  "onCreateCommand": {
-    "safe-dir": "git config --global --add safe.directory ${containerWorkspaceFolder}",
-    "tool-restore": "dotnet tool restore"
-  },
+  "onCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
   "updateContentCommand": "dotnet restore",
   "postCreateCommand": "bash .devcontainer/verify.sh",
   "postStartCommand": "dotnet dev-certs https --trust",

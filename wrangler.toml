@@ -1,8 +1,0 @@
-name = "kurrent-surge"
-compatibility_date = "2026-04-01"
-
-[build.watch]
-include = ["docs/**"]
-
-[assets]
-directory = "./docs/public"
