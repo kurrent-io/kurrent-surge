@@ -248,7 +248,7 @@ export default defineConfig({
             { label: 'Managing Connectors', slug: 'client/connectors/manage' },
             { label: 'Features', slug: 'client/connectors/features' },
             { label: 'Configure Connector', slug: 'client/connectors/settings' },
-            { label: 'Observability', slug: 'client/connectors/metrics' },
+            { label: 'Observability', slug: 'client/connectors/observability' },
             {
               label: 'Sinks',
               collapsed: true,
