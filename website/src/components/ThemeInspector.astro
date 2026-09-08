@@ -6,7 +6,6 @@ const GROUPS = [
       { n: '--bg', affects: 'Page ground. Starlight --sl-color-bg and --sl-color-bg-sidebar.' },
       { n: '--bg-1', affects: 'Starlight --sl-color-gray-7. Image backing in prose.' },
       { n: '--bg-2', affects: 'Inline-code ground, Starlight --sl-color-gray-6.' },
-      { n: '--bg-3', affects: 'Nothing. Retained as an accent candidate.' },
     ],
   },
   {
@@ -30,21 +29,19 @@ const GROUPS = [
   {
     name: 'Accent',
     tokens: [
-      { n: '--accent', affects: 'Prose links, active sidebar rail and wash, TOC current, CTA fill, focus, ::selection, caution asides.' },
-      { n: '--cta-fg', affects: 'Text and icon colour on top of a coral fill.' },
-      { n: '--accent-ring', affects: 'The 4px halo on primary-button hover. Computed from --accent.' },
+      { n: '--accent', affects: 'Prose links, active sidebar rail and wash, TOC current, focus, caution asides. Text only — never a fill.' },
+      { n: '--accent-fill', affects: 'CTA fill, ::selection, sidebar current-page background. The same hue as --accent, dark enough to carry white text.' },
+      { n: '--accent-deep', affects: 'Pressed and hover states on an --accent-fill surface.' },
+      { n: '--cta-fg', affects: 'Text and icon colour on top of an --accent-fill surface.' },
+      { n: '--accent-ring', affects: 'The 4px halo on primary-button hover. Computed from --accent-fill.' },
       { n: '--glow-a', affects: 'Strength of the ambient wash on body. Its hue comes from --accent.' },
-      { n: '--plum', affects: 'Nothing. Alternate accent candidate.' },
-      { n: '--plum-lift', affects: 'Nothing. Alternate accent candidate.' },
     ],
   },
   {
-    name: 'Light-mode seed',
+    name: 'Diagram ink',
     tokens: [
-      { n: '--bone', affects: 'Unused. Ground for a light palette.' },
-      { n: '--pale-blue', affects: 'Unused. Secondary light band.' },
-      { n: '--ink', affects: 'Unused. Heading colour for a light palette.' },
-      { n: '--ink-dim', affects: 'Unused. Body colour for a light palette.' },
+      { n: '--ink', affects: 'D2 diagram text under the light theme.' },
+      { n: '--ink-dim', affects: 'Muted D2 diagram text under the light theme.' },
     ],
   },
 ];
@@ -54,12 +51,13 @@ const BYPASSES = [
 ];
 
 const LIGHT = {
-  '--bg': '#f5f3f0', '--bg-1': '#ffffff', '--bg-2': '#e8e4de',
-  '--fg': '#1a1a1a', '--fg-1': '#3a3843', '--fg-dim': '#5c5a66',
-  '--fg-dimmer': '#64626e', '--fg-fade': '#6e6b78',
-  '--border': 'rgba(26, 26, 26, 0.12)', '--border-1': 'rgba(26, 26, 26, 0.20)',
-  '--border-strong': 'rgba(26, 26, 26, 0.38)',
-  '--accent': '#7a4f00', '--cta-fg': '#ffffff', '--glow-a': '22%',
+  '--bg': '#f9fbfe', '--bg-1': '#ffffff', '--bg-2': '#ecf3f8',
+  '--fg': '#0d151a', '--fg-1': '#354550', '--fg-dim': '#566f82',
+  '--fg-dimmer': '#5b7485', '--fg-fade': '#5f7585',
+  '--border': 'rgba(13, 21, 26, 0.13)', '--border-1': 'rgba(13, 21, 26, 0.20)',
+  '--border-strong': 'rgba(13, 21, 26, 0.36)',
+  '--accent': '#006fce', '--accent-fill': '#0077d9', '--accent-deep': '#005fbd',
+  '--cta-fg': '#ffffff', '--glow-a': '3%',
 };
 ---
 
@@ -84,18 +82,18 @@ const LIGHT = {
       <span class="ti__ctl-t">--accent</span>
       <input type="color" data-var="--accent" />
       <span class="ti__presets">
-        <button type="button" class="ti__chip" data-preset="--accent" data-value="#ff4a80" style="--chip:#ff4a80">coral</button>
-        <button type="button" class="ti__chip" data-preset="--accent" data-value="#2a273f" style="--chip:#2a273f">plum</button>
-        <button type="button" class="ti__chip" data-preset="--accent" data-value="#3a3654" style="--chip:#3a3654">plum-lift</button>
-        <button type="button" class="ti__chip" data-preset="--accent" data-value="#a8134a" style="--chip:#a8134a">coral AA</button>
+        <button type="button" class="ti__chip" data-preset="--accent" data-value="#60c2ff" style="--chip:#60c2ff">text</button>
+        <button type="button" class="ti__chip" data-preset="--accent" data-value="#0077d9" style="--chip:#0077d9">fill</button>
+        <button type="button" class="ti__chip" data-preset="--accent" data-value="#005fbd" style="--chip:#005fbd">deep</button>
+        <button type="button" class="ti__chip" data-preset="--accent" data-value="#006fce" style="--chip:#006fce">light ink</button>
       </span>
     </label>
 
     <label class="ti__ctl">
       <span class="ti__ctl-k">Background gradient</span>
       <span class="ti__ctl-t">--glow-a</span>
-      <input type="range" data-glow-a min="0" max="60" step="1" value="16" />
-      <output data-glow-out>16%</output>
+      <input type="range" data-glow-a min="0" max="60" step="1" value="12" />
+      <output data-glow-out>12%</output>
     </label>
   </section>
 
@@ -118,7 +116,7 @@ const LIGHT = {
 
   <section class="ti__group">
     <h3 class="ti__group-h">Will not respond</h3>
-    <p class="ti__note">Four places set a colour literally instead of reading a token. Nothing above moves them.</p>
+    <p class="ti__note">One place sets a colour literally instead of reading a token. Nothing above moves it.</p>
     <ul class="ti__list ti__list--bypass">
       {BYPASSES.map((b) => (
         <li class="ti__brow">

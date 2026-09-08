@@ -1,13 +1,12 @@
 ---
 title: "MongoDB Sink"
 description: Write records from a KurrentDB stream to a MongoDB collection.
+licenseRequired: true
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import ConnectorLogo from '../../../../../components/ConnectorLogo.astro';
 
-<Badge text="License Required" variant="caution" size="medium" />
-
-## Overview
+<ConnectorLogo name="mongodb" alt="MongoDB" />
 
 The MongoDB sink reads records from a KurrentDB stream and stores them in a
 collection. The connector serializes each record into a
@@ -159,7 +158,6 @@ You can create the document ID by combining values from a record's metadata.
 Specify the header keys you want to use in the `documentId:expression` field (e.g., `key1,key2`). The connector concatenates the header values with a hyphen (`-`) to create the document ID.
 
 For example, if your record has headers `key1: regionA` and `key2: zone1`, the document ID is `regionA-zone1`.
-
 
 ## Tutorial
 [Learn how to set up and use a MongoDB Sink connector in KurrentDB through a tutorial.](https://docs.kurrent.io/server/v26.1/tutorials/MongoDB_Sink)

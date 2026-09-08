@@ -26,3 +26,6 @@ await client.Streams.GetStreamInfo("order-123");
 If you are new to this, read in that order. Appending shows how records get in and how concurrency
 works; reading shows how they come back; managing is what you reach for later, when data has a
 lifecycle.
+
+There is a second way to write, the [Appender](/kurrent-surge/experimental/appender/). It buffers and
+batches, for when throughput matters more than guarding a single record against a racing writer.

@@ -17,46 +17,52 @@
      table of contents and code — in proportion. Browser default is 16px. */
   font-size: 17px;
 
-  /* Surfaces — near-black base with warm-neutral lifted panels. */
-  --bg: #0a0a0a;
-  --bg-1: #141312;
-  --bg-2: #1e1c1a;
-  --bg-3: #2a273f;
+  /* Surfaces — a raised blue-black base, not near-black. The ground sits at
+     OKLCH L 0.205 rather than at the bottom of the range, because a cast
+     shadow needs something to be darker than: at L 0.155 nothing can be, and
+     every elevation cue disappears. Each step up is a lighter fill. */
+  --bg: #0f181f;
+  --bg-1: #19262f;
+  --bg-2: #24323c;
 
-  /* Foreground — bone headings over a warm-neutral ramp. Every step keeps
-     R >= B, so no step reads blue against the warm accent. */
-  --fg: #f5f3f0;
-  --fg-1: #cdcac5;
-  --fg-dim: #a3a09a;
-  --fg-dimmer: #8f8c86;
-  --fg-fade: #77746e;
+  /* Foreground — a cool-neutral ramp. Every step keeps B >= R, the inverse of
+     the warm ramp this replaced: beside a blue accent a warm grey reads
+     yellow-brown. Every step also clears 4.5:1 on the raised ground, which the
+     previous ramp's last two steps did not. */
+  --fg: #e9f4fc;
+  --fg-1: #b5c7d5;
+  --fg-dim: #819cb0;
+  --fg-dimmer: #7690a4;
+  --fg-fade: #6e8597;
 
-  /* Light sections — the redesign introduces bone-colored bands/pages
-     (pricing, get-started, the analytics band). Ink tokens are the text
-     colors used on top of them. */
-  --bone: #f5f3f0;
-  --pale-blue: #edf1fc;
+  /* Diagram ink. The only consumer is the D2 light scope, which needs a text
+     colour that is not tied to the --fg ramp: the diagrams keep a white canvas
+     under both themes. */
   --ink: #1a1a1a;
   --ink-dim: #525252;
 
   /* Hairlines. */
-  --border: rgba(245, 243, 240, 0.1);
-  --border-1: rgba(245, 243, 240, 0.16);
-  --border-strong: rgba(245, 243, 240, 0.3);
+  --border: rgba(180, 210, 240, 0.12);
+  --border-1: rgba(180, 210, 240, 0.18);
+  --border-strong: rgba(180, 210, 240, 0.32);
 
-  /* Accent — one hue drives links, the active nav rail, call-to-action fills
-     and the ambient wash. Plum is the alternate candidate. */
-  --accent: #ffc857;
-  --plum: #2a273f;
-  --plum-lift: #3a3654;
+  /* Accent — one hue family in a narrow band, at three lightnesses: measured
+     OKLCH 239, 253 and 256 deg. The band is the point: the previous pairing put
+     a link at hue 227 next to a button at hue 264, 37 degrees apart, and they
+     read as two unrelated colours rather than one family.
+     The split is not cosmetic. No single value can be both a legible link and
+     a saturated fill on this ground: --accent carries text at 9.10:1, and
+     --accent-fill carries button fills and takes white at 4.53:1. */
+  --accent: #60c2ff;
+  --accent-fill: #0077d9;
+  --accent-deep: #005fbd;
 
-  /* Accent derivatives, both computed from --accent so a hue change carries
-     to the hover ring and the ambient wash without a second edit. --glow-a is
-     a percentage because color-mix takes one, not a 0-1 alpha.
-     --cta-fg must stay dark: white on the current accent measures 1.54:1. */
-  --cta-fg: #000000;
-  --accent-ring: color-mix(in oklab, var(--accent) 22%, transparent);
-  --glow-a: 16%;
+  /* Accent derivatives. --glow-a is a percentage because color-mix takes one,
+     not a 0-1 alpha. --cta-fg is white: it sits on --accent-fill, never on the
+     bright text stop. */
+  --cta-fg: #ffffff;
+  --accent-ring: color-mix(in oklab, var(--accent-fill) 30%, transparent);
+  --glow-a: 12%;
 
   /* Typography. The families are declared in astro.config.mjs under `fonts`;
      Astro emits each --font-* variable already carrying its generated
@@ -64,24 +70,30 @@
   --font-faces: var(--font-poppins);
   --font-sans: var(--font-faces);
   --font-mono: var(--font-fira-code);
-  /* Uppercase index labels: sidebar groups and the right-rail heading. Mono
-     by default; words, not code, so the dyslexic face takes them over. */
-  --font-eyebrow: var(--font-mono);
+  /* Uppercase index labels: sidebar groups, the right-rail heading, and the
+     landing page's section labels. These are words, not code, so they take the
+     sans. Monospace fixes every glyph to one advance, and the wide tracking an
+     uppercase label wants then pushes the letters past the point where they
+     read as words at all. */
+  --font-eyebrow: var(--font-sans);
 
   /* Overlays. Tints and hairlines that sit on top of the current surface for
      hover states, chips, table rules and code frames. Defined per scope so
      they invert with the palette instead of painting white onto white. */
-  --tint-faint: rgba(255, 255, 255, 0.02);
-  --tint: rgba(255, 255, 255, 0.04);
-  --tint-1: rgba(255, 255, 255, 0.06);
-  --tint-2: rgba(255, 255, 255, 0.08);
-  --code-bg: #141414;
+  --tint-faint: rgba(180, 210, 240, 0.03);
+  --tint: rgba(180, 210, 240, 0.05);
+  --tint-1: rgba(180, 210, 240, 0.07);
+  --tint-2: rgba(180, 210, 240, 0.10);
+  --code-bg: #09141c;
+  --code-fg: #b5c7d5;
+  --code-border: rgba(180, 210, 240, 0.14);
 
-  /* Lifted cards (pagination). A drop shadow is invisible on a near-black
-     page, so depth comes from a lighter surface plus a one-pixel highlight
-     along the top edge; the shadow only matters on the light palette. */
-  --lift-edge: rgba(255, 255, 255, 0.06);
-  --lift-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  /* Lifted cards (pagination). Depth comes from a lighter surface plus a
+     one-pixel highlight along the top edge, where a lit surface would catch
+     it. The shadow now reads on both palettes: the dark ground was raised off
+     the floor specifically so shade has somewhere to fall. */
+  --lift-edge: rgba(190, 220, 250, 0.10);
+  --lift-shadow: 0 1px 2px rgba(0, 6, 12, 0.45);
 
   /* Layout. */
   --maxw: 1080px;
@@ -120,38 +132,53 @@
   font-weight: 400;
 }
 
-/* Light scope. Values are Starlight's own light palette, measured from a clean
-   `bun create astro --template starlight` build, wired through our token names
-   so every rule below follows without being rewritten. Customise from here. */
+/* Light scope. The same hue-240 family as the dark scope, inverted. The two
+   themes now share one accent hue instead of disagreeing: this scope used to
+   carry #3d50f5 while the dark scope carried an amber. */
 :root[data-theme="light"] {
-  --bg: #ffffff;
-  --bg-1: #f6f7f9;
-  --bg-2: #edeef3;
+  /* The ground stays bright and the raised surface goes white. Recessing the
+     ground to buy fill separation was measured and rejected: by #eef3f9 the
+     --fg-fade role falls to 4.31:1. On light, the shadow does the lifting. */
+  --bg: #f9fbfe;
+  --bg-1: #ffffff;
+  --bg-2: #ecf3f8;
 
-  --fg: #17181c;
-  --fg-1: #353841;
-  --fg-dim: #555962;
-  --fg-dimmer: #888c96;
-  --fg-fade: #888c96;
+  --fg: #0d151a;
+  --fg-1: #354550;
+  --fg-dim: #566f82;
+  --fg-dimmer: #5b7485;
+  --fg-fade: #5f7585;
 
-  --border: rgba(23, 24, 28, 0.12);
-  --border-1: rgba(23, 24, 28, 0.2);
-  --border-strong: rgba(23, 24, 28, 0.38);
+  --border: rgba(13, 21, 26, 0.13);
+  --border-1: rgba(13, 21, 26, 0.2);
+  --border-strong: rgba(13, 21, 26, 0.36);
 
-  --accent: #3d50f5;
+  --accent: #006fce;
+  --accent-fill: #0077d9;
+  --accent-deep: #005fbd;
   --cta-fg: #ffffff;
-  --glow-a: 10%;
+  --accent-ring: color-mix(in oklab, var(--accent-fill) 30%, transparent);
+  /* An accent wash over a near-white ground reads as a smudge, not as light. */
+  --glow-a: 3%;
 
-  --tint-faint: rgba(23, 24, 28, 0.02);
-  --tint: rgba(23, 24, 28, 0.04);
-  --tint-1: rgba(23, 24, 28, 0.05);
-  --tint-2: rgba(23, 24, 28, 0.1);
-  --lift-edge: rgba(255, 255, 255, 0.8);
-  --lift-shadow: 0 1px 2px rgba(23, 24, 28, 0.08), 0 8px 24px rgba(23, 24, 28, 0.06);
-  /* Code frames stay dark in both themes: expressiveCode resolves its own
-     colours from a single build-time theme, so a light variant needs a second
-     theme in astro.config, not a CSS token. */
-  --code-bg: #141414;
+  --tint-faint: rgba(13, 21, 26, 0.02);
+  --tint: rgba(13, 21, 26, 0.04);
+  --tint-1: rgba(13, 21, 26, 0.06);
+  --tint-2: rgba(13, 21, 26, 0.09);
+  /* Elevation inverts with the theme. A raised dark surface is lighter than
+     its ground and catches a highlight on its top edge; a raised light surface
+     cannot get meaningfully lighter than an already-near-white page, so the
+     edge is dropped and the shadow carries it alone. */
+  --lift-edge: transparent;
+  --lift-shadow: 0 1px 2px rgba(13, 21, 26, 0.07), 0 6px 20px rgba(13, 21, 26, 0.06);
+  /* Code surfaces follow the theme. Expressive Code swaps between the
+     starlight-dark and starlight-light syntax themes, and the light theme's
+     token colours are dark — so pinning the surface dark here makes half the
+     syntax vanish into its own background. Verified: `Record.Value` and
+     `CompletedTask` disappeared entirely. */
+  --code-bg: #edf2f8;
+  --code-fg: #354550;
+  --code-border: rgba(13, 21, 26, 0.14);
 }
 
 /* Respect reduced motion across the whole site. Hover/focus transitions
@@ -202,7 +229,7 @@
   --sl-color-bg-nav: color-mix(in oklab, var(--bg) 82%, transparent);
   --sl-color-bg-sidebar: var(--bg);
   --sl-color-bg-inline-code: var(--bg-2);
-  --sl-color-bg-accent: var(--accent);
+  --sl-color-bg-accent: var(--accent-fill);
 
   /* Hairlines / borders */
   --sl-color-hairline: var(--border);
@@ -225,7 +252,7 @@
   --sl-color-text-invert: var(--cta-fg);
 
   /* Accent (links, focus rings, primary CTA) */
-  --sl-color-accent-low: color-mix(in oklab, var(--accent) 18%, transparent);
+  --sl-color-accent-low: color-mix(in oklab, var(--accent) 16%, transparent);
   --sl-color-accent: var(--accent);
   --sl-color-accent-high: var(--accent);
 
@@ -325,9 +352,9 @@
   font-weight: 450;
 }
 
-/* Sidebar group labels — mono eyebrow, quieter and tighter than the
-   marketing .eyebrow: the docs nav is a long list, so the labels index it
-   rather than announce it (designer's .docs-sidebar-label). */
+/* Sidebar group labels — quieter and tighter than the marketing .eyebrow: the
+   docs nav is a long list, so the labels index it rather than announce it
+   (designer's .docs-sidebar-label). */
 .sidebar-content .group-label > *,
 .sidebar-content .group-label .large {
   font-family: var(--font-eyebrow);
@@ -363,9 +390,9 @@
   font-weight: 500;
 }
 
-/* Right-rail TOC — same mono eyebrow as the sidebar labels, and active
-   links go coral instead of carrying a rail: the rail is the left nav's
-   device, and repeating it on the right competes with the prose. */
+/* Right-rail TOC — same eyebrow as the sidebar labels, and active links take
+   the accent instead of carrying a rail: the rail is the left nav's device,
+   and repeating it on the right competes with the prose. */
 starlight-toc nav > h2,
 .right-sidebar h2 {
   font-family: var(--font-eyebrow);
@@ -415,6 +442,8 @@ starlight-toc nav a[aria-current="true"]:hover {
      a lifted surface, a hairline highlight on the top edge. */
   background: var(--bg-1);
   border-color: var(--border);
+  /* Starlight's own rule sets 0.5rem, which lands on 8.5px at this root size. */
+  border-radius: 8px;
   box-shadow: inset 0 1px 0 var(--lift-edge), var(--lift-shadow);
 }
 .pagination-links a:hover {
@@ -475,6 +504,11 @@ starlight-toc nav a[aria-current="true"]:hover {
   color: var(--fg-fade);
   cursor: pointer;
 }
+.sidebar-filter-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
 .sidebar-filter-clear:hover {
   color: var(--accent);
 }
@@ -484,7 +518,7 @@ starlight-toc nav a[aria-current="true"]:hover {
   color: var(--fg-fade);
 }
 .sidebar-content mark.sidebar-filter-hit {
-  background: color-mix(in oklab, var(--accent) 28%, transparent);
+  background: color-mix(in oklab, var(--accent) 24%, transparent);
   color: inherit;
   border-radius: 2px;
 }
@@ -538,7 +572,7 @@ site-search button[data-open-modal] kbd {
 .sl-markdown-content pre:not(:where(.expressive-code *)) {
   background: var(--code-bg);
   border: 1px solid var(--tint-1);
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 /* Dashboard screenshots (src/assets/screenshots/, captured by
@@ -565,22 +599,26 @@ site-search button[data-open-modal] kbd {
   padding: 20px 24px;
   margin: 24px 0 28px;
 }
-.sl-markdown-content .starlight-aside--caution,
-.sl-markdown-content .starlight-aside--danger {
-  --sl-color-asides-text-accent: var(--accent);
-  background: color-mix(in oklab, var(--accent) 6%, transparent);
-  border-color: color-mix(in oklab, var(--accent) 12%, transparent);
-}
-.sl-markdown-content .starlight-aside--note,
-.sl-markdown-content .starlight-aside--tip {
-  --sl-color-asides-text-accent: #479bff;
-  background: rgba(71, 155, 255, 0.05);
-  border-color: rgba(71, 155, 255, 0.12);
-}
-.sl-markdown-content .starlight-aside--caution {
-  --sl-color-asides-text-accent: #e0a030;
-  background: rgba(224, 160, 48, 0.05);
-  border-color: rgba(224, 160, 48, 0.12);
+/* Aside semantics. One hue per role, each at least 60 degrees from the 240
+   accent so no aside title can be mistaken for a link, and each far enough from
+   the others to be told apart: the previous set put danger on --accent and
+   note/tip on #479bff, 16 degrees apart and effectively the same colour.
+   Values are per theme. The previous set was tuned for dark only and every
+   title failed AA on the light palette — note 2.74:1, caution 2.19:1. */
+.sl-markdown-content .starlight-aside--note { --aside: #c099ff; }
+.sl-markdown-content .starlight-aside--tip { --aside: #61cb7c; }
+.sl-markdown-content .starlight-aside--caution { --aside: #e7a226; }
+.sl-markdown-content .starlight-aside--danger { --aside: #ff8880; }
+
+:root[data-theme='light'] .sl-markdown-content .starlight-aside--note { --aside: #7a4aba; }
+:root[data-theme='light'] .sl-markdown-content .starlight-aside--tip { --aside: #00822b; }
+:root[data-theme='light'] .sl-markdown-content .starlight-aside--caution { --aside: #9e5400; }
+:root[data-theme='light'] .sl-markdown-content .starlight-aside--danger { --aside: #b63132; }
+
+.sl-markdown-content [class*='starlight-aside--'] {
+  --sl-color-asides-text-accent: var(--aside);
+  background: color-mix(in oklab, var(--aside) 6%, transparent);
+  border-color: color-mix(in oklab, var(--aside) 12%, transparent);
 }
 .sl-markdown-content .starlight-aside__title {
   font-family: var(--font-sans);
@@ -638,7 +676,7 @@ site-search button[data-open-modal] kbd {
 
 /* Selection — keep the marketing site's coral selection across docs. */
 ::selection {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: var(--cta-fg);
 }
 
@@ -714,8 +752,8 @@ body {
      part of the warm palette rather than neutral grey. Arrowheads take the
      accent undiluted: `fill-B1` is the arrowhead alone, so it can carry colour
      without `stroke-B1` turning every node border amber too. */
-  --d2-surface: color-mix(in oklab, var(--accent) 4%, var(--bg-1));
-  --d2-surface-alt: color-mix(in oklab, var(--accent) 7%, var(--bg-2));
+  --d2-surface: color-mix(in oklab, var(--accent) 6%, var(--bg-1));
+  --d2-surface-alt: color-mix(in oklab, var(--accent) 12%, var(--bg-2));
   --d2-line: var(--fg-dimmer);
   --d2-arrow: var(--accent);
 }
@@ -724,7 +762,7 @@ body {
   --d2-text: var(--ink);
   --d2-text-muted: var(--ink-dim);
   --d2-surface: color-mix(in oklab, var(--accent) 6%, #ffffff);
-  --d2-surface-alt: color-mix(in oklab, var(--accent) 14%, #ffffff);
+  --d2-surface-alt: color-mix(in oklab, var(--accent) 12%, #ffffff);
   --d2-line: #77746e;
   /* The light scope redefines --accent to blue, so this tracks whichever accent
      the theme carries; the mix only deepens it enough to hold a small shape. */
@@ -807,4 +845,83 @@ body {
 .expressive-code pre {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
+}
+
+/* ---- Share menu ------------------------------------------------------- */
+/* starlight-page-actions exposes `share` as a boolean — every network or none
+   — so the selection is made here. Each row carries its network on a
+   `data-action-icon` attribute, and `display: none` removes the link from the
+   tab order and the accessibility tree as well as from the page, so a hidden
+   network is genuinely unreachable rather than merely invisible.
+   Patching the plugin would work too and was rejected: a patch is pinned to an
+   exact version and fails the install on every bump, which is a standing cost
+   for a list that is pure preference. */
+.dropdown-item:has([data-action-icon='threads']),
+.dropdown-item:has([data-action-icon='bluesky']),
+.dropdown-item:has([data-action-icon='facebook']),
+.dropdown-item:has([data-action-icon='whatsapp']) {
+  display: none;
+}
+
+/* The plugin renders its menu as a block, so `order` has nothing to act on.
+   A flex column lays the rows out identically and makes them orderable. Both
+   dropdowns share this id; the Open menu keeps source order because none of
+   its rows sets `order`.
+
+   `!important` is load-bearing. The plugin's rule is an Astro scoped style, so
+   it carries a generated `.astro-<hash>` class and outranks `#id.class` on
+   specificity. The hash changes whenever the component is rebuilt, so it
+   cannot be matched stably — importance is the only stable lever. */
+#dropdown-menu.show {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Reading order, independent of the array the plugin ships. */
+.dropdown-item:has([data-action-icon='x']) {
+  order: 1;
+}
+.dropdown-item:has([data-action-icon='reddit']) {
+  order: 2;
+}
+.dropdown-item:has([data-action-icon='hackernews']) {
+  order: 3;
+}
+.dropdown-item:has([data-action-icon='linkedin']) {
+  order: 4;
+}
+.dropdown-item:has([data-action-icon='telegram']) {
+  order: 5;
+}
+.dropdown-item:has([data-action-icon='email']) {
+  order: 6;
+}
+
+/* ---- Content gutter ---------------------------------------------------- */
+/* The sidebar toggle is fixed at the seam and extrudes 28px into this gutter.
+   At Starlight's 25.5px the button's trailing edge sat 2px inside the reading
+   column and the page title ran into it. Widened on the toggle's own
+   breakpoint only, so narrow viewports — where the toggle does not exist —
+   keep their original margins. */
+@media (min-width: 50rem) {
+  .content-panel {
+    padding-inline-start: 2.75rem;
+  }
+}
+
+/* ---- Connector marks --------------------------------------------------- */
+/* Every heading after the connector mark starts below it. The mark is floated,
+   so a short intro paragraph leaves the next section heading free to wrap up
+   alongside it — which put "Prerequisites" beside the logo instead of under the
+   intro on the shorter pages. Lives here rather than in the component: an Astro
+   scoped style hashes its own class, and the sibling headings are authored
+   Markdown that never carries that hash.
+
+   The sibling is `.sl-heading-wrapper`, not the heading: Starlight wraps every
+   heading in that div to hang its anchor link off, so a `~ h2` selector matches
+   nothing at all. */
+.sl-markdown-content .connector-logo ~ .sl-heading-wrapper,
+.sl-markdown-content .connector-logo ~ h2,
+.sl-markdown-content .connector-logo ~ h3 {
+  clear: inline-start;
 }

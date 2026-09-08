@@ -84,17 +84,16 @@ The resolver publishes the full membership every pass, ordered by your `nodePref
 attached to each address. Rank 0 is the routing target. The rest are not idle: they are the fallback
 list the transport already holds.
 
-```d2 width=290
-direction: down
+```d2 layout=elk
+direction: right
 
 G: gossip
-R: rank the members
-P: "publish rank 0, 1, 2"
-S: one subchannel, whole list
-F: transport tries rank 1
+R: rank members
+P: publish ranks
+S: one subchannel
+F: rank 0 down, try rank 1
 
-G -> R -> P -> S
-S -> F: rank 0 unreachable
+G -> R -> P -> S -> F
 ```
 
 The balancer keeps one subchannel at a time, pointed at rank 0 and carrying the whole ranked list.
@@ -178,11 +177,8 @@ Node preference belongs to the client, not to the call. An application that writ
 reads from followers builds two clients, each with its own connection string.
 
 ```csharp
-// Writes
-"kurrentdb+discover://cluster:2113?nodePreference=leader"
-
-// Reads
-"kurrentdb+discover://cluster:2113?nodePreference=follower"
+var writes = KurrentClient.Create("kurrentdb+discover://cluster:2113?nodePreference=leader");
+var reads  = KurrentClient.Create("kurrentdb+discover://cluster:2113?nodePreference=follower");
 ```
 
 They share nothing internally, so the second client costs its own channels and nothing else. Reading

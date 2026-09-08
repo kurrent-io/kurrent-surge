@@ -39,9 +39,12 @@
   --color-card-foreground: var(--fg);
   --color-popover: var(--bg-1);
   --color-popover-foreground: var(--fg);
-  --color-primary: var(--accent);
+  /* Fills, not text: these carry --cta-fg (white) on top, so they take the
+     fill stop. The bright --accent stop is a text colour and measures 1.97:1
+     under white. */
+  --color-primary: var(--accent-fill);
   --color-primary-foreground: var(--cta-fg);
-  --color-primary-accent: var(--accent);
+  --color-primary-accent: var(--accent-deep);
   --color-secondary: var(--bg-2);
   --color-secondary-foreground: var(--fg);
   --color-secondary-accent: var(--fg);
@@ -71,7 +74,7 @@
 
   --color-sidebar: var(--bg-1);
   --color-sidebar-foreground: var(--fg);
-  --color-sidebar-primary: var(--accent);
+  --color-sidebar-primary: var(--accent-fill);
   --color-sidebar-primary-foreground: var(--cta-fg);
   --color-sidebar-accent: var(--tint-2);
   --color-sidebar-accent-foreground: var(--fg);

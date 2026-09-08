@@ -1,13 +1,12 @@
 ---
 title: 'Pulsar Sink'
 description: Write records from a KurrentDB stream to an Apache Pulsar topic.
+licenseRequired: true
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import ConnectorLogo from '../../../../../components/ConnectorLogo.astro';
 
-<Badge text="License Required" variant="caution" size="medium" />
-
-## Overview
+<ConnectorLogo name="pulsar" alt="Apache Pulsar" />
 
 The Apache Pulsar Sink connector writes records from your KurrentDB stream to a specified Pulsar topic.
 
@@ -100,7 +99,6 @@ Example:
 ```
 
 The connector includes these headers in every message it sends, alongside the [default headers](/kurrent-surge/client/connectors/features/#headers) its plugin adds automatically.
-
 
 ## Examples
 

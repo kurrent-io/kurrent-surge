@@ -1,10 +1,9 @@
 ---
-// Puts a filter box above the navigation list and the repository link below it.
+// Puts a filter box above the navigation list.
 //
 // The filter is deliberately not search: search looks inside page content, the
 // filter only narrows the visible nav.
 import Default from '@astrojs/starlight/components/Sidebar.astro';
-import { Icon } from '@astrojs/starlight/components';
 ---
 
 <div class="sidebar-filter">
@@ -55,38 +54,7 @@ import { Icon } from '@astrojs/starlight/components';
 
 <Default />
 
-<div class="sidebar-spacer"></div>
-<a class="sidebar-repo" href="https://github.com/kurrent-io/kurrent-surge" title="GitHub: kurrent-io/kurrent-surge">
-  <Icon name="github" />
-  <span>kurrent-surge</span>
-</a>
-
-<style>
-  /* The pane's content column is a flex column with height: 100%, so a
-     growing spacer pins the link to the bottom on short navigations and lets
-     it scroll under long ones. */
-  .sidebar-spacer {
-    flex-grow: 1;
-  }
-  .sidebar-repo {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    padding: 1rem 0;
-    border-top: 1px solid var(--tint-2);
-    border-left: 0;
-    border-radius: 0;
-    font-size: 14px;
-    color: var(--fg-dim);
-    text-decoration: none;
-  }
-  .sidebar-repo:hover {
-    color: var(--accent);
-    background: transparent;
-  }
-</style>
+<style></style>
 
 <script>
   function initSidebarFilter() {

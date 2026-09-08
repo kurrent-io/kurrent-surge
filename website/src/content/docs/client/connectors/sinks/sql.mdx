@@ -1,13 +1,12 @@
 ---
 title: 'SQL Sink'
 description: Statement mappings, settings and a worked example for the SQL sink connector.
+licenseRequired: true
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import ConnectorLogo from '../../../../../components/ConnectorLogo.astro';
 
-<Badge text="License Required" variant="caution" size="medium" />
-
-## Overview
+<ConnectorLogo name="sql" alt="SQL Server" />
 
 The SQL sink connector writes records from KurrentDB to SQL databases by executing configurable SQL statements. Map event types to SQL statement templates to control how the connector persists each record.
 
@@ -125,7 +124,6 @@ These settings overwrite any username/password specified in the connection strin
 | `resilience:thirdDelayBound:delayMs`       | **Type**: double<br/><br/>**Description:** Delay in milliseconds for the third backoff bound.<br/><br/>**Default**: `3600000` (1 hour)                                                                                   |
 
 The settings `commandTimeout`, `connectionTimeout`, `minPoolSize`, `maxPoolSize`, and `connectionLifetime` override any corresponding values specified in the connection string.
-
 
 ## Specifying SQL statements
 

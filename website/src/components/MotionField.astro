@@ -1,0 +1,55 @@
+---
+/**
+ * The landing page's motion field.
+ *
+ * Decorative and aria-hidden: it carries no information the copy does not
+ * already state. It renders the product's own semantics — records appended to
+ * a log and three readers consuming it — as a discharge leaving the wordmark,
+ * so it replaces the hero's earlier log strip rather than running beside it.
+ *
+ * The canvas is fixed to the viewport, not to the page, so its cost is one
+ * screen however long the document is. Reach is a mask the host applies, and
+ * the field pauses off-screen, on a hidden tab, and under reduced motion.
+ */
+---
+
+<div id="motion-mount" aria-hidden="true"></div>
+
+<script>
+  import { createHost } from "../scripts/motion/host.js";
+
+  const mount = document.getElementById("motion-mount");
+
+  if (mount) {
+    const host = createHost({
+      mount,
+      heroSelector: ".hero",
+      reach: "graded",
+      intensity: 1,
+      onStatus(status) {
+        // A machine with no WebGL context leaves the page exactly as it is
+        // rather than failing loudly; the hero is designed to stand without it.
+        if (status.state === "error") mount.remove();
+      },
+    });
+
+    host.setField("deeparc");
+  }
+</script>
+
+<style>
+  /* Under the copy, and never takes a pointer event — the host listens on the
+     window instead, so nothing here can intercept a click on the CTAs. */
+  #motion-mount {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  #motion-mount :global(.motion-field) {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+</style>

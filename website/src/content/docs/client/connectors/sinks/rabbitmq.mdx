@@ -1,13 +1,12 @@
 ---
 title: "RabbitMQ Sink"
 description: Configuration and message delivery behavior of the RabbitMQ sink connector.
+licenseRequired: true
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import ConnectorLogo from '../../../../../components/ConnectorLogo.astro';
 
-<Badge text="License Required" variant="caution" size="medium" />
-
-## Overview
+<ConnectorLogo name="rabbitmq" alt="RabbitMQ" />
 
 The RabbitMQ sink publishes records from a KurrentDB stream to a RabbitMQ exchange using a routing key. The exchange
 routes each message to the destination queues bound to that key, so the sink does not manage exchanges or queues

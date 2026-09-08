@@ -1,0 +1,924 @@
+---
+/**
+ * Motion lab — five background fields against the real landing content.
+ *
+ * The landing copy below is duplicated from index.astro rather than extracted
+ * into a shared component. That is deliberate: the lab must be able to break
+ * without any risk to the shipped page, and the winner is folded back into
+ * index.astro at the end of the exercise, at which point this page either goes
+ * away or keeps a frozen copy for comparison.
+ *
+ * No separate log strip here. Each field absorbs the log's semantics
+ * rather than running beside it, so mounting the strip too would draw the same
+ * model twice.
+ */
+import { Font } from "astro:assets";
+import { Code } from "@astrojs/starlight/components";
+import "../styles/surge.css";
+import "../styles/home.css";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const withBase = (path: string) => `${base}${path}`;
+
+const DOCS_HREF = "/getting-started/";
+const PROCESSORS_HREF = "/processors/";
+
+/* Field Lines and Charge Waves are retired from the picker — both read as a
+   scatter of static hairlines rather than as motion. Their modules stay on
+   disk; only the lab stops offering them. */
+const fields = [
+  { id: "lattice", key: "1", name: "Charged Lattice" },
+  { id: "arc", key: "2", name: "Arc Discharge" },
+  { id: "logfield", key: "3", name: "Log As Field" },
+  { id: "depth", key: "4", name: "Deep Lattice" },
+  { id: "deeparc", key: "5", name: "Deep Arc" },
+];
+
+const reaches = [
+  { id: "hero", key: "Q", name: "Hero only" },
+  { id: "graded", key: "W", name: "Page, graded" },
+];
+
+const processorSample = `using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Processors;
+
+public sealed class TemperatureMonitor : IRecordProcessor {
+    public ValueTask ProcessRecord(ProcessRecordContext context) {
+        if (context.Record.Value is SensorReading reading)
+            Evaluate(reading);
+
+        return ValueTask.CompletedTask;
+    }
+}
+
+await KurrentProcessor.Create(new TemperatureMonitor(), opts => {
+    opts.Connection("kurrentdb://localhost:2113");
+    opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'");
+}).RunWithGracefulShutdownAsync();`;
+
+const packages = [
+  { name: "Kurrent.Surge", body: "The client and the processors. What you install." },
+  { name: "Kurrent.Surge.Core", body: "Contracts, value types, message catalogs, and the JSON, Protobuf, and Avro codecs. No gRPC, no transport." },
+];
+
+const sections = [
+  {
+    num: "01",
+    label: "CLIENT",
+    title: "Five modules,\none surface.",
+    body: "Append, read and manage streams. Plus the schema registry, secondary indexes, connectors and node administration, all through one client on one connection.",
+    link: { href: "/streams/", text: "Browse the streams API" },
+  },
+  {
+    num: "02",
+    label: "SCHEMA",
+    title: "Declare once.\nSerialized for you.",
+    body: "A catalog maps a CLR type to a schema name. JSON, Protobuf or Avro, chosen per record and read back from the record itself, so a producer can change format without breaking a consumer.",
+    link: { href: "/schema/", text: "See the schema layer" },
+  },
+  {
+    num: "03",
+    label: "PROCESSORS",
+    title: "Write a handler.\nThe runtime runs it.",
+    body: "No subscription loop, no checkpoint bookkeeping, no reconnect policy to hand-roll. Implement one method and the runtime owns the rest.",
+    link: { href: PROCESSORS_HREF, text: "Read the guide" },
+  },
+  {
+    num: "04",
+    label: "WIREUP",
+    title: "One entry point.\nOne using.",
+    body: "AddKurrentSurge opens a scope that carries the connection and everything that runs against it. Processors register as hosted services, and the connection precedence is documented rather than emergent.",
+    link: { href: "/client/dependency-injection/", text: "See the registration" },
+  },
+  {
+    num: "05",
+    label: "LOAD BALANCING",
+    title: "Routing runs inside\nthe channel.",
+    body: "A gRPC load balancing policy of our own, not a wrapper around one address. Gossip discovery, nodes ranked by preference, and a leader change followed without a reconnect you write.",
+    link: { href: "/client/clusters-and-discovery/", text: "See how it routes" },
+  },
+  {
+    num: "06",
+    label: "RESILIENCE",
+    title: "Retries on the channel.\nReconnects on the processor.",
+    body: "The client retries at the gRPC channel, declared in the service config so the transport enforces it. A processor reconnects its subscription on a pipeline you can extend or replace. A handler exception is never retried, and error handling says so plainly.",
+    link: { href: "/client/configuring-the-client/", text: "Configure resilience" },
+  },
+];
+---
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Motion lab — Kurrent Surge</title>
+  <link rel="icon" type="image/svg+xml" href={withBase("/favicon.svg")} />
+  <Font
+    cssVariable="--font-poppins"
+    preload={[
+      { subset: "latin", style: "normal", weight: "400" },
+      { subset: "latin", style: "normal", weight: "600" },
+    ]}
+  />
+  <Font cssVariable="--font-fira-code" />
+  <script is:inline>document.documentElement.dataset.theme = "dark";</script>
+</head>
+<body>
+
+<!-- The field. Fixed to the viewport so its cost is bounded by one screen
+     regardless of page height; reach is a mask the host applies to it. -->
+<div id="motion-mount" aria-hidden="true"></div>
+
+<section class="hero">
+  <div class="wrap">
+    <h1 class="hero__h1 hero__h1--name">Kurrent <span class="accent">Surge</span></h1>
+
+    <p class="hero__lede">
+      The state&#8209;of&#8209;the&#8209;art .NET SDK for KurrentDB and the Kurrent Platform.
+    </p>
+
+    <p class="hero__sub">
+      Brand new. Connect, append and read, then process what is in your streams <b>without writing subscription plumbing</b>.
+    </p>
+
+    <div class="hero__cta">
+      <a class="btn-primary" href={withBase(DOCS_HREF)}>Get started &rarr;</a>
+      <a class="btn-secondary" href={withBase(PROCESSORS_HREF)}>See processors</a>
+    </div>
+
+    <div class="hero__install">
+      <p class="eyebrow" style="margin: 44px 0 14px 22px;">INSTALL</p>
+      <pre class="mono" style="
+        margin: 0 0 0 22px; padding: 18px 22px; max-width: 620px;
+        background: var(--code-bg); border: 1px solid var(--code-border);
+        border-radius: 8px; color: var(--code-fg); font-size: 14px; overflow-x: auto;"><code>dotnet add package Kurrent.Surge</code></pre>
+      <p class="mono" style="margin: 14px 0 0 22px; font-size: 13px; color: var(--fg-fade);">
+        Built by the team behind <a href="https://kurrent.io" style="color: var(--fg-dim);">KurrentDB</a>.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="sect">
+  <div class="wrap">
+    <p class="sect__lbl">A COMPLETE STREAM PROCESSOR</p>
+    <h2 class="sect__h">One method. That is the program.</h2>
+
+    <div style="margin-top: 24px;">
+      <Code code={processorSample} lang="csharp" />
+    </div>
+
+    <p style="margin-top: 24px; color: var(--fg-dim); max-width: 68ch;">
+      The runtime owns the subscription, the checkpoints, the batching, the resilience,
+      the partition assignment and the graceful shutdown. You own the handler.
+    </p>
+  </div>
+</section>
+
+<section class="sect">
+  <div class="wrap">
+    <p class="sect__lbl">WHAT IS HERE</p>
+
+    <div class="feature-grid" style="
+      display: grid; grid-template-columns: repeat(2, 1fr);
+      border: 1px solid var(--border); margin-top: 28px; background: var(--bg);">
+      {sections.map((s, i) => (
+        <div style={`padding: 32px; border-right: ${i % 2 === 0 ? "1px solid var(--border)" : "none"}; border-bottom: ${i < sections.length - 2 ? "1px solid var(--border)" : "none"};`}>
+          <p class="mono" style="font-size: 11px; letter-spacing: 0.16em; margin: 0 0 18px;">
+            <span style="color: var(--accent);">{s.num}</span>
+            <span style="color: var(--fg-dim); margin-left: 10px;">{s.label}</span>
+          </p>
+          <h3 style="font-family: var(--font-sans); font-weight: 500; font-size: 22px; line-height: 1.25; margin: 0 0 14px; color: var(--fg); white-space: pre-line;">{s.title}</h3>
+          <p style="color: var(--fg-dim); font-size: 15px; line-height: 1.6; margin: 0 0 20px;">{s.body}</p>
+          <a class="mono" href={withBase(s.link.href)} style="font-size: 12px; letter-spacing: 0.08em; color: var(--fg-dim); text-decoration: none;">{s.link.text} &rarr;</a>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<section class="sect">
+  <div class="wrap">
+    <p class="sect__lbl">THE PACKAGES</p>
+    <h2 class="sect__h">Install only what you need.</h2>
+    <p style="color: var(--fg-dim); margin: 12px 0 28px;">There is no meta-package.</p>
+
+    <div style="border-top: 1px solid var(--border);">
+      {packages.map((p) => (
+        <div style="display: flex; gap: 32px; padding: 18px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap;">
+          <code class="mono" style="font-size: 13px; color: var(--fg); min-width: 280px;">{p.name}</code>
+          <span style="color: var(--fg-dim); font-size: 15px;">{p.body}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<footer class="sect" style="padding-bottom: 180px;">
+  <div class="wrap">
+    <p style="color: var(--fg-fade); font-size: 14px;">
+      Kurrent Surge is the .NET SDK for KurrentDB and the Kurrent Platform. It is new, and it is
+      built to grow into the rest of the platform without anyone needing a second SDK.
+    </p>
+  </div>
+</footer>
+
+<!-- ─────────────────────────────────────────────────────── control rail -->
+<div class="lab" id="lab" data-open="true">
+  <button class="lab__pull" id="lab-pull" type="button" aria-expanded="true" aria-controls="lab-body">
+    <span class="lab__pull-dot" aria-hidden="true"></span>
+    <span id="lab-pull-text">Motion lab</span>
+  </button>
+
+  <div class="lab__body" id="lab-body">
+    <div class="lab__row">
+      <span class="lab__lbl">Field</span>
+      <div class="lab__seg" role="radiogroup" aria-label="Field" data-group="field">
+        {fields.map((f) => (
+          <button type="button" role="radio" aria-checked="false" data-value={f.id}>
+            <kbd>{f.key}</kbd>{f.name}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div class="lab__row">
+      <span class="lab__lbl">Reach</span>
+      <div class="lab__seg" role="radiogroup" aria-label="Reach" data-group="reach">
+        {reaches.map((r) => (
+          <button type="button" role="radio" aria-checked="false" data-value={r.id}>
+            <kbd>{r.key}</kbd>{r.name}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <div class="lab__row">
+      <span class="lab__lbl">Energy</span>
+      <input class="lab__range" id="lab-energy" type="range" min="0.2" max="1.4" step="0.05" value="1"
+             aria-label="Energy" />
+      <output class="lab__out mono" id="lab-energy-out">1.00</output>
+      <span class="lab__sep" aria-hidden="true"></span>
+      <span class="lab__meta mono" id="lab-status">initialising</span>
+    </div>
+
+    <!-- One row per knob the active field exposes. Rebuilt on every field
+         switch, because the knobs belong to the field, not to the rail. -->
+    <div class="lab__tune" id="lab-tune" hidden>
+      <div class="lab__tune-head">
+        <span class="lab__lbl">Tune</span>
+        <button class="lab__ghost" type="button" id="lab-reset">Reset</button>
+        <button class="lab__ghost" type="button" id="lab-copy">Copy values</button>
+      </div>
+      <div class="lab__knobs" id="lab-knobs"></div>
+      <!-- One shared explanation line rather than a caption per knob: eight
+           captions triple the rail's height and it already covers the page. -->
+      <p class="lab__hint" id="lab-hint" data-idle="true">Hover or focus a knob to see what it does.</p>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  /* The field sits under everything and never takes a pointer event; the host
+     listens on the window instead. */
+  #motion-mount {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  #motion-mount .motion-field {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+
+  /* Content rides above the field. The feature grid also takes the page ground
+     so a dense field cannot show through the lattice cells and turn the table
+     into noise. */
+  body > section,
+  body > footer {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ───────────────────────────────────────────────────────── control rail */
+  .lab {
+    position: fixed;
+    left: 50%;
+    bottom: 108px;
+    transform: translateX(-50%);
+    z-index: 90;
+    width: min(1000px, calc(100vw - 32px));
+    background: color-mix(in oklab, var(--bg-1) 92%, transparent);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 32%), inset 0 1px 0 rgb(255 255 255 / 7%);
+    font-family: var(--font-sans);
+  }
+
+  .lab__pull {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 34px;
+    padding: 0 14px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid transparent;
+    border-radius: 8px 8px 0 0;
+    color: var(--fg-dim);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 160ms ease;
+  }
+  .lab[data-open="true"] .lab__pull {
+    border-bottom-color: var(--border);
+  }
+  .lab__pull:hover {
+    color: var(--fg);
+  }
+  .lab__pull:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lab__pull-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: var(--accent);
+    flex: none;
+  }
+
+  .lab__body {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+  }
+  .lab[data-open="false"] .lab__body {
+    display: none;
+  }
+
+  .lab__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .lab__lbl {
+    flex: none;
+    width: 52px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-fade);
+  }
+
+  /* One geometry contract for every control on the rail — 42.5px, 1px
+     hairline, 8px radius — the same one the site footer uses. */
+  .lab__seg {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 42.5px;
+    padding: 0 4px;
+    background: color-mix(in oklab, var(--accent) 5%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    flex-wrap: wrap;
+  }
+  .lab__seg button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30.6px;
+    padding: 0 10px;
+    background: transparent;
+    border: 0;
+    border-radius: 4px;
+    color: var(--fg-fade);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 140ms ease, background-color 140ms ease;
+  }
+  .lab__seg button:hover {
+    color: var(--fg-1);
+  }
+  .lab__seg button[aria-checked="true"] {
+    color: var(--fg);
+    background: color-mix(in oklab, var(--accent) 14%, transparent);
+  }
+  .lab__seg button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .lab__seg kbd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    line-height: 1;
+    padding: 3px 4px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--fg-fade);
+  }
+  .lab__seg button[aria-checked="true"] kbd {
+    color: var(--accent);
+    border-color: color-mix(in oklab, var(--accent) 34%, transparent);
+  }
+
+  .lab__range {
+    flex: 1 1 160px;
+    min-width: 140px;
+    height: 2px;
+    appearance: none;
+    background: var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .lab__range::-webkit-slider-thumb {
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 999px;
+    background: var(--accent);
+    border: 0;
+  }
+  .lab__range::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 999px;
+    background: var(--accent);
+    border: 0;
+  }
+  .lab__range:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 6px;
+  }
+
+  .lab__out {
+    flex: none;
+    width: 42px;
+    font-size: 12px;
+    color: var(--fg-dim);
+    text-align: right;
+  }
+  .lab__sep {
+    flex: none;
+    width: 1px;
+    height: 16px;
+    background: var(--border);
+  }
+  .lab__meta {
+    flex: 1 1 200px;
+    font-size: 12px;
+    color: var(--fg-fade);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lab__meta[data-state="error"],
+  .lab__meta[data-stalled="true"] {
+    color: var(--aside-danger, #ff8880);
+  }
+
+  .lab__tune {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    display: grid;
+    gap: 10px;
+  }
+  .lab__tune-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .lab__ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--fg-fade);
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    cursor: pointer;
+    transition: color 140ms ease, border-color 140ms ease;
+  }
+  .lab__ghost:hover {
+    color: var(--fg);
+    border-color: var(--border-strong, var(--border));
+  }
+  .lab__ghost:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .lab__knobs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(238px, 1fr));
+    gap: 8px 20px;
+  }
+  .lab__knob {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .lab__knob > span:first-child {
+    flex: none;
+    width: 96px;
+    font-size: 12px;
+    color: var(--fg-dim);
+  }
+  .lab__knob input {
+    flex: 1 1 auto;
+    min-width: 60px;
+    height: 2px;
+    appearance: none;
+    background: var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .lab__knob input::-webkit-slider-thumb {
+    appearance: none;
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+    background: var(--accent);
+    border: 0;
+  }
+  .lab__knob input::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+    background: var(--accent);
+    border: 0;
+  }
+  .lab__knob input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 6px;
+  }
+  .lab__knob output {
+    flex: none;
+    width: 46px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-fade);
+    text-align: right;
+  }
+
+  .lab__hint {
+    margin: 0;
+    min-height: 2.6em;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--fg-dim);
+    border-left: 2px solid color-mix(in oklab, var(--accent) 34%, transparent);
+    padding-left: 10px;
+  }
+  .lab__hint[data-idle="true"] {
+    color: var(--fg-fade);
+    border-left-color: var(--border);
+  }
+
+  @media (max-width: 900px) {
+    .lab__lbl { width: auto; }
+    .lab__seg button kbd { display: none; }
+  }
+</style>
+
+<script>
+  import { createHost } from "../scripts/motion/host.js";
+
+  const mount = document.getElementById("motion-mount");
+  const statusEl = document.getElementById("lab-status");
+  const lab = document.getElementById("lab");
+  const pull = document.getElementById("lab-pull");
+  const pullText = document.getElementById("lab-pull-text");
+  const energy = document.getElementById("lab-energy") as HTMLInputElement | null;
+  const energyOut = document.getElementById("lab-energy-out");
+
+  if (mount && statusEl && lab && pull && energy && energyOut) {
+    const STORE = "surge-motion-lab";
+    const saved = (() => {
+      try {
+        return JSON.parse(localStorage.getItem(STORE) ?? "{}");
+      } catch {
+        return {};
+      }
+    })();
+
+    /* A query string beats the stored choice, so a link can open the lab on a
+       named field: ?field=waves&reach=full&energy=1.4 */
+    const params = new URLSearchParams(location.search);
+
+    let field = params.get("field") ?? (typeof saved.field === "string" ? saved.field : "lattice");
+    // A stored choice can name a retired field; fall back rather than boot blank.
+    if (!["lattice", "arc", "logfield", "depth", "deeparc"].includes(field)) field = "lattice";
+    let reach = params.get("reach") ?? (typeof saved.reach === "string" ? saved.reach : "graded");
+    if (reach !== "hero" && reach !== "graded") reach = "graded";
+    let intensity = Number(params.get("energy"))
+      || (typeof saved.intensity === "number" ? saved.intensity : 1);
+    let engine = "";
+    let title = "";
+    let forcedMotion = false;
+
+    const persist = () => {
+      try {
+        localStorage.setItem(STORE, JSON.stringify({ field, reach, intensity }));
+      } catch {
+        // A private window refusing storage must not break the lab.
+      }
+    };
+
+    /* ------------------------------------------------------------ readout */
+
+    /* Sampled from the host's own render counter. The page's requestAnimationFrame
+       ticks at full rate whether or not the field loop is alive, so a frame rate
+       measured here would read 60+ over a frozen field — which is exactly the
+       wrong reading this readout previously gave. */
+    let lastRenders = 0;
+    let fpsWindowStart = performance.now();
+    let fps = 0;
+    let stalled = false;
+    let osReduced = false;
+
+    const paintStatus = (extra?: string) => {
+      const parts = [];
+      if (title) parts.push(title);
+      if (engine) parts.push(engine.toUpperCase());
+      parts.push(`${fps} fps`);
+      if (osReduced) parts.push("OS REDUCE-MOTION ON — press R");
+      else if (stalled) parts.push("NOT ANIMATING");
+      statusEl.textContent = extra ?? parts.join("  ·  ");
+    };
+
+    const sample = () => {
+      const now = performance.now();
+      if (now - fpsWindowStart >= 500) {
+        const s = host.stats();
+        fps = Math.round(((s.renders - lastRenders) * 1000) / (now - fpsWindowStart));
+        lastRenders = s.renders;
+        fpsWindowStart = now;
+        stalled = !s.running || s.reduced;
+        osReduced = s.osReduced && s.reduced;
+        statusEl.dataset.stalled = String(stalled);
+        if (statusEl.dataset.state !== "error") paintStatus();
+      }
+      requestAnimationFrame(sample);
+    };
+
+    /* --------------------------------------------------------------- host */
+
+    const host = createHost({
+      mount,
+      heroSelector: ".hero",
+      reach,
+      intensity,
+      onStatus(s) {
+        if (s.state === "error") {
+          statusEl.dataset.state = "error";
+          paintStatus(`${s.id}: ${s.message}`);
+          return;
+        }
+        delete statusEl.dataset.state;
+        if (s.state === "loading") {
+          paintStatus(`loading ${s.id}…`);
+          return;
+        }
+        engine = s.engine ?? "";
+        title = s.title ?? "";
+        paintStatus();
+        buildKnobs(s.id);
+      },
+    });
+
+    /* ------------------------------------------------------------- tuning */
+
+    const tuneEl = document.getElementById("lab-tune");
+    const knobsEl = document.getElementById("lab-knobs");
+
+    const tuneKey = (fieldId: string) => `${STORE}:tune:${fieldId}`;
+
+    const readSavedTune = (fieldId: string) => {
+      try {
+        return JSON.parse(localStorage.getItem(tuneKey(fieldId)) ?? "{}");
+      } catch {
+        return {};
+      }
+    };
+
+    const writeSavedTune = (fieldId: string, values: Record<string, number>) => {
+      try {
+        localStorage.setItem(tuneKey(fieldId), JSON.stringify(values));
+      } catch {
+        // A private window refusing storage must not break tuning.
+      }
+    };
+
+    let knobValues: Record<string, number> = {};
+    let knobField = "";
+
+    const hintEl = document.getElementById("lab-hint");
+    const IDLE_HINT = "Hover or focus a knob to see what it does.";
+    const showHint = (text: string | null) => {
+      if (!hintEl) return;
+      hintEl.textContent = text ?? IDLE_HINT;
+      hintEl.dataset.idle = String(text === null);
+    };
+
+    function buildKnobs(fieldId: string) {
+      if (!tuneEl || !knobsEl) return;
+      const list = host.params();
+      knobField = fieldId;
+      knobsEl.textContent = "";
+
+      if (!list.length) {
+        tuneEl.hidden = true;
+        knobValues = {};
+        return;
+      }
+      tuneEl.hidden = false;
+
+      const saved = readSavedTune(fieldId);
+      knobValues = {};
+
+      for (const p of list) {
+        const start = typeof saved[p.key] === "number" ? saved[p.key] : p.value;
+        knobValues[p.key] = start;
+        host.setParam(p.key, start);
+
+        const row = document.createElement("label");
+        row.className = "lab__knob";
+        if (p.hint) {
+          row.title = p.hint;
+          row.addEventListener("pointerenter", () => showHint(p.hint));
+          row.addEventListener("pointerleave", () => showHint(null));
+        }
+
+        const name = document.createElement("span");
+        name.textContent = p.label;
+
+        const input = document.createElement("input");
+        input.type = "range";
+        input.min = String(p.min);
+        input.max = String(p.max);
+        input.step = String(p.step);
+        input.value = String(start);
+
+        const out = document.createElement("output");
+        const show = (v: number) => (p.step < 1 ? v.toFixed(2) : String(v));
+        out.textContent = show(start);
+
+        input.addEventListener("input", () => {
+          const v = Number(input.value);
+          knobValues[p.key] = v;
+          out.textContent = show(v);
+          host.setParam(p.key, v);
+          writeSavedTune(knobField, knobValues);
+        });
+        // Keyboard users get the explanation too; a title attribute alone
+        // never appears for them.
+        input.addEventListener("focus", () => showHint(p.hint ?? null));
+        input.addEventListener("blur", () => showHint(null));
+
+        row.append(name, input, out);
+        knobsEl.appendChild(row);
+      }
+    }
+
+    document.getElementById("lab-reset")?.addEventListener("click", () => {
+      try {
+        localStorage.removeItem(tuneKey(knobField));
+      } catch {
+        // Storage refusal is not a reason to skip the in-memory reset.
+      }
+      buildKnobs(knobField);
+    });
+
+    document.getElementById("lab-copy")?.addEventListener("click", async () => {
+      const text = Object.entries(knobValues)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+      try {
+        await navigator.clipboard.writeText(`${knobField}\n${text}`);
+        const b = document.getElementById("lab-copy");
+        if (b) {
+          b.textContent = "Copied";
+          setTimeout(() => (b.textContent = "Copy values"), 1200);
+        }
+      } catch {
+        // Clipboard needs a permission this page may not hold; the values are
+        // on screen either way.
+      }
+    });
+
+    /* ------------------------------------------------------------ buttons */
+
+    const groups = {
+      field: lab.querySelector('[data-group="field"]'),
+      reach: lab.querySelector('[data-group="reach"]'),
+    };
+
+    const mark = (group: Element | null, value: string) => {
+      if (!group) return;
+      for (const button of group.querySelectorAll("button")) {
+        button.setAttribute(
+          "aria-checked",
+          button.dataset.value === value ? "true" : "false"
+        );
+      }
+    };
+
+    const setField = (value: string) => {
+      field = value;
+      mark(groups.field, value);
+      host.setField(value);
+      persist();
+    };
+    const setReach = (value: string) => {
+      reach = value;
+      mark(groups.reach, value);
+      host.setReach(value);
+      persist();
+    };
+    const setIntensity = (value: number) => {
+      intensity = value;
+      energy.value = String(value);
+      energyOut.textContent = value.toFixed(2);
+      host.setIntensity(value);
+      persist();
+    };
+
+    groups.field?.addEventListener("click", (event) => {
+      const button = (event.target as HTMLElement).closest("button");
+      if (button?.dataset.value) setField(button.dataset.value);
+    });
+    groups.reach?.addEventListener("click", (event) => {
+      const button = (event.target as HTMLElement).closest("button");
+      if (button?.dataset.value) setReach(button.dataset.value);
+    });
+    energy.addEventListener("input", () => setIntensity(Number(energy.value)));
+
+    /* -------------------------------------------------------- collapse */
+
+    const setOpen = (open: boolean) => {
+      lab.dataset.open = String(open);
+      pull.setAttribute("aria-expanded", String(open));
+      if (pullText) pullText.textContent = open ? "Motion lab" : "Motion lab — H to show";
+    };
+    pull.addEventListener("click", () => setOpen(lab.dataset.open !== "true"));
+
+    /* -------------------------------------------------------- keyboard */
+
+    const FIELD_KEYS = ["lattice", "arc", "logfield", "depth", "deeparc"];
+    const REACH_KEYS: Record<string, string> = { q: "hero", w: "graded" };
+
+    window.addEventListener("keydown", (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+
+      const key = event.key.toLowerCase();
+      const index = Number(key) - 1;
+      if (Number.isInteger(index) && index >= 0 && index < FIELD_KEYS.length) {
+        setField(FIELD_KEYS[index]);
+        return;
+      }
+      if (REACH_KEYS[key]) {
+        setReach(REACH_KEYS[key]);
+        return;
+      }
+      if (key === "h") setOpen(lab.dataset.open !== "true");
+      if (key === "r") {
+        forcedMotion = !forcedMotion;
+        host.setForceMotion(forcedMotion);
+      }
+      if (key === "[") setIntensity(Math.max(0.2, Number((intensity - 0.1).toFixed(2))));
+      if (key === "]") setIntensity(Math.min(1.4, Number((intensity + 0.1).toFixed(2))));
+    });
+
+    /* ------------------------------------------------------------- boot */
+
+    mark(groups.field, field);
+    mark(groups.reach, reach);
+    setIntensity(intensity);
+    host.setField(field);
+    requestAnimationFrame(sample);
+  }
+</script>
+
+</body>
+</html>

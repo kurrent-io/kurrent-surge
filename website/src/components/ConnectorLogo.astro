@@ -1,0 +1,149 @@
+---
+/**
+ * The vendor mark for a connector page, set beside its opening paragraph.
+ *
+ * Marks are third-party trademarks used to identify the products the
+ * connectors integrate with. They are not ours and are not part of the design
+ * system's palette, so they are rendered as supplied rather than recoloured.
+ *
+ * Sources: Elasticsearch and Kafka are mirrored from microsoft/aspire.dev
+ * (MIT); Serilog comes from serilog/serilog; MongoDB, Pulsar, RabbitMQ and the
+ * SQL, HTTP and webhook marks were supplied directly.
+ */
+import { Image } from 'astro:assets';
+
+// Imported as a component, not as image metadata: an <img> cannot inherit
+// currentColor, so a mark that has to follow the theme must be inlined.
+import KafkaMark from '../assets/connectors/kafka.svg';
+import SqlMark from '../assets/connectors/sql.svg';
+import HttpMark from '../assets/connectors/http.svg';
+
+// A monochrome RASTER cannot inherit currentColor either, but it can be used
+// as a mask: the alpha channel supplies the shape and the colour comes from
+// the element behind it, so it follows the theme like the inlined SVGs do.
+import webhook from '../assets/connectors/webhook.png';
+
+import elasticsearch from '../assets/connectors/elasticsearch.png';
+import mongodb from '../assets/connectors/mongodb.png';
+import pulsar from '../assets/connectors/pulsar.png';
+import rabbitmq from '../assets/connectors/rabbitmq.svg';
+import serilog from '../assets/connectors/serilog.png';
+
+/* Two kinds of mark. Full-colour brand artwork is rendered through the image
+   pipeline; a monochrome mark is inlined so it can take the page's foreground
+   colour and flip with the theme. */
+const marks = { elasticsearch, mongodb, pulsar, serilog, rabbitmq };
+const inlineMarks = { kafka: KafkaMark, sql: SqlMark, http: HttpMark };
+const maskMarks = { webhook };
+
+export type ConnectorName =
+  | keyof typeof marks
+  | keyof typeof inlineMarks
+  | keyof typeof maskMarks;
+
+interface Props {
+  name: ConnectorName;
+  alt: string;
+}
+
+const { name, alt } = Astro.props;
+const InlineMark = inlineMarks[name as keyof typeof inlineMarks];
+const maskMark = maskMarks[name as keyof typeof maskMarks];
+const src = marks[name as keyof typeof marks];
+---
+
+<figure class="connector-logo" data-inline={InlineMark || maskMark ? '' : undefined}>
+  {
+    InlineMark ? (
+      <InlineMark width={96} height={96} role="img" aria-label={alt} />
+    ) : maskMark ? (
+      <span class="mask-mark" role="img" aria-label={alt} style={`--mask: url(${maskMark.src})`} />
+    ) : (
+      <Image src={src} alt={alt} width={96} height={96} loading="eager" />
+    )
+  }
+</figure>
+
+<style>
+  /* Floated rather than laid out in a grid: the paragraph beside it is authored
+     Markdown, and a wrapper element around both would have to be opened and
+     closed by hand on every page. A float lets the prose stay untouched. */
+  .connector-logo {
+    float: inline-start;
+    /* The top margin matches the one forced onto the adjacent paragraph below,
+       so the mark and the first line of prose sit on the same line and both
+       clear the heading above them. */
+    margin: 1.5rem 24px 12px 0;
+    width: 72px;
+    height: 72px;
+    display: grid;
+    place-items: center;
+  }
+
+  /* Markdown content styles every image with a frame — a 1px border, a 4px
+     radius and a lifted background. That is right for a screenshot and wrong
+     for a logo, so it is reset here. The frame is on the IMG, not on this
+     figure; resetting the figure alone leaves it fully in place. */
+  .connector-logo :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  /* A float is out of flow, so the paragraph beside it keeps whatever top
+     margin the heading left it. Setting both to one value is what keeps the
+     mark and the text aligned. */
+  .connector-logo + :global(p) {
+    /* Same 1.5rem as the figure above. A custom property would be tidier but
+       these are siblings, so the paragraph cannot inherit one set on the
+       figure — the value is repeated deliberately. */
+    margin-top: 1.5rem;
+  }
+
+  /* An inlined mark takes the page's foreground colour, so it flips with the
+     theme instead of staying near-black on a dark ground. */
+  .connector-logo[data-inline] {
+    color: var(--fg);
+  }
+
+  .connector-logo :global(svg) {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Shape from the image's alpha channel, colour from the element. */
+  .connector-logo .mask-mark {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: currentColor;
+    -webkit-mask-image: var(--mask);
+    mask-image: var(--mask);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  /* The HTTP mark is a knockout: its frame and lettering inherit currentColor
+     while a second set of shapes cuts the browser "screen" out of them. That
+     cut-out ships as white, which leaves the lettering invisible on a dark
+     ground, so it takes the page colour and inverts with the theme instead. */
+  .connector-logo :global(.st1) {
+    fill: var(--bg);
+  }
+
+  @media (max-width: 30rem) {
+    .connector-logo {
+      float: none;
+      margin-bottom: 16px;
+    }
+  }
+</style>

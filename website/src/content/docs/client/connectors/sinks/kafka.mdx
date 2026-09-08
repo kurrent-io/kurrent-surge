@@ -1,13 +1,12 @@
 ---
 title: "Kafka Sink"
 description: Write records from a KurrentDB stream to a Kafka topic.
+licenseRequired: true
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import ConnectorLogo from '../../../../../components/ConnectorLogo.astro';
 
-<Badge text="License Required" variant="caution" size="medium" />
-
-## Overview
+<ConnectorLogo name="kafka" alt="Apache Kafka" />
 
 The Kafka sink writes records from a KurrentDB stream to a Kafka topic, using
 an idempotent producer for reliable delivery. It can extract the partition key
@@ -74,7 +73,6 @@ The Kafka sink can be configured with the following options:
 | `authentication:saslMechanism`    | **Description:**<br/>SASL mechanism to use for authentication.<br/><br/>**Default**: `"plain"`<br/><br/>**Accepted Values:**<br/> - `"plain"`, `"scramSha256"`, or `"scramSha512"`          |
 | `authentication:username`         | **Description:**<br/>SASL username                                                                                                                                               |
 | `authentication:password`         | **Description:**<br/>SASL password                                                                                                                                               |
-
 
 ### Partitioning
 

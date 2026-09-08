@@ -33,6 +33,24 @@ const commit =
 // dev URLs carry a content hash, so long caching is safe: a changed font gets
 // a new URL. Production is untouched: the build copies the files into
 // `_astro/fonts` and the host sets the headers. Remove when Astro caches them.
+// Injects a route that exists only under `astro dev`. The entrypoint lives
+// outside src/pages/, so file-based routing never picks it up, and the route is
+// registered only when the command is `dev` — `astro build` therefore emits no
+// page for it and nothing can be published by accident.
+/** @returns {import('astro').AstroIntegration} */
+function devOnlyRoute({ pattern, entrypoint }) {
+  return {
+    name: 'surge:dev-only-route',
+    hooks: {
+      'astro:config:setup': ({ command, injectRoute, logger }) => {
+        if (command !== 'dev') return;
+        injectRoute({ pattern, entrypoint });
+        logger.info(`dev-only route ${pattern} -> ${entrypoint}`);
+      },
+    },
+  };
+}
+
 /** @returns {import('vite').Plugin} */
 function cacheFontsInDev() {
   const fontPath = /\/_astro\/fonts\//;
@@ -120,6 +138,12 @@ export default defineConfig({
     },
   ],
   integrations: [
+    // The motion lab is a development instrument, not a page. It lives outside
+    // src/pages/ so file-based routing never sees it, and is injected only for
+    // `astro dev` — so `astro build` emits nothing for it and it can never be
+    // published. `astro preview` serves dist/, so the route is absent there too,
+    // which is the correct check that it really did not ship.
+    devOnlyRoute({ pattern: '/motion-lab', entrypoint: './src/dev/motion-lab.astro' }),
     // Resolves the icon class the code-block header plugin emits.
     UnoCSS({ injectReset: false }),
     // Renders `d2` fences to inline SVG at build time into public/d2/.
@@ -154,8 +178,13 @@ export default defineConfig({
         Footer: './src/components/Footer.astro',
         // Renders the breadcrumb trail above the page body.
         MarkdownContent: './src/components/MarkdownContent.astro',
-        // Shipped by starlight-page-actions; it owns the Copy / Open / Share row.
-        PageTitle: 'starlight-page-actions/overrides/PageTitle.astro',
+        // Attaches the licence badge to the heading, driven by the
+        // `licenseRequired` frontmatter field. This slot is contested:
+        // starlight-page-actions also overrides PageTitle to place its
+        // Copy / Open / Share row, so ours renders that plugin's component
+        // itself. Only one component can hold a slot, and a second entry here
+        // would silently win on key order rather than fail.
+        PageTitle: './src/components/PageTitle.astro',
         // Adds the typeface picker beside Starlight's theme picker, and the
         // pre-paint script that restores the reader's choice.
         ThemeSelect: './src/components/ThemeSelect.astro',
@@ -241,7 +270,15 @@ export default defineConfig({
           ],
         },
         {
-          label: '06 · CONNECTORS',
+          label: '06 · EXPERIMENTAL',
+          collapsed: true,
+          items: [
+            { label: 'Overview', slug: 'experimental' },
+            { label: 'Appender', slug: 'experimental/appender' },
+          ],
+        },
+        {
+          label: '07 · CONNECTORS',
           collapsed: true,
           items: [
             { label: 'Overview', slug: 'client/connectors' },
@@ -274,7 +311,7 @@ export default defineConfig({
           ],
         },
         {
-          label: '07 · ADMIN',
+          label: '08 · ADMIN',
           collapsed: true,
           items: [
             { label: 'Overview', slug: 'client/admin' },
@@ -282,7 +319,7 @@ export default defineConfig({
           ],
         },
         {
-          label: '08 · MIGRATION',
+          label: '09 · MIGRATION',
           collapsed: true,
           items: [
             { label: 'Overview', slug: 'migration' },

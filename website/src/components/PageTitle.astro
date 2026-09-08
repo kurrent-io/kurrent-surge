@@ -1,0 +1,63 @@
+---
+/**
+ * The page title, with the licence badge attached to it.
+ *
+ * The badge used to sit in each page's body, which put it below the breadcrumb
+ * and above the first heading — far enough from the title to read as part of
+ * the content rather than as a property of the page. Driven from frontmatter
+ * here, it stays on the heading wherever the body goes.
+ *
+ * This slot is contested. starlight-page-actions overrides PageTitle to place
+ * its Copy / Open / Share row, so that component is rendered here rather than
+ * registered in the config: a slot holds one component, and two entries for it
+ * would resolve on key order instead of failing.
+ */
+import { Badge } from '@astrojs/starlight/components';
+import PageActionsTitle from 'starlight-page-actions/overrides/PageTitle.astro';
+
+const { licenseRequired } = Astro.locals.starlightRoute.entry.data;
+---
+
+{
+  licenseRequired ? (
+    <div class="page-title">
+      <PageActionsTitle />
+      <Badge text="License Required" variant="caution" size="medium" />
+    </div>
+  ) : (
+    <PageActionsTitle />
+  )
+}
+
+<style>
+  /* The plugin's component renders the h1 and the actions row as siblings, so
+     this positions the badge against that block rather than inside the h1. */
+  .page-title {
+    position: relative;
+  }
+
+  .page-title :global(h1) {
+    /* Room for the badge on the same line as the title. */
+    padding-inline-end: 12rem;
+  }
+
+  .page-title :global(.sl-badge) {
+    position: absolute;
+    inset-block-start: 0.55rem;
+    inset-inline-end: 0;
+  }
+
+  /* Below the reading breakpoint the title needs its full width, so the badge
+     returns to normal flow underneath it. */
+  @media (max-width: 50rem) {
+    .page-title :global(h1) {
+      padding-inline-end: 0;
+    }
+
+    .page-title :global(.sl-badge) {
+      position: static;
+      display: inline-flex;
+      margin-block-start: 0.5rem;
+    }
+  }
+</style>

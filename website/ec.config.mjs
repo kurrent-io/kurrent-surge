@@ -19,7 +19,10 @@ export default {
   plugins: [pluginBlockHeader()],
   useStarlightUiThemeColors: false,
   styleOverrides: {
-    borderRadius: '0.5rem',
+    // Expressive Code composes the frame's outer radius as borderRadius plus
+    // borderWidth, so 7px + the 1px border lands on the 8px used by every other
+    // enclosing surface. Measured: 0.5rem here rendered 9.5px.
+    borderRadius: '7px',
     borderColor: 'var(--border-1)',
     codeBackground: 'var(--bg-1)',
     frames: {

@@ -1,13 +1,12 @@
 ---
 title: 'Elasticsearch Sink'
 description: Write records from a KurrentDB stream to an Elasticsearch index.
+licenseRequired: true
 ---
 
-import { Badge } from '@astrojs/starlight/components';
+import ConnectorLogo from '../../../../../components/ConnectorLogo.astro';
 
-<Badge text="License Required" variant="caution" size="medium" />
-
-## Overview
+<ConnectorLogo name="elasticsearch" alt="Elasticsearch" />
 
 The Elasticsearch sink reads records from a KurrentDB stream and stores them in
 an Elasticsearch index. The connector serializes each record as a JSON document
