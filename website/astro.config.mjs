@@ -248,7 +248,7 @@ export default defineConfig({
             { label: 'Managing Connectors', slug: 'client/connectors/manage' },
             { label: 'Features', slug: 'client/connectors/features' },
             { label: 'Configure Connector', slug: 'client/connectors/settings' },
-            { label: 'Metrics', slug: 'client/connectors/metrics' },
+            { label: 'Observability', slug: 'client/connectors/metrics' },
             {
               label: 'Sinks',
               collapsed: true,
@@ -277,7 +277,8 @@ export default defineConfig({
           label: '07 · ADMIN',
           collapsed: true,
           items: [
-            { label: 'Admin', slug: 'client/admin' },
+            { label: 'Overview', slug: 'client/admin' },
+            { label: 'Scavenging', slug: 'client/admin/scavenging' },
           ],
         },
         {
