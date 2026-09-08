@@ -13,4 +13,14 @@
   <!-- Helper code is compiled straight into this generator assembly — no separate
        Kurrent.CodeAnalysis.dll for the analyzer host to load (works in Rider too). -->
   <Import Project="..\Kurrent.CodeAnalysis\Kurrent.CodeAnalysis.Sources.props" />
+
+  <!-- The self-validating plumbing is authored as ordinary C# and transplanted into each
+       annotated type. It is a resource, never compiled here: it names types that exist only
+       in the consumer's compilation. LogicalName is what GetManifestResourceStream asks for. -->
+  <ItemGroup>
+    <Compile Remove="EmbeddedResources\**\*.cs" />
+    <EmbeddedResource Include="EmbeddedResources\SelfValidatingCore.cs">
+      <LogicalName>SelfValidatingCore.cs</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>

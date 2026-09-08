@@ -3,7 +3,8 @@ using Kurrent.Surge.Validation;
 namespace Kurrent.Surge.Client.Indexes;
 
 [PublicAPI]
-public sealed class CreateIndexOptions : SelfValidatingClass<CreateIndexOptions, CreateIndexOptions.Validator> {
+[WithValidation]
+public sealed partial class CreateIndexOptions {
     /// <summary>Unique name of the index to create.</summary>
     public IndexName Name { get; set; } = IndexName.Unset;
 
@@ -27,31 +28,29 @@ public sealed class CreateIndexOptions : SelfValidatingClass<CreateIndexOptions,
     public void AddField(string name, string selector, IndexFieldType type) =>
         Fields.Add(new IndexField(name, selector, type));
 
-    public class Validator : Validator<Validator, CreateIndexOptions> {
-        public Validator() {
-            RuleFor(r => r.Name)
-                .Must(name => !name.IsUnset, "Index name must be specified.");
+    static partial void ConfigureRules(Validator rules) {
+        rules.RuleFor(r => r.Name)
+            .Must(name => !name.IsUnset, "Index name must be specified.");
 
-            RuleFor(r => r.Filter)
+        rules.RuleFor(r => r.Filter)
+            .NotEmpty()
+            .WithMessage("Filter expression cannot be empty or whitespace.");
+
+        rules.RuleFor(r => r.Fields)
+            .NotEmpty()
+            .WithMessage("At least one field must be specified.");
+
+        rules.RuleForEach(r => r.Fields).ChildRules(field => {
+            field.RuleFor(f => f.Name)
                 .NotEmpty()
-                .WithMessage("Filter expression cannot be empty or whitespace.");
+                .WithMessage("Field name cannot be empty or whitespace.");
 
-            RuleFor(r => r.Fields)
+            field.RuleFor(f => f.Selector)
                 .NotEmpty()
-                .WithMessage("At least one field must be specified.");
+                .WithMessage("Field selector cannot be empty or whitespace.");
 
-            RuleForEach(r => r.Fields).ChildRules(field => {
-                field.RuleFor(f => f.Name)
-                    .NotEmpty()
-                    .WithMessage("Field name cannot be empty or whitespace.");
-
-                field.RuleFor(f => f.Selector)
-                    .NotEmpty()
-                    .WithMessage("Field selector cannot be empty or whitespace.");
-
-                field.RuleFor(f => f.Type)
-                    .Must(t => t != IndexFieldType.Unspecified, "Field type must be specified.");
-            });
-        }
+            field.RuleFor(f => f.Type)
+                .Must(t => t != IndexFieldType.Unspecified, "Field type must be specified.");
+        });
     }
 }

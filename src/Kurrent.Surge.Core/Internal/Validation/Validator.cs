@@ -53,7 +53,7 @@ public abstract class Validator<TValidator, T> : IValidator<TValidator, T>, IVal
     /// Defines a validation rule for a property accessed via a lambda expression.
     /// The property name is extracted at compile time via <see cref="CallerArgumentExpressionAttribute"/>.
     /// </summary>
-    protected RuleBuilder<T, TProperty> RuleFor<TProperty>(
+    public RuleBuilder<T, TProperty> RuleFor<TProperty>(
         Func<T, TProperty> accessor,
         [CallerArgumentExpression(nameof(accessor))] string expr = "") {
         var propertyName = ExtractPropertyName(expr);
@@ -65,7 +65,7 @@ public abstract class Validator<TValidator, T> : IValidator<TValidator, T>, IVal
     /// <summary>
     /// Defines validation rules for each element in a collection property.
     /// </summary>
-    protected CollectionRuleBuilder<T, TElement> RuleForEach<TElement>(
+    public CollectionRuleBuilder<T, TElement> RuleForEach<TElement>(
         Func<T, IEnumerable<TElement>> accessor,
         [CallerArgumentExpression(nameof(accessor))] string expr = "") {
         var propertyName = ExtractPropertyName(expr);
@@ -77,7 +77,7 @@ public abstract class Validator<TValidator, T> : IValidator<TValidator, T>, IVal
     /// <summary>
     /// Makes all rules defined inside <paramref name="action"/> conditional on <paramref name="condition"/>.
     /// </summary>
-    protected void When(Func<T, bool> condition, Action action) {
+    public void When(Func<T, bool> condition, Action action) {
         var outer = _activeCondition;
 
         _activeCondition = outer is null

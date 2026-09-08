@@ -25,7 +25,8 @@ namespace Kurrent.Surge.Processors.Configuration;
 /// </code>
 /// </example>
 [PublicAPI]
-public sealed class ProcessorOptions : SelfValidatingClass<ProcessorOptions, ProcessorOptions.Validator> {
+[WithValidation]
+public sealed partial class ProcessorOptions {
     /// <summary>
     /// Unique identifier for the processor group. Used for checkpoint coordination.
     /// When not set, auto-derived from the processor type name.
@@ -198,65 +199,63 @@ public sealed class ProcessorOptions : SelfValidatingClass<ProcessorOptions, Pro
 
     #region ->> Validation <<-
 
-    public class Validator : Validator<Validator, ProcessorOptions> {
-        public Validator() {
-            RuleFor(o => o.ProcessorId)
+    static partial void ConfigureRules(Validator rules) {
+        rules.RuleFor(o => o.ProcessorId)
+            .NotEmpty()
+            .WithMessage("ProcessorId is required for processor identification and checkpointing.");
+
+        rules.RuleFor(o => o.MaxParallelism)
+            .InclusiveBetween(1, 32768)
+            .WithMessage("MaxParallelism must be between 1 and 32768.");
+
+        rules.RuleFor(o => o.Batching.MaxBatchSize)
+            .InclusiveBetween(1, 10000)
+            .WithMessage("Batching.MaxBatchSize must be between 1 and 10000.");
+
+        rules.RuleFor(o => o.Batching.BatchWindow)
+            .GreaterThan(TimeSpan.Zero)
+            .WithMessage("Batching.BatchWindow must be greater than zero.");
+
+        rules.RuleFor(o => o.Batching.BufferMultiplier)
+            .InclusiveBetween(1, 100)
+            .WithMessage("Batching.BufferMultiplier must be between 1 and 100.");
+
+        rules.RuleFor(o => o.Checkpoint.Interval)
+            .GreaterThan(TimeSpan.Zero)
+            .WithMessage("Checkpoint.Interval must be greater than zero.");
+
+        rules.RuleFor(o => o.Checkpoint.RetentionCount)
+            .InclusiveBetween(1, 100)
+            .WithMessage("Checkpoint.RetentionCount must be between 1 and 100.");
+
+        rules.RuleFor(o => o.Checkpoint.FailurePolicy)
+            .IsInEnum()
+            .WithMessage("Checkpoint.FailurePolicy must be a valid CheckpointFailurePolicy value.");
+
+        rules.RuleFor(o => o.Subscription.InitialPosition)
+            .IsInEnum()
+            .WithMessage($"Subscription.InitialPosition must be one of: {string.Join(", ", Enum.GetNames<SubscriptionInitialPosition>())}.");
+
+        rules.RuleFor(o => o.Resilience.MaxRetryAttempts)
+            .GreaterThanOrEqualTo(0)
+            .WithMessage("Resilience.MaxRetryAttempts must be zero or greater.");
+
+        rules.RuleFor(o => o.Resilience.BaseDelay)
+            .GreaterThan(TimeSpan.Zero)
+            .WithMessage("Resilience.BaseDelay must be greater than zero.");
+
+        rules.RuleFor(o => o.Resilience.MaxDelay)
+            .GreaterThanOrEqualTo(o => o.Resilience.BaseDelay)
+            .WithMessage("Resilience.MaxDelay must be greater than or equal to Resilience.BaseDelay.");
+
+        rules.RuleFor(o => o.ClientOptions)
+            .Must(clientOptions => clientOptions is not null,
+                "No connection configured. Call Connection() to set a connection string or provide client options.");
+
+        rules.When(o => o.MaxParallelism > 1,
+            () => rules.RuleFor(o => o.Subscription.PartitionKeySelector)
                 .NotEmpty()
-                .WithMessage("ProcessorId is required for processor identification and checkpointing.");
-
-            RuleFor(o => o.MaxParallelism)
-                .InclusiveBetween(1, 32768)
-                .WithMessage("MaxParallelism must be between 1 and 32768.");
-
-            RuleFor(o => o.Batching.MaxBatchSize)
-                .InclusiveBetween(1, 10000)
-                .WithMessage("Batching.MaxBatchSize must be between 1 and 10000.");
-
-            RuleFor(o => o.Batching.BatchWindow)
-                .GreaterThan(TimeSpan.Zero)
-                .WithMessage("Batching.BatchWindow must be greater than zero.");
-
-            RuleFor(o => o.Batching.BufferMultiplier)
-                .InclusiveBetween(1, 100)
-                .WithMessage("Batching.BufferMultiplier must be between 1 and 100.");
-
-            RuleFor(o => o.Checkpoint.Interval)
-                .GreaterThan(TimeSpan.Zero)
-                .WithMessage("Checkpoint.Interval must be greater than zero.");
-
-            RuleFor(o => o.Checkpoint.RetentionCount)
-                .InclusiveBetween(1, 100)
-                .WithMessage("Checkpoint.RetentionCount must be between 1 and 100.");
-
-            RuleFor(o => o.Checkpoint.FailurePolicy)
-                .IsInEnum()
-                .WithMessage("Checkpoint.FailurePolicy must be a valid CheckpointFailurePolicy value.");
-
-            RuleFor(o => o.Subscription.InitialPosition)
-                .IsInEnum()
-                .WithMessage($"Subscription.InitialPosition must be one of: {string.Join(", ", Enum.GetNames<SubscriptionInitialPosition>())}.");
-
-            RuleFor(o => o.Resilience.MaxRetryAttempts)
-                .GreaterThanOrEqualTo(0)
-                .WithMessage("Resilience.MaxRetryAttempts must be zero or greater.");
-
-            RuleFor(o => o.Resilience.BaseDelay)
-                .GreaterThan(TimeSpan.Zero)
-                .WithMessage("Resilience.BaseDelay must be greater than zero.");
-
-            RuleFor(o => o.Resilience.MaxDelay)
-                .GreaterThanOrEqualTo(o => o.Resilience.BaseDelay)
-                .WithMessage("Resilience.MaxDelay must be greater than or equal to Resilience.BaseDelay.");
-
-            RuleFor(o => o.ClientOptions)
-                .Must(clientOptions => clientOptions is not null,
-                    "No connection configured. Call Connection() to set a connection string or provide client options.");
-
-            When(o => o.MaxParallelism > 1,
-                () => RuleFor(o => o.Subscription.PartitionKeySelector)
-                    .NotEmpty()
-                    .WithMessage("Subscription.PartitionKeySelector is required when MaxParallelism is greater than 1."));
-        }
+                .WithMessage("Subscription.PartitionKeySelector is required when MaxParallelism is greater than 1."));
     }
 
     #endregion

@@ -16,7 +16,8 @@ namespace Kurrent.Surge.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public sealed class KurrentClientGossipOptions : SelfValidatingClass<KurrentClientGossipOptions, KurrentClientGossipOptions.Validator> {
+[WithValidation]
+public sealed partial class KurrentClientGossipOptions {
     /// <summary>
     /// The maximum number of times to attempt node discovery.
     /// </summary>
@@ -95,33 +96,31 @@ public sealed class KurrentClientGossipOptions : SelfValidatingClass<KurrentClie
         ReadPreference      = NodeReadPreference.Leader
     };
 
-    public class Validator : Validator<Validator, KurrentClientGossipOptions> {
-        public Validator() {
-            // MaxDiscoverAttempts validation
-            RuleFor(options => options.MaxDiscoverAttempts)
-                .Must(attempts => attempts is > 0 or -1, "MaxDiscoverAttempts must be greater than 0 or -1 for infinite retries.");
+    static partial void ConfigureRules(Validator rules) {
+        // MaxDiscoverAttempts validation
+        rules.RuleFor(options => options.MaxDiscoverAttempts)
+            .Must(attempts => attempts is > 0 or -1, "MaxDiscoverAttempts must be greater than 0 or -1 for infinite retries.");
 
-            // DiscoveryInterval validation
-            RuleFor(options => options.DiscoveryInterval)
-                .GreaterThanOrEqualTo(TimeSpan.FromMilliseconds(10))
-                .WithMessage("DiscoveryInterval must be at least 10ms.");
+        // DiscoveryInterval validation
+        rules.RuleFor(options => options.DiscoveryInterval)
+            .GreaterThanOrEqualTo(TimeSpan.FromMilliseconds(10))
+            .WithMessage("DiscoveryInterval must be at least 10ms.");
 
-            RuleFor(options => options.DiscoveryInterval)
-                .LessThanOrEqualTo(TimeSpan.FromSeconds(60))
-                .WithMessage("DiscoveryInterval must not exceed 60 seconds.");
+        rules.RuleFor(options => options.DiscoveryInterval)
+            .LessThanOrEqualTo(TimeSpan.FromSeconds(60))
+            .WithMessage("DiscoveryInterval must not exceed 60 seconds.");
 
-            // Timeout validation
-            RuleFor(options => options.Timeout)
-                .GreaterThan(options => options.DiscoveryInterval)
-                .WithMessage("Timeout must be greater than DiscoveryInterval.");
+        // Timeout validation
+        rules.RuleFor(options => options.Timeout)
+            .GreaterThan(options => options.DiscoveryInterval)
+            .WithMessage("Timeout must be greater than DiscoveryInterval.");
 
-            RuleFor(options => options.Timeout)
-                .GreaterThanOrEqualTo(TimeSpan.FromMilliseconds(100))
-                .WithMessage("Timeout must be at least 100ms.");
+        rules.RuleFor(options => options.Timeout)
+            .GreaterThanOrEqualTo(TimeSpan.FromMilliseconds(100))
+            .WithMessage("Timeout must be at least 100ms.");
 
-            RuleFor(options => options.Timeout)
-                .Must(timeout => timeout <= TimeSpan.FromSeconds(60), "Timeout exceeds 60 seconds. This may result in delayed failure detection.")
-                .WithSeverity(RuleSeverity.Warning);
-        }
+        rules.RuleFor(options => options.Timeout)
+            .Must(timeout => timeout <= TimeSpan.FromSeconds(60), "Timeout exceeds 60 seconds. This may result in delayed failure detection.")
+            .WithSeverity(RuleSeverity.Warning);
     }
 }

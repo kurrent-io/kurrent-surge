@@ -15,7 +15,8 @@ namespace Kurrent.Surge.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public sealed class KurrentClientCompressionOptions : SelfValidatingClass<KurrentClientCompressionOptions, KurrentClientCompressionOptions.Validator> {
+[WithValidation]
+public sealed partial class KurrentClientCompressionOptions {
     /// <summary>
     /// Whether outgoing calls request compression.
     /// </summary>
@@ -43,10 +44,8 @@ public sealed class KurrentClientCompressionOptions : SelfValidatingClass<Kurren
     /// </summary>
     public static KurrentClientCompressionOptions Default => new();
 
-    public class Validator : Validator<Validator, KurrentClientCompressionOptions> {
-        public Validator() {
-            RuleFor(options => options.Algorithm)
-                .Must(algorithm => Enum.IsDefined(algorithm), "Algorithm must be a defined CompressionAlgorithm value.");
-        }
+    static partial void ConfigureRules(Validator rules) {
+        rules.RuleFor(options => options.Algorithm)
+            .Must(algorithm => Enum.IsDefined(algorithm), "Algorithm must be a defined CompressionAlgorithm value.");
     }
 }

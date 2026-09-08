@@ -8,7 +8,8 @@ namespace Kurrent.Surge.Experimental;
 /// Configuration for the <see cref="Appender"/>. Controls batching thresholds,
 /// backpressure behavior, and the connection to KurrentDB.
 /// </summary>
-sealed class AppenderOptions : SelfValidatingClass<AppenderOptions, AppenderOptions.Validator> {
+[WithValidation]
+public sealed partial class AppenderOptions {
     /// <summary>
     /// Maximum number of records per batch. The flush loop sends a batch when this
     /// count is reached, even if the byte threshold hasn't been hit.
@@ -96,36 +97,34 @@ sealed class AppenderOptions : SelfValidatingClass<AppenderOptions, AppenderOpti
 
     #region ->> Validation <<-
 
-    public sealed class Validator : Validator<Validator, AppenderOptions> {
-        public Validator() {
-            RuleFor(o => o.MaxBatchCount)
-                .InclusiveBetween(1, 10_000)
-                .WithMessage("MaxBatchCount must be between 1 and 10,000.");
+    static partial void ConfigureRules(Validator rules) {
+        rules.RuleFor(o => o.MaxBatchCount)
+            .InclusiveBetween(1, 10_000)
+            .WithMessage("MaxBatchCount must be between 1 and 10,000.");
 
-            RuleFor(o => o.MaxBatchBytes)
-                .InclusiveBetween(1024, 100 * 1_048_576)
-                .WithMessage("MaxBatchBytes must be between 1 KB and 100 MB.");
+        rules.RuleFor(o => o.MaxBatchBytes)
+            .InclusiveBetween(1024, 100 * 1_048_576)
+            .WithMessage("MaxBatchBytes must be between 1 KB and 100 MB.");
 
-            RuleFor(o => o.LingerTimeout)
-                .GreaterThan(TimeSpan.Zero)
-                .WithMessage("LingerTimeout must be greater than zero.");
+        rules.RuleFor(o => o.LingerTimeout)
+            .GreaterThan(TimeSpan.Zero)
+            .WithMessage("LingerTimeout must be greater than zero.");
 
-            RuleFor(o => o.Concurrency)
-                .InclusiveBetween(1, 32)
-                .WithMessage("Concurrency must be between 1 and 32.");
+        rules.RuleFor(o => o.Concurrency)
+            .InclusiveBetween(1, 32)
+            .WithMessage("Concurrency must be between 1 and 32.");
 
-            RuleFor(o => o.BufferCapacity)
-                .InclusiveBetween(1, 100_000)
-                .WithMessage("BufferCapacity must be between 1 and 100,000.");
+        rules.RuleFor(o => o.BufferCapacity)
+            .InclusiveBetween(1, 100_000)
+            .WithMessage("BufferCapacity must be between 1 and 100,000.");
 
-            RuleFor(o => o.FullMode)
-                .Must(mode => mode is BoundedChannelFullMode.Wait,
-                    "FullMode must be Wait. The drop modes evict buffered records without completing their callbacks.");
+        rules.RuleFor(o => o.FullMode)
+            .Must(mode => mode is BoundedChannelFullMode.Wait,
+                "FullMode must be Wait. The drop modes evict buffered records without completing their callbacks.");
 
-            RuleFor(o => o.ClientOptions)
-                .Must(clientOptions => clientOptions is not null,
-                    "No connection configured. Call Connection() to set a connection string or provide client options.");
-        }
+        rules.RuleFor(o => o.ClientOptions)
+            .Must(clientOptions => clientOptions is not null,
+                "No connection configured. Call Connection() to set a connection string or provide client options.");
     }
 
     #endregion

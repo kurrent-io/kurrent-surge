@@ -4,7 +4,8 @@ using Kurrent.Surge.Validation;
 namespace Kurrent.Surge.Client.Registry;
 
 [PublicAPI]
-public sealed class CreateSchemaOptions : SelfValidatingClass<CreateSchemaOptions, CreateSchemaOptions.Validator> {
+[WithValidation]
+public sealed partial class CreateSchemaOptions {
     /// <summary>Unique name of the schema to create.</summary>
     public SchemaName SchemaName { get; set; } = SchemaName.Unset;
 
@@ -30,21 +31,19 @@ public sealed class CreateSchemaOptions : SelfValidatingClass<CreateSchemaOption
     public void AddTag(string key, string value) =>
         Tags[key] = value;
 
-    public class Validator : Validator<Validator, CreateSchemaOptions> {
-        public Validator() {
-            RuleFor(r => r.SchemaName)
-                .Must(name => !name.IsUnset, "Schema name must be specified.");
+    static partial void ConfigureRules(Validator rules) {
+        rules.RuleFor(r => r.SchemaName)
+            .Must(name => !name.IsUnset, "Schema name must be specified.");
 
-            RuleFor(r => r.SchemaDefinition)
-                .NotEmpty()
-                .WithMessage("Schema definition cannot be empty or whitespace.");
+        rules.RuleFor(r => r.SchemaDefinition)
+            .NotEmpty()
+            .WithMessage("Schema definition cannot be empty or whitespace.");
 
-            RuleFor(r => r.DataFormat)
-                .IsInEnum()
-                .Must(f => f != SchemaDataFormat.Unspecified, "Data format must be specified.");
+        rules.RuleFor(r => r.DataFormat)
+            .IsInEnum()
+            .Must(f => f != SchemaDataFormat.Unspecified, "Data format must be specified.");
 
-            RuleFor(r => r.CompatibilityMode)
-                .IsInEnum();
-        }
+        rules.RuleFor(r => r.CompatibilityMode)
+            .IsInEnum();
     }
 }

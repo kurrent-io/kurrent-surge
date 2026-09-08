@@ -14,7 +14,8 @@ public readonly partial record struct ReadMessage : IVariant<Record, Checkpoint>
 /// Options for reading records from the global log.
 /// </summary>
 [PublicAPI]
-public sealed class ReadRecordsOptions : SelfValidatingClass<ReadRecordsOptions, ReadRecordsOptions.Validator> {
+[WithValidation]
+public sealed partial class ReadRecordsOptions {
     /// <summary>
     /// Starting position for the read. Accepts a bare <see cref="LogPosition"/> (implicit) or a
     /// full <see cref="RecordPosition"/>. When the filter routes the read to a single stream,
@@ -69,17 +70,15 @@ public sealed class ReadRecordsOptions : SelfValidatingClass<ReadRecordsOptions,
     /// inspection of index/projection streams.
     /// </summary>
     public bool ResolveLinks { get; set; } = true;
-    
-    public class Validator : Validator<Validator, ReadRecordsOptions> {
-        public Validator() {
-            RuleFor(options => options.Limit)
-                .GreaterThanOrEqualTo(1L)
-                .WithMessage("Limit must be at least 1.");
 
-            // No rule on Start: Unset is the legal default meaning "no position given — resolve to
-            // the direction's natural edge" (beginning forwards, end backwards). ResolveStartPosition
-            // performs that substitution.
-        }
+    static partial void ConfigureRules(Validator rules) {
+        rules.RuleFor(options => options.Limit)
+            .GreaterThanOrEqualTo(1L)
+            .WithMessage("Limit must be at least 1.");
+
+        // No rule on Start: Unset is the legal default meaning "no position given — resolve to
+        // the direction's natural edge" (beginning forwards, end backwards). ResolveStartPosition
+        // performs that substitution.
     }
 }
 
@@ -88,7 +87,8 @@ public sealed class ReadRecordsOptions : SelfValidatingClass<ReadRecordsOptions,
 /// separately to the read operation, so it is not part of these options.
 /// </summary>
 [PublicAPI]
-public sealed class ReadStreamOptions : SelfValidatingClass<ReadStreamOptions, ReadStreamOptions.Validator> {
+[WithValidation]
+public sealed partial class ReadStreamOptions {
     /// <summary>
     /// Starting revision within the stream to begin reading from. Defaults to
     /// <see cref="Revision.Unset"/> — "no revision given", which resolves to the natural edge for
@@ -131,23 +131,21 @@ public sealed class ReadStreamOptions : SelfValidatingClass<ReadStreamOptions, R
     /// </summary>
     public bool ResolveLinks { get; set; } = true;
 
-    public class Validator : Validator<Validator, ReadStreamOptions> {
-        public Validator() {
-            RuleFor(options => options.Limit)
-                .GreaterThanOrEqualTo(1L)
-                .WithMessage("MaxRecords must be at least 1.");
+    static partial void ConfigureRules(Validator rules) {
+        rules.RuleFor(options => options.Limit)
+            .GreaterThanOrEqualTo(1L)
+            .WithMessage("MaxRecords must be at least 1.");
 
-            // Unset is the legal default meaning "no revision given — resolve to the direction's
-            // natural edge" (Min forwards, Max backwards); the range checks apply only to an
-            // explicit revision. Reading forwards from Max (the end) reads nothing — an empty
-            // success, not an error — so it is NOT rejected here (matches $all's End + Forwards).
-            When(options => options.Start != Revision.Unset, () => {
-                RuleFor(options => options.Start)
-                    .Must(start => start >= Revision.Min, "Start revision cannot be less than Min.");
+        // Unset is the legal default meaning "no revision given — resolve to the direction's
+        // natural edge" (Min forwards, Max backwards); the range checks apply only to an
+        // explicit revision. Reading forwards from Max (the end) reads nothing — an empty
+        // success, not an error — so it is NOT rejected here (matches $all's End + Forwards).
+        rules.When(options => options.Start != Revision.Unset, () => {
+            rules.RuleFor(options => options.Start)
+                .Must(start => start >= Revision.Min, "Start revision cannot be less than Min.");
 
-                RuleFor(options => options.Start)
-                    .Must(start => start <= Revision.Max, "Start revision cannot be greater than Max.");
-            });
-        }
+            rules.RuleFor(options => options.Start)
+                .Must(start => start <= Revision.Max, "Start revision cannot be greater than Max.");
+        });
     }
 }

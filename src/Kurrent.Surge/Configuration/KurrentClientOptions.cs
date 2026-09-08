@@ -22,7 +22,8 @@ namespace Kurrent.Surge.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public sealed class KurrentClientOptions : SelfValidatingClass<KurrentClientOptions, KurrentClientOptions.Validator>, IKurrentClientOptions {
+[WithValidation]
+public sealed partial class KurrentClientOptions : IKurrentClientOptions {
     public static KurrentClientOptions Parse(string connectionString) {
         var options = KurrentConnectionString.Parse(connectionString).ToClientOptions();
 
@@ -238,82 +239,80 @@ public sealed class KurrentClientOptions : SelfValidatingClass<KurrentClientOpti
 
     public override string ToString() => ToConnectionString();
 
-    public class Validator : Validator<Validator, KurrentClientOptions> {
-        public Validator() {
-            // Connection name validation
-            RuleFor(options => options.ConnectionName)
-                .NotEmpty()
-                .WithMessage("Connection name cannot be empty.");
+    static partial void ConfigureRules(Validator rules) {
+        // Connection name validation
+        rules.RuleFor(options => options.ConnectionName)
+            .NotEmpty()
+            .WithMessage("Connection name cannot be empty.");
 
-            RuleFor(options => options.ConnectionName.Length)
-                .LessThanOrEqualTo(96)
-                .WithMessage("Connection name exceeds 96 characters, which may impact readability in logs and diagnostics.");
+        rules.RuleFor(options => options.ConnectionName.Length)
+            .LessThanOrEqualTo(96)
+            .WithMessage("Connection name exceeds 96 characters, which may impact readability in logs and diagnostics.");
 
-            // Direct connection endpoint validation
-            When(options => options.ConnectionScheme == KurrentConnectionScheme.Direct, () => {
-                RuleFor(options => options.Endpoints.Length)
-                    .Equal(1)
-                    .WithMessage("Direct connection must have exactly one endpoint.");
+        // Direct connection endpoint validation
+        rules.When(options => options.ConnectionScheme == KurrentConnectionScheme.Direct, () => {
+            rules.RuleFor(options => options.Endpoints.Length)
+                .Equal(1)
+                .WithMessage("Direct connection must have exactly one endpoint.");
+        });
+
+        // Discovery connection endpoints validation
+        rules.When(options => options.ConnectionScheme == KurrentConnectionScheme.Discover, () => {
+            rules.RuleFor(options => options.Endpoints.Length)
+                .GreaterThan(0)
+                .WithMessage("Discovery connection must have at least one endpoint.");
+
+            rules.RuleFor(options => options.Endpoints.Length)
+                .LessThanOrEqualTo(10)
+                .WithMessage("More than 10 endpoints provided for discovery connection. This may impact performance.")
+                .WithSeverity(RuleSeverity.Warning);
+        });
+
+        // Endpoint validation
+        rules.RuleForEach(options => options.Endpoints)
+            .ChildRules(endpoint => {
+                endpoint.RuleFor(ep => ep.Host)
+                    .NotEmpty()
+                    .WithMessage("Endpoint host cannot be empty.");
+
+                endpoint.RuleFor(ep => ep.Host)
+                    .Must(host => !host.Contains(' ') && !host.Contains('\t') && !host.Any(char.IsControl),
+                        "Invalid hostname in endpoint.")
+                    .WithMessage(ctx => $"Invalid hostname in endpoint: {ctx.Host}");
+
+                endpoint.RuleFor(ep => ep.Port)
+                    .InclusiveBetween(1, 65535)
+                    .WithMessage("Port must be between 1 and 65535.");
             });
 
-            // Discovery connection endpoints validation
-            When(options => options.ConnectionScheme == KurrentConnectionScheme.Discover, () => {
-                RuleFor(options => options.Endpoints.Length)
-                    .GreaterThan(0)
-                    .WithMessage("Discovery connection must have at least one endpoint.");
+        rules.RuleFor(options => options.Gossip)
+            .SetValidator(KurrentClientGossipOptions.Validator.Instance);
 
-                RuleFor(options => options.Endpoints.Length)
-                    .LessThanOrEqualTo(10)
-                    .WithMessage("More than 10 endpoints provided for discovery connection. This may impact performance.")
-                    .WithSeverity(RuleSeverity.Warning);
+        rules.RuleFor(options => options.Resilience)
+            .SetValidator(KurrentClientResilienceOptions.Validator.Instance);
+
+        // RuleFor(options => options.Schema)
+        //     .SetValidator(KurrentClientSchemaOptions.Validator.Instance);
+
+        rules.RuleFor(options => options.Security)
+            .SetValidator(KurrentClientSecurityOptions.Validator.Instance);
+
+        rules.RuleFor(options => options.Compression)
+            .SetValidator(KurrentClientCompressionOptions.Validator.Instance);
+
+        // Task names key logs and failure reports; a duplicate usually means the same
+        // task was registered twice and would silently run twice.
+        rules.RuleFor(options => options.Initialization.Tasks)
+            .Must(tasks => tasks.Distinct().Count() == tasks.Count,
+                "Initialization task names must be unique.")
+            .WithMessage(options => {
+                var duplicates = options.Initialization.Tasks
+                    .GroupBy(registration => registration.Task.Name, StringComparer.Ordinal)
+                    .Where(group => group.Count() > 1)
+                    .Select(group => $"'{group.Key}'");
+
+                return $"Duplicate initialization task names: {string.Join(", ", duplicates)}.";
             });
-
-            // Endpoint validation
-            RuleForEach(options => options.Endpoints)
-                .ChildRules(endpoint => {
-                    endpoint.RuleFor(ep => ep.Host)
-                        .NotEmpty()
-                        .WithMessage("Endpoint host cannot be empty.");
-
-                    endpoint.RuleFor(ep => ep.Host)
-                        .Must(host => !host.Contains(' ') && !host.Contains('\t') && !host.Any(char.IsControl),
-                            "Invalid hostname in endpoint.")
-                        .WithMessage(ctx => $"Invalid hostname in endpoint: {ctx.Host}");
-
-                    endpoint.RuleFor(ep => ep.Port)
-                        .InclusiveBetween(1, 65535)
-                        .WithMessage("Port must be between 1 and 65535.");
-                });
-
-            RuleFor(options => options.Gossip)
-                .SetValidator(KurrentClientGossipOptions.Validator.Instance);
-
-            RuleFor(options => options.Resilience)
-                .SetValidator(KurrentClientResilienceOptions.Validator.Instance);
-
-            // RuleFor(options => options.Schema)
-            //     .SetValidator(KurrentClientSchemaOptions.Validator.Instance);
-
-            RuleFor(options => options.Security)
-                .SetValidator(KurrentClientSecurityOptions.Validator.Instance);
-
-            RuleFor(options => options.Compression)
-                .SetValidator(KurrentClientCompressionOptions.Validator.Instance);
-
-            // Task names key logs and failure reports; a duplicate usually means the same
-            // task was registered twice and would silently run twice.
-            RuleFor(options => options.Initialization.Tasks)
-                .Must(tasks => tasks.Distinct().Count() == tasks.Count,
-                    "Initialization task names must be unique.")
-                .WithMessage(options => {
-                    var duplicates = options.Initialization.Tasks
-                        .GroupBy(registration => registration.Task.Name, StringComparer.Ordinal)
-                        .Where(group => group.Count() > 1)
-                        .Select(group => $"'{group.Key}'");
-
-                    return $"Duplicate initialization task names: {string.Join(", ", duplicates)}.";
-                });
-        }
     }
 
     /// <summary>

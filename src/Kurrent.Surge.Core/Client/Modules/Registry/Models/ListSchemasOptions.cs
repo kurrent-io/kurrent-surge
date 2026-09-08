@@ -3,7 +3,8 @@ using Kurrent.Surge.Validation;
 namespace Kurrent.Surge.Client.Registry;
 
 [PublicAPI]
-public sealed class ListSchemasOptions : SelfValidatingClass<ListSchemasOptions, ListSchemasOptions.Validator> {
+[WithValidation]
+public sealed partial class ListSchemasOptions {
     /// <summary>
     /// Prefix to filter schemas by name. Only schemas whose names start with this prefix are returned.
     /// Empty means no prefix filter.
@@ -22,8 +23,4 @@ public sealed class ListSchemasOptions : SelfValidatingClass<ListSchemasOptions,
     /// <summary>Adds or overwrites a tag filter in <see cref="Tags"/>.</summary>
     public void AddTag(string key, string value) =>
         Tags[key] = value;
-
-    public class Validator : Validator<Validator, ListSchemasOptions> {
-        public Validator() { }
-    }
 }

@@ -17,7 +17,8 @@ namespace Kurrent.Surge.Client;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public sealed class KurrentClientSecurityOptions : SelfValidatingClass<KurrentClientSecurityOptions, KurrentClientSecurityOptions.Validator> {
+[WithValidation]
+public sealed partial class KurrentClientSecurityOptions {
     /// <summary>
     /// Transport layer security settings.
     /// </summary>
@@ -97,46 +98,44 @@ public sealed class KurrentClientSecurityOptions : SelfValidatingClass<KurrentCl
             Authentication = new BasicCredentials(username, password)
         };
 
-    public class Validator : Validator<Validator, KurrentClientSecurityOptions> {
-        public Validator() {
-            // Transport security validation
-            When(options => options.Authentication.IsBasicCredentials, () => {
-                RuleFor(options => options.Transport.IsEnabled)
-                    .Equal(true)
-                    .WithMessage("Using basic authentication without TLS is not secure.")
-                    .WithSeverity(RuleSeverity.Warning);
-            });
+    static partial void ConfigureRules(Validator rules) {
+        // Transport security validation
+        rules.When(options => options.Authentication.IsBasicCredentials, () => {
+            rules.RuleFor(options => options.Transport.IsEnabled)
+                .Equal(true)
+                .WithMessage("Using basic authentication without TLS is not secure.")
+                .WithSeverity(RuleSeverity.Warning);
+        });
 
-            // Certificate-based (mTLS) auth is a TLS-level mechanism: with transport security
-            // disabled, the client certificate is built but never presented — SslOptions is
-            // only consulted once a TLS handshake actually happens.
-            When(options => options.Authentication.IsCertificateBased, () => {
-                RuleFor(options => options.Transport.IsEnabled)
-                    .Equal(true)
-                    .WithMessage("Certificate-based authentication requires TLS — the client certificate is never presented on an insecure connection.")
-                    .WithSeverity(RuleSeverity.Warning);
-            });
+        // Certificate-based (mTLS) auth is a TLS-level mechanism: with transport security
+        // disabled, the client certificate is built but never presented — SslOptions is
+        // only consulted once a TLS handshake actually happens.
+        rules.When(options => options.Authentication.IsCertificateBased, () => {
+            rules.RuleFor(options => options.Transport.IsEnabled)
+                .Equal(true)
+                .WithMessage("Certificate-based authentication requires TLS — the client certificate is never presented on an insecure connection.")
+                .WithSeverity(RuleSeverity.Warning);
+        });
 
-            // Certificate path validation for Authentication
-            When(options => options.Authentication.IsFileCertificateCredentials, () => {
-                RuleFor(options => options.Authentication.AsFileCertificateCredentials.CertificatePath)
-                    .Must(Path.IsPathRooted, "Relative certificate path may not resolve correctly at runtime.")
-                    .WithMessage(options => $"Relative certificate path may not resolve correctly at runtime: {options.Authentication.AsFileCertificateCredentials.CertificatePath}")
-                    .WithSeverity(RuleSeverity.Warning);
+        // Certificate path validation for Authentication
+        rules.When(options => options.Authentication.IsFileCertificateCredentials, () => {
+            rules.RuleFor(options => options.Authentication.AsFileCertificateCredentials.CertificatePath)
+                .Must(Path.IsPathRooted, "Relative certificate path may not resolve correctly at runtime.")
+                .WithMessage(options => $"Relative certificate path may not resolve correctly at runtime: {options.Authentication.AsFileCertificateCredentials.CertificatePath}")
+                .WithSeverity(RuleSeverity.Warning);
 
-                RuleFor(options => options.Authentication.AsFileCertificateCredentials.KeyPath)
-                    .Must(Path.IsPathRooted, "Relative key path may not resolve correctly at runtime.")
-                    .WithMessage(options => $"Relative key path may not resolve correctly at runtime: {options.Authentication.AsFileCertificateCredentials.KeyPath}")
-                    .WithSeverity(RuleSeverity.Warning);
-            });
+            rules.RuleFor(options => options.Authentication.AsFileCertificateCredentials.KeyPath)
+                .Must(Path.IsPathRooted, "Relative key path may not resolve correctly at runtime.")
+                .WithMessage(options => $"Relative key path may not resolve correctly at runtime: {options.Authentication.AsFileCertificateCredentials.KeyPath}")
+                .WithSeverity(RuleSeverity.Warning);
+        });
 
-            // Certificate path validation for Transport
-            When(options => options.Transport.IsFileCertificateTls, () => {
-                RuleFor(options => options.Transport.AsFileCertificateTls.CaPath)
-                    .Must(Path.IsPathRooted, "Relative certificate path may not resolve correctly at runtime.")
-                    .WithMessage(options => $"Relative certificate path may not resolve correctly at runtime: {options.Transport.AsFileCertificateTls.CaPath}")
-                    .WithSeverity(RuleSeverity.Warning);
-            });
-        }
+        // Certificate path validation for Transport
+        rules.When(options => options.Transport.IsFileCertificateTls, () => {
+            rules.RuleFor(options => options.Transport.AsFileCertificateTls.CaPath)
+                .Must(Path.IsPathRooted, "Relative certificate path may not resolve correctly at runtime.")
+                .WithMessage(options => $"Relative certificate path may not resolve correctly at runtime: {options.Transport.AsFileCertificateTls.CaPath}")
+                .WithSeverity(RuleSeverity.Warning);
+        });
     }
 }
