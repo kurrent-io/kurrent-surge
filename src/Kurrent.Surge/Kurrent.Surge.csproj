@@ -32,7 +32,7 @@
 
   <ItemGroup>
     <!-- The contract layer: client interfaces + the data types they accept/return. A normal package
-         dependency (not bundled) — Kurrent.Surge.Client.nupkg depends on Kurrent.Abstractions.nupkg. -->
+         dependency (not bundled) — Kurrent.Surge.nupkg depends on Kurrent.Abstractions.nupkg. -->
     <!-- PrivateAssets="none": the nuspec dependency carries ALL assets so a consumer installing only
          this package still receives Core's packed generators (Avro codecs, unique identifiers, message
          catalogs) and its build/*.props knobs — analyzers and build assets are excluded on dependency
@@ -43,7 +43,7 @@
     <ProjectReference Include="..\Variant.SourceGenerators\Variant.SourceGenerators.csproj" Analyzer="true" />
     <!-- Variant.SourceGenerators (above) still runs here for the client's own IVariant unions
          (TransportSecurity, ClientCredentials). The Variant RUNTIME assembly is NOT bundled here:
-         Kurrent.Abstractions bundles it, and Kurrent.Surge.Client gets it transitively through that package
+         Kurrent.Abstractions bundles it, and Kurrent.Surge gets it transitively through that package
          reference. Bundling it in both would ship Kurrent.Variant.dll twice and conflict at restore. -->
   </ItemGroup>
 

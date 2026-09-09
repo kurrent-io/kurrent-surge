@@ -54,9 +54,9 @@ kurrentdb+discover://node1:2113,node2:2113,node3:2113
 - **Streams** — append, read, subscribe to, and manage streams
 - **Schema registry** — register a schema, get it, and check its compatibility
 - **Indexes and connectors** — create, start, stop, and delete them
-- **Filter expressions** — server-side SQL filtering for subscriptions and reads
-- **Codecs** — JSON and protobuf are built in. Avro is an opt-in package
-- **Stream processing** — processors and projectors with checkpointing and partitioning
+- **Filter expressions** — SQL filters over stream, category, schema name, metadata and JSON payload
+- **Codecs** — JSON, Protobuf and Avro are all built in
+- **Stream processing** — processors with checkpointing, batching, back-off and graceful shutdown
 - **OpenTelemetry** — distributed tracing and metrics
 - **Dependency injection** — first-class `IServiceCollection` integration
 - **AOT compatible** — source generators give operation with no reflection
@@ -70,8 +70,8 @@ kurrentdb+discover://node1:2113,node2:2113,node3:2113
 | Avro | built in | Yes | From the CLR type, or from `.avsc` text | Yes, from `.avsc` text |
 | Bytes | built in | Passthrough | None | No |
 
-Each format has a schema, and the registry validates a payload against it. The SDK makes that schema
-from the CLR type, so each format in the table has one.
+Each format has a schema, and the registry checks a schema against the registered version for
+compatibility. The SDK makes that schema from the CLR type, so each format in the table has one.
 
 Transcoding is different. It reads a payload and writes JSON, and it uses no .NET type. It must read
 the schema as text.

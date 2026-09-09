@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using Kurrent.Surge.Codecs.Avro;
+using Kurrent.Surge.Codecs.Protobuf;
 
 namespace Kurrent.Surge.Schema;
 
@@ -58,6 +60,17 @@ static class SchemaDataFormatExtensions {
                 SchemaDataFormat.Unspecified => BytesContentType,
                 _                            => throw new ArgumentOutOfRangeException(nameof(dataFormat), dataFormat, null)
             };
+    }
+
+    extension(SchemaDataFormat) {
+        /// <summary>
+        /// The type's own encoding: Avro when a codec was generated for it, Protobuf when it is a
+        /// Protocol Buffers message, JSON otherwise.
+        /// </summary>
+        public static SchemaDataFormat FromMessageType(Type messageType) =>
+            AvroCodecRegistry.IsRegistered(messageType) ? SchemaDataFormat.Avro
+          : messageType.IsProtoMessage()                ? SchemaDataFormat.Protobuf
+          :                                               SchemaDataFormat.Json;
     }
 
     /// <param name="contentType">The content type string. The comparison is case-insensitive.</param>

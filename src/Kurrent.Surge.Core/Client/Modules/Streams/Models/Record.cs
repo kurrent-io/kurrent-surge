@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
+using Kurrent.Surge.Codecs;
 using Kurrent.Surge.Schema;
 
 namespace Kurrent.Surge.Client.Streams;
@@ -14,6 +15,46 @@ public record Record {
 
     public Record(IRecordDecoder? decoder = null) =>
         Decoder = decoder ?? NullableRecordDecoder.Instance;
+
+    /// <summary>
+    /// Creates a decoded record carrying <paramref name="value"/>, with <see cref="Data"/> encoded
+    /// from it. An unset schema name is taken from the type name, and an unspecified data format is
+    /// taken from the message type; every other field on <paramref name="schema"/> is used as given.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SchemaDataFormat.Bytes"/> carries no decoded value and has no codec, so it is
+    /// rejected. Assign <see cref="Data"/> directly for a raw payload.
+    /// </remarks>
+    public Record(object value, RecordSchemaInfo schema) : this() {
+        var messageType = value.GetType();
+
+        var schemaName = schema.Schema.IsUnset
+            ? SchemaName.From(messageType.Name)
+            : schema.Schema;
+
+        var dataFormat = schema.DataFormat is SchemaDataFormat.Unspecified
+            ? SchemaDataFormat.FromMessageType(messageType)
+            : schema.DataFormat;
+
+        if (dataFormat is SchemaDataFormat.Bytes)
+            throw new ArgumentException(
+                "A 'Bytes' record carries no decoded value. Assign Data directly instead.",
+                nameof(schema));
+
+        Id        = RecordId.New();
+        Timestamp = DateTime.UtcNow;
+        Data      = DefaultSchemaCodecs.GetCodec(dataFormat).Encode(value);
+        Value     = value;
+        ValueType = messageType;
+        Schema    = schema with { Schema = schemaName, DataFormat = dataFormat };
+    }
+
+    /// <inheritdoc cref="Record(object, RecordSchemaInfo)"/>
+    public Record(
+        object value,
+        SchemaName schemaName = default,
+        SchemaDataFormat dataFormat = SchemaDataFormat.Unspecified
+    ) : this(value, new RecordSchemaInfo { Schema = schemaName, DataFormat = dataFormat }) { }
 
     IRecordDecoder Decoder { get; }
     
