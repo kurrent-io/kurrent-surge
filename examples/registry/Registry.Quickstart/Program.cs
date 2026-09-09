@@ -5,6 +5,7 @@ using Kurrent.Surge.Client.Registry;
 using Kurrent.Surge.Errors;
 using Kurrent.Surge.Schema;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Registry.Quickstart;
 using Registry.Quickstart.Events;
 using Serilog;
@@ -15,14 +16,16 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-var services = new ServiceCollection()
-    .AddKurrentSurge(surge => surge.Connection(
-        "kurrentdb://admin:changeit@localhost:2113?tls=false",
-        opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister));
+var builder = Host.CreateApplicationBuilder(args);
 
-await using var provider = services.BuildServiceProvider();
+builder.Services.AddSerilog();
 
-var client = provider.GetRequiredService<KurrentClient>();
+builder.AddKurrentSurge("kurrentdb", surge =>
+    surge.Connection(opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister));
+
+using var host = builder.Build();
+
+var client = host.Services.GetRequiredService<KurrentClient>();
 
 var stream    = $"sensors-{Guid.NewGuid():N}";
 var ingestion = new IngestionService(client);

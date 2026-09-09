@@ -31,8 +31,8 @@ try {
 
     builder.Services.AddSingleton<WordCountProcessor>();
 
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false", client => client.Messages.UseCatalog(catalog));
+    builder.AddKurrentSurge("kurrentdb", surge => {
+        surge.Connection(client => client.Messages.UseCatalog(catalog));
         surge.AddProcessor<WordCountProcessor>(opts => {
             opts.Subscription.Filter          = RecordFilter.ByStream(stream);
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;

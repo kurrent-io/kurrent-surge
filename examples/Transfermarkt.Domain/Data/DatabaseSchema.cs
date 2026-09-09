@@ -1,6 +1,6 @@
-namespace Processor.FullExample;
+namespace Transfermarkt.Data;
 
-static class DatabaseSchema {
+public static class DatabaseSchema {
     public const string CreateClubSpendingTable = """
         CREATE TABLE IF NOT EXISTS club_spending (
             club_id        TEXT          NOT NULL,

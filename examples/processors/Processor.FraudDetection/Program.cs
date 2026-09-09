@@ -21,8 +21,7 @@ try {
 
     builder.Services.AddSingleton<FraudDetectionProcessor>();
 
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.AddKurrentSurge("kurrentdb", surge => {
         surge.AddProcessor<FraudDetectionProcessor>(opts =>
             opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'Transaction'"));
     });

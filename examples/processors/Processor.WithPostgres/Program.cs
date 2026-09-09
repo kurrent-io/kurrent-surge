@@ -4,6 +4,7 @@ using Kurrent.Surge.Client.Streams;
 using Npgsql;
 using Processor.WithPostgres;
 using Serilog;
+using Transfermarkt.Data;
 using Transfermarkt.Seeding;
 
 Log.Logger = new LoggerConfiguration()
@@ -23,8 +24,7 @@ try {
 
     // Register processor as hosted service
     builder.Services.AddSingleton<ClubSpendingProcessor>();
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.AddKurrentSurge("kurrentdb", surge => {
         surge.AddProcessor<ClubSpendingProcessor>(opts => {
             opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'PlayerTransferred'");
             opts.Checkpoint.Interval = TimeSpan.FromSeconds(10);

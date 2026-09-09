@@ -13,4 +13,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

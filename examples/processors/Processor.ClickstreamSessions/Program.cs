@@ -21,10 +21,9 @@ try {
 
     builder.Services.AddSingleton<SessionAnalyticsProcessor>();
 
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.AddKurrentSurge("kurrentdb", surge => {
         surge.AddProcessor<SessionAnalyticsProcessor>(opts =>
-            opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'PageView'"));
+            opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'PageView'"));
     });
 
     builder.Services.AddHostedService<PageViewSeeder>();

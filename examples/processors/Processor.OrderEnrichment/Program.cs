@@ -21,8 +21,7 @@ try {
 
     builder.Services.AddSingleton<OrderEnrichmentProcessor>();
 
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.AddKurrentSurge("kurrentdb", surge => {
         // The three source streams by prefix. A stream constraint travels to the server as a regex over
         // $all, so the standard projections' link events ($ce-*, $et-*) never reach the processor.
         surge.AddProcessor<OrderEnrichmentProcessor>(opts =>

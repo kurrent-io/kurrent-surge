@@ -21,8 +21,7 @@ try {
 
     builder.Services.AddSingleton<TemperatureMonitorProcessor>();
 
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.AddKurrentSurge("kurrentdb", surge => {
         surge.AddProcessor<TemperatureMonitorProcessor>(opts =>
             opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'"));
     });

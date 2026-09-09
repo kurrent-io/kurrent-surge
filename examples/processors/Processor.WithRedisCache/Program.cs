@@ -24,8 +24,7 @@ try {
     // Register processor as hosted service
     builder.Services.AddSingleton<PlayerCacheProcessor>();
 
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.AddKurrentSurge("kurrentdb", surge => {
         surge.AddProcessor<PlayerCacheProcessor>(opts => {
             opts.ProcessorId = "PlayerCacheProcessor-001";
             opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;

@@ -12,14 +12,16 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.Services.AddSingleton<LiveTransferProcessor>();
 
-        surge.AddProcessor(new LiveTransferProcessor(), prx => {
+    builder.AddKurrentSurge("kurrentdb", surge => {
+        surge.AddProcessor<LiveTransferProcessor>(prx => {
             prx.ProcessorId                  = $"live-transfer-processor-{Guid.NewGuid().ToString()[..8]}";
             prx.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
             prx.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
 
+            // Tailing live data only, so there is nothing to resume after a restart — checkpoint
+            // rarely rather than never, so the drone never wastes writes catching up to itself.
             prx.Checkpoint.Interval = TimeSpan.FromDays(1);
         });
     });

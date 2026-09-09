@@ -22,8 +22,7 @@ try {
 
     // Register processor as hosted service
     builder.Services.AddSingleton<LeaderboardProcessor>();
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.AddKurrentSurge("kurrentdb", surge => {
         surge.AddProcessor<LeaderboardProcessor>(opts =>
             opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('ScoreSubmitted', 'PlayerJoined')"));
     });

@@ -28,6 +28,17 @@ public sealed class FraudDetectionProcessor : IRecordProcessor {
         return ValueTask.CompletedTask;
     }
 
+    public ValueTask OnCheckpoint(CheckpointContext context) {
+        context.Logger.LogInformation(
+            "Checkpoint {CheckpointId} | Transactions: {Transactions} | Accounts: {Accounts} | Fraud Alerts: {FraudAlerts}",
+            context.CheckpointId,
+            _totalTransactions,
+            _accountStates.Count,
+            _fraudAlertsRaised);
+
+        return ValueTask.CompletedTask;
+    }
+
     void ProcessTransaction(Transaction tx, ILogger logger) {
         _totalTransactions++;
 

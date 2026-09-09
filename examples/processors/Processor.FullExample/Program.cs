@@ -6,6 +6,7 @@ using Processor.FullExample;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
+using Transfermarkt.Data;
 using Transfermarkt.Seeding;
 
 Log.Logger = new LoggerConfiguration()
@@ -35,8 +36,7 @@ try {
 
     // Register processor as hosted service
     builder.Services.AddSingleton<TransferAnalyticsProcessor>();
-    builder.Services.AddKurrentSurge(surge => {
-        surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+    builder.AddKurrentSurge("kurrentdb", surge => {
         surge.AddProcessor<TransferAnalyticsProcessor>(opts => {
             opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
             opts.Checkpointing(c => c.IntervalFrom(10_000));

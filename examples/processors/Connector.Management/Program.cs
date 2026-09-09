@@ -18,8 +18,7 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddKurrentSurge(surge => surge
-        .Connection("kurrentdb://admin:changeit@localhost:2113?tls=false"));
+    builder.AddKurrentSurge("kurrentdb");
     builder.Services.AddHostedService<PaymentPlanService>();
 
     var app = builder.Build();

@@ -2,6 +2,7 @@ using Kurrent.Surge;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 using Streams.QuickStart.Events;
 
@@ -10,12 +11,15 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-var services = new ServiceCollection()
-    .AddKurrentSurge(surge => surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false"));
+var builder = Host.CreateApplicationBuilder(args);
 
-await using var provider = services.BuildServiceProvider();
+builder.Services.AddSerilog();
 
-var client = provider.GetRequiredService<KurrentClient>();
+builder.AddKurrentSurge("kurrentdb");
+
+using var host = builder.Build();
+
+var client = host.Services.GetRequiredService<KurrentClient>();
 
 var stream = $"order-{Guid.NewGuid().ToString()[..8]}";
 

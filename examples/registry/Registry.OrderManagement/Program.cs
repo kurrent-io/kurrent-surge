@@ -16,9 +16,8 @@ try {
 
     builder.Host.UseSerilog();
 
-    builder.Services.AddKurrentSurge(surge => surge.Connection(
-        "kurrentdb://admin:changeit@localhost:2113?tls=false",
-        opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister));
+    builder.AddKurrentSurge("kurrentdb", surge => surge
+        .Connection(opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister));
 
     builder.Services.AddSingleton(sp => sp.GetRequiredService<KurrentClient>().Registry);
 
