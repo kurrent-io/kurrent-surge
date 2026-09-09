@@ -41,7 +41,7 @@ card-testing pattern, so alerts appear within seconds. Press `Ctrl+C` to stop.
 ## Key Code
 
 ```csharp
-void ProcessTransaction(Transaction tx) {
+void ProcessTransaction(Transaction tx, ILogger logger) {
     var state = _accountStates.GetOrAdd(tx.AccountId, _ => new AccountState());
     state.CleanupExpiredTransactions(tx.Timestamp, PatternWindow);
 
@@ -52,7 +52,7 @@ void ProcessTransaction(Transaction tx) {
         // Check for matching small tx in the pattern window
         var matchingSmallTx = state.FindMatchingSmallTransaction(tx.Timestamp, PatternWindow);
         if (matchingSmallTx != null) {
-            RaiseFraudAlert(matchingSmallTx, tx);
+            RaiseFraudAlert(matchingSmallTx, tx, logger);
         }
     }
 }

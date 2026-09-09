@@ -12,7 +12,9 @@ Three actors share a `TemperatureReading` schema:
 dotnet run --project examples/registry/Registry.Quickstart
 ```
 
-Requires KurrentDB on `localhost:2113`. Idempotent.
+Connects via `ConnectionStrings:kurrentdb` in `appsettings.json`, which defaults to
+`localhost:2113`. Point at a different server by editing the file or setting the
+`ConnectionStrings__kurrentdb` environment variable. Idempotent.
 
 ## Output
 

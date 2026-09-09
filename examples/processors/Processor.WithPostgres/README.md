@@ -42,35 +42,58 @@ second. Aggregates are flushed to Postgres at each checkpoint, every 10 seconds.
 Aggregates transfers in memory, flushes to Postgres on checkpoint:
 
 ```csharp
-public async ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+public async ValueTask OnCheckpoint(CheckpointContext context) {
+    if (_pending.IsEmpty)
+        return;
+
     var toFlush = _pending.ToArray();
     _pending.Clear();
 
-    await using var conn = await dataSource.OpenConnectionAsync();
-    await using var tx = await conn.BeginTransactionAsync();
+    await using var conn = await dataSource.OpenConnectionAsync(context.CancellationToken);
+    await using var tx = await conn.BeginTransactionAsync(context.CancellationToken);
 
-    foreach (var (_, spending) in toFlush) {
-        await conn.ExecuteAsync("""
-            INSERT INTO club_spending (club_id, season, total_spent, total_received)
-            VALUES (@ClubId, @Season, @TotalSpent, @TotalReceived)
-            ON CONFLICT (club_id, season) DO UPDATE SET
-                total_spent = club_spending.total_spent + EXCLUDED.total_spent,
-                total_received = club_spending.total_received + EXCLUDED.total_received
-            """, spending, tx);
+    try {
+        foreach (var (_, spending) in toFlush) {
+            await conn.ExecuteAsync("""
+                INSERT INTO club_spending (club_id, season, total_spent, total_received, players_in, players_out, updated_at)
+                VALUES (@ClubId, @Season, @TotalSpent, @TotalReceived, @PlayersIn, @PlayersOut, NOW())
+                ON CONFLICT (club_id, season) DO UPDATE SET
+                    total_spent = club_spending.total_spent + EXCLUDED.total_spent,
+                    total_received = club_spending.total_received + EXCLUDED.total_received,
+                    players_in = club_spending.players_in + EXCLUDED.players_in,
+                    players_out = club_spending.players_out + EXCLUDED.players_out,
+                    updated_at = NOW()
+                """,
+                spending,
+                tx
+            );
+        }
+
+        await tx.CommitAsync(context.CancellationToken);
     }
-
-    await tx.CommitAsync();
+    catch {
+        await tx.RollbackAsync(context.CancellationToken);
+        throw;
+    }
 }
 ```
 
 ### Program.cs
 
-Registers `NpgsqlDataSource` via DI:
+Registers `NpgsqlDataSource` via DI, then opens the Kurrent Surge registration scope on the connection string named `kurrentdb`:
 
 ```csharp
 builder.Services.AddNpgsqlDataSource(connectionString);
 builder.Services.AddSingleton<ClubSpendingProcessor>();
-builder.Services.AddHostedService<ClubSpendingService>();
+
+builder.AddKurrentSurge("kurrentdb", surge => {
+    surge.AddProcessor<ClubSpendingProcessor>(opts => {
+        opts.Subscription.Filter = RecordFilter.ByExpression("schema = 'PlayerTransferred'");
+        opts.Checkpoint.Interval = TimeSpan.FromSeconds(10);
+    });
+});
+
+builder.Services.AddHostedService<TransferSeeder>();
 ```
 
 ## Endpoints
@@ -85,6 +108,7 @@ builder.Services.AddHostedService<ClubSpendingService>();
 ```json
 {
   "ConnectionStrings": {
+    "kurrentdb": "kurrentdb://admin:changeit@localhost:2113?tls=false",
     "Postgres": "Host=localhost;Database=transfermarkt;Username=postgres;Password=postgres"
   }
 }
@@ -93,6 +117,7 @@ builder.Services.AddHostedService<ClubSpendingService>();
 ### Environment Variables
 
 ```bash
+export ConnectionStrings__kurrentdb="kurrentdb://admin:changeit@localhost:2113?tls=false"
 export ConnectionStrings__Postgres="Host=localhost;Database=transfermarkt;Username=postgres;Password=postgres"
 ```
 

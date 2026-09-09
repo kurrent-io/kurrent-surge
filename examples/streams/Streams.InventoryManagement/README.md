@@ -10,7 +10,8 @@ cd examples/streams/Streams.InventoryManagement
 dotnet run
 ```
 
-Requires KurrentDB running on `localhost:2113`. The API starts on `http://localhost:5000`.
+Requires KurrentDB running on `localhost:2113`. The connection string lives in `appsettings.json`
+under `ConnectionStrings:kurrentdb`. The API starts on `http://localhost:5000`.
 
 ## Try It
 
@@ -118,39 +119,37 @@ curl -s 'http://localhost:5000/activity?max=5' | jq
 ```csharp
 var (currentLevel, revision) = await GetStockLevel(sku);
 
-var result = await client.Streams.AppendToStream(
-    AppendToStreamRequest.For($"inventory-{sku}")
-        .ExpectingState(revision)
-        .WithRecord(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow))
-        .Build());
+var stream = StreamFor(sku);
+var record = AppendRecord.Create(new StockShipped(sku, quantity, orderId, DateTimeOffset.UtcNow), r => r with { Stream = stream });
+
+var result = await client.Streams.AppendStream(stream, [record], revision);
 ```
 
 ### Atomic multi-stream writes for warehouse transfers
 
 ```csharp
+var skuStream = StreamFor(sku);
+
 await client.Streams.AppendRecords(
-    AppendRecordsRequest.New()
-        .WithRecord(r => r.ForStream($"inventory-{sku}").WithValue(transferEvent))
-        .WithRecord(r => r.ForStream("transfer-log").WithValue(transferEvent))
-        .WithChecks(ConsistencyCheck.StreamExists($"inventory-{sku}"))
-        .Build());
+    new[] {
+        AppendRecord.Create(transferEvent, r => r with { Stream = skuStream }),
+        AppendRecord.Create(transferEvent, r => r with { Stream = "transfer-log" })
+    },
+    new AppendRecordsOptions().AddChecks(ConsistencyCheck.StreamExists(skuStream)),
+    CancellationToken.None);
 ```
 
 ### Folding a stream into current state
 
 ```csharp
-await using var stream = await client.Streams.ReadStreamRecords($"inventory-{sku}");
-
-await foreach (var message in stream) {
-    message.Switch(
-        record => {
-            level += record.Value switch {
-                StockReceived e  => e.Quantity,
-                StockShipped e   => -e.Quantity,
-                StockAdjusted e  => e.Quantity,
-                _                => 0
-            };
-        },
-        _ => { });
+await foreach (var message in client.Streams.ReadStream(StreamFor(sku))) {
+    if (message.Value is Record record) {
+        level += record.Value switch {
+            StockReceived e  => e.Quantity,
+            StockShipped e   => -e.Quantity,
+            StockAdjusted e  => e.Quantity,
+            _                => 0
+        };
+    }
 }
 ```

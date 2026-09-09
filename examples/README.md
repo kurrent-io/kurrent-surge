@@ -20,9 +20,24 @@ Kafka sink connector, which requires a licensed KurrentDB.
 
 ## Wireup
 
-Every example registers the SDK through `AddKurrentSurge` on a service collection: web hosts on
-`WebApplication.CreateBuilder`, long-running consoles on `Host.CreateApplicationBuilder`, and the two
-one-shot quickstarts on a bare `ServiceCollection`.
+Every example builds a host and registers the SDK through `AddKurrentSurge`. Web examples use
+`WebApplication.CreateBuilder`; console examples use `Host.CreateApplicationBuilder`, whether they
+run indefinitely or complete a task and exit.
+
+The connection string is never hard-coded. Each example ships an `appsettings.json` holding it under
+`ConnectionStrings:kurrentdb`, and reads it with the connection-name overload:
+
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddKurrentSurge("kurrentdb", surge => {
+    surge.AddProcessor<OrderProcessor>(opts =>
+        opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'OrderPlaced'"));
+});
+```
+
+Point an example at a different server by editing its `appsettings.json`, or by setting the
+`ConnectionStrings__kurrentdb` environment variable.
 
 ## Message mapping
 

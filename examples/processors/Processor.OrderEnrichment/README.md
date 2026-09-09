@@ -51,7 +51,7 @@ second, so every order arrives fully enriched. The processor subscribes to the `
 ## Key Code
 
 ```csharp
-void EnrichAndLogOrder(OrderPlaced order) {
+void EnrichAndLogOrder(OrderPlaced order, ILogger logger) {
     // Join with customer lookup
     var customer = _customers.GetValueOrDefault(order.CustomerId);
     var customerName = customer?.Name ?? $"Unknown ({order.CustomerId})";

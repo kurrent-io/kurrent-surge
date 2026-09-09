@@ -43,7 +43,7 @@ round, so both the threshold alerts and the anomaly detector fire. Press `Ctrl+C
 ## Key Code
 
 ```csharp
-void CheckAnomalyAlert(SensorReading reading, SensorState state) {
+void CheckAnomalyAlert(SensorReading reading, SensorState state, ILogger logger) {
     var deviation = Math.Abs(reading.Temperature - state.Average);
     var threshold = state.StandardDeviation * AnomalyStdDevMultiplier;
 

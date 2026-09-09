@@ -9,7 +9,9 @@ cd examples/streams/Streams.QuickStart
 dotnet run
 ```
 
-Requires KurrentDB running on `localhost:2113`.
+Connects via `ConnectionStrings:kurrentdb` in `appsettings.json`, which defaults to
+`localhost:2113`. Point at a different server by editing the file or setting the
+`ConnectionStrings__kurrentdb` environment variable.
 
 ## Sample Output
 

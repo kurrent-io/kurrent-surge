@@ -49,10 +49,10 @@ public class LiveTransferProcessor : MessageProcessor {
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog();
 
-builder.Services.AddKurrentSurge(surge => {
-    surge.Connection("kurrentdb://admin:changeit@localhost:2113?tls=false");
+builder.Services.AddSingleton<LiveTransferProcessor>();
 
-    surge.AddProcessor(new LiveTransferProcessor(), prx => {
+builder.AddKurrentSurge("kurrentdb", surge => {
+    surge.AddProcessor<LiveTransferProcessor>(prx => {
         prx.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
         prx.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
     });
@@ -71,9 +71,9 @@ await app.RunAsync();
 
 ## Configuration
 
-The connection string is set in `Program.cs`. To configure it externally, drop the `Connection` call
-and add `ConnectionStrings:KurrentDB` to `appsettings.json` or the environment; `AddKurrentSurge`
-reads it.
+The connection string lives in `appsettings.json` under `ConnectionStrings:kurrentdb`.
+`AddKurrentSurge("kurrentdb", ...)` reads it; override it with the `ConnectionStrings__kurrentdb`
+environment variable for other environments.
 
 ## Next Steps
 

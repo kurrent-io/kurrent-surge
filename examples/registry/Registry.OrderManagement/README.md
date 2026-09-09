@@ -162,10 +162,12 @@ curl -s http://localhost:5000/schemas/orders.order-placed-v1 -X DELETE | jq
 
 ### Client configured for auto-registration
 
+The connection string lives in `appsettings.json` under `ConnectionStrings:kurrentdb`;
+`AddKurrentSurge("kurrentdb", ...)` reads it and the configure delegate tunes the resolved options.
+
 ```csharp
-builder.Services.AddKurrentSurge(surge => surge.Connection(
-    "kurrentdb://admin:changeit@localhost:2113?tls=false",
-    opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister));
+builder.AddKurrentSurge("kurrentdb", surge => surge
+    .Connection(opts => opts.Schema = KurrentClientSchemaOptions.AutoRegister));
 ```
 
 ### Events stamped with schema metadata on write
@@ -173,20 +175,20 @@ builder.Services.AddKurrentSurge(surge => surge.Connection(
 ```csharp
 // The client serializes the event, auto-registers its JSON schema,
 // and stamps the record with schema name + version ID
-await client.Streams.AppendStream(
-    $"order-{orderId}",
-    [AppendRecord.New.WithValue(new OrderPlaced(...)).Build()]);
+var result = await client.Streams.AppendStream(
+    StreamFor(order.OrderId),
+    [AppendRecord.Create(order)]);
 ```
 
 ### Schema metadata visible on read
 
 ```csharp
-await foreach (var msg in stream) {
+await foreach (var msg in client.Streams.ReadStream(StreamFor(orderId))) {
     msg.Switch(
         record => {
-            record.Schema.SchemaName;      // "order-placed"
-            record.Schema.SchemaFormat;     // Json
-            record.Schema.SchemaVersionId;  // guid linking to registry
+            record.Schema.Schema;      // "order-placed"
+            record.Schema.DataFormat;  // Json
+            record.Schema.VersionId;   // guid linking to registry
         },
         _ => { });
 }

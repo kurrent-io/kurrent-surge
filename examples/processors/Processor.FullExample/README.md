@@ -73,11 +73,11 @@ each checkpoint, every 10 seconds.
 ┌─────────────────────────────────────────────────────────┐
 │            TransferAnalyticsProcessor                    │
 │                                                          │
-│  ProcessRecords:                                         │
+│  ProcessRecord:                                          │
 │    - PlayerRegistered → Cache in Redis                   │
 │    - PlayerTransferred → Update Redis + Accumulate       │
 │                                                          │
-│  OnCheckpointComplete:                                   │
+│  OnCheckpoint:                                           │
 │    - Flush accumulated spending → Postgres               │
 └─────────────┬──────────────────────────┬────────────────┘
               │                          │
@@ -108,30 +108,31 @@ each checkpoint, every 10 seconds.
 Handles multiple concerns in one processor:
 
 ```csharp
-public async ValueTask ProcessRecords(ProcessRecordsContext context) {
-    foreach (var record in context.Records) {
-        switch (record.Value) {
-            case PlayerRegistered registered:
-                await CachePlayer(registered);           // Redis
-                break;
+public async ValueTask ProcessRecord(ProcessRecordContext context) {
+    switch (context.Record.Value) {
+        case PlayerRegistered registered:
+            await CachePlayer(registered, context.Logger);   // Redis
+            break;
 
-            case PlayerTransferred transfer:
-                await UpdatePlayerCache(transfer);       // Redis
-                AccumulateSpending(transfer);            // In-memory
-                break;
-        }
+        case PlayerTransferred transfer:
+            await UpdatePlayerCache(transfer);                // Redis
+            AccumulateSpending(transfer);                     // In-memory
+            break;
     }
 }
 
-public async ValueTask OnCheckpointComplete(CheckpointCompleteContext context) {
+public async ValueTask OnCheckpoint(CheckpointContext context) {
+    if (_pendingSpending.IsEmpty)
+        return;
+
     // Flush accumulated spending to Postgres
     var toFlush = _pendingSpending.ToArray();
     _pendingSpending.Clear();
 
-    await using var conn = await postgres.OpenConnectionAsync();
-    await using var tx = await conn.BeginTransactionAsync();
+    await using var conn = await postgres.OpenConnectionAsync(context.CancellationToken);
+    await using var tx = await conn.BeginTransactionAsync(context.CancellationToken);
     // ... upsert logic
-    await tx.CommitAsync();
+    await tx.CommitAsync(context.CancellationToken);
 }
 ```
 
@@ -149,9 +150,16 @@ builder.Services.AddHealthChecks()
     .AddNpgSql(pgConn, name: "postgres")
     .AddRedis(redisConn, name: "redis");
 
-// Processor
+// Processor + Kurrent Surge registration scope
 builder.Services.AddSingleton<TransferAnalyticsProcessor>();
-builder.Services.AddHostedService<TransferAnalyticsService>();
+builder.AddKurrentSurge("kurrentdb", surge => {
+    surge.AddProcessor<TransferAnalyticsProcessor>(opts => {
+        opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
+        opts.Checkpointing(c => c.IntervalFrom(10_000));
+    });
+});
+
+builder.Services.AddHostedService<TransferSeeder>();
 ```
 
 ## Configuration
@@ -161,6 +169,7 @@ builder.Services.AddHostedService<TransferAnalyticsService>();
 ```json
 {
   "ConnectionStrings": {
+    "kurrentdb": "kurrentdb://admin:changeit@localhost:2113?tls=false",
     "Postgres": "Host=localhost;Database=transfermarkt;Username=postgres;Password=postgres",
     "Redis": "localhost:6379"
   },
@@ -176,6 +185,7 @@ builder.Services.AddHostedService<TransferAnalyticsService>();
 ### Environment Variables
 
 ```bash
+export ConnectionStrings__kurrentdb="kurrentdb://admin:changeit@localhost:2113?tls=false"
 export ConnectionStrings__Postgres="Host=localhost;Database=transfermarkt;..."
 export ConnectionStrings__Redis="localhost:6379"
 ```
@@ -190,7 +200,7 @@ export ConnectionStrings__Redis="localhost:6379"
 
 ## Related Examples
 
-- `Processor.Minimal` - Just ProcessRecords, no integrations
+- `Processor.WordCount` - Just ProcessRecord, no integrations
 - `Processor.AspNetMinimal` - ASP.NET hosting without external deps
 - `Processor.WithPostgres` - Postgres only
 - `Processor.WithRedisCache` - Redis only

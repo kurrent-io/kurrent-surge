@@ -89,16 +89,20 @@ curl http://localhost:5000/player/player123
 ## Key Code
 
 ```csharp
-async ValueTask ProcessScore(ScoreSubmitted score) {
-    var leaderboardKey = $"leaderboard:{score.GameId}";
-    var currentBest = await Db.SortedSetScoreAsync(leaderboardKey, score.PlayerId);
+public LeaderboardProcessor(IConnectionMultiplexer redis) {
+    var db = redis.GetDatabase();
 
-    // Only update if new personal best
-    if (!currentBest.HasValue || score.Score > currentBest.Value) {
-        await Db.SortedSetAddAsync(leaderboardKey, score.PlayerId, score.Score);
-        var rank = await Db.SortedSetRankAsync(leaderboardKey, score.PlayerId, Order.Descending);
-        // ...
-    }
+    Process<ScoreSubmitted>(async (score, ctx) => {
+        var leaderboardKey = $"leaderboard:{score.GameId}";
+        var currentBest = await db.SortedSetScoreAsync(leaderboardKey, score.PlayerId);
+
+        // Only update if this is a new high score for the player
+        if (!currentBest.HasValue || score.Score > currentBest.Value) {
+            await db.SortedSetAddAsync(leaderboardKey, score.PlayerId, score.Score);
+            var rank = await db.SortedSetRankAsync(leaderboardKey, score.PlayerId, Order.Descending);
+            // ...
+        }
+    });
 }
 ```
 

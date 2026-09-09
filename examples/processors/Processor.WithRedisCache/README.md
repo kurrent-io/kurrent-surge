@@ -38,45 +38,57 @@ player every second, so `/players` fills up immediately.
 Caches player data on write:
 
 ```csharp
-async ValueTask CachePlayerInfo(PlayerRegistered registered, CancellationToken ct) {
+async ValueTask CachePlayerInfo(PlayerRegistered registered, ILogger logger) {
     var playerData = new CachedPlayer {
         PlayerId    = registered.PlayerId.ToString(),
         Name        = registered.Name.ToString(),
         Nationality = registered.Nationality.ToString(),
         Position    = registered.MainPosition.ToString(),
-        CurrentClub = null
+        CurrentClub = null,
+        UpdatedAt   = DateTimeOffset.UtcNow.ToString("O")
     };
 
     var key  = $"player:{registered.PlayerId}";
     var json = JsonSerializer.Serialize(playerData);
 
-    await Db.StringSetAsync(key, json, TimeSpan.FromHours(24));
+    await Db.StringSetAsync(key, json, CacheDuration);
 }
 ```
 
 Updates club on transfer:
 
 ```csharp
-async ValueTask UpdatePlayerClub(PlayerTransferred transfer, CancellationToken ct) {
+async ValueTask UpdatePlayerClub(PlayerTransferred transfer, ILogger logger) {
     var key = $"player:{transfer.PlayerId}";
     var existing = await Db.StringGetAsync(key);
 
     // Update or create cache entry
     var playerData = existing.HasValue
-        ? JsonSerializer.Deserialize<CachedPlayer>(existing!) with { CurrentClub = transfer.ToClubId.ToString() }
-        : new CachedPlayer { PlayerId = transfer.PlayerId.ToString(), CurrentClub = transfer.ToClubId.ToString() };
+        ? JsonSerializer.Deserialize<CachedPlayer>(existing.ToString())! with { CurrentClub = transfer.ToClubId.IsUnset ? null : transfer.ToClubId.ToString() }
+        : new CachedPlayer { PlayerId = transfer.PlayerId.ToString(), CurrentClub = transfer.ToClubId.IsUnset ? null : transfer.ToClubId.ToString() };
 
-    await Db.StringSetAsync(key, JsonSerializer.Serialize(playerData), TimeSpan.FromHours(24));
+    await Db.StringSetAsync(key, JsonSerializer.Serialize(playerData), CacheDuration);
 }
 ```
 
 ### Program.cs
 
 ```csharp
-var redis = await ConnectionMultiplexer.ConnectAsync("localhost:6379");
+var redisConnection = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+var redis = await ConnectionMultiplexer.ConnectAsync(redisConnection);
 builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
 builder.Services.AddSingleton<PlayerCacheProcessor>();
-builder.Services.AddHostedService<PlayerCacheService>();
+
+builder.AddKurrentSurge("kurrentdb", surge => {
+    surge.AddProcessor<PlayerCacheProcessor>(opts => {
+        opts.ProcessorId = "PlayerCacheProcessor-001";
+        opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+        opts.Checkpoint.Interval = TimeSpan.FromSeconds(5);
+        opts.Subscription.Filter = RecordFilter.ByExpression("schema_name IN ('PlayerRegistered', 'PlayerTransferred')");
+    });
+});
+
+builder.Services.AddHostedService<TransferSeeder>();
 ```
 
 ## Endpoints
@@ -92,6 +104,7 @@ builder.Services.AddHostedService<PlayerCacheService>();
 ```json
 {
   "ConnectionStrings": {
+    "kurrentdb": "kurrentdb://admin:changeit@localhost:2113?tls=false",
     "Redis": "localhost:6379"
   }
 }
@@ -100,6 +113,7 @@ builder.Services.AddHostedService<PlayerCacheService>();
 ### Environment Variables
 
 ```bash
+export ConnectionStrings__kurrentdb="kurrentdb://admin:changeit@localhost:2113?tls=false"
 export ConnectionStrings__Redis="localhost:6379"
 ```
 

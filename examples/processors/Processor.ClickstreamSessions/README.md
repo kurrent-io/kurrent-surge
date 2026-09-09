@@ -45,7 +45,7 @@ Press `Ctrl+C` to stop.
 ## Key Code
 
 ```csharp
-void ProcessPageView(PageView pageView) {
+void ProcessPageView(PageView pageView, ILogger logger) {
     var existingSession = _activeSessions.GetValueOrDefault(pageView.UserId);
 
     if (existingSession != null) {
@@ -53,7 +53,7 @@ void ProcessPageView(PageView pageView) {
 
         if (timeSinceLastActivity > SessionTimeout) {
             // Session expired - close and start new
-            CloseSession(existingSession, "timeout");
+            CloseSession(existingSession, "timeout", logger);
             StartNewSession(pageView);
         } else {
             // Continue existing session
