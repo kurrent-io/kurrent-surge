@@ -9,31 +9,9 @@ not validate their settings.
 For what a connector is and which ones exist, see
 [Connectors](/kurrent-surge/client/connectors/).
 
-## Settings every sink takes
-
-These are independent of which sink you chose. Per-connector keys live on the pages linked above,
-and there are a lot of those keys, so this page does not mirror them.
-
-| Key | Default | Meaning |
-|---|---|---|
-| `subscription:filter:scope` | | `stream` or `record` |
-| `subscription:filter:filterType` | | `streamId`, `prefix`, `regex` or `jsonPath` |
-| `subscription:filter:expression` | `""` | The filter itself |
-| `subscription:initialPosition` | `latest` | `latest` or `earliest` |
-| `transformer:enabled` | `false` | |
-| `transformer:function` | `""` | Base64 JavaScript. Required when the transformer is on |
-| `resilience:enabled` | `true` | |
-| `autocommit:enabled` | `true` | Whether the connector checkpoints for you |
-| `autocommit:interval` | `5000` | Milliseconds |
-| `autocommit:recordsThreshold` | `1000` | |
-| `logging:enabled` | `true` | |
-
-Retry backoff is three bounds, each a pair: `resilience:firstDelayBound:upperLimitMs` and
-`:delayMs`, then `second`, then `third`. The third bound defaults to `-1`, which means retry
-forever.
-
-`resilience:enabled` is not universal in practice. The Kafka, Pulsar and RabbitMQ sinks carry their
-own retry mechanisms and ignore it, as their own pages say explicitly.
+This page covers the lifecycle, which is the same for sinks and sources. For the settings each kind
+accepts, see [How Sinks Work](/kurrent-surge/client/connectors/sinks/) and
+[How Sources Work](/kurrent-surge/client/connectors/sources/).
 
 ## Create
 
@@ -48,7 +26,7 @@ Dictionary<string, string> settings = new() {
     ["authentication:username"]        = "app",
     ["authentication:password"]        = "secret",
 
-    // shared by every sink, not specific to Kafka
+    // sink-only keys: a source has none of these
     ["subscription:filter:scope"]      = "stream",
     ["subscription:filter:filterType"] = "prefix",
     ["subscription:filter:expression"] = "order-",
@@ -56,6 +34,19 @@ Dictionary<string, string> settings = new() {
 };
 
 await client.Connectors.Create("orders-to-kafka", "Orders to Kafka", settings);
+```
+
+Create a source the same way, with only its own keys:
+
+```csharp
+Dictionary<string, string> settings = new() {
+    ["instanceTypeName"]          = "kafka-source",
+    ["topic"]                     = "customers",
+    ["consumer:bootstrapServers"] = "localhost:9092",
+    ["schemaName"]                = "customer"
+};
+
+await client.Connectors.Create("customers-from-kafka", "Customers from Kafka", settings);
 ```
 
 A working version of this, with partition-key extraction and compression, is in
@@ -97,7 +88,7 @@ state moves.
 await client.Connectors.Rename("orders-to-kafka", "Orders → Kafka Sink");
 ```
 
-## Start and stop
+## Start and Stop
 
 Move the connector between `Running` and `Stopped`. Both are reversible, and neither touches the
 stored position.
@@ -107,11 +98,17 @@ await client.Connectors.Start("orders-to-kafka");
 await client.Connectors.Stop("orders-to-kafka");
 ```
 
-`Start` can resume from a specific log position instead of the stored one:
+`Start` can resume a **sink** from a specific log position instead of the stored one:
 
 ```csharp
 await client.Connectors.Start("orders-to-kafka", 12_345);
 ```
+
+:::caution
+Sources reject a position. The server checks whether the connector implements `ISource` and fails the
+command with `Connector {id} cannot be started from a specific position`. A source tracks its place in
+the origin system, not in the KurrentDB log.
+:::
 
 ## Reset
 
@@ -128,6 +125,10 @@ await client.Connectors.Start("orders-to-kafka");
 
 Positions must be concrete and non-negative. A sentinel throws `ArgumentOutOfRangeException`, and
 `Unset`, `Earliest` and `Latest` are all sentinels.
+
+On a source, the same rule as `Start` applies. A position fails with
+`Connector {id} cannot be started from a specific position`. `Reset` without a position is accepted,
+and it rewinds the source to its beginning.
 
 ## Delete
 
@@ -172,7 +173,7 @@ an error. You get an empty `Items` and `TotalSize = 0`.
 | `Name` | `string` | Display name |
 | `InstanceTypeName` | `string` | e.g. `kafka-sink` |
 | `State` | `ConnectorState` | See below |
-| `Position` | `LogPosition` | Last processed |
+| `Position` | `LogPosition` | The last processed position. Read from the connector's checkpoint stream. Only sinks write that stream, so this stays unset on a source |
 | `Settings` | `IReadOnlyDictionary<string,string>` | Only with `IncludeSettings` |
 | `Configuration` | `JsonObject?` | Only with `IncludeConfiguration` |
 | `ErrorDetails` | `string?` | Last reported error |
@@ -190,7 +191,7 @@ an error. You get an empty `Items` and `TotalSize = 0`.
 | `Deactivating` | Moving to `Stopped` |
 | `Stopped` | Idle |
 
-## Get settings or configuration
+## Get Settings or Configuration
 
 Cheaper than listing with the include flags when you want one connector.
 

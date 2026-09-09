@@ -1,0 +1,65 @@
+---
+title: 'Data Protection'
+description: Envelope encryption for the sensitive settings of sink and source connectors.
+---
+
+KurrentDB Connectors use envelope encryption to protect sensitive configuration fields such as
+passwords, access tokens and private keys.
+
+When you configure a connector, the system encrypts sensitive data using Data Encryption Keys (DEKs).
+It then wraps those keys with a master key based on the token you provide. KurrentDB stores the
+encrypted data, never the plaintext.
+
+Data protection applies to **both sinks and sources**. Each connector type declares its own sensitive
+keys. The Kafka source protects its SASL credentials and its SSL certificates. The webhook source
+protects its signature secret. To see which fields a connector protects, open that connector's page
+from the [Connectors overview](/kurrent-surge/client/connectors/).
+
+## Configuring Data Protection
+
+Provide the encryption token either in a token file or directly in the configuration.
+
+:::caution
+Once set, the token is permanent. Every connector needs the same token, and changing it makes all
+previously encrypted data inaccessible. Treat the token as a permanent secret and never change it
+after initial setup.
+:::
+
+### Using a Token File
+
+```yaml
+KurrentDB:
+  DataProtection:
+    TokenFile: "/path/to/token/file"
+```
+
+### Using a Token Directly
+
+```yaml
+KurrentDB:
+  DataProtection:
+    Token: "<your-secret-token>"
+```
+
+:::note
+If you provide both `Token` and `TokenFile`, the system uses the token file and ignores the `Token`
+setting.
+:::
+
+The root section name is the server's own configuration root. The default root is `KurrentDB`. The
+server also accepts `Kurrent` and `EventStore` for compatibility with earlier versions.
+
+## Key Vault
+
+KurrentDB Connectors use the Surge key vault internally to manage encryption keys. Surge is
+KurrentDB's native key storage mechanism, and it stores encrypted keys in internal system streams.
+The Surge vault is the default and the only key vault currently available. The data protection
+framework uses it automatically, with no configuration from you.
+
+:::caution
+The data protection framework manages the Surge key vault internally. Do not configure it directly.
+The system handles all key vault operations automatically.
+:::
+
+Support for additional key vault options, including external key management systems, is planned for
+future releases.

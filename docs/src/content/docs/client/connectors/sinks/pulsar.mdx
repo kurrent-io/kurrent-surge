@@ -19,7 +19,7 @@ Before using the Pulsar sink connector, ensure you have:
 - Appropriate authentication token if your Pulsar cluster requires authentication
 
 :::tip
-See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/data-protection/) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -50,7 +50,7 @@ These settings control how the connector interacts with Pulsar, partitions messa
 
 :::tip
 The Pulsar sink inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/sinks/#settings) page.
 :::
 
 ### General settings 
@@ -74,7 +74,7 @@ Partitioning options determine how the connector assigns partition keys, which a
 
 ### Resilience
 
-The Pulsar sink connector relies on its own retry mechanism and doesn't include the configuration from [Resilience configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration).
+The Pulsar sink connector relies on its own retry mechanism and doesn't include the configuration from [Resilience configuration](/kurrent-surge/client/connectors/sinks/#resilience-settings).
 
 | Name                       | Details                                                                                                                                           |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -98,7 +98,7 @@ Example:
 }
 ```
 
-The connector includes these headers in every message it sends, alongside the [default headers](/kurrent-surge/client/connectors/features/#headers) its plugin adds automatically.
+The connector includes these headers in every message it sends, alongside the [default headers](/kurrent-surge/client/connectors/sinks/#headers) its plugin adds automatically.
 
 ## Examples
 

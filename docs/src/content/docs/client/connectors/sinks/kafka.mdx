@@ -23,7 +23,7 @@ Before using the Kafka sink connector, ensure you have:
 - Appropriate authentication credentials if using SASL
 
 :::tip
-See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/data-protection/) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -54,7 +54,7 @@ Adjust these settings to control how the Kafka sink connector behaves and how it
 
 :::tip
 The Kafka sink inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/sinks/#settings) page.
 :::
 
 The Kafka sink can be configured with the following options:
@@ -86,13 +86,17 @@ See the [Partitioning](#partitioning-1) section for examples.
 
 ### Resilience
 
-The Kafka sink connector relies on its own Kafka retry mechanism. None of the keys in
-[Resilience configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration) apply to it. The two `resilience:`-prefixed keys
-below are Kafka producer settings, not the shared resilience configuration.
+The Kafka sink uses the shared
+[resilience settings](/kurrent-surge/client/connectors/sinks/#resilience-settings), including
+`resilience:enabled` and the three delay bounds. It adds the keys below on top of them. The last two
+are Kafka producer settings that the connector passes straight to the client.
 
 | Name                               | Details                                                                                                                                                                                                    |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `waitForBrokerAck`                 | **Description:**<br/>Whether the producer waits for broker acknowledgment before considering the send operation complete. See [Broker Acknowledgment](#delivery-guarantees)<br/><br/>**Default**: `"false"` |
+| `resilience:requestTimeoutMs`      | **Description:**<br/>The timeout in milliseconds for a produce request.<br/><br/>**Default**: `"3000"`                                                                                                        |
+| `resilience:maxRetries`            | **Description:**<br/>The maximum number of retry attempts. `"-1"` means retry without a limit.<br/><br/>**Default**: `"-1"`                                                                                   |
+| `resilience:transientErrorDelay`   | **Description:**<br/>The delay before retrying a transient error.<br/><br/>**Default**: `"00:00:00"`                                                                                                          |
 | `resilience:reconnectBackoffMaxMs` | **Description:**<br/>The maximum time to wait before reconnecting to a broker after the connection has been closed.<br/><br/>**Default**: `"20000"`                                                           |
 | `resilience:messageSendMaxRetries` | **Description:**<br/>How many times to retry sending a failing Message.<br/><br/>**Default**: `"2147483647"`                                                                                                  |
 
@@ -144,7 +148,7 @@ Example:
 }
 ```
 
-The connector includes these headers in every message it sends, alongside the [default headers](/kurrent-surge/client/connectors/features/#headers) its plugin adds automatically.
+The connector includes these headers in every message it sends, alongside the [default headers](/kurrent-surge/client/connectors/sinks/#headers) its plugin adds automatically.
 
 ## Examples
 

@@ -4,16 +4,28 @@ description: The time series a running connector reports, grouped by the compone
 ---
 
 
-KurrentDB connectors expose metrics for the health, performance, and reliability
-of your system. The tables below group them by type.
+KurrentDB connectors expose metrics for the health, performance, and reliability of your system. The
+tables below group them by the component that emits them, not by connector kind. Each heading says
+which kind reports it.
+
+:::caution
+`Consumer` and `Producer` are Surge runtime components, and they read the opposite way to a
+connector's own direction. A **sink** consumes from KurrentDB, so its KurrentDB-side reads appear
+under Consumer. A **source** produces into KurrentDB, so its appends appear under Producer. What a
+sink writes to its target is under Sink.
+:::
 
 ## Usage
 
+Sinks and sources both.
+
 | Time series                      | Type                                               | Description                              |
 |:---------------------------------|:---------------------------------------------------|:-----------------------------------------|
-| `kurrent_connector_active_total` | [UpDownCounter](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Current number of active data connectors |
+| `kurrent_connector_active_total` | [UpDownCounter](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Current number of active data connectors. Tagged with `connector_type`, which is `Sink` or `Source`, so you can split the count by kind |
 
 ## Sink
+
+Sinks only. These cover what a sink writes to its target.
 
 | Time series                          | Type                                                   | Description                                                             |
 |:-------------------------------------|:-------------------------------------------------------|:------------------------------------------------------------------------|
@@ -21,8 +33,11 @@ of your system. The tables below group them by type.
 | `kurrent_sink_errors_total`          | [Counter](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types)   | Total number of errors encountered during sink operations               |
 | `kurrent_sink_transform_duration_s`  | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Duration of data transformation before writing to the sink (in seconds) |
 | `kurrent_sink_write_latency_s`       | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Time between record creation and sink write acknowledgment (in seconds) |
+| `kurrent_sink_last_invocation_ms`    | [Gauge](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types)     | The timestamp of the last sink invocation, in milliseconds since 1970-01-01T00:00:00Z |
 
 ## Consumer
+
+Sinks only. A sink consumes from KurrentDB, so these describe its reads and its checkpoint commits.
 
 | Time series                                   | Type                                                   | Description                                                         |
 |:----------------------------------------------|:-------------------------------------------------------|:--------------------------------------------------------------------|
@@ -32,6 +47,8 @@ of your system. The tables below group them by type.
 
 ## Producer
 
+Sources only. A source produces into KurrentDB, so these describe its appends.
+
 | Time series                                     | Type                                                   | Description                                                            |
 |:------------------------------------------------|:-------------------------------------------------------|:-----------------------------------------------------------------------|
 | `messaging_kurrent_producer_queue_length`       | [Gauge](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types)     | Current number of messages waiting in the producer queue               |
@@ -39,6 +56,8 @@ of your system. The tables below group them by type.
 | `messaging_kurrent_producer_produce_duration_s` | [Histogram](https://docs.kurrent.io/server/v26.1/diagnostics/metrics#common-types) | Time taken to produce messages to the messaging system (in seconds)    |
 
 ## Processor
+
+Sinks and sources both. Every connector runs inside a processor.
 
 | Time series                               | Type                                                 | Description                                                  |
 |:------------------------------------------|:-----------------------------------------------------|:-------------------------------------------------------------|

@@ -22,7 +22,7 @@ Before using the MongoDB sink connector, ensure you have:
 - Appropriate authentication credentials (username/password or X.509 certificate)
 
 :::tip
-See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/data-protection/) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -55,7 +55,7 @@ Adjust these settings to control how the MongoDB sink connector behaves and how 
 
 :::tip
 The MongoDB sink inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/sinks/#settings) page.
 :::
 
 The MongoDB sink can be configured with the following options:
@@ -72,11 +72,11 @@ The MongoDB sink can be configured with the following options:
 | `batching:batchSize`      | **Description:**<br/>Threshold batch size at which the sink pushes the batch of records to the MongoDB collection.<br/><br/>**Default**: `"1000"`                                                |
 | `batching:batchTimeoutMs` | **Description:**<br/>Threshold time in milliseconds at which the sink pushes the current batch of records to the MongoDB collection, regardless of the batch size.<br/><br/>**Default**: `"250"` |
 
-Resilience options can be found in the [Resilience Configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration) section.
+Resilience options can be found in the [Resilience Configuration](/kurrent-surge/client/connectors/sinks/#resilience-settings) section.
 
 ## Metadata
 
-The MongoDB sink connector automatically includes these [default headers](/kurrent-surge/client/connectors/features/#headers) in each document sent to the collection. They
+The MongoDB sink connector automatically includes these [default headers](/kurrent-surge/client/connectors/sinks/#headers) in each document sent to the collection. They
 provide metadata about the record, and the connector stores them in a
 `_metadata` field within the document.
 

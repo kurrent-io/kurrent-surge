@@ -21,7 +21,7 @@ Before using the RabbitMQ sink connector, ensure you have:
 - Appropriate authentication credentials (username and password)
 
 :::tip
-See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/data-protection/) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -54,7 +54,7 @@ Adjust these settings to control how the RabbitMQ sink connector behaves and how
 
 :::tip
 The RabbitMQ sink inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/sinks/#settings) page.
 :::
 
 The RabbitMQ sink can be configured with the following options:
@@ -76,7 +76,7 @@ The RabbitMQ sink can be configured with the following options:
 
 ### Resilience
 
-The RabbitMQ sink connector relies on its own RabbitMQ retry mechanism and doesn't include the configuration from [Resilience configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration).
+The RabbitMQ sink connector relies on its own RabbitMQ retry mechanism and doesn't include the configuration from [Resilience configuration](/kurrent-surge/client/connectors/sinks/#resilience-settings).
 
 | Option                            | Description                                                                                                                                                                                                                                                                    |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -101,7 +101,7 @@ a slightly higher risk of message loss or duplication.
 
 ## Headers
 
-The RabbitMQ sink connector automatically includes these [default headers](/kurrent-surge/client/connectors/features/#headers) in each message sent to the exchange. 
+The RabbitMQ sink connector automatically includes these [default headers](/kurrent-surge/client/connectors/sinks/#headers) in each message sent to the exchange. 
 
 ## Tutorial
 [Learn how to set up and use a RabbitMQ Sink connector in KurrentDB through a tutorial.](https://docs.kurrent.io/server/v26.1/tutorials/RabbitMQ_Sink)

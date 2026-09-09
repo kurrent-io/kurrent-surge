@@ -39,7 +39,15 @@ order, which makes that instance a single point of failure. The connector runtim
 problem instead of yours.
 
 :::note
-The connector plugin ships in every KurrentDB binary and is enabled by default.
+The connector plugin ships in every KurrentDB binary and is enabled by default. To turn it off:
+
+```yaml
+Connectors:
+  Enabled: false
+```
+
+For configuration mechanisms other than YAML, see the
+[configuration guide](https://docs.kurrent.io/server/v26.1/configuration/).
 :::
 
 ## What you can create
@@ -110,6 +118,8 @@ await client.Connectors.Create("orders-to-kafka", settings);
 ```
 
 [Managing connectors](/kurrent-surge/client/connectors/manage/) is the full lifecycle,
-[Features](/kurrent-surge/client/connectors/features/) covers filters, transformations and delivery,
-[Configure connector](/kurrent-surge/client/connectors/settings/) lists every setting, and
-[Observability](/kurrent-surge/client/connectors/observability/) is what a running connector reports.
+[How Sinks Work](/kurrent-surge/client/connectors/sinks/) covers filters, transformations
+and delivery, [How Sources Work](/kurrent-surge/client/connectors/sources/) covers the
+ingest side, [Data Protection](/kurrent-surge/client/connectors/data-protection/) covers encrypted
+settings, and [Observability](/kurrent-surge/client/connectors/observability/) is what a running
+connector reports.

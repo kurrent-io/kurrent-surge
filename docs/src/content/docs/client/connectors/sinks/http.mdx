@@ -23,7 +23,7 @@ Before using the HTTP sink connector, ensure you have:
 - Appropriate authentication credentials if the endpoint requires authentication
 
 :::tip
-See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/data-protection/) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -53,7 +53,7 @@ Adjust these settings to control how the HTTP sink connector behaves and how it 
 
 :::tip
 The HTTP sink inherits a set of common settings that are used to configure the connector. The settings can be found in
-the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
+the [Sink Options](/kurrent-surge/client/connectors/sinks/#settings) page.
 :::
 
 | Name                       | Details                                                                                                                                                                                                      |
@@ -86,11 +86,20 @@ The HTTP sink connector supports both [Basic](https://datatracker.ietf.org/doc/h
 
 ### Resilience
 
-Resilience options can be found in the [Resilience Configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration) section.
+The HTTP sink uses the shared
+[resilience settings](/kurrent-surge/client/connectors/sinks/#resilience-settings), including
+`resilience:enabled` and the three delay bounds. It adds these keys on top of them.
+
+| Name                             | Details                                                                                                                                                                                                                     |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resilience:requestTimeoutMs`    | **Description:**<br/>The timeout in milliseconds for a single HTTP request.<br/><br/>**Default**: `"3000"`                                                                                                                     |
+| `resilience:maxRetries`          | **Description:**<br/>The maximum number of retry attempts. `"-1"` means retry without a limit.<br/><br/>**Default**: `"-1"`                                                                                                    |
+| `resilience:transientErrorDelay` | **Description:**<br/>The delay before retrying a transient error.<br/><br/>**Default**: `"00:00:00"`                                                                                                                            |
+| `resilience:retryOnHttpCodes`    | **Description:**<br/>A comma-separated list of status codes to retry on. A code can be exact, such as `408`, or a wildcard for a class, such as `5xx`. Empty means retry on any non-2xx code.<br/><br/>**Default**: `""`         |
 
 ## Headers
 
-Besides the [default headers](/kurrent-surge/client/connectors/features/#headers) included with every request, the HTTP sink connector adds the following headers to the HTTP request:
+Besides the [default headers](/kurrent-surge/client/connectors/sinks/#headers) included with every request, the HTTP sink connector adds the following headers to the HTTP request:
 
 | Header              | Description                                                    |
 | ------------------- | -------------------------------------------------------------- |
@@ -118,7 +127,7 @@ prefix `defaultHeaders:` followed by the header name.
 
 With this configuration, the connector includes the custom headers and their
 values in every HTTP request. It sends them alongside the
-[default headers](/kurrent-surge/client/connectors/features/#headers) that its plugin adds automatically.
+[default headers](/kurrent-surge/client/connectors/sinks/#headers) that its plugin adds automatically.
 
 ## Template parameters
 

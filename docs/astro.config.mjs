@@ -307,13 +307,13 @@ export default defineConfig({
           items: [
             { label: 'Overview', slug: 'client/connectors' },
             { label: 'Managing Connectors', slug: 'client/connectors/manage' },
-            { label: 'Features', slug: 'client/connectors/features' },
-            { label: 'Configure Connector', slug: 'client/connectors/settings' },
             { label: 'Observability', slug: 'client/connectors/observability' },
+            { label: 'Data Protection', slug: 'client/connectors/data-protection' },
             {
               label: 'Sinks',
               collapsed: true,
               items: [
+                { label: 'How Sinks Work', slug: 'client/connectors/sinks' },
                 { label: 'Elasticsearch', slug: 'client/connectors/sinks/elasticsearch' },
                 { label: 'HTTP', slug: 'client/connectors/sinks/http' },
                 { label: 'Kafka', slug: 'client/connectors/sinks/kafka' },
@@ -328,6 +328,7 @@ export default defineConfig({
               label: 'Sources',
               collapsed: true,
               items: [
+                { label: 'How Sources Work', slug: 'client/connectors/sources' },
                 { label: 'Kafka', slug: 'client/connectors/sources/kafka' },
                 { label: 'Webhook', slug: 'client/connectors/sources/webhook' },
               ],

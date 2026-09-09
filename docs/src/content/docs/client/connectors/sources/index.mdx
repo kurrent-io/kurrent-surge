@@ -1,0 +1,80 @@
+---
+title: 'How Sources Work'
+description: What a source connector does, and which sink features do not apply to it.
+---
+
+A source connector receives messages from an external system and appends them to a KurrentDB stream.
+A source is not a reversed sink. The path has no subscription, no filter, and no transformer.
+
+```d2 layout=elk
+direction: right
+
+classes: {
+  box: {
+    width: 140
+    height: 60
+  }
+}
+
+Origin.class: box
+
+Source connector: {
+  Receive.class: box
+  Append.class: box
+
+  Receive -> Append
+}
+
+KurrentDB: {
+  Streams.class: box
+}
+
+Origin -> Source connector.Receive: messages
+Source connector.Append -> KurrentDB.Streams: records
+```
+
+## Settings
+
+A source accepts these two keys and the settings of its own connector type. Nothing else is shared.
+For the required settings, see the page for [Kafka](/kurrent-surge/client/connectors/sources/kafka/)
+or [Webhook](/kurrent-surge/client/connectors/sources/webhook/).
+
+| Name | Details |
+| --- | --- |
+| `instanceTypeName` | _required_<br/><br/>**Description:**<br/>The type of connector instance.<br/><br/>**Accepted Values:**<br/><ul><li>`kafka-source`</li><li>`webhook-source`</li></ul> |
+| `logging:enabled` | **Description:**<br/>Enables or disables logging.<br/><br/>**Default**: `"true"` |
+
+## What Does Not Apply
+
+Everything on [How Sinks Work](/kurrent-surge/client/connectors/sinks/) applies to sinks only. If you
+set one of these keys on a source, the server accepts it and nothing reads it.
+
+| Feature | Why it does not apply |
+|---|---|
+| Filters (`subscription:filter:*`) | A source has no subscription. It receives from the outside. |
+| Transformations (`transformer:*`) | The transformer runs only on the sink write path. |
+| Auto-commit (`autocommit:*`) | Only sinks commit a position to KurrentDB. |
+| Resilience (`resilience:*`) | Each sink declares its own retry strategy. A source retries only as far as its client library does. |
+| The `esdb-` headers | A sink adds these when it writes. A source passes the origin system's headers through unchanged. |
+| The KurrentDB record shape | A sink hands that shape to its filters and transformations. |
+
+## Position Tracking
+
+A source does not write to the `$connectors/{connector-id}/checkpoints` stream. That stream belongs to
+sinks. A source tracks its position in the origin system instead.
+
+- The **Kafka source** commits a Kafka consumer-group offset. It starts from its own `offset` and
+  `partition` settings, not from `initialPosition`.
+- The **webhook source** has no position to track. It appends what it receives.
+
+## Data Protection
+
+Sensitive source settings are encrypted the same way sink settings are. See
+[Data Protection](/kurrent-surge/client/connectors/data-protection/).
+
+## Available Sources
+
+| `instanceTypeName` | Reads from | Since |
+|---|---|---|
+| [`kafka-source`](/kurrent-surge/client/connectors/sources/kafka/) | A Kafka topic | 26.0 |
+| [`webhook-source`](/kurrent-surge/client/connectors/sources/webhook/) | `POST /webhook/{connectorId}` | 26.1 |

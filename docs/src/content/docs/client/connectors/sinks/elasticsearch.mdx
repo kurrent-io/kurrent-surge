@@ -21,7 +21,7 @@ Before using the Elasticsearch sink connector, ensure you have:
 - Appropriate authentication credentials (basic auth, token, or API key)
 
 :::tip
-See the [Data Protection](/kurrent-surge/client/connectors/features/#data-protection) documentation for instructions on configuring the encryption token.
+See the [Data Protection](/kurrent-surge/client/connectors/data-protection/) documentation for instructions on configuring the encryption token.
 :::
 
 ## Quickstart
@@ -53,7 +53,7 @@ and how it interacts with KurrentDB.
 
 :::tip
 The Elasticsearch sink inherits a set of common settings that are used to
-configure the connector. The settings can be found in the [Sink Options](/kurrent-surge/client/connectors/settings/#sink-options) page.
+configure the connector. The settings can be found in the [Sink Options](/kurrent-surge/client/connectors/sinks/#settings) page.
 :::
 
 The Elasticsearch sink can be configured with the following options:
@@ -100,11 +100,17 @@ The Elasticsearch sink can be configured with the following options:
 | `resilience:pingTimeout`                    | **Description:**<br/>The timeout in milliseconds for a ping request.<br/><br/>**Default**: `"120000"`                                                                                                                                                                                                                                                                           |
 | `resilience:retryOnErrorTypes`              | **Description:**<br/>Comma-separated list of error types to retry on.<br/><br/>**Default**: `""`                                                                                                                                                                                                                                                                                                      |
 
-Other resilience options can be found in the [Resilience Configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration) section.
+Two more keys tune how long a node stays marked dead: `resilience:deadTimeout` and
+`resilience:maxDeadTimeout`. Both are unset by default, which leaves the Elasticsearch client's own
+defaults in place.
+
+The Elasticsearch sink also uses the shared
+[resilience settings](/kurrent-surge/client/connectors/sinks/#resilience-settings): the three delay
+bounds that govern how it escalates between retries.
 
 ## Metadata
 
-The Elasticsearch sink connector automatically includes these [default headers](/kurrent-surge/client/connectors/features/#headers) in each document sent to Elasticsearch. The connector stores them in a `_metadata` field. You can exclude that field from indexing through your Elasticsearch index configuration.
+The Elasticsearch sink connector automatically includes these [default headers](/kurrent-surge/client/connectors/sinks/#headers) in each document sent to Elasticsearch. The connector stores them in a `_metadata` field. You can exclude that field from indexing through your Elasticsearch index configuration.
 
 ## Examples
 
