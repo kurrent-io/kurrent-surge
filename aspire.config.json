@@ -1,5 +1,5 @@
 {
   "appHost": {
-    "path": "test/Kurrent.Sdk.Testkit/Kurrent.Sdk.Testkit.csproj"
+    "path": "test/Kurrent.Testkit/Kurrent.Testkit.csproj"
   }
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
-  "projectTitle": "Kurrent .NET SDK",
+  "projectTitle": "Kurrent Surge",
   "description": ".NET SDK for the Kurrent platform — streams, processors, schema registry, and event sourcing",
   "folders": ["docs/api"],
   "excludeFolders": [
