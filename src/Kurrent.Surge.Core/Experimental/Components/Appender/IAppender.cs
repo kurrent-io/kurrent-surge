@@ -2,7 +2,7 @@ using Kurrent.Surge.Client.Streams;
 
 namespace Kurrent.Surge.Experimental;
 
-interface IAppender : IAsyncDisposable {
+public interface IAppender : IAsyncDisposable {
     ValueTask Append(AppendRecord record, Action<AppendResult> callback, CancellationToken ct = default);
 
     ValueTask Append(AppendRecord record, Func<AppendResult, ValueTask> callback, CancellationToken ct = default);
