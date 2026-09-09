@@ -562,6 +562,7 @@ certs/**
 benchmark-*.html
 .dmux/
 skills-lock.json
+.devcontainer/devcontainer-lock.json
 .impeccable.md
 .playwright-mcp
 
