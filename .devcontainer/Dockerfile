@@ -12,3 +12,11 @@ RUN brew install node gh oven-sh/bun/bun duckdb \
 
 # Restore default user for devcontainer lifecycle commands.
 USER root
+
+# Pre-create the named-volume mount targets from devcontainer.json. Docker creates a
+# missing mount path (and any missing parent) as root:root, which locks the vscode user
+# out of /home/vscode/.dotnet and breaks the dotnet CLI first-run sentinel write. When
+# the path already exists in the image, Docker seeds the fresh volume from it and keeps
+# the ownership. Keep this list in sync with the "mounts" array in devcontainer.json.
+RUN mkdir -p /home/vscode/.dotnet/tools /home/vscode/.nuget /commandhistory \
+    && chown -R vscode:vscode /home/vscode/.dotnet /home/vscode/.nuget /commandhistory

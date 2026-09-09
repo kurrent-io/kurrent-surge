@@ -22,6 +22,10 @@
 
   "containerEnv": {
     "HISTFILE": "/commandhistory/.zsh_history",
+    // `dotnet dev-certs https --trust` exits 4 unless the dev-cert trust directory is
+    // on SSL_CERT_DIR alongside the active OpenSSL cert store. Homebrew is first on
+    // PATH, so the active store is its openssl@3, not the system one.
+    "SSL_CERT_DIR": "/home/vscode/.aspnet/dev-certs/trust:/home/linuxbrew/.linuxbrew/etc/openssl@3/certs",
     "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
     "DOTNET_NOLOGO": "1",
     "TESTINGPLATFORM_TELEMETRY_OPTOUT": "1",
