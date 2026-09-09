@@ -1,10 +1,14 @@
 ---
-title: 'Features'
-description: Record shape, filters, transformations, checkpointing and resilience for connectors.
+title: 'How Sinks Work'
+description: Record shape, filters, transformations, checkpointing and resilience for sink connectors.
 ---
 
 A sink connector moves each record through four stages. This page documents them in order, starting
 with the shape of the record itself.
+
+Everything on this page applies to **sinks only**. A source takes `instanceTypeName` and
+`logging:enabled`, and nothing else described here. See
+[How Sources Work](/kurrent-surge/client/connectors/sources/).
 
 ```d2 layout=elk
 direction: right
@@ -36,21 +40,36 @@ Target.class: box
 KurrentDB.Sink connector.Sink -> Target: writes
 ```
 
-## KurrentDB record
+## Settings
 
-When a connector consumes records from KurrentDB, each record has the following structure:
+Every sink takes these two keys. The other shared keys sit next to the section that explains them:
+**subscription** under [Filters](#filters), **transformer** under
+[Transformations](#transformations), **auto-commit** under [Checkpointing](#checkpointing), and
+**resilience** under [Resilience](#resilience). Keys that belong to one connector are on that
+connector's own page.
+
+| Name | Details |
+| --- | --- |
+| `instanceTypeName` | _required_<br/><br/>**Description:**<br/>The type of connector instance.<br/><br/>**Accepted Values:**<br/><ul><li>`elasticsearch-sink`</li><li>`http-sink`</li><li>`kafka-sink`</li><li>`mongo-db-sink`</li><li>`pulsar-sink`</li><li>`rabbit-mq-sink`</li><li>`serilog-sink`</li><li>`sql-sink`</li></ul> |
+| `logging:enabled` | **Description:**<br/>Enables or disables logging.<br/><br/>**Default**: `"true"` |
+
+## KurrentDB Record
+
+When a sink connector consumes records from KurrentDB, each record has the following structure:
 
 ```json
 {
   "recordId": "string",
   "position": {
     "streamId": "string",
-    "logPosition": "number",
+    "partitionId": "number",
+    "logPosition": "number"
   },
-  "isTransformed": "boolean",
+  "sequenceId": "number",
+  "isRedacted": "boolean",
   "schemaInfo": {
-    "Subject": "string",
-    "Type": "number",
+    "subject": "string",
+    "type": "number"
   },
   "headers": {
     "key1": "string"
@@ -66,9 +85,11 @@ When a connector consumes records from KurrentDB, each record has the following 
   "recordId": "af0d90b7-bc4a-4220-949f-4e92df3175c2",
   "position": {
     "streamId": "user-profile-stream",
+    "partitionId": 0,
     "logPosition": 42123
   },
-  "isTransformed": false,
+  "sequenceId": 17,
+  "isRedacted": false,
   "schemaInfo": {
     "subject": "UserProfileUpdated",
     "type": 1
@@ -95,32 +116,37 @@ Use this schema as a reference when you write filters or transformation function
 - **`streamId`**: Identifies the stream the record came from
 - **`headers`**: Contains additional metadata, both internal properties and custom properties
 
+:::note
+Property names are camelCase. The `headers` object excludes the schema-info headers. The
+`schemaInfo` object carries those instead.
+:::
+
 ### Headers
 
 When sink connectors process records, they inject internal headers alongside any custom headers from your records. These headers carry additional metadata about the record. The `esdb-` prefix distinguishes them from user-defined headers.
 
 The connector adds the following internal headers to each record:
 
-| Header                        | Description                                                    |
-| ----------------------------- | -------------------------------------------------------------- |
-| `esdb-connector-id`           | The unique identifier of the connector processing the record   |
-| `esdb-request-id`             | A unique identifier for the processing request                 |
-| `esdb-request-date`           | The timestamp when the request was processed                   |
-| `esdb-record-id`              | The unique identifier of the record                            |
-| `esdb-record-timestamp`       | The timestamp of the record                                    |
-| `esdb-record-redacted`        | A boolean value that indicates if the record has been redacted |
-| `esdb-record-stream-id`       | The stream ID where the record originated                      |
-| `esdb-record-stream-revision` | The revision number of the record in its stream                |
-| `esdb-record-log-position`    | The global log position of the record                          |
-| `esdb-record-schema-subject`  | The schema subject/name of the record                          |
-| `esdb-record-schema-type`     | The schema data format type                                    |
+| Header                        | Sent by      | Description                                                    |
+| ----------------------------- | ------------ | -------------------------------------------------------------- |
+| `esdb-connector-id`           | Every sink   | The unique identifier of the connector processing the record   |
+| `esdb-record-id`              | Every sink   | The unique identifier of the record                            |
+| `esdb-record-timestamp`       | Every sink   | The timestamp of the record                                    |
+| `esdb-record-is-redacted`     | Every sink   | A boolean value that indicates if the record has been redacted |
+| `esdb-record-stream-id`       | Every sink   | The stream ID where the record originated                      |
+| `esdb-record-stream-revision` | Every sink   | The revision number of the record in its stream                |
+| `esdb-record-log-position`    | Every sink   | The global log position of the record                          |
+| `esdb-record-schema-subject`  | Every sink   | The schema subject/name of the record                          |
+| `esdb-record-schema-type`     | Every sink   | The schema data format type                                    |
+| `esdb-request-id`             | HTTP sink    | A unique identifier for the processing request                 |
+| `esdb-request-date`           | HTTP sink    | The timestamp when the request was processed                   |
 
 :::caution
 Some connectors send additional headers beyond the standard set listed above.
 See each connector's own page for the extra headers it includes.
 :::
 
-#### User defined headers
+#### User Defined Headers
 
 If the connector sends headers to the sink, it prefixes user-defined headers
 from your records with `esdb-record-headers-`, followed by the header name.
@@ -143,10 +169,19 @@ All sink connectors filter records using regular expressions, JsonPath expressio
 :::note
 With neither `subscription:filter:scope` nor `subscription:filter:expression` set, a connector consumes
 `$all`, excluding system events. With the scope set and the expression empty, a connector consumes
-`$all` *including* system events. See [Configure connector](/kurrent-surge/client/connectors/settings/).
+`$all` *including* system events.
 :::
 
-### Stream ID filter
+### Subscription Settings
+
+| Name | Details |
+| --- | --- |
+| `subscription:filter:scope` | **Description:**<br/>The scope of record filtering. Use `"stream"` to filter by stream ID, or `"record"` to filter by event type.<br/><br/>**Accepted Values:**<br/>- `"stream"`, `"record"`<br/><br/>**Default**: unspecified |
+| `subscription:filter:filterType` | **Description:**<br/>The method used to filter records.<br/><br/>**Accepted Values:**<br/>- `"streamId"`, `"regex"`, `"prefix"`, `"jsonPath"`<br/><br/>**Default**: unspecified |
+| `subscription:filter:expression` | **Description:**<br/>A filter expression (regex, JsonPath, or prefix). If `scope` is set and the expression is empty, the connector consumes `$all` including system events. If `scope` is not set, it consumes `$all` excluding system events.<br/><br/>**Default**: `""` |
+| `subscription:initialPosition` | **Description:**<br/>Where a connector starts reading when it has no checkpoint.<br/><br/>**Accepted Values:**<br/>- `"latest"`, `"earliest"`<br/><br/>**Default**: `"latest"` |
+
+### Stream ID Filter
 
 The stream ID filter matches records by their stream ID. It applies at the stream scope. For example:
 
@@ -160,7 +195,7 @@ The stream ID filter matches records by their stream ID. It applies at the strea
 
 The filter matches only records on the `some-stream` stream.
 
-### Regex filters
+### Regex Filters
 
 Regular expressions are the simplest and fastest way to filter records. A regex
 filter applies at the stream scope, which matches the stream ID, or at the
@@ -179,7 +214,7 @@ An example of a Regex expression:
 The filter matches only records whose event type starts with `eventType`. This
 filter type works at both the `stream` and `record` scopes.
 
-### Prefix filters
+### Prefix Filters
 
 You can also filter records by prefix using the following configuration:
 
@@ -194,7 +229,7 @@ You can also filter records by prefix using the following configuration:
 The filter matches only records whose stream ID starts with `prefix1` or
 `prefix2`. This filter type works at both the `stream` and `record` scopes.
 
-### JsonPath filters
+### JsonPath Filters
 
 JSONPath is a standardized string syntax for selecting and extracting JSON values from KurrentDB records. It follows the [RFC 9535](https://www.rfc-editor.org/rfc/rfc9535.html#name-introduction) standard. The connector applies JSONPath filters itself, and only at the record scope. They match only records with the `application/json` content type.
 
@@ -214,33 +249,36 @@ The filter matches only records where the year field equals 2018.
 Test your JSONPath expressions in the [JsonPath Playground](https://json-everything.net/json-path/). Copy the record JSON and check that your expressions work as expected.
 :::
 
-For the available scopes and additional configuration options, see the
-[Subscription Configuration](/kurrent-surge/client/connectors/settings/#subscription-configuration) section of the settings
-page.
-
 ## Transformations
 
 Sink connectors support transformations written in JavaScript. A transformation modifies a record from a KurrentDB stream before the connector sends it to the destination. Use one to combine fields, convert values, or enrich records.
+
+### Transformer Settings
+
+| Name | Details |
+| --- | --- |
+| `transformer:enabled` | **Description:**<br/>Enables or disables the transformer.<br/><br/>**Default**: `"false"` |
+| `transformer:function` | _required when enabled_<br/><br/>**Description:**<br/>Base64 encoded JavaScript function for transforming records.<br/><br/>**Default**: `""` |
 
 :::note
 Transformations apply only to records with the `application/json` content type. The connector does not transform records with other content types.
 :::
 
-### How transformations work
+### How Transformations Work
 
 A transformation is a JavaScript function, encoded in base64 and configured on the connector. The function receives a KurrentDB record that follows the [record structure](#kurrentdb-record). It can modify any part of that record before the sink processes it.
 
-### Creating a transformation
+### Creating a Transformation
 
 Follow these steps to create and apply a transformation to your connector:
 
-#### 1. Write the transformation function in JavaScript
+#### 1. Write the Transformation Function in JavaScript
 
 The transformation function must meet the following requirements:
 
 - **Function name**: Must be named `transform`
 - **Parameters**: Must accept a single parameter called `record` that follows the [record structure](#kurrentdb-record)
-- **Mutation style**: Must mutate the `record` object passed as its argument. Returning a new object instead throws an error.
+- **Mutation style**: Mutate the `record` object passed as the argument. The connector also accepts a returned object and uses it in place of the record, but mutating in place is the supported style.
 
 Here's an example that combines first and last names into a full name and normalizes the email address:
 
@@ -277,11 +315,11 @@ After transformation, the record contains:
 }
 ```
 
-#### 2. Encode the transformation function to base64
+#### 2. Encode the Transformation Function to Base64
 
 Convert your JavaScript function to a base64-encoded string. You must encode the transformation before you configure it on the connector.
 
-#### 3. Configure the connector with the encoded transformation
+#### 3. Configure the Connector With the Encoded Transformation
 
 Two settings turn the transformer on and supply the function:
 
@@ -297,7 +335,7 @@ Set them when you create the connector. To add them to a connector that already 
 alongside these two, or the rest are lost. See
 [Managing Connectors](/kurrent-surge/client/connectors/manage/).
 
-#### 4. Start the connector
+#### 4. Start the Connector
 
 Once configured, start the connector to process records with the transformation applied:
 
@@ -306,11 +344,6 @@ await client.Connectors.Start("example-connector");
 ```
 
 When you append a record to the target KurrentDB stream, the connector applies the transformation function before sending the record to the destination.
-
-:::note
-The connector adds a header property called `esdb-record-is-transformed`, set to `true`, to every record it transforms. Use that header in filters to identify or exclude transformed records.
-:::
-
 
 ## Checkpointing
 
@@ -322,8 +355,18 @@ own dedicated stream for storing checkpoints.
 
 By default, a connector with no checkpoints starts from the latest position in
 the stream. The `initialPosition` property in the settings changes that
-position. To start from a specific position, use [Start and stop](/kurrent-surge/client/connectors/manage/#start-and-stop) with the
+position. To start from a specific position, use [Start and Stop](/kurrent-surge/client/connectors/manage/#start-and-stop) with the
 `position` parameter.
+
+### Auto-commit Settings
+
+The connector commits a checkpoint on an interval, on a record count, or on both.
+
+| Name | Details |
+| --- | --- |
+| `autocommit:enabled` | **Description:**<br/>Enables or disables auto-commit.<br/><br/>**Default:** `"true"` |
+| `autocommit:interval` | **Description:**<br/>The interval, in milliseconds, at which auto-commit occurs.<br/><br/>**Default**: `"5000"` |
+| `autocommit:recordsThreshold` | **Description:**<br/>The number of records that triggers an auto-commit.<br/><br/>**Default**: `"1000"` |
 
 ## Resilience
 
@@ -331,10 +374,14 @@ Connectors currently support only _at least once_ delivery guarantees, so a
 record may be delivered more than once. Records are delivered _in order_: record
 `x` is not delivered until every preceding record has been delivered.
 
-Most connectors retry failed writes. To see whether a connector supports
-resilience, refer to the connector's individual page.
+Each sink declares its own retry strategy. There is no shared default, so what happens after a failed
+write depends on the connector you chose.
 
-The default resilience strategy is as follows:
+Five sinks escalate through three phases with identical defaults: Kafka, HTTP, Elasticsearch,
+MongoDB, and SQL. Each of them adds keys of its own, so check that connector's page too. Pulsar
+retries at one fixed interval instead, and RabbitMQ does not retry at all.
+
+The three phases escalate like this:
 
 ```d2 layout=elk
 direction: right
@@ -355,10 +402,11 @@ P2 -> P3: after 1 hour
 P3 -> P3: forever
 ```
 
-### Automatic retries and resilience strategy
+### Automatic Retries and Resilience Strategy
 
-A sink connector retries a failed write automatically. Retries run at three fixed delays, each
-bounded by an elapsed-time limit. Nothing doubles between attempts.
+These five sinks retry a failed write automatically. Retries run at three fixed delays, and an
+elapsed-time limit bounds each one. The delay never doubles between attempts. All five sinks share
+the default values below.
 
 The retry process unfolds in three phases:
 
@@ -370,56 +418,28 @@ The retry process unfolds in three phases:
 
 Each phase retries less often than the one before it.
 
-To customize these settings, refer to the [Resilience Configuration](/kurrent-surge/client/connectors/settings/#resilience-configuration) section.
+### Resilience Settings
 
-:::note
-Some connectors have their own resilience mechanisms and configurations. Refer to that connector's page for details.
-:::
-
-## Data protection
-
-KurrentDB Connectors use envelope encryption to protect sensitive configuration fields such as passwords and access tokens.
-
-When you configure a connector, the system encrypts sensitive data using Data Encryption Keys (DEKs). It then wraps those keys with a master key based on the token you provide. KurrentDB stores the encrypted data, never the plaintext.
-
-To see which fields are sensitive and protected, refer to each connector's [individual documentation](/kurrent-surge/client/connectors/).
-
-### Configuring data protection
-
-To enable data protection, configure the data protection settings in your
-configuration file. Provide the encryption token either in a token file or
-directly in the configuration.
+| Name | Details |
+| --- | --- |
+| `resilience:enabled` | **Description:**<br/>Enables or disables resilience.<br/><br/>**Default**: `"true"` |
+| `resilience:firstDelayBound:upperLimitMs` | **Description:**<br/>The upper limit for the first delay bound, in milliseconds.<br/><br/>**Default**: `"60000"` |
+| `resilience:firstDelayBound:delayMs` | **Description:**<br/>The delay for the first bound, in milliseconds.<br/><br/>**Default**: `"5000"` |
+| `resilience:secondDelayBound:upperLimitMs` | **Description:**<br/>The upper limit for the second delay bound, in milliseconds.<br/><br/>**Default**: `"3600000"` |
+| `resilience:secondDelayBound:delayMs` | **Description:**<br/>The delay for the second bound, in milliseconds.<br/><br/>**Default**: `"600000"` |
+| `resilience:thirdDelayBound:upperLimitMs` | **Description:**<br/>The upper limit for the third delay bound, in milliseconds. `"-1"` means forever.<br/><br/>**Default**: `"-1"` |
+| `resilience:thirdDelayBound:delayMs` | **Description:**<br/>The delay for the third bound, in milliseconds.<br/><br/>**Default**: `"3600000"` |
 
 :::caution
-Once set, the token is permanent. Every connector needs the same token, and changing it makes all previously encrypted data inaccessible. Treat the token as a permanent secret and never change it after initial setup.
+These keys belong to **Kafka, HTTP, Elasticsearch, MongoDB, and SQL only**. Each connector declares
+its own resilience settings.
+
+| Sink | Resilience model |
+|---|---|
+| Kafka, HTTP, Elasticsearch, MongoDB, SQL | The delay bounds above, plus keys of their own |
+| Pulsar | `resilience:enabled` and a single `resilience:retryInterval` |
+| RabbitMQ | Connection tuning only: timeouts and heartbeat. It has no `resilience:enabled` and does not retry |
+| Serilog, KurrentDB | No resilience settings |
+
+Check the connector's own page for the keys it accepts.
 :::
-
-#### Using a token file
-```yaml
-Connectors:
-  Enabled: true
-  DataProtection:
-    TokenFile: "/path/to/token/file"
-```
-
-#### Using a token directly
-```yaml
-Connectors:
-  Enabled: true
-  DataProtection:
-    Token: "<your-secret-token>"
-```
-
-:::note
-If you provide both `Token` and `TokenFile`, the system uses the token file and ignores the `Token` setting.
-:::
-
-### Key vault
-
-KurrentDB Connectors use the Surge key vault internally to manage encryption keys. Surge is KurrentDB's native key storage mechanism, and it stores encrypted keys in internal system streams. The Surge vault is the default and the only key vault currently available. The data protection framework uses it automatically, with no configuration from you.
-
-:::caution
-The data protection framework manages the Surge key vault internally. Do not configure it directly. The system handles all key vault operations automatically.
-:::
-
-Support for additional key vault options, including external key management systems, is planned for future releases.
