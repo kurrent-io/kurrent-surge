@@ -75,8 +75,8 @@ HTML report, and uploads results as artifacts.
 
 ### Auxiliary workflows
 
-- [`docs.yml`](docs.yml) — **Docs.** Builds the Starlight site in `website/` and publishes it to GitHub
-  Pages, on pushes touching `website/**` + manual dispatch.
+- [`docs.yml`](docs.yml) — **Docs.** Builds the Starlight site in `docs/` and publishes it to GitHub
+  Pages, on pushes touching `docs/**` + manual dispatch.
 - [`devcontainer.yml`](devcontainer.yml) — **Build Devcontainer.** Builds and pushes the devcontainer
   image on pushes touching `.devcontainer/**` + manual dispatch.
 

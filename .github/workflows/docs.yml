@@ -1,15 +1,15 @@
 name: Docs
 
-# Builds the Starlight site in website/ and publishes it to GitHub Pages.
+# Builds the Starlight site in docs/ and publishes it to GitHub Pages.
 # Pages serves a project site from the repository name, so `base` in
-# website/astro.config.mjs must match it: a mismatch still builds green and then
+# docs/astro.config.mjs must match it: a mismatch still builds green and then
 # 404s on every page.
 
 on:
   push:
     branches: [main]
     paths:
-      - 'website/**'
+      - 'docs/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -36,7 +36,7 @@ jobs:
 
       - uses: withastro/action@v6
         with:
-          path: website
+          path: docs
         env:
           SITE_URL: https://kurrent-io.github.io
 

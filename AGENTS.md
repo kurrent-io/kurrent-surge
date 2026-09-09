@@ -115,14 +115,11 @@ The Streams module is split across 13 partial class files. The naming convention
 
 Sum types use source-generated `IVariant` discriminated unions.
 
-### Two docs trees, one is dead
+### Documentation site
 
-`website/` is the live documentation site, built with Astro and Starlight.
-`.github/workflows/docs.yml` builds it on any push that touches `website/**` and publishes it to GitHub
+`docs/` is the live documentation site, built with Astro and Starlight.
+`.github/workflows/docs.yml` builds it on any push that touches `docs/**` and publishes it to GitHub
 Pages.
-
-`docs/` at the repo root is the legacy VuePress KurrentDB product site. It has nothing to do with the SDK.
-Reach for `website/`.
 
 ### Examples
 

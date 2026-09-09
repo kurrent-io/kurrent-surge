@@ -559,7 +559,6 @@ certs-*/
 certs/**
 
 # Others
-docs/plans/
 benchmark-*.html
 .dmux/
 skills-lock.json

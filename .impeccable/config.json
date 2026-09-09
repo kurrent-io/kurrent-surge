@@ -7,7 +7,7 @@
         "rule": "layout-transition",
         "value": "*",
         "files": [
-          "website/src/styles/surge.css"
+          "docs/src/styles/surge.css"
         ],
         "createdAt": "2026-09-02T11:09:40.867Z",
         "reason": "Sidebar collapse reflows the prose column; matches the reference aspire.dev site.css:1130-1146 which animates width and padding-inline-start on the same elements. transform cannot reflow the content column."
@@ -16,7 +16,7 @@
         "rule": "marquee",
         "value": "*",
         "files": [
-          "website/src/pages/preview/c.astro"
+          "docs/src/pages/preview/c.astro"
         ],
         "createdAt": "2026-09-07T20:46:02.893Z",
         "reason": "Direction C signal band: aria-hidden decorative trace field with no readable content, so nothing is hidden by the loop. Motion is the thesis of the direction and the prefers-reduced-motion guard was verified to freeze it (measured: animationName none under reduce, flow when permitted)."
@@ -25,7 +25,7 @@
         "rule": "marquee",
         "value": "*",
         "files": [
-          "website/src/pages/preview/foundations.astro"
+          "docs/src/pages/preview/foundations.astro"
         ],
         "createdAt": "2026-09-07T21:02:43.300Z",
         "reason": "Section 04 renders the band options as specimens for the user to judge; the motion IS the thing under evaluation. Decorative, content-free, and prefers-reduced-motion guarded. Fixture, not shipped UI."

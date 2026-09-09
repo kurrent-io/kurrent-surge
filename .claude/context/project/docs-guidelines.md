@@ -2,14 +2,10 @@
 
 > Where documentation lives, when to update it, and what must never appear in it.
 
-## Two docs trees, one is live
+## Where the docs live
 
-| Tree | What it is |
-|---|---|
-| `website/` | The live documentation site. Astro and Starlight, published to GitHub Pages by `.github/workflows/docs.yml`. **This is the SDK's documentation.** |
-| `docs/` | The legacy VuePress KurrentDB product site. Not the SDK's, and not maintained here. |
-
-Write to `website/`. The workflow fires on any push that touches `website/**`.
+`docs/` is the live documentation site. Astro and Starlight, published to GitHub Pages by
+`.github/workflows/docs.yml`. The workflow fires on any push that touches `docs/**`.
 
 Internal development docs go in neither tree. Designs, research, reports, and postmortems live under
 `.claude/context/`.
@@ -28,7 +24,7 @@ Check whether the docs need an update when you:
 ### Rules
 
 - Update the docs in the same commit as the code change where you can.
-- When the public API surface changes, check whether a page in `website/` needs it.
+- When the public API surface changes, check whether a page in `docs/` needs it.
 - Include a before-and-after example for a breaking change.
 - **Run every code example before you commit it.** An example that no longer compiles is worse than no
   example. This is how docs rot, and it is the most common defect an audit finds.
@@ -60,6 +56,6 @@ documentation. Examples use values that are well known, fictional, or clearly ma
 | Local scripts and config used at runtime | Yes |
 | Git-ignored files holding environment-specific values | Yes |
 | Prompt data used to build or configure the tool | Yes, in code only |
-| `README.md`, `website/`, example templates | **No. Placeholders only.** |
+| `README.md`, `docs/`, example templates | **No. Placeholders only.** |
 | Release notes and changelog entries | **No. Describe the change in general terms.** |
 | Code comments in committed source | **No. Keep them generic.** |

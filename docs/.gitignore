@@ -1,7 +1,27 @@
-# VuePress build output (this project sets `dest: "public"` in config.ts).
-public/
+# Astro's generated content-collection cache and type shims. Regenerated on
+# every dev start and build; deleting it under a running dev server breaks
+# slug resolution, so it must never be a committed artifact either.
+.astro/
 
-# Generated C# API reference JSON — regenerated from src/ via
-# tools/PackageJsonGenerator/generate.sh, so the C# source is the only
-# source of truth.
-.vuepress/data/pkgs/*.json
+# Build output.
+dist/
+
+# astro-d2 renders every `d2` fence into here on each build. Regenerated from the
+# markdown, so committing it would just be build noise that conflicts on merge.
+public/d2/
+
+# Bun / node.
+node_modules/
+
+# Bun writes bun.lock — it is committed. No pnpm or npm lockfiles here.
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# starlight-plugin-icons generates this from content code-block titles.
+.starlight-icons/
+
+# Impeccable writes a per-session cache wherever it is run from, so it lands
+# here whenever the tool runs with this directory as its working directory. The
+# repo-root copy is excluded separately. Session-keyed and regenerated.
+.impeccable/hook.cache.json
