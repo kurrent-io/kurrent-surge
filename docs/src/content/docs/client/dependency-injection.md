@@ -25,6 +25,9 @@ await builder.Build().RunAsync();
 The scope registers a `KurrentClient` for injection, and the processor runs as a hosted service that
 the host starts and stops.
 
+For an application with one processor only, use `SurgeProcessor`. It builds the host and the
+scope for you. See [Running a Processor](/kurrent-surge/processors/running-a-processor/).
+
 One `using` covers the lambda. The builder's methods are declared on `IKurrentSurgeBuilder` rather
 than as extension methods, so a call site needs no `using` for the options namespaces.
 
@@ -75,8 +78,8 @@ instead of on first use.
 
 ## Processors
 
-`AddProcessor<T>` and `AddBatchProcessor<T>` each carry six overloads over three ways of getting the
-processor.
+`AddProcessor<T>` and `AddBatchProcessor<T>` each carry twelve overloads over three ways of getting
+the processor. Each overload has a twin that takes the processor id first.
 
 ```csharp
 // Resolved from the container. Register it yourself.
@@ -97,19 +100,19 @@ Each of the three takes per-processor settings, either as `Action<ProcessorOptio
 `Action<ProcessorOptions, IServiceProvider>` when those settings need something resolved.
 
 ```csharp
-surge.AddProcessor<OrderProcessor>((opts, sp) => {
-    opts.ProcessorId = "orders-eu";
-    opts.Subscription.Filter = sp.GetRequiredService<IFilterPolicy>().Current;
-});
+surge.AddProcessor<OrderProcessor>("orders-eu", (opts, sp) =>
+    opts.Subscription.Filter = sp.GetRequiredService<IFilterPolicy>().Current);
 ```
 
-`AddBatchProcessor` is the same six shapes for `IRecordBatchProcessor`. See
+The first argument, `orders-eu`, is the processor id.
+
+`AddBatchProcessor` has the same twelve overloads for `IRecordBatchProcessor`. See
 [writing a processor](/kurrent-surge/processors/writing-a-processor/) for the two handler contracts.
 
 ## Configuration
 
-A processor reads `Kurrent:Surge:Processors:{name}` before the configure delegate runs, so code
-overrides the file.
+A processor reads one section, `Kurrent:Surge:Processors:{id}`, before the configure delegate runs,
+so code overrides the file.
 
 ```json
 {
@@ -126,13 +129,14 @@ overrides the file.
 }
 ```
 
-The scope matches the section by the processor's type name first. `ProcessorId` defaults to the type
-name in kebab-case, so `OrderProcessor` reads `order-processor` with no configuration on your part.
+The id is the one you pass at registration. Without one, it is the type name in kebab-case, so
+`OrderProcessor` reads `order-processor` with no configuration on your part. The processor
+`orders-eu` above reads `Kurrent:Surge:Processors:orders-eu`. Case, `-`, and `_` do not matter in
+the section name.
 
-Set a custom `ProcessorId` and a section named after it is read too, this time **over** the
-configure delegate. A section named by a deliberate per-deployment id is treated as an override, so
-it can retarget one processor without a code change. The connection is the one exception: an
-explicit `Connection` call in your code still wins.
+The scope reads no other section. Configuration cannot set the id: the scope logs a `ProcessorId`
+key as an unrecognised setting. Setting `ProcessorId` in the delegate does not change the section
+that the scope read.
 
 The scope logs configuration problems as warnings, and invalid values fail host startup.
 
@@ -143,13 +147,16 @@ Most specific first. The first one that resolves is used.
 | # | Source |
 |---|---|
 | 1 | `opts.Connection(...)` on the processor's own options |
-| 2 | `ConnectionStrings:{ProcessorId}` |
+| 2 | `ConnectionString` or `Connection` in `Kurrent:Surge:Processors:{ProcessorId}` |
 | 3 | The scope's `Connection(...)` |
-| 4 | `ConnectionStrings:KurrentSurge` |
+| 4 | `ConnectionStrings:Kurrent:Surge` |
 | 5 | `ConnectionStrings:KurrentDB` |
 
-A processor's own key outranks the scope so one processor can be pointed at another cluster from
-configuration alone.
+Sources 2 to 5 resolve before the configure delegate runs, so the delegate receives the connection
+the processor will use. A connection the delegate sets replaces it.
+
+A processor's own section outranks the scope so one processor can be pointed at another cluster
+from configuration alone.
 
 `ConnectionStrings` keys are matched with separators stripped and case ignored, so
 `OrderProcessor`, `order-processor` and `order_processor` all reach the same entry.

@@ -26,13 +26,19 @@ Processor.Track -> KurrentDB.Checkpoints: committed position
 Everything in that loop except **Handler** is the runtime's job. This is a complete program:
 
 ```csharp
+using Kurrent.Surge;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors;
+using Microsoft.Extensions.Hosting;
 
-await KurrentProcessor.Create(new TemperatureMonitorProcessor(), opts => {
-    opts.Connection("kurrentdb://localhost:2113");
-    opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'");
-}).RunWithGracefulShutdownAsync();
+var builder = SurgeProcessor.CreateBuilder<TemperatureMonitorProcessor>(
+    args, options => {
+        options.Connection("kurrentdb://localhost:2113");
+        options.Subscription.Filter =
+            RecordFilter.ByExpression("schema_name = 'SensorReading'");
+    });
+
+await builder.Build().RunAsync();
 ```
 
 And this is the processor it runs:
@@ -52,6 +58,9 @@ public sealed class TemperatureMonitorProcessor : IRecordProcessor {
     }
 }
 ```
+
+[Running a Processor](/kurrent-surge/processors/running-a-processor/) covers the connection, the
+options, the processor identity, and the health check.
 
 ## Why not subscribe directly
 
@@ -94,6 +103,7 @@ Configured through `ProcessorOptions`:
 | [Observability](/kurrent-surge/processors/observability/) | `Observers`, `MeterFactory`, `TrackSourceLag` |
 
 - [Writing a Processor](/kurrent-surge/processors/writing-a-processor/)
+- [Running a Processor](/kurrent-surge/processors/running-a-processor/)
 - [Checkpointing](/kurrent-surge/processors/checkpointing/)
 - [Batching](/kurrent-surge/processors/batching/)
 - [Error Handling](/kurrent-surge/processors/error-handling/)

@@ -1,0 +1,29 @@
+---
+title: Kurrent Surge
+description: A second landing page, built inside the content collection so it inherits the site header, footer and head metadata.
+template: splash
+editUrl: false
+pagefind: false
+# A second landing page carrying the same copy as / would compete with it in
+# search. Excluded here rather than through the sitemap integration, which has
+# no per-page seam and would mean reconfiguring it for the whole site.
+head:
+  - tag: meta
+    attrs:
+      name: robots
+      content: noindex, nofollow
+---
+
+import MotionField from '../../components/MotionField.astro';
+import HomeHero from '../../components/home/HomeHero.astro';
+import HomeCapabilities from '../../components/home/HomeCapabilities.astro';
+
+{/* Deep Arc — the same Three.js field the current landing page runs. It is
+    fixed to the viewport and finds the hero by `.hero`, so it sits behind
+    every section rather than inside one. */}
+<MotionField />
+
+<div class="home-v2 not-content">
+  <HomeHero />
+  <HomeCapabilities />
+</div>

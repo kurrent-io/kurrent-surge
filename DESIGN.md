@@ -1,6 +1,6 @@
 ---
 name: Kurrent Surge Docs
-description: Editorial documentation set on a raised blue-black ground, lit by one azure hue split across three stops.
+description: Editorial documentation set on a raised blue-black ground, lit by one azure hue split across three stops, with a warm gold held back for interaction.
 colors:
   ground: "#0f181f"
   ground-lifted: "#19262f"
@@ -13,6 +13,10 @@ colors:
   accent: "#60c2ff"
   accent-fill: "#0077d9"
   accent-deep: "#005fbd"
+  lit: "#f2cf3b"
+  outcome: "#61cb7c"
+  lit-light: "#8c6a00"
+  outcome-light: "#00822b"
   cta-fg: "#ffffff"
   code-ground: "#09141c"
   code-fg: "#b5c7d5"
@@ -239,6 +243,23 @@ Two complete palettes drawn from the same azure family, over cool neutral ramps 
 - **Azure Ink** (`#006fce`, `oklch(54.3% 0.169 253)`): the light theme's text stop, at 4.86:1 on
   its ground. The fill and deep stops are shared unchanged across both themes.
 
+### Secondary — chrome
+
+Two values that carry meaning the azure family cannot, and that never appear in prose.
+
+- **Lit Gold** (`#f2cf3b`, `oklch(86.0% 0.160 95)` dark; `#8c6a00`, `oklch(54.3% 0.111 86)` light):
+  the interaction hue. Hover and focus, and nothing at rest. 11.74:1 on the dark ground, 4.83:1 on
+  the light one. It is a text colour and never a fill. The light stop is measured from its hex
+  rather than derived from the dark one: 0.160 chroma leaves sRGB at that lightness, so the shipped
+  value is the clipped result, not the authored one.
+- **Outcome** (`#61cb7c`, `oklch(75.9% 0.150 150)` dark; `#00822b`, `oklch(52.8% 0.159 147)` light):
+  the payoff line on a capability card and the confirming tick beside a claim. It opens on the tip
+  callout's value and is free to move away from it.
+
+Gold completes the North Star rather than diluting it. The system's image is a page under one
+light source, but until now that light was cold, and every real light source is warm. Azure is the
+ink; gold is the lamp.
+
 ### Neutral — dark scope
 
 - **Ground** (`#0f181f`), **Ground Lifted** (`#19262f`), and **Ground Raised** (`#24323c`): the
@@ -293,8 +314,23 @@ every time.
 literal. Text emphases mix from `--accent`; the hover ring mixes from `--accent-fill`.
 
 **The One Family Rule.** All accent stops sit in one narrow hue band — measured at 239°, 253°, and
-256°. There is no secondary brand colour. When two things must be told apart, they are told apart
-by weight, size, position, or mix percentage.
+256°. There is no secondary *brand* colour: identity is carried by azure alone. When two things
+must be told apart within the brand, they are told apart by weight, size, position, or mix
+percentage. Gold and outcome are not exceptions to this, because neither states identity — see the
+Chrome-Only Rule.
+
+**The Chrome-Only Rule.** `--lit` and `--outcome` live in chrome and never in prose. The hue wheel
+is full: five committed hues each wanting 60° of separation is 600° of demand on a 360° wheel, and
+the widest gap available gives 49°. So a new value cannot clear every neighbour, and the question
+becomes which collision can never occur. `--lit` sits 19° off the caution callout, and that is safe
+only because caution appears inside callouts and `--lit` only in chrome — the two never share a
+surface. Take either into a paragraph and the separation stops holding.
+
+**The Own-Your-Value Rule.** A hue that sits near a callout must still be its own declaration.
+`--outcome` opens on the tip callout's exact value, but as a separate token, because the four aside
+hues are matched in lightness within 1.07 of each other on the ground: brightening a shared value
+for a landing page would drag the tip callout out of that set, to 13.17:1 against danger's 7.76:1.
+Two owners on one declaration means neither can be tuned.
 
 **The Isoluminant Asides Rule.** The four callout hues are matched in lightness and chroma and
 separated by hue alone — dark at L 76% and C 0.15 across hues 25 / 76 / 150 / 301, light at L 52%
@@ -605,9 +641,13 @@ tint surface. That triple is the footer's signature, and any control added there
 - **Don't** put `--accent` under white text or on a fill, and don't use `--accent-fill` as text.
   Each fails contrast in the opposite direction.
 - **Don't** introduce a hue outside the azure band for anything structural. Distinguish by weight,
-  size, position, or mix percentage.
-- **Don't** promote a callout hue into the palette, and don't use the brand accent to mean
-  "information".
+  size, position, or mix percentage. `--lit` and `--outcome` are not structural: one marks the
+  pointer, the other a claim, and both stay out of prose.
+- **Don't** take `--lit` or `--outcome` into a paragraph, a heading, or a callout. Their separation
+  from the aside hues holds only because they never share a surface with them.
+- **Don't** point `--outcome` at the tip callout's variable, or the reverse. They may hold the same
+  value; they may never be the same declaration.
+- **Don't** use the brand accent to mean "information", and don't spend `--lit` on anything at rest.
 - **Don't** pin a code surface to one theme. The syntax themes swap, and a pinned surface hides
   tokens that share its colour.
 - **Don't** put a gradient on a panel, card, button, or field. The system's one gradient belongs to

@@ -287,6 +287,7 @@ export default defineConfig({
           items: [
             { label: 'Overview', slug: 'processors' },
             { label: 'Writing a Processor', slug: 'processors/writing-a-processor' },
+            { label: 'Running a Processor', slug: 'processors/running-a-processor' },
             { label: 'Checkpointing', slug: 'processors/checkpointing' },
             { label: 'Batching', slug: 'processors/batching' },
             { label: 'Error Handling', slug: 'processors/error-handling' },

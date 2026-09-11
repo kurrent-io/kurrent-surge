@@ -1,0 +1,273 @@
+---
+/**
+ * Landing hero for the v2 home comparison page.
+ *
+ * Every colour comes from surge.css. No local custom properties.
+ *
+ * The install line renders through Starlight's own Code component so it picks
+ * up the site's Expressive Code frame, syntax theme and copy button. A bare
+ * <code> element inherits surge.css's inline-code chip instead — a tinted
+ * background and a 4px radius that made it read as a badge, not a terminal.
+ */
+import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
+---
+
+<section class="hero not-content">
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <p class="eyebrow">Open source &middot; .NET 10</p>
+        <h1>Kurrent <b>Surge</b></h1>
+        <p class="lede">Append <em>anything</em>. Process <em>everything</em>.</p>
+        <p class="sub">
+          The .NET SDK for KurrentDB. Append across streams, process what arrives, and evolve
+          your events &mdash; without writing the machinery around any of it.
+        </p>
+
+        <ul class="props">
+          <li>
+            <Icon name="approve-check-circle" />
+            <span>Many kinds of message per stream, each in its own format</span>
+          </li>
+          <li>
+            <Icon name="approve-check-circle" />
+            <span>A hosted runtime that owns the subscription, the checkpoints and the shutdown</span>
+          </li>
+          <li>
+            <Icon name="approve-check-circle" />
+            <span>No reflection anywhere &mdash; source generators instead</span>
+          </li>
+        </ul>
+
+        <div class="cta">
+          <LinkButton href="/kurrent-surge/getting-started/" variant="primary">Get started</LinkButton>
+          <LinkButton href="/kurrent-surge/streams/" variant="secondary">Streams</LinkButton>
+          <LinkButton href="/kurrent-surge/processors/" variant="secondary">Processors</LinkButton>
+        </div>
+      </div>
+
+      <div class="install">
+        <p class="lbl">Install</p>
+        <Code code="dotnet add package Kurrent.Surge" lang="bash" frame="terminal" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* The reading column for this page. Declared per component because Astro
+     scopes styles, and home.css only loads on the old standalone index. */
+  .wrap {
+    max-width: 82rem;
+    margin-inline: auto;
+    padding-inline: 2rem;
+  }
+
+  /* A landing page is full-bleed: every section paints edge to edge and only
+     .wrap holds the reading column, centred on its own auto margins. Starlight
+     caps .sl-container at --sl-content-width instead, and surge.css then pins
+     --sl-content-margin-inline to 0 on .main-pane so the docs column sits
+     beside the navigation rather than centring. Together those left the page
+     hard against the left edge with the slack on the right, and clipped the
+     section rules short of the viewport. Releasing the cap here restores both.
+     Starlight scopes its rule to `@layer starlight.core`, so this unlayered
+     one wins on layer order whatever its specificity. */
+  :global(:root:has(.home-v2) .sl-container) { max-width: none; }
+
+  /* Deep Arc is fixed to the viewport at z-index 0. Every section has to ride
+     above it or the field paints over the copy instead of under it. */
+  :global(.home-v2 > section) { position: relative; z-index: 1; }
+
+  /* ContentPanel and main carry their own padding, and the inline half is not
+     symmetric here — measured 47px left against 17px right. Zeroing it lets
+     .wrap centre on its own margins. The block half pushed the hero 43px below
+     the fixed header, and because `.hero` clips its accent wash with
+     `overflow: hidden`, that gap exposed the wash's top edge as a hard-edged
+     band instead of letting it start behind the header. */
+  :global(:root:has(.home-v2) main) { padding: 0; }
+  :global(:root:has(.home-v2) .content-panel) { padding: 0; border: 0; }
+
+  /* The page ends where the content ends. Without this the elastic scroll at
+     either limit drags the whole page off the ground behind it. */
+  :global(:root:has(.home-v2)) { overscroll-behavior-y: none; }
+
+  /* Starlight's markdown sibling spacing puts 1rem above this wrapper. Its
+     `.not-content` escape hatch is written as `:where(.not-content *)`, which
+     covers descendants — and this element carries the class itself, so it is
+     never matched by its own exemption. MotionField renders before it, which
+     is what makes it a sibling at all. */
+  :global(.home-v2) { margin-top: 0; }
+
+  /* A landing page carries no site furniture. The footer's community links,
+     preference controls and build SHA are docs chrome; only the copyright
+     stays, centred. Scoped to this route so every docs page keeps its footer. */
+  :global(:root:has(.home-v2) .site-footer__utility),
+  :global(:root:has(.home-v2) .site-footer__commit) { display: none; }
+  :global(:root:has(.home-v2) .site-footer__bottom) {
+    justify-content: center;
+    /* Footer.astro pushes the copyright right with `margin-inline-start: auto`,
+       which consumes every pixel of free space and leaves justify-content
+       nothing to distribute. The margin has to go before centring can apply. */
+    border-top: 0;
+  }
+  :global(:root:has(.home-v2) .site-footer__copyright) { margin-inline-start: 0; }
+
+  /* Starlight renders a page title above the content. Here the hero's
+     wordmark IS the title, so the framework's copy is suppressed rather than
+     shown twice. Setting `hero:` in frontmatter would be the other route —
+     it moves the <h1> into Starlight's own Hero — but that component cannot
+     do this two-column layout with a code block beside the copy. */
+  :global(:root:has(.home-v2) .content-panel:first-of-type) { display: none; }
+
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 40px 0 48px;
+  }
+
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: -30% -20% auto -20%;
+    height: 82%;
+    background: radial-gradient(58% 76% at 50% 0%,
+      color-mix(in oklab, var(--accent) 22%, transparent) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  :global(:root[data-theme='light']) .hero::before {
+    background: radial-gradient(58% 76% at 50% 0%,
+      color-mix(in oklab, var(--accent) 6%, transparent) 0%, transparent 70%);
+  }
+
+  .wrap { position: relative; }
+  .top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 52px;
+    align-items: center;
+  }
+  /* minmax(0, 1fr), not 1fr: the terminal frame's min-content width is the whole
+     install command, and a bare `1fr` track cannot shrink below it. At 390px that
+     pushed the column 17px past the wrap's padding and halved the right gutter.
+     A zero floor lets the frame scroll inside itself instead. */
+  @media (max-width: 61rem) { .top { grid-template-columns: minmax(0, 1fr); gap: 34px; } }
+
+  /* home.css's `.sect__lbl`, matched property for property. `.wrap` is carried
+     for specificity: this is a <p>, and surge.css's `.sl-markdown-content
+     :is(p, li)` is (0,1,1), which takes the weight off a lone class. */
+  .wrap .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    font-family: var(--font-eyebrow);
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.55;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+  }
+  .wrap .eyebrow::before {
+    content: "";
+    width: 28px;
+    height: 1px;
+    flex: 0 0 auto;
+    background: var(--accent);
+  }
+
+  /* Type below is home.css's own scale, copied formula for formula so both
+     landing pages set the same sizes at every width — not matched at one. */
+  /* `.wrap .top` is carried for specificity alone — surge.css styles headings
+     through `.content-panel h1/h2`, and Astro's scope hash is `:where()`, so a
+     bare element selector here loses its weight, leading and margins to it. */
+  .wrap .top h1 {
+    font-family: var(--font-sans);
+    font-weight: 300;
+    font-size: clamp(52px, 10vw, 112px);
+    line-height: 1.04;
+    letter-spacing: -0.04em;
+    color: var(--fg);
+    margin: 16px 0 0;
+  }
+  /* 300 beside 500 is the smallest step that still reads as deliberate here. */
+  .wrap .top h1 b { font-weight: 500; color: var(--accent); }
+
+  .lede {
+    font-weight: 300;
+    font-size: clamp(22px, 2.8vw, 34px);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    color: var(--fg);
+    margin: 14px 0 0;
+    max-width: 18ch;
+    text-wrap: balance;
+  }
+  .lede em { font-style: normal; color: var(--accent); }
+
+  /* `.wrap` for specificity: surge.css's `.sl-markdown-content :is(p, li)` is
+     (0,1,1) and `:is()` takes its strongest argument, so a lone class loses. */
+  .wrap .sub {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1.55;
+    color: var(--fg-1);
+    max-width: 48ch;
+    margin: 18px 0 0;
+    padding-left: 22px;
+    border-left: 2px solid var(--accent);
+  }
+
+  .props { list-style: none; margin: 22px 0 0; padding: 0 0 0 20px; display: grid; gap: 9px; }
+  .props li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 11px;
+    align-items: baseline;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--fg-1);
+    /* The middle claim wraps to two lines and strands "shutdown" alone. */
+    text-wrap: pretty;
+  }
+  .props :global(svg) { width: 16px; height: 16px; color: var(--outcome); margin-top: 0.18em; }
+
+  /* LinkButton brings its own shape and states; these only pull it onto the
+     4px radius and the accent tokens this system uses. */
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; padding-left: 20px; }
+  /* LinkButton marks its variant with a class, not a data attribute, and its
+     primary fills with Starlight's --sl-color-accent — which here resolves to
+     our bright text stop. White on that measures 1.97:1, so the fill is moved
+     onto --accent-fill per the Text/Fill Split Rule. */
+  /* 44px is the touch floor; Starlight's own padding lands the button at 35. */
+  .cta :global(.sl-link-button) { border-radius: 4px; font-size: 15px; min-height: 44px; }
+  .cta :global(.sl-link-button.primary) {
+    background: var(--accent-fill);
+    border-color: var(--accent-fill);
+    color: var(--cta-fg);
+  }
+  .cta :global(.sl-link-button.primary:hover) { box-shadow: 0 0 0 4px var(--accent-ring); }
+  .cta :global(.sl-link-button.primary:active) { background: var(--accent-deep); }
+  .cta :global(.sl-link-button.secondary) { border-color: var(--border-strong); color: var(--fg-1); }
+  .cta :global(.sl-link-button.secondary:hover) { border-color: var(--fg-dim); color: var(--fg); }
+
+  /* Expressive Code brings its own frame, so this only positions it. */
+  .install :global(.expressive-code) { margin: 0; }
+
+  /* The block label. home.css uses the same uppercase device without the accent
+     rule for the labels that sit on a block rather than open a section — INSTALL
+     and WHAT A PROCESSOR DOES BY DEFAULT both drop it. `.wrap` is for
+     specificity, as with every other <p> here. */
+  .wrap .lbl {
+    margin: 0 0 12px;
+    font-family: var(--font-eyebrow);
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.55;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--fg-dim);
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>

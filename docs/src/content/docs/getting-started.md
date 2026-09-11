@@ -105,40 +105,37 @@ public sealed class OrderNotifier : IRecordProcessor {
 }
 ```
 
-Register it in the same scope as the connection. It runs as a hosted service that the host starts
-and stops:
+To run the processor, give its type to `SurgeProcessor.CreateBuilder<T>`:
 
 ```csharp
 using Kurrent.Surge;
 using Kurrent.Surge.Client.Streams;
-using Microsoft.Extensions.DependencyInjection;
+using Kurrent.Surge.Processors;
 using Microsoft.Extensions.Hosting;
 
-var builder = Host.CreateApplicationBuilder(args);
-
-builder.Services.AddSingleton<OrderNotifier>();
-
-builder.Services.AddKurrentSurge(surge => {
+var builder = SurgeProcessor.CreateBuilder<OrderNotifier>(args, options => {
     // tls=false is the local development mode. Production drops it: /kurrent-surge/client/security/
-    surge.Connection("kurrentdb://localhost:2113?tls=false");
-    surge.AddProcessor<OrderNotifier>(opts =>
-        opts.Subscription.Filter = RecordFilter.ByStream("order-001"));
+    options.Connection("kurrentdb://localhost:2113?tls=false");
+    options.Subscription.Filter = RecordFilter.ByStream("order-001");
 });
 
 await builder.Build().RunAsync();
 ```
 
-`AddProcessor<T>` resolves `T` from the container and never registers it, so register it yourself.
-Without a filter the processor reads every stream. SIGINT and SIGTERM stop the host, and the
-processor commits what it has handled before it exits, so a container stop drains rather than kills.
+`SurgeProcessor` registers `OrderNotifier` in the container for you. Without a filter the processor
+reads every stream. SIGINT and SIGTERM stop the host, and the processor commits what it has handled
+before it exits, so a container stop drains rather than kills.
 
 **The whole program runs:**
-[`examples/processors/Processor.WordCount`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Processor.WordCount)
+[`examples/processors/Processor.QuickStart`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Processor.QuickStart)
+is one file with inline handlers.
+[`Processor.WordCount`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Processor.WordCount)
 seeds a stream and counts words across it.
 [`Processor.AspNetMinimal`](https://github.com/kurrent-io/kurrent-surge/tree/main/examples/processors/Processor.AspNetMinimal)
-hosts one as an ASP.NET Core background service, which is how you would deploy it.
+hosts one in an ASP.NET Core application.
 
-Next: [Writing a Processor](/kurrent-surge/processors/writing-a-processor/),
+Next: [Running a Processor](/kurrent-surge/processors/running-a-processor/),
+[Writing a Processor](/kurrent-surge/processors/writing-a-processor/),
 [Checkpointing](/kurrent-surge/processors/checkpointing/), [Error Handling](/kurrent-surge/processors/error-handling/).
 
 ## More examples

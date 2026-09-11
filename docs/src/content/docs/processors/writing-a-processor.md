@@ -63,10 +63,9 @@ resources opened in `OnInitialize` have somewhere to go.
 
 ## Failure
 
-Throw from a handler and the run ends. The exception is wrapped with the operation that failed, the
-processor transitions to stopped, and the task you awaited faults. The position is not committed past
-the record that threw. Cancellation propagates unwrapped, because a stopping processor is not a
-failing one.
+Throw from a handler and the run ends. The processor stops, and the host stops with exit code 1. The
+position is not committed past the record that threw. A stop by Ctrl+C or SIGTERM is not a failure,
+so the exit code stays 0.
 
 The resilience options govern the subscription, not your handler. A handler exception is never
 retried.
@@ -77,14 +76,13 @@ what happens when a checkpoint fails.
 ## Running it
 
 ```csharp
-await KurrentProcessor.Create(new OrderProcessor(), opts => {
-    opts.Connection("kurrentdb://localhost:2113");
-    opts.Subscription.Filter = RecordFilter.ByCategory("orders");
-}).RunWithGracefulShutdownAsync();
+var builder = SurgeProcessor.CreateBuilder<OrderProcessor>(args);
+
+await builder.Build().RunAsync();
 ```
 
-`RunWithGracefulShutdownAsync` wires SIGINT and SIGTERM so an in-flight batch finishes and its
-position is committed before the process exits.
+[Running a Processor](/kurrent-surge/processors/running-a-processor/) covers the connection, the
+configuration, the processor identity, the health check, and the exit code.
 
 ## Under dependency injection
 
@@ -108,5 +106,5 @@ surge.AddProcessor(new OrderProcessor());
 surge.AddProcessor(sp => new OrderProcessor(sp.GetRequiredService<IOrderStore>()));
 ```
 
-Neither of those two adds the type to the container. `AddBatchProcessor` carries the same six
+Neither of those two adds the type to the container. `AddBatchProcessor` carries the same twelve
 overloads for `IRecordBatchProcessor`.

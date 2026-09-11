@@ -64,6 +64,21 @@
   --accent-ring: color-mix(in oklab, var(--accent-fill) 30%, transparent);
   --glow-a: 12%;
 
+  /* --lit is the interaction hue: hover and focus, and nothing at rest. It sits
+     19 degrees off the caution callout, which is closer than the 60 the aside
+     set keeps between its members, and that is safe only because the two never
+     share a surface — caution appears inside callouts, --lit only in chrome.
+     Take it into prose and the separation stops holding. 11.74:1 on the ground,
+     4.83:1 on the light one. It is a text colour, never a fill. */
+  --lit: #f2cf3b;
+
+  /* --outcome marks the payoff line on a capability card. It opens on the tip
+     callout's value but is a separate declaration, so retuning one cannot move
+     the other: the aside hues are matched in lightness within 1.07 of each
+     other, and a landing-page brightening applied to a shared value drags the
+     callout out of that set. Never used in prose. */
+  --outcome: #61cb7c;
+
   /* Typography. The families are declared in astro.config.mjs under `fonts`;
      Astro emits each --font-* variable already carrying its generated
      metric-matched fallback, so nothing here needs a manual fallback chain. */
@@ -160,6 +175,11 @@
   --accent-ring: color-mix(in oklab, var(--accent-fill) 30%, transparent);
   /* An accent wash over a near-white ground reads as a smudge, not as light. */
   --glow-a: 3%;
+
+  /* Same hue at the lightness this ground needs. The dark stop is 86% L and
+     would land at 1.3:1 here. */
+  --lit: #8c6a00;
+  --outcome: #00822b;
 
   --tint-faint: rgba(13, 21, 26, 0.02);
   --tint: rgba(13, 21, 26, 0.04);
@@ -297,11 +317,13 @@
   color: var(--sl-color-white);
 }
 /* Link colour is --sl-color-text-accent. Only the undecorated resting state
-   and the dimmed hover need declaring. */
-.sl-markdown-content :is(p, li) > a {
+   and the dimmed hover need declaring. Table cells are listed because a link
+   in one is a child of neither a paragraph nor a list item, so it kept
+   Starlight's underline while every other prose link on the site lost it. */
+.sl-markdown-content :is(p, li, td, th) > a {
   text-decoration: none;
 }
-.sl-markdown-content :is(p, li) > a:hover {
+.sl-markdown-content :is(p, li, td, th) > a:hover {
   color: var(--fg-dim);
 }
 .sl-markdown-content :is(h4, h5, h6) {
