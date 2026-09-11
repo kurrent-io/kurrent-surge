@@ -51,8 +51,8 @@ public class MapToRecordAsyncTests {
         await Assert.That(record.Revision).IsEqualTo(Revision.From((long)evt.StreamRevision));
         await Assert.That(record.IsLink).IsFalse();
         await Assert.That(record.Link.IsUnset).IsFalse();
-        await Assert.That(record.Link.Stream).IsEqualTo(StreamName.From((string)link.StreamIdentifier!));
-        await Assert.That(record.Link.Revision).IsEqualTo(Revision.From((long)link.StreamRevision));
+        await Assert.That(record.Link.Position.Stream).IsEqualTo(StreamName.From((string)link.StreamIdentifier!));
+        await Assert.That(record.Link.Position.Revision).IsEqualTo(Revision.From((long)link.StreamRevision));
     }
 
     [Test]
@@ -92,6 +92,72 @@ public class MapToRecordAsyncTests {
         Assert.ThrowsAsync<InvalidOperationException>(async () =>
             await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true)
         );
+    }
+
+    [Test]
+    public async ValueTask resolved_link_checkpoint_position_is_the_link_position() {
+        // Arrange
+        var readEvent = FakeReadEvent.New.WithResolvedLink().Generate();
+        var link      = readEvent.Link;
+
+        var ctx = new MappingContext(
+            NullMetadataDecoder.Instance,
+            NullableRecordDecoder.Instance,
+            CancellationToken.None
+        );
+        var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
+
+        var expected = RecordPosition.From(
+            LogPosition.From((long)link.CommitPosition),
+            StreamName.From((string)link.StreamIdentifier!),
+            Revision.From((long)link.StreamRevision),
+            record.Position.Partition);
+
+        // Act
+        var checkpointPosition = record.CheckpointPosition;
+
+        // Assert
+        await Assert.That(checkpointPosition).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask event_checkpoint_position_is_its_own_position() {
+        // Arrange
+        var readEvent = FakeReadEvent.New.Generate();
+
+        var ctx = new MappingContext(
+            NullMetadataDecoder.Instance,
+            NullableRecordDecoder.Instance,
+            CancellationToken.None
+        );
+        var record   = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
+        var expected = record.Position;
+
+        // Act
+        var checkpointPosition = record.CheckpointPosition;
+
+        // Assert
+        await Assert.That(checkpointPosition).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask broken_link_checkpoint_position_is_its_own_position() {
+        // Arrange
+        var readEvent = FakeReadEvent.New.WithBrokenLink().Generate();
+
+        var ctx = new MappingContext(
+            NullMetadataDecoder.Instance,
+            NullableRecordDecoder.Instance,
+            CancellationToken.None
+        );
+        var record   = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
+        var expected = record.Position;
+
+        // Act
+        var checkpointPosition = record.CheckpointPosition;
+
+        // Assert
+        await Assert.That(checkpointPosition).IsEqualTo(expected);
     }
 
     sealed class NullMetadataDecoder : IMetadataDecoder {

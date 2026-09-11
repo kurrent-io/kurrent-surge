@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/.Benchmarks/">
     <Project Path="perf/Kurrent.Surge.Benchmarks/Kurrent.Surge.Benchmarks.csproj" />
+    <Project Path="perf/Kurrent.Surge.ClientBenchmark/Kurrent.Surge.ClientBenchmark.csproj" />
   </Folder>
   <Folder Name="/.Examples/">
     <Project Path="examples/processors/Connector.Management/Connector.Management.csproj" />
@@ -16,6 +17,7 @@
     <Project Path="examples/processors/Processor.IoTMonitoring/Processor.IoTMonitoring.csproj" />
     <Project Path="examples/processors/Processor.Leaderboard/Processor.Leaderboard.csproj" />
     <Project Path="examples/processors/Processor.OrderEnrichment/Processor.OrderEnrichment.csproj" />
+    <Project Path="examples/processors/Processor.QuickStart/Processor.QuickStart.csproj" />
     <Project Path="examples/processors/Processor.WithPostgres/Processor.WithPostgres.csproj" />
     <Project Path="examples/processors/Processor.WithRedisCache/Processor.WithRedisCache.csproj" />
     <Project Path="examples/processors/Processor.WordCount/Processor.WordCount.csproj" />

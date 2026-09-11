@@ -97,7 +97,7 @@ class BatchDispatcher(
         Dictionary<Partition, RecordPosition>? frontier = null;
 
         foreach (var record in batch) {
-            var position = record.Position;
+            var position = record.CheckpointPosition;
 
             // At most one entry per owned partition, never per record — size to the partition count.
             frontier ??= new(_maxParallelism);
@@ -128,8 +128,10 @@ class BatchDispatcher(
         var count = 0;
 
         foreach (var record in batch) {
-            if (ceilingByPartition.TryGetValue(record.Position.Partition, out var ceiling)
-             && record.Position.LogPosition <= ceiling)
+            var position = record.CheckpointPosition;
+
+            if (ceilingByPartition.TryGetValue(position.Partition, out var ceiling)
+             && position.LogPosition <= ceiling)
                 count++;
         }
 

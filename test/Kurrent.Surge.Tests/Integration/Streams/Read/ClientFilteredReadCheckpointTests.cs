@@ -27,9 +27,10 @@ public class ClientFilteredReadCheckpointTests {
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     // Matches the target stream but is not server-expressible: a stream-equality disjunct unioned
-    // with a non-stream disjunct poisons server extraction, so the whole filter runs client-side
-    // over an unfiltered $all read. The schema disjunct names a value no record carries — it never
-    // widens the match, it only forces the expression off the wire (RequiresClientEvaluation).
+    // with a non-stream disjunct poisons server extraction, so the whole filter runs client-side over
+    // a $all read that narrows nothing but link records. The schema disjunct names a value no record
+    // carries — it never widens the match, it only forces the expression off the wire
+    // (RequiresClientEvaluation).
     static RecordFilter ClientSideFilter(StreamName target) =>
         RecordFilter.ByExpression($"stream = '{target}' OR schema_name = 'no-such-schema'");
 
@@ -47,9 +48,9 @@ public class ClientFilteredReadCheckpointTests {
         var records     = new List<Record>();
         var checkpoints = new List<FilterCheckpoint>();
 
-        // Act — link resolution ON (the default): resolved links map the record position to an
-        // earlier target event, so the watermark must track the $all scan position to stay
-        // monotonic. This is the path that exposes a record-position watermark regressing.
+        // Act — link resolution ON (the default). An expression filter no longer surfaces link
+        // records, so the scan position and the record position agree here; the watermark still
+        // tracks the $all scan position, which is what keeps it monotonic on a raw-log read.
         var options = new ReadRecordsOptions {
             Start                 = anchor.LogPosition,
             Filter                = ClientSideFilter(target.Stream),

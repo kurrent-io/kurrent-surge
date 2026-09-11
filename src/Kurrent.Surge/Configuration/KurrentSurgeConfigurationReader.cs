@@ -218,8 +218,13 @@ public static class KurrentSurgeConfigurationReader {
     #region ->> Processor <<-
 
     /// <summary>
-    /// Reads one processor's settings from <c>Kurrent:Surge:Processors:{name}</c>.
+    /// Reads one processor's settings from <c>Kurrent:Surge:Processors:{name}</c>, its own
+    /// connection included.
     /// </summary>
+    /// <remarks>
+    /// The processor id is set at registration, never here. A <c>ProcessorId</c> key is reported as
+    /// an unrecognised setting.
+    /// </remarks>
     /// <param name="configuration">The configuration to read.</param>
     /// <param name="name">
     /// The processor's section name. Matched against PascalCase, kebab-case and snake_case spellings.
@@ -232,37 +237,58 @@ public static class KurrentSurgeConfigurationReader {
     ) {
         var options  = into ?? new ProcessorOptions();
         var problems = new List<ConfigurationProblem>();
-        var section  = FindProcessorSection(configuration, name);
 
-        if (section is null)
-            return new ConfigurationReadResult<ProcessorOptions>(options, problems);
+        if (FindProcessorSection(configuration, name) is { } section) {
+            var reader = new ConfigReader(section, problems);
 
-        var reader = new ConfigReader(section, problems);
+            options.DroneId                  = reader.Text("DroneId", options.DroneId);
+            options.Debug                    = reader.Flag("Debug", options.Debug);
+            options.SkipDecoding             = reader.Flag("SkipDecoding", options.SkipDecoding);
+            options.TrackSourceLag           = reader.Flag("TrackSourceLag", options.TrackSourceLag);
+            options.SourceLagRefreshInterval = reader.Duration("SourceLagRefreshInterval", options.SourceLagRefreshInterval);
 
-        options.ProcessorId              = reader.Text("ProcessorId", options.ProcessorId);
-        options.DroneId                  = reader.Text("DroneId", options.DroneId);
-        options.Debug                    = reader.Flag("Debug", options.Debug);
-        options.SkipDecoding             = reader.Flag("SkipDecoding", options.SkipDecoding);
-        options.TrackSourceLag           = reader.Flag("TrackSourceLag", options.TrackSourceLag);
-        options.SourceLagRefreshInterval = reader.Duration("SourceLagRefreshInterval", options.SourceLagRefreshInterval);
+            ReadSubscription(reader.Child("Subscription"), options.Subscription);
+            ReadCheckpoint(reader.Child("Checkpoint"), options.Checkpoint);
+            ReadBatching(reader.Child("Batching"), options.Batching);
+            ReadProcessorResilience(reader.Child("Resilience"), options.Resilience);
+            ReadProcessorConnection(reader, options, problems);
 
-        ReadSubscription(reader.Child("Subscription"), options.Subscription);
-        ReadCheckpoint(reader.Child("Checkpoint"), options.Checkpoint);
-        ReadBatching(reader.Child("Batching"), options.Batching);
-        ReadProcessorResilience(reader.Child("Resilience"), options.Resilience);
-        ReadProcessorConnection(reader, options, problems);
+            reader.ReportNotConfigurable("Observers");
+            reader.ReportNotConfigurable("MeterFactory");
+            reader.ReportNotConfigurable("Time");
 
-        reader.ReportNotConfigurable("Observers");
-        reader.ReportNotConfigurable("MeterFactory");
-        reader.ReportNotConfigurable("Time");
-
-        reader.ReportUnrecognised(
-            "ProcessorId", "DroneId", "Debug", "SkipDecoding", "TrackSourceLag", "SourceLagRefreshInterval",
-            "Subscription", "Checkpoint", "Batching", "Resilience", "Connection", "ConnectionString",
-            "Observers", "MeterFactory", "Time");
+            reader.ReportUnrecognised(
+                "DroneId", "Debug", "SkipDecoding", "TrackSourceLag", "SourceLagRefreshInterval",
+                "Subscription", "Checkpoint", "Batching", "Resilience", "Connection", "ConnectionString",
+                "Observers", "MeterFactory", "Time");
+        }
 
         return new ConfigurationReadResult<ProcessorOptions>(options, problems);
     }
+
+    /// <summary>
+    /// Looks up a <c>ConnectionStrings</c> entry, accepting PascalCase, kebab-case and snake_case
+    /// spellings of the same name.
+    /// </summary>
+    /// <remarks>
+    /// A processor id is kebab-case by default but a caller may set anything, and hand-written
+    /// configuration rarely matches a generated identifier exactly. Separators are stripped and the
+    /// comparison is case-insensitive, so <c>FraudProcessor</c>, <c>fraud-processor</c> and
+    /// <c>fraud_processor</c> all reach the same entry.
+    /// </remarks>
+    internal static string? FindConnectionString(IConfiguration configuration, string name) {
+        foreach (var entry in configuration.GetSection("ConnectionStrings").GetChildren()) {
+            if (Normalise(entry.Key) != Normalise(name))
+                continue;
+
+            return string.IsNullOrWhiteSpace(entry.Value) ? null : entry.Value;
+        }
+
+        return null;
+    }
+
+    static string Normalise(string value) =>
+        value.Replace("-", "").Replace("_", "").ToLowerInvariant();
 
     /// <summary>
     /// Locates a processor's section, accepting PascalCase, kebab-case and snake_case spellings of
@@ -280,9 +306,6 @@ public static class KurrentSurgeConfigurationReader {
         }
 
         return null;
-
-        static string Normalise(string value) =>
-            value.Replace("-", "").Replace("_", "").ToLowerInvariant();
     }
 
     static void ReadSubscription(ConfigReader reader, SubscriptionOptions subscription) {

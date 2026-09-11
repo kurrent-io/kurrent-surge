@@ -21,7 +21,7 @@ public interface IPositionTracker : IDisposable {
     /// </summary>
     int Track(RecordPosition position);
 
-    int Track(Record record) => Track(record.Position);
+    int Track(Record record) => Track(record.CheckpointPosition);
 
     /// <summary>
     /// Flushes tracked positions up to and including the specified position.

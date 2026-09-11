@@ -111,6 +111,15 @@ public partial class StreamsClient {
         // and (on a filtered $all) raises its own checkpoints.
         var filtersLocally = options.Filter.RequiresClientEvaluation;
 
+        // A regex-filtered $all subscription already receives the server's scan checkpoints every
+        // window (AllSubscriptionFiltered); synthesizing on top of them doubles the barrier rate
+        // downstream. Synthesis is for the routes the server never checkpoints: an unfiltered $all,
+        // a stream, and an index prefix. Only regex filters reach AllSubscriptionFiltered.
+        var serverCheckpoints = request.Options.Filter is { } serverFilter
+            && (serverFilter.StreamIdentifier?.Regex is { Length: > 0 } || serverFilter.EventType?.Regex is { Length: > 0 });
+
+        var synthesizeCheckpoints = filtersLocally && !serverCheckpoints;
+
         // Records received since the last checkpoint of any kind. A server checkpoint (filter or
         // caught-up) resets it: progress is already accounted for up to the server's watermark, so
         // the count restarts from there — "count locally since the last server-sent one".
@@ -156,9 +165,10 @@ public partial class StreamsClient {
                                 .ConfigureAwait(false);
 
                             // Check the concrete value, not IsRecord: a default ReadMessage (empty
-                            // read) reports IsRecord == true with a null payload.
+                            // read) reports IsRecord == true with a null payload. On a link stream the
+                            // last record resolves to its target; the watermark is the link's own position.
                             if (last.Value is Record lastRecord)
-                                checkpoint = checkpoint with { Positions = [lastRecord.Position] };
+                                checkpoint = checkpoint with { Positions = [lastRecord.CheckpointPosition] };
                         }
 
                         yield return checkpoint;
@@ -178,28 +188,21 @@ public partial class StreamsClient {
                         if (!filtersLocally || options.Filter.IsMatch(record))
                             yield return record;
 
-                        // When the SDK filters locally, raise a scan checkpoint every window —
-                        // matched or not, the record was evaluated, so the watermark can move past
-                        // it. This carries progress across the records discarded above, which the
-                        // consumer never sees and so could never checkpoint on. (When the filter is
-                        // fully server-side this is off: deliveries advance progress on their own,
-                        // and a filtered $all already gets server checkpoints.)
-                        if (filtersLocally && ++scannedSinceCheckpoint >= options.FilterMaxSearchWindow) {
+                        // When the SDK filters locally and the server sends no watermark of its own,
+                        // raise a scan checkpoint every window — matched or not, the record was
+                        // evaluated, so the watermark can move past it. This carries progress across
+                        // the records discarded above, which the consumer never sees and so could
+                        // never checkpoint on.
+                        if (synthesizeCheckpoints && ++scannedSinceCheckpoint >= options.FilterMaxSearchWindow) {
                             scannedSinceCheckpoint = 0;
 
-                            // Carry the full record position (stream + revision), but pin the log
-                            // half to the position the scan has physically reached. On $all that is
-                            // the ReadEvent-level commit position — link resolution (on by default)
-                            // maps the record position to an earlier target event, so a
-                            // record-position watermark would regress while the scan advances. On a
-                            // stream subscription the ReadEvent carries no log position, so the
-                            // record's own position is the scan position.
-                            var scanPosition = resp.Event.HasCommitPosition
-                                ? LogPosition.From((long)resp.Event.CommitPosition)
-                                : record.Position.LogPosition;
-
+                            // The watermark is the position the scan has physically reached: the
+                            // record's original position. For a resolved link that is the link's own
+                            // stream, revision, and log position (equal to the ReadEvent commit
+                            // position on $all); Record.Position would be the earlier target and
+                            // regress while the scan advances.
                             yield return new FilterCheckpoint(CheckpointId.New(), record.Timestamp) {
-                                Positions = [record.Position with { LogPosition = scanPosition }]
+                                Positions = [record.CheckpointPosition]
                             };
                         }
 

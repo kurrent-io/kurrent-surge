@@ -21,10 +21,13 @@ static class ServerFilterExtractor {
         if (SingleValue(filter.ConstraintOn("category")) is ({ } category, var categoryIsExact))
             return (CategoryFilter.Parse(category), RequiresClientEvaluation: !categoryIsExact);
 
-        if (SingleValue(filter.ConstraintOn("schema_name")) is ({ } schema, var schemaIsExact))
-            return (SchemaFilter.Parse(schema), RequiresClientEvaluation: !schemaIsExact);
+        if (filter.ConstraintOn("schema_name") is { Any: true } schema)
+            return (ToSchemaFilter(schema), RequiresClientEvaluation: !schema.IsExact);
 
-        return (RecordFilter.None, RequiresClientEvaluation: true);
+        // Nothing the server can narrow by, but the request still carries a filter: an unfiltered $all
+        // with link resolution on delivers every record once per standard-projection link, and the
+        // client predicate accepts each resolved copy.
+        return (SchemaRegexFilter.ExcludeLinks, RequiresClientEvaluation: true);
     }
 
     // A stream is the one column all three wire shapes can carry. One case-sensitive literal reads the
@@ -33,6 +36,14 @@ static class ServerFilterExtractor {
         constraint.Terms is [{ Kind: FilterTermKind.Equals, CaseInsensitive: false } single]
             ? ToNamedStream(single.Values[0])
             : StreamRegexFilter.Parse(ToRegexUnion(constraint.Terms));
+
+    // A schema is the event-type column. One case-sensitive literal names a single index stream and is
+    // reached by prefix; anything else travels as an event-type regex, the shape a stream constraint
+    // already uses on the other wire context.
+    static RecordFilter ToSchemaFilter(FilterConstraint constraint) =>
+        constraint.Terms is [{ Kind: FilterTermKind.Equals, CaseInsensitive: false } single]
+            ? SchemaFilter.Parse(single.Values[0])
+            : SchemaRegexFilter.Parse(ToRegexUnion(constraint.Terms));
 
     // An index stream named by value is still a stream predicate. The only difference is how it
     // travels: a secondary index is reached by prefix, an ordinary stream by a direct read.

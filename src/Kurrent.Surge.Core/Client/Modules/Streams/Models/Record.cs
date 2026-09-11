@@ -72,7 +72,7 @@ public record Record {
     /// The precise position of the record in the global transaction log and optionaly within its stream.
     /// </summary>
     public RecordPosition Position { get; init; } = RecordPosition.Unset;
-    
+
 	/// <summary>
 	/// Represents the index link associated with the record.
 	/// </summary>
@@ -184,10 +184,8 @@ public readonly record struct Link() {
 
     public bool IsUnset => this == Unset;
 
-    public SchemaName  Name     { get; init; } = SchemaName.Unset;
-    public LogPosition Position { get; init; } = LogPosition.Unset;
-    public Revision    Revision { get; init; } = Revision.Unset;
-    public StreamName  Stream   { get; init; } = StreamName.Unset;
+    public SchemaName     Name     { get; init; } = SchemaName.Unset;
+    public RecordPosition Position { get; init; } = RecordPosition.Unset;
 }
 
 public interface IRecordDecoder {

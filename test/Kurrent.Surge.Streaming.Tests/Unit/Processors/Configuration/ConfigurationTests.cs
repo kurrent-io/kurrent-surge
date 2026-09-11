@@ -47,11 +47,34 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask reassigning_processor_id_does_not_overwrite_derived_drone_id() {
+    public async ValueTask derives_drone_id_from_the_final_processor_id() {
         var settings = new ProcessorOptions { ProcessorId = "first" };
-        var firstDroneId = settings.DroneId;
+        var suffix   = settings.DroneId["first-".Length..];
+
         settings.ProcessorId = "second";
-        await Assert.That(settings.DroneId).IsEqualTo(firstDroneId);
+
+        await Assert.That(settings.DroneId).IsEqualTo($"second-{suffix}");
+    }
+
+    [Test]
+    public async ValueTask keeps_an_explicit_drone_id_when_the_processor_id_changes() {
+        var settings = new ProcessorOptions { ProcessorId = "first" };
+
+        settings.DroneId     = "machine-01";
+        settings.ProcessorId = "second";
+
+        await Assert.That(settings.DroneId).IsEqualTo("machine-01");
+    }
+
+    [Test]
+    public async ValueTask keeps_deriving_the_drone_id_when_its_current_value_is_assigned_again() {
+        var settings = new ProcessorOptions { ProcessorId = "first" };
+
+        // Configuration binding writes an unconfigured DroneId back unchanged.
+        settings.DroneId     = settings.DroneId;
+        settings.ProcessorId = "second";
+
+        await Assert.That(settings.DroneId).StartsWith("second-");
     }
 
     [Test]
@@ -562,11 +585,11 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask di_resolves_connection_from_configuration_by_processor_id() {
+    public async ValueTask configure_delegate_receives_the_connection_resolved_from_configuration() {
         var configuration = BuildJsonConfiguration("""
             {
               "ConnectionStrings": {
-                "by-id-processor": "kurrentdb://localhost:2113"
+                "KurrentDB": "kurrentdb://localhost:2113"
               }
             }
             """);
@@ -575,12 +598,16 @@ public class ConfigurationTests {
         services.AddLogging();
         services.AddSingleton<IConfiguration>(configuration);
 
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), opts => opts.ProcessorId = "by-id-processor"));
+        string? seen = null;
 
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
+        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(),
+            opts => seen = ((KurrentClientOptions?)opts.ClientOptions)?.Endpoints[0].Host));
 
-        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
+        var provider = services.BuildServiceProvider();
+
+        _ = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
+
+        await Assert.That(seen).IsEqualTo("localhost");
     }
 
     [Test]
@@ -639,7 +666,7 @@ public class ConfigurationTests {
 
         var settings = ResolveProcessorOptions(configuration);
 
-        await Assert.That(settings.ProcessorId).IsEqualTo("config-processor");
+        await Assert.That(settings.ProcessorId).IsEqualTo("testable-record-processor");
         await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(2000);
         await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(15000));
     }
@@ -673,7 +700,7 @@ public class ConfigurationTests {
 
         var settings = ResolveProcessorOptions(configuration);
 
-        await Assert.That(settings.ProcessorId).IsEqualTo("camel-processor");
+        await Assert.That(settings.ProcessorId).IsEqualTo("testable-record-processor");
         await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(1500);
         await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(20000));
         await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
@@ -880,7 +907,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask explicit_processor_id_in_config_overrides_auto_generation() {
+    public async ValueTask processor_id_key_in_configuration_does_not_change_the_derived_id() {
         var configuration = BuildJsonConfiguration("""
             {
               "Kurrent": {
@@ -901,7 +928,38 @@ public class ConfigurationTests {
 
         var settings = ResolveProcessorOptions(configuration);
 
-        await Assert.That(settings.ProcessorId).IsEqualTo("my-custom-id");
+        await Assert.That(settings.ProcessorId).IsEqualTo("testable-record-processor");
+    }
+
+    [Test]
+    public async ValueTask reports_a_processor_id_key_as_an_unrecognised_setting() {
+        // Arrange
+        var configuration = BuildJsonConfiguration("""
+            {
+              "Kurrent": {
+                "Surge": {
+                  "Processors": {
+                    "TestableRecordProcessor": {
+                      "ProcessorId": "my-custom-id"
+                    }
+                  }
+                }
+              }
+            }
+            """);
+
+        var options      = new ProcessorOptions { ProcessorId = "testable-record-processor" };
+        var expectedPath = "Kurrent:Surge:Processors:TestableRecordProcessor:ProcessorId";
+
+        // Act
+        var result = options.FromConfiguration(configuration, "TestableRecordProcessor");
+
+        // Assert
+        var warnings    = result.Problems.Where(p => p.Severity == ConfigurationProblemSeverity.Warning).Select(p => p.Path).ToList();
+        var processorId = options.ProcessorId;
+
+        await Assert.That(warnings).Contains(expectedPath);
+        await Assert.That(processorId).IsEqualTo("testable-record-processor");
     }
 
     [Test]
@@ -936,7 +994,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask id_named_section_applies_as_deployment_override_when_configure_sets_custom_processor_id() {
+    public async ValueTask configure_setting_a_processor_id_reads_no_second_section() {
         // Arrange
         var configuration = BuildJsonConfiguration("""
             {
@@ -955,13 +1013,10 @@ public class ConfigurationTests {
             }
             """);
 
-        var expectedBatchSize = 2500;
+        var expectedBatchSize = new ProcessorOptions().Batching.MaxBatchSize;
 
         // Act
-        var settings = ResolveProcessorOptions(configuration, configure: opts => {
-            opts.ProcessorId           = "fraud-eu";
-            opts.Batching.MaxBatchSize = 100;
-        });
+        var settings = ResolveProcessorOptions(configuration, configure: opts => opts.ProcessorId = "fraud-eu");
 
         // Assert
         await Assert.That(settings.ProcessorId).IsEqualTo("fraud-eu");
@@ -969,7 +1024,7 @@ public class ConfigurationTests {
     }
 
     [Test]
-    public async ValueTask id_named_section_connection_does_not_override_connection_set_in_code() {
+    public async ValueTask configure_setting_a_processor_id_does_not_read_the_connection_from_that_section() {
         // Arrange
         var configuration = BuildJsonConfiguration("""
             {
@@ -981,18 +1036,20 @@ public class ConfigurationTests {
                     }
                   }
                 }
+              },
+              "ConnectionStrings": {
+                "kurrentdb": "kurrentdb://localhost:2113"
               }
             }
             """);
 
         // Act
-        var settings = ResolveProcessorOptions(configuration, configure: opts => {
-            opts.ProcessorId = "fraud-eu";
-            opts.Connection(TestConnectionString);
-        });
+        var settings = ResolveProcessorOptions(configuration, configure: opts => opts.ProcessorId = "fraud-eu");
 
         // Assert
-        await Assert.That(((KurrentClientOptions)settings.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
+        var host = ((KurrentClientOptions)settings.ClientOptions!).Endpoints[0].Host;
+
+        await Assert.That(host).IsEqualTo("localhost");
     }
 
     static IConfiguration BuildJsonConfiguration(string json) {
@@ -1189,7 +1246,7 @@ public class ConfigurationTests {
         var provider     = services.BuildServiceProvider();
         var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
 
-        await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("batch-config-processor");
+        await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("testable-batch-processor");
         await Assert.That(droneService.Drone.Options.Batching.MaxBatchSize).IsEqualTo(2000);
     }
 

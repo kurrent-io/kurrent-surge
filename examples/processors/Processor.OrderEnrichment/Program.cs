@@ -15,24 +15,16 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 try {
-    var builder = Host.CreateApplicationBuilder(args);
+    // The three source streams by prefix. A stream constraint travels to the server as a regex over
+    // $all, so the standard projections' link events ($ce-*, $et-*) never reach the processor.
+    var builder = SurgeProcessor.CreateBuilder<OrderEnrichmentProcessor>(args, options =>
+        options.Subscription.Filter = RecordFilter.ByExpression("stream LIKE 'customer-%' OR stream LIKE 'product-%' OR stream LIKE 'order-%'"));
 
     builder.Services.AddSerilog();
 
-    builder.Services.AddSingleton<OrderEnrichmentProcessor>();
-
-    builder.AddKurrentSurge("kurrentdb", surge => {
-        // The three source streams by prefix. A stream constraint travels to the server as a regex over
-        // $all, so the standard projections' link events ($ce-*, $et-*) never reach the processor.
-        surge.AddProcessor<OrderEnrichmentProcessor>(opts =>
-            opts.Subscription.Filter = RecordFilter.ByExpression("stream LIKE 'customer-%' OR stream LIKE 'product-%' OR stream LIKE 'order-%'"));
-    });
-
     builder.Services.AddHostedService<OrderSeeder>();
 
-    using var host = builder.Build();
-
-    await host.RunAsync();
+    await builder.Build().RunAsync();
 }
 catch (Exception ex) {
     Log.Fatal(ex, "Application terminated unexpectedly");

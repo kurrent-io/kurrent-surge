@@ -20,23 +20,56 @@ Kafka sink connector, which requires a licensed KurrentDB.
 
 ## Wireup
 
-Every example builds a host and registers the SDK through `AddKurrentSurge`. Web examples use
-`WebApplication.CreateBuilder`; console examples use `Host.CreateApplicationBuilder`, whether they
-run indefinitely or complete a task and exit.
+Each example makes a host. The examples register the SDK in one of two modes.
 
-The connection string is never hard-coded. Each example ships an `appsettings.json` holding it under
-`ConnectionStrings:kurrentdb`, and reads it with the connection-name overload:
+- **One processor in each host.** The console processor examples use
+  `SurgeProcessor.CreateBuilder<T>(args, options => { ... })` and set the processor options in the
+  lambda. This builder adds the processor, its health check, and the `KurrentClient` to the
+  container. If you register a second processor, `Build()` throws an `InvalidOperationException`.
+
+- **Many components in one host.** The web examples use `WebApplication.CreateBuilder` and
+  `AddKurrentSurge`. `Streams.QuickStart` and `Registry.Quickstart` use `AddKurrentSurge` with
+  `Host.CreateApplicationBuilder`.
+
+`Processor.QuickStart` shows the minimum code for the first mode. It has one file. The processor
+class is below the top-level statements.
+
+`Processor.WordCount` adds a message catalog to the `KurrentClient` connection. The processor and
+`FactSeeder` use that connection. To tune the configured connection, `Processor.WordCount` calls
+`AddKurrentSurge` on the `SurgeProcessor` builder:
 
 ```csharp
-var builder = Host.CreateApplicationBuilder(args);
-
-builder.AddKurrentSurge("kurrentdb", surge => {
-    surge.AddProcessor<OrderProcessor>(opts =>
-        opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'OrderPlaced'"));
-});
+builder.AddKurrentSurge(surge => surge.Connection(client => client.Messages.UseCatalog(catalog)));
 ```
 
-Point an example at a different server by editing its `appsettings.json`, or by setting the
+A console processor example has this structure:
+
+```csharp
+var builder = SurgeProcessor.CreateBuilder<OrderProcessor>(args, options =>
+    options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'OrderPlaced'"));
+
+builder.Services.AddHostedService<OrderSeeder>();
+
+await builder.Build().RunAsync();
+```
+
+To give the processor an explicit id, pass the id as the second argument:
+`CreateBuilder<OrderProcessor>(args, "orders", options => ...)`. `Processor.QuickStart` does this.
+
+The examples do not contain a connection string in code. Each example has an `appsettings.json` file
+with the connection string at `ConnectionStrings:kurrentdb`.
+
+`SurgeProcessor` reads that key without connection code. It looks for two key names in this
+sequence: `Kurrent:Surge`, then `KurrentDB`. For `KurrentDB` it ignores the difference between
+uppercase and lowercase letters, and the `-` and `_` characters.
+
+Examples that use `AddKurrentSurge` give the key name:
+
+```csharp
+builder.AddKurrentSurge("kurrentdb", surge => { ... });
+```
+
+To use a different server, change the `appsettings.json` file of the example. You can also set the
 `ConnectionStrings__kurrentdb` environment variable.
 
 ## Message mapping

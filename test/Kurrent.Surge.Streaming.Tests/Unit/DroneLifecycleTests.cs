@@ -494,6 +494,44 @@ public class DroneLifecycleTests {
 		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(watermark);
 	}
 
+	[Test]
+	[Timeout(15_000)]
+	public async ValueTask auto_track_on_tracks_a_link_past_a_folded_watermark_at_the_link_position(CancellationToken ct) {
+		// Arrange — a record, a scan watermark past it, then a resolved link that sits past the
+		// watermark but points back at the record. The runtime must track the link's own position:
+		// the target's is below the committed floor and the strict tracker rejects it.
+		var partition    = Partition.From(0);
+		var linkStream   = Records.Generate().Stream;
+		var linkPosition = LogPosition.From(25);
+
+		var target = Records.Generate() with { Position = RecordPosition.From(LogPosition.From(10), partition) };
+		var link   = target with {
+			Link = new Link { Name = LinkTo.SchemaName, Position = RecordPosition.From(linkPosition, linkStream, Revision.From(0)) }
+		};
+
+		var records           = new[] { target, link };
+		var expectedCommitted = linkPosition;
+		var processor         = new TestableRecordProcessor();
+
+		var (drone, subscription) = CreateDrone(processor, configure: opts => {
+			opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+		});
+
+		subscription.EmitConnected();
+		subscription.EmitRecord(target);
+		subscription.EmitCheckpoint(WatermarkAt(20));
+		subscription.EmitRecord(link);
+		subscription.Complete();
+
+		// Act
+		await drone.RunAsync(ct);
+
+		// Assert — both records were processed and the link's own position, past the watermark, committed.
+		await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
+		await Assert.That(processor.Records.Length).IsEqualTo(records.Length);
+		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(expectedCommitted);
+	}
+
 	#endregion // watermark / OnCheckpoint
 
 	#region ->> batched parity <<-

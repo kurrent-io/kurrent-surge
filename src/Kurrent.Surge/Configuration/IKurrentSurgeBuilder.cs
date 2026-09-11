@@ -19,6 +19,11 @@ namespace Kurrent.Surge;
 /// <see cref="KurrentClient"/> already in the service collection, and the last call wins. A
 /// connection set directly on a component's options always beats the one registered here.
 /// </para>
+/// <para>
+/// A processor's id is the one passed at registration, else its type name in kebab-case. Its
+/// options are read from <c>Kurrent:Surge:Processors:{id}</c>, then the configure delegate runs
+/// over them. Setting <c>ProcessorId</c> in the delegate does not change which section was read.
+/// </para>
 /// </remarks>
 [PublicAPI]
 public interface IKurrentSurgeBuilder {
@@ -80,9 +85,32 @@ public interface IKurrentSurgeBuilder {
         where TProcessor : class, IRecordProcessor;
 
     /// <summary>
+    /// Registers a processor under <paramref name="processorId"/> as a hosted service, resolved from
+    /// the container at drone startup.
+    /// </summary>
+    /// <typeparam name="TProcessor">
+    /// The processor type. Must be registered separately, for example with
+    /// <c>services.AddSingleton&lt;TProcessor&gt;()</c>.
+    /// </typeparam>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="configure">Optional per-processor settings.</param>
+    /// <returns>The builder for method chaining.</returns>
+    IKurrentSurgeBuilder AddProcessor<TProcessor>(string processorId, Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor;
+
+    /// <summary>
     /// Registers a processor as a hosted service, with settings that need the service provider.
     /// </summary>
     IKurrentSurgeBuilder AddProcessor<TProcessor>(Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordProcessor;
+
+    /// <summary>
+    /// Registers a processor under <paramref name="processorId"/> as a hosted service, with settings
+    /// that need the service provider.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="configure">Per-processor settings.</param>
+    IKurrentSurgeBuilder AddProcessor<TProcessor>(string processorId, Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordProcessor;
 
     /// <summary>
@@ -95,9 +123,35 @@ public interface IKurrentSurgeBuilder {
         where TProcessor : class, IRecordProcessor;
 
     /// <summary>
+    /// Registers a processor under <paramref name="processorId"/> as a hosted service, built by a
+    /// factory invoked once per drone at host startup. The processor type is not added to the container.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="processorFactory">Builds the processor.</param>
+    /// <param name="configure">Optional per-processor settings.</param>
+    IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        string processorId,
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor;
+
+    /// <summary>
     /// Registers a factory-built processor, with settings that need the service provider.
     /// </summary>
     IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordProcessor;
+
+    /// <summary>
+    /// Registers a factory-built processor under <paramref name="processorId"/>, with settings that
+    /// need the service provider.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="processorFactory">Builds the processor.</param>
+    /// <param name="configure">Per-processor settings.</param>
+    IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        string processorId,
         Func<IServiceProvider, TProcessor> processorFactory,
         Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordProcessor;
@@ -112,9 +166,35 @@ public interface IKurrentSurgeBuilder {
         where TProcessor : class, IRecordProcessor;
 
     /// <summary>
+    /// Registers a pre-built processor instance under <paramref name="processorId"/> as a hosted
+    /// service. The instance is reused for the drone's lifetime and is not added to the container.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="instance">The processor.</param>
+    /// <param name="configure">Optional per-processor settings.</param>
+    IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        string processorId,
+        TProcessor instance,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor;
+
+    /// <summary>
     /// Registers a pre-built processor instance, with settings that need the service provider.
     /// </summary>
     IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        TProcessor instance,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordProcessor;
+
+    /// <summary>
+    /// Registers a pre-built processor instance under <paramref name="processorId"/>, with settings
+    /// that need the service provider.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="instance">The processor.</param>
+    /// <param name="configure">Per-processor settings.</param>
+    IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        string processorId,
         TProcessor instance,
         Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordProcessor;
@@ -135,15 +215,50 @@ public interface IKurrentSurgeBuilder {
         where TProcessor : class, IRecordBatchProcessor;
 
     /// <summary>
+    /// Registers a batch processor under <paramref name="processorId"/> as a hosted service, resolved
+    /// from the container at drone startup.
+    /// </summary>
+    /// <typeparam name="TProcessor">
+    /// The batch processor type. Must be registered separately.
+    /// </typeparam>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="configure">Optional per-processor settings.</param>
+    /// <returns>The builder for method chaining.</returns>
+    IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(string processorId, Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordBatchProcessor;
+
+    /// <summary>
     /// Registers a batch processor as a hosted service, with settings that need the service provider.
     /// </summary>
     IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordBatchProcessor;
 
     /// <summary>
+    /// Registers a batch processor under <paramref name="processorId"/> as a hosted service, with
+    /// settings that need the service provider.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="configure">Per-processor settings.</param>
+    IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(string processorId, Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordBatchProcessor;
+
+    /// <summary>
     /// Registers a batch processor built by a factory invoked once per drone at host startup.
     /// </summary>
     IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordBatchProcessor;
+
+    /// <summary>
+    /// Registers a batch processor under <paramref name="processorId"/>, built by a factory invoked
+    /// once per drone at host startup.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="processorFactory">Builds the processor.</param>
+    /// <param name="configure">Optional per-processor settings.</param>
+    IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        string processorId,
         Func<IServiceProvider, TProcessor> processorFactory,
         Action<ProcessorOptions>? configure = null)
         where TProcessor : class, IRecordBatchProcessor;
@@ -157,6 +272,19 @@ public interface IKurrentSurgeBuilder {
         where TProcessor : class, IRecordBatchProcessor;
 
     /// <summary>
+    /// Registers a factory-built batch processor under <paramref name="processorId"/>, with settings
+    /// that need the service provider.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="processorFactory">Builds the processor.</param>
+    /// <param name="configure">Per-processor settings.</param>
+    IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        string processorId,
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordBatchProcessor;
+
+    /// <summary>
     /// Registers a pre-built batch processor instance as a hosted service.
     /// </summary>
     IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
@@ -165,9 +293,35 @@ public interface IKurrentSurgeBuilder {
         where TProcessor : class, IRecordBatchProcessor;
 
     /// <summary>
+    /// Registers a pre-built batch processor instance under <paramref name="processorId"/> as a
+    /// hosted service.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="instance">The processor.</param>
+    /// <param name="configure">Optional per-processor settings.</param>
+    IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        string processorId,
+        TProcessor instance,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordBatchProcessor;
+
+    /// <summary>
     /// Registers a pre-built batch processor instance, with settings that need the service provider.
     /// </summary>
     IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        TProcessor instance,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordBatchProcessor;
+
+    /// <summary>
+    /// Registers a pre-built batch processor instance under <paramref name="processorId"/>, with
+    /// settings that need the service provider.
+    /// </summary>
+    /// <param name="processorId">The processor id, and the key of the configuration section the processor reads.</param>
+    /// <param name="instance">The processor.</param>
+    /// <param name="configure">Per-processor settings.</param>
+    IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        string processorId,
         TProcessor instance,
         Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordBatchProcessor;

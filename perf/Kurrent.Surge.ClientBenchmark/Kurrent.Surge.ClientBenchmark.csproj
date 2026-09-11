@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+    <!-- https://github.com/dotnet/sdk/issues/51873 — MTP ignores IsTestProject=false -->
+    <IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+    <RootNamespace>ClientBenchmark</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Kurrent.Surge\Kurrent.Surge.csproj" />
+    <ProjectReference Include="..\..\src\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+  </ItemGroup>
+</Project>

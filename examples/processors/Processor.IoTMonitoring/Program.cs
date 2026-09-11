@@ -15,22 +15,14 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 try {
-    var builder = Host.CreateApplicationBuilder(args);
+    var builder = SurgeProcessor.CreateBuilder<TemperatureMonitorProcessor>(args, options =>
+        options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'"));
 
     builder.Services.AddSerilog();
 
-    builder.Services.AddSingleton<TemperatureMonitorProcessor>();
-
-    builder.AddKurrentSurge("kurrentdb", surge => {
-        surge.AddProcessor<TemperatureMonitorProcessor>(opts =>
-            opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'"));
-    });
-
     builder.Services.AddHostedService<SensorReadingSeeder>();
 
-    using var host = builder.Build();
-
-    await host.RunAsync();
+    await builder.Build().RunAsync();
 }
 catch (Exception ex) {
     Log.Fatal(ex, "Application terminated unexpectedly");

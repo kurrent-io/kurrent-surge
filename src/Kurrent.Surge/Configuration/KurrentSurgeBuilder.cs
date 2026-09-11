@@ -120,24 +120,84 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
 
     public IKurrentSurgeBuilder AddProcessor<TProcessor>(Action<ProcessorOptions>? configure = null)
         where TProcessor : class, IRecordProcessor =>
-        AddProcessor(static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
+        AddProcessorCore(null, static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
+
+    public IKurrentSurgeBuilder AddProcessor<TProcessor>(string processorId, Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore(processorId, static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
 
     public IKurrentSurgeBuilder AddProcessor<TProcessor>(Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordProcessor =>
-        AddProcessor(static sp => sp.GetRequiredService<TProcessor>(), configure);
+        AddProcessorCore(null, static sp => sp.GetRequiredService<TProcessor>(), configure);
+
+    public IKurrentSurgeBuilder AddProcessor<TProcessor>(string processorId, Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore(processorId, static sp => sp.GetRequiredService<TProcessor>(), configure);
 
     public IKurrentSurgeBuilder AddProcessor<TProcessor>(
         Func<IServiceProvider, TProcessor> processorFactory,
         Action<ProcessorOptions>? configure = null)
         where TProcessor : class, IRecordProcessor =>
-        AddProcessor(processorFactory, (opts, _) => configure?.Invoke(opts));
+        AddProcessorCore(null, processorFactory, (opts, _) => configure?.Invoke(opts));
+
+    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        string processorId,
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore(processorId, processorFactory, (opts, _) => configure?.Invoke(opts));
 
     public IKurrentSurgeBuilder AddProcessor<TProcessor>(
         Func<IServiceProvider, TProcessor> processorFactory,
         Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor {
+        where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore(null, processorFactory, configure);
+
+    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        string processorId,
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore(processorId, processorFactory, configure);
+
+    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        TProcessor instance,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore(null, _ => instance, (opts, _) => configure?.Invoke(opts));
+
+    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        string processorId,
+        TProcessor instance,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore(processorId, _ => instance, (opts, _) => configure?.Invoke(opts));
+
+    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        TProcessor instance,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore(null, _ => instance, configure);
+
+    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
+        string processorId,
+        TProcessor instance,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore(processorId, _ => instance, configure);
+
+    /// <summary>
+    /// Registers the hosted drone for a processor of either shape. The drone picks the record or
+    /// batch dispatcher from the processor's runtime type. The id is <paramref name="processorId"/>,
+    /// else the type name in kebab-case.
+    /// </summary>
+    internal IKurrentSurgeBuilder AddProcessorCore<TProcessor>(
+        string? processorId,
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IProcessor {
         Services.TryRegisterHostedService<DroneService<TProcessor>>(sp => {
-            var options   = BuildOptions<TProcessor>(sp, configure);
+            var options   = BuildOptions<TProcessor>(sp, processorId, configure);
             var processor = processorFactory(sp);
             var drone     = new KurrentProcessor(options, processor).Build();
             return new DroneService<TProcessor>(drone, sp.GetRequiredService<ILogger<DroneService<TProcessor>>>());
@@ -145,18 +205,6 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
 
         return this;
     }
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
-        TProcessor instance,
-        Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessor(_ => instance, configure);
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
-        TProcessor instance,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessor(_ => instance, configure);
 
     #endregion // Processor
 
@@ -164,43 +212,71 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
 
     public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(Action<ProcessorOptions>? configure = null)
         where TProcessor : class, IRecordBatchProcessor =>
-        AddBatchProcessor(static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
+        AddProcessorCore(null, static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
+
+    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(string processorId, Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore(processorId, static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
 
     public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordBatchProcessor =>
-        AddBatchProcessor(static sp => sp.GetRequiredService<TProcessor>(), configure);
+        AddProcessorCore(null, static sp => sp.GetRequiredService<TProcessor>(), configure);
+
+    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(string processorId, Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore(processorId, static sp => sp.GetRequiredService<TProcessor>(), configure);
 
     public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
         Func<IServiceProvider, TProcessor> processorFactory,
         Action<ProcessorOptions>? configure = null)
         where TProcessor : class, IRecordBatchProcessor =>
-        AddBatchProcessor(processorFactory, (opts, _) => configure?.Invoke(opts));
+        AddProcessorCore(null, processorFactory, (opts, _) => configure?.Invoke(opts));
+
+    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        string processorId,
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore(processorId, processorFactory, (opts, _) => configure?.Invoke(opts));
 
     public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
         Func<IServiceProvider, TProcessor> processorFactory,
         Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordBatchProcessor {
-        Services.TryRegisterHostedService<DroneService<TProcessor>>(sp => {
-            var options   = BuildOptions<TProcessor>(sp, configure);
-            var processor = processorFactory(sp);
-            var drone     = new KurrentProcessor(options, processor).Build();
-            return new DroneService<TProcessor>(drone, sp.GetRequiredService<ILogger<DroneService<TProcessor>>>());
-        });
+        where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore(null, processorFactory, configure);
 
-        return this;
-    }
+    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        string processorId,
+        Func<IServiceProvider, TProcessor> processorFactory,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore(processorId, processorFactory, configure);
 
     public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
         TProcessor instance,
         Action<ProcessorOptions>? configure = null)
         where TProcessor : class, IRecordBatchProcessor =>
-        AddBatchProcessor(_ => instance, configure);
+        AddProcessorCore(null, _ => instance, (opts, _) => configure?.Invoke(opts));
+
+    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        string processorId,
+        TProcessor instance,
+        Action<ProcessorOptions>? configure = null)
+        where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore(processorId, _ => instance, (opts, _) => configure?.Invoke(opts));
 
     public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
         TProcessor instance,
         Action<ProcessorOptions, IServiceProvider> configure)
         where TProcessor : class, IRecordBatchProcessor =>
-        AddBatchProcessor(_ => instance, configure);
+        AddProcessorCore(null, _ => instance, configure);
+
+    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+        string processorId,
+        TProcessor instance,
+        Action<ProcessorOptions, IServiceProvider> configure)
+        where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore(processorId, _ => instance, configure);
 
     #endregion // Batch Processor
 
@@ -208,51 +284,33 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
 
     static ProcessorOptions BuildOptions<TProcessor>(
         IServiceProvider sp,
+        string? processorId,
         Action<ProcessorOptions, IServiceProvider> configure
     ) {
         var configuration = sp.GetService<IConfiguration>();
-        var options       = new ProcessorOptions();
-        var logger        = ConfigurationLogger(sp);
+        var id            = processorId ?? typeof(TProcessor).Name.ToKebabCase();
+        var options       = new ProcessorOptions { ProcessorId = id };
 
-        // Read Kurrent:Surge:Processors:{TypeName} first, so the configure delegate overrides it.
+        // Everything configuration has to say about the processor is on the options before the
+        // configure delegate runs, its own connection included.
         if (configuration is not null)
-            options.FromConfiguration(configuration, typeof(TProcessor).Name).EnsureValid(logger);
+            options.FromConfiguration(configuration, id).EnsureValid(ConfigurationLogger(sp));
 
-        configure(options, sp);
+        // A connection parsed from configuration carries no container services, so the drone would
+        // log to NullLoggerFactory. Apply them the way the scope's connection registration does.
+        if (options.ClientOptions is KurrentClientOptions configured)
+            ResolveServices(configured, sp);
 
-        // ProcessorId has to be settled before configuration and connection strings are matched by id.
-        if (string.IsNullOrWhiteSpace(options.ProcessorId)) {
-            options.ProcessorId = typeof(TProcessor).Name.ToKebabCase();
-        }
-        else if (configuration is not null && !NamesMatch(options.ProcessorId, typeof(TProcessor).Name)) {
-            // A section named by a custom processor id can only be matched after the configure
-            // delegate settles that id. It is a deliberate per-deployment override, so it applies
-            // over code — except the connection, where an explicit Connection() call stays first in
-            // the documented precedence chain.
-            var explicitConnection = options.ClientOptions;
-
-            options.FromConfiguration(configuration, options.ProcessorId).EnsureValid(logger);
-
-            if (explicitConnection is not null)
-                options.ClientOptions = explicitConnection;
-        }
-
-        // Precedence, most specific first: a connection set on the options, then this processor's
-        // own configuration key, then the scope's connection, then the shared configuration keys.
-        // The processor's own key outranks the scope so one processor can be pointed at another
-        // cluster without touching code.
+        // Then the scope's connection, then the shared configuration keys. The delegate runs last, so
+        // a connection it sets still wins.
         if (options.ClientOptions is null) {
-            var ownConnectionString = configuration is not null
-                ? FindConnectionString(configuration, options.ProcessorId)
-                : null;
-
-            if (ownConnectionString is not null)
-                options.Connection(ownConnectionString);
-            else if (sp.GetService<KurrentClientOptions>() is { } scopeOptions)
+            if (sp.GetService<KurrentClientOptions>() is { } scopeOptions)
                 options.Connection(scopeOptions);
             else if (configuration is not null && ResolveConnectionString(configuration) is { } shared)
-                options.Connection(shared);
+                options.Connection(ResolveServices(KurrentClientOptions.Parse(shared), sp));
         }
+
+        configure(options, sp);
 
         // Route metrics through the container's meter factory unless the caller set one. Resolved
         // optionally: a bare IServiceCollection need not have called AddMetrics.
@@ -262,41 +320,25 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
     }
 
     /// <summary>
-    /// Resolves the shared connection string from configuration, most specific key first.
+    /// Resolves the shared connection string from configuration: <c>ConnectionStrings:Kurrent:Surge</c>,
+    /// then <c>ConnectionStrings:KurrentDB</c>.
     /// </summary>
-    static string? ResolveConnectionString(IConfiguration configuration) =>
-        FindConnectionString(configuration, "KurrentSurge")
-     ?? FindConnectionString(configuration, "KurrentDB");
+    static string? ResolveConnectionString(IConfiguration configuration) {
+        var surge = configuration["ConnectionStrings:Kurrent:Surge"];
 
-    /// <summary>
-    /// Looks up a <c>ConnectionStrings</c> entry, accepting PascalCase, kebab-case and snake_case
-    /// spellings of the same name.
-    /// </summary>
-    /// <remarks>
-    /// A processor id is kebab-case by default but a caller may set anything, and hand-written
-    /// configuration rarely matches a generated identifier exactly. Separators are stripped and the
-    /// comparison is case-insensitive, so <c>FraudProcessor</c>, <c>fraud-processor</c> and
-    /// <c>fraud_processor</c> all reach the same entry.
-    /// </remarks>
-    static string? FindConnectionString(IConfiguration configuration, string name) {
-        foreach (var entry in configuration.GetSection("ConnectionStrings").GetChildren()) {
-            if (!NamesMatch(entry.Key, name))
-                continue;
-
-            return string.IsNullOrWhiteSpace(entry.Value) ? null : entry.Value;
-        }
-
-        return null;
+        return !string.IsNullOrWhiteSpace(surge)
+            ? surge
+            : KurrentSurgeConfigurationReader.FindConnectionString(configuration, "KurrentDB");
     }
 
     /// <summary>
     /// Logger for configuration problems found while building options. Warnings are logged and
     /// errors throw, mirroring how options validation behaves on the same path.
     /// </summary>
-    static ILogger ConfigurationLogger(IServiceProvider sp) =>
+    internal static ILogger ConfigurationLogger(IServiceProvider sp) =>
         sp.GetService<ILoggerFactory>()?.CreateLogger<KurrentSurgeBuilder>() ?? NullLogger<KurrentSurgeBuilder>.Instance;
 
-    static bool NamesMatch(string left, string right) {
+    internal static bool NamesMatch(string left, string right) {
         return Strip(left).Equals(Strip(right), StringComparison.OrdinalIgnoreCase);
 
         static string Strip(string value) => value.Replace("-", "").Replace("_", "");

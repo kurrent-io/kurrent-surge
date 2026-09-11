@@ -41,7 +41,7 @@ public class KurrentSurgeBuilderTests {
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> {
-                ["ConnectionStrings:KurrentSurge"] = "kurrentdb://from-config:2113?tls=false"
+                ["ConnectionStrings:Kurrent:Surge"] = "kurrentdb://from-config:2113?tls=false"
             })
             .Build());
 
@@ -54,9 +54,9 @@ public class KurrentSurgeBuilderTests {
     }
 
     [Test]
-    [Arguments("ConnectionStrings:KurrentSurge")]
-    [Arguments("ConnectionStrings:kurrent-surge")]
-    [Arguments("ConnectionStrings:kurrent_surge")]
+    [Arguments("ConnectionStrings:KurrentDB")]
+    [Arguments("ConnectionStrings:kurrent-db")]
+    [Arguments("ConnectionStrings:kurrent_db")]
     public async ValueTask configuration_chain_accepts_every_spelling_of_a_key(string key) {
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
@@ -94,8 +94,8 @@ public class KurrentSurgeBuilderTests {
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> {
-                ["ConnectionStrings:KurrentSurge"] = "kurrentdb://preferred:2113?tls=false",
-                ["ConnectionStrings:KurrentDB"]    = "kurrentdb://fallback:2113?tls=false"
+                ["ConnectionStrings:Kurrent:Surge"] = "kurrentdb://preferred:2113?tls=false",
+                ["ConnectionStrings:KurrentDB"]     = "kurrentdb://fallback:2113?tls=false"
             })
             .Build());
 
@@ -112,7 +112,7 @@ public class KurrentSurgeBuilderTests {
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> {
-                ["ConnectionStrings:KurrentSurge"] = "kurrentdb://from-config:2113?tls=false"
+                ["ConnectionStrings:Kurrent:Surge"] = "kurrentdb://from-config:2113?tls=false"
             })
             .Build());
 

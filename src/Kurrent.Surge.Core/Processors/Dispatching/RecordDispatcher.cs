@@ -43,7 +43,7 @@ sealed class RecordDispatcher(
             // Advance the frontier past it, or a stream of unhandled types never commits and the
             // processor replays it forever. Nothing claimed the record, so this is the framework's call.
             if (AutoTrack)
-                Track(record.Position);
+                Track(record.CheckpointPosition);
 
             return RecordProcessingResult.Continue;
         }
@@ -88,7 +88,7 @@ sealed class RecordDispatcher(
                 // user owns the frontier via ctx.Track (already transparent above). Re-tracking the same
                 // position is idempotent on progress and harmless on the checkpointer snapshot.
                 if (AutoTrack && !ctx.StopRequested)
-                    Track(record.Position);
+                    Track(record.CheckpointPosition);
             }
 
             Observers.RecordCompleted(new(Info, record, outcome, elapsed, Progress.Progress, TimeProvider.GetUtcNow(), error));

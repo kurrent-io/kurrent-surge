@@ -88,7 +88,12 @@ class KdbDataSource : IDataSource {
 
                         case Record rec: {
                             var assigned = AssignPartition(rec);
-                            var position = assigned.Position;
+
+                            // The floors, the cursor, and the prune all live in the subscription's own
+                            // coordinate: the original position. A resolved link's Position is its target,
+                            // earlier in the log, and would be pruned as already processed or would rewind
+                            // the resubscribe cursor.
+                            var position = assigned.CheckpointPosition;
 
                             // Skip already-processed records: advance the cursor past them, don't redeliver.
                             // RecordPosition compares by log position, so these are plain log-order checks.

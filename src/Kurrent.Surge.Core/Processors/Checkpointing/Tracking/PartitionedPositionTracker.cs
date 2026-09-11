@@ -58,7 +58,7 @@ public sealed class PartitionedPositionTracker : IDisposable {
         Dictionary<Partition, RecordPosition>? maxPositions = null;
 
         foreach (var record in records) {
-            var position  = record.Position;
+            var position  = record.CheckpointPosition;
             var partition = position.Partition;
 
             // Skip partitions we're not tracking, wonte even happen in practice...
@@ -95,7 +95,7 @@ public sealed class PartitionedPositionTracker : IDisposable {
     /// <summary>
     /// Tracks a record's position for its partition.
     /// </summary>
-    public int Track(Record record) => Track(record.Position);
+    public int Track(Record record) => Track(record.CheckpointPosition);
 
     /// <summary>
     /// Prepares a flush without committing. Call <see cref="PendingPositionsFlush.Execute"/> after persistence succeeds.

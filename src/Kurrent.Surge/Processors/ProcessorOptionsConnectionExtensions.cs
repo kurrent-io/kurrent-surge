@@ -1,11 +1,7 @@
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Processors.Configuration;
-using Kurrent.Surge.Schema.Naming;
 using Microsoft.Extensions.Configuration;
 
-// Home the connection sugar in Kurrent.Surge.Processors — the namespace of KurrentProcessor, the primary
-// entry point — so callers already reach it via the enclosing namespace (all Kurrent.Surge.Streaming.Tests
-// files) or their existing `using Kurrent.Surge.Processors;`, avoiding a using addition per call site.
 namespace Kurrent.Surge.Processors;
 
 /// <summary>
@@ -43,22 +39,17 @@ public static class ProcessorOptionsConnectionExtensions {
         /// </summary>
         /// <remarks>
         /// Settings already assigned survive when configuration does not mention them, so this can
-        /// run before or after the caller's own configuration without losing either.
+        /// run before or after the caller's own configuration without losing either. The processor
+        /// id is never read: a <c>ProcessorId</c> key is reported as an unrecognised setting.
         /// </remarks>
         /// <param name="configuration">The configuration root.</param>
         /// <param name="sectionName">
         /// The processor's section name. PascalCase, kebab-case and snake_case all reach the same
-        /// section. When configuration sets no processor id, it is derived from this name.
+        /// section.
         /// </param>
         /// <returns>The options, together with anything configuration could not supply.</returns>
-        public ConfigurationReadResult<ProcessorOptions> FromConfiguration(IConfiguration configuration, string sectionName) {
-            var result = KurrentSurgeConfigurationReader.ReadProcessorOptions(configuration, sectionName, options);
-
-            if (string.IsNullOrEmpty(options.ProcessorId))
-                options.ProcessorId = sectionName.ToKebabCase();
-
-            return result;
-        }
+        public ConfigurationReadResult<ProcessorOptions> FromConfiguration(IConfiguration configuration, string sectionName) =>
+            KurrentSurgeConfigurationReader.ReadProcessorOptions(configuration, sectionName, options);
     }
 
 }

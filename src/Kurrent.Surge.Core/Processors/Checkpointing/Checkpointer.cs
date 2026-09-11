@@ -18,13 +18,13 @@ namespace Kurrent.Surge.Processors.Checkpointing;
 /// log position.
 /// </summary>
 sealed class Checkpointer : IAsyncDisposable {
-    readonly string                          _droneId;
+    readonly string                           _droneId;
     readonly ChannelWriter<DataSourceMessage> _writer;
-    readonly ICheckpointStore                _store;
-    readonly PartitionedPositionTracker      _tracker;
-    readonly HybridLogicalClock              _clock;
-    readonly AsyncPeriodicTimer              _timer;
-    readonly bool                            _autoCheckpoint;
+    readonly ICheckpointStore                 _store;
+    readonly PartitionedPositionTracker       _tracker;
+    readonly HybridLogicalClock               _clock;
+    readonly AsyncPeriodicTimer               _timer;
+    readonly bool                             _autoCheckpoint;
 
 	volatile bool _shutdownIssued;
 

@@ -28,9 +28,9 @@ sealed partial class ProcessorTelemetryObserver : TelemetrySource, IProcessorObs
     /// <remarks>
     /// The <see cref="IMeterFactory"/> overload is the right choice under dependency injection — the
     /// container owns meter lifetime and keeps identically-named meters isolated per service
-    /// collection. No public factory implementation exists outside a container, so the
-    /// <c>KurrentProcessor.Build()</c> path constructs a <see cref="Meter"/> directly and passes it
-    /// here; the caller owns disposal in that case.
+    /// collection. No public factory implementation exists outside a container, so a processor
+    /// built without one constructs a <see cref="Meter"/> directly and passes it here; the caller
+    /// owns disposal in that case.
     /// </remarks>
     public ProcessorTelemetryObserver(ILogger logger, Meter meter)
         : base(TelemetryConstants.Listener, TelemetryConstants.Activities, logger) {

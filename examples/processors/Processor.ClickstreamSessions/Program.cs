@@ -15,22 +15,14 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 try {
-    var builder = Host.CreateApplicationBuilder(args);
+    var builder = SurgeProcessor.CreateBuilder<SessionAnalyticsProcessor>(args, options =>
+        options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'PageView'"));
 
     builder.Services.AddSerilog();
 
-    builder.Services.AddSingleton<SessionAnalyticsProcessor>();
-
-    builder.AddKurrentSurge("kurrentdb", surge => {
-        surge.AddProcessor<SessionAnalyticsProcessor>(opts =>
-            opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'PageView'"));
-    });
-
     builder.Services.AddHostedService<PageViewSeeder>();
 
-    using var host = builder.Build();
-
-    await host.RunAsync();
+    await builder.Build().RunAsync();
 }
 catch (Exception ex) {
     Log.Fatal(ex, "Application terminated unexpectedly");

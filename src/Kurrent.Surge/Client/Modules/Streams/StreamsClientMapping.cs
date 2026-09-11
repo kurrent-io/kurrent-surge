@@ -53,8 +53,9 @@ static partial class StreamsClientMapping {
     ///   Server filter type    →  Wire shape
     ///   ──────────────────── ── ──────────────────────────────────────────────────
     ///   StreamNameFilter        Options.Stream(target, start.Revision) + NoFilter
-    ///   IndexFilter             Options.All(start.LogPosition) + Filter.Prefix(IndexName)
-    ///   StreamRegexFilter       Options.All(start.LogPosition) + Filter.Regex(Expression)
+    ///   IndexFilter             Options.All(start.LogPosition) + Filter.StreamIdentifier.Prefix(IndexName)
+    ///   StreamRegexFilter       Options.All(start.LogPosition) + Filter.StreamIdentifier.Regex(Expression)
+    ///   SchemaRegexFilter       Options.All(start.LogPosition) + Filter.EventType.Regex(Expression)
     ///   EmptyFilter / other     Options.All(start.LogPosition) + NoFilter
     /// </code>
     /// </remarks>
@@ -84,6 +85,7 @@ static partial class StreamsClientMapping {
         // Dispatch unwrapped filter → V1 FilterOptions.
         //   IndexFilter        → StreamIdentifier.Prefix (server index dispatch, DuckDB path)
         //   StreamRegexFilter  → StreamIdentifier.Regex  (filtered $all scan)
+        //   SchemaRegexFilter  → EventType.Regex         (filtered $all scan by event type)
         //   Anything else      → null (caller emits NoFilter)
         static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(
             RecordFilter f, uint maxSearchWindow
@@ -91,6 +93,7 @@ static partial class StreamsClientMapping {
             Contracts.ReadReq.Types.Options.Types.FilterOptions? options = f switch {
                 IndexFilter idx     => new() { StreamIdentifier = new() { Prefix = { idx.IndexName } } },
                 StreamRegexFilter r => new() { StreamIdentifier = new() { Regex = r.Expression } },
+                SchemaRegexFilter r => new() { EventType        = new() { Regex = r.Expression } },
                 _                   => null
             };
 
@@ -185,9 +188,11 @@ static partial class StreamsClientMapping {
         var link = readEvent is { Link: { } linkEvent, Event: not null }
             ? new Link {
                 Name     = linkEvent.Metadata[Constants.Metadata.Type],
-                Position = (long)linkEvent.CommitPosition,
-                Revision = (long)linkEvent.StreamRevision,
-                Stream   = StreamName.From(linkEvent.StreamIdentifier!),
+                Position = RecordPosition.From( 
+                    (long)linkEvent.CommitPosition, 
+                    StreamName.From(linkEvent.StreamIdentifier!), 
+                    (long)linkEvent.StreamRevision
+                )
             }
             : Link.Unset;
 

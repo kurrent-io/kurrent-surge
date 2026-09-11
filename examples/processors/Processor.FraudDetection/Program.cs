@@ -15,22 +15,14 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 try {
-    var builder = Host.CreateApplicationBuilder(args);
+    var builder = SurgeProcessor.CreateBuilder<FraudDetectionProcessor>(args, options =>
+        options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'Transaction'"));
 
     builder.Services.AddSerilog();
 
-    builder.Services.AddSingleton<FraudDetectionProcessor>();
-
-    builder.AddKurrentSurge("kurrentdb", surge => {
-        surge.AddProcessor<FraudDetectionProcessor>(opts =>
-            opts.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'Transaction'"));
-    });
-
     builder.Services.AddHostedService<TransactionSeeder>();
 
-    using var host = builder.Build();
-
-    await host.RunAsync();
+    await builder.Build().RunAsync();
 }
 catch (Exception ex) {
     Log.Fatal(ex, "Application terminated unexpectedly");

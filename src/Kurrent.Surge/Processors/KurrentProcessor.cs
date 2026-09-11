@@ -14,8 +14,7 @@ namespace Kurrent.Surge.Processors;
 /// <c>Create</c> factories to produce a configured runner, then call
 /// <see cref="RunAsync"/> or <see cref="RunWithGracefulShutdownAsync"/>.
 /// </summary>
-[PublicAPI]
-public sealed class KurrentProcessor {
+sealed class KurrentProcessor {
 	readonly ProcessorOptions _options;
 	readonly IProcessor       _processor;
 

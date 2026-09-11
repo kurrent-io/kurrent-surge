@@ -87,7 +87,7 @@ public record BatchContext : DroneContext {
     /// </remarks>
     public void Track(Record record) {
         _trackedByUser = true;
-        RequestTrack(record.Position);
+        RequestTrack(record.CheckpointPosition);
     }
 
     // The commit frontier is the max position per partition: the strictly-monotonic tracker only ever
@@ -98,7 +98,7 @@ public record BatchContext : DroneContext {
         Dictionary<Partition, RecordPosition>? frontier = null;
 
         foreach (var record in Records) {
-            var position = record.Position;
+            var position = record.CheckpointPosition;
 
             if (position > upTo)
                 continue;

@@ -20,9 +20,13 @@ public class ClientFilteredCheckpointTests {
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
     // Matches the target stream but is not server-expressible: a stream-equality disjunct unioned
-    // with a non-stream disjunct poisons server extraction, so the whole filter runs client-side
-    // over an unfiltered $all subscription. The schema disjunct names a value no record carries —
-    // it never widens the match, it only forces the expression off the wire.
+    // with a non-stream disjunct poisons server extraction, so the whole filter runs client-side over
+    // a $all subscription that narrows nothing but link records. The schema disjunct names a value no
+    // record carries — it never widens the match, it only forces the expression off the wire.
+    //
+    // That subscription is server-filtered, so the server also raises its own FilterCheckpoints on it.
+    // They map to the same type as the SDK's synthetic ones, so a test cannot tell the two apart: the
+    // assertions below bound positions and ordering, never the count.
     static RecordFilter ClientSideFilter(StreamName target) =>
         RecordFilter.ByExpression($"stream = '{target}' OR schema_name = 'no-such-schema'");
 
@@ -43,9 +47,9 @@ public class ClientFilteredCheckpointTests {
 
         var checkpoints = new List<Checkpoint>();
 
-        // Act — link resolution ON (the default): resolved links map the record position to an
-        // earlier target event, so the watermark must track the $all scan position to stay
-        // monotonic. This is the path that exposes a record-position watermark regressing.
+        // Act — link resolution ON (the default). An expression filter no longer surfaces link
+        // records, so the scan position and the record position agree here; the watermark still
+        // tracks the $all scan position, which is what keeps it monotonic on a raw-log subscription.
         var records = await Fixture.Client.Streams
             .Subscribe(new SubscribeOptions {
                 Start           = anchor,
@@ -59,11 +63,11 @@ public class ClientFilteredCheckpointTests {
             .ToListAsync(ct);
 
         Fixture.Logger.LogInformation(
-            "Projected {Records} records; handler received {Checkpoints} synthetic checkpoints",
+            "Projected {Records} records; handler received {Checkpoints} filter checkpoints",
             records.Count, checkpoints.Count);
 
         // Assert — the target's records arrive, and progress was reported across the barren
-        // stretch: at least one synthetic checkpoint landed strictly before the FIRST delivered
+        // stretch: at least one filter checkpoint landed strictly before the FIRST delivered
         // record, which can only happen while the scan walked foreign records the client discarded.
         await Assert.That(records.Count).IsEqualTo(expectedCount);
 
@@ -71,14 +75,14 @@ public class ClientFilteredCheckpointTests {
             await Assert.That(record.Stream).IsEqualTo(target.Stream);
 
         var firstMatchPosition = records[0].Position.LogPosition.Value;
-        var synthetic          = checkpoints.OfType<FilterCheckpoint>().ToList();
+        var filterCheckpoints  = checkpoints.OfType<FilterCheckpoint>().ToList();
 
-        await Assert.That(synthetic).IsNotEmpty();
-        await Assert.That(synthetic.Any(cp => cp.Positions[0].LogPosition.Value < firstMatchPosition)).IsTrue();
+        await Assert.That(filterCheckpoints).IsNotEmpty();
+        await Assert.That(filterCheckpoints.Any(cp => cp.Positions[0].LogPosition.Value < firstMatchPosition)).IsTrue();
 
-        for (var i = 1; i < synthetic.Count; i++)
-            await Assert.That(synthetic[i].Positions[0].LogPosition.Value)
-                .IsGreaterThanOrEqualTo(synthetic[i - 1].Positions[0].LogPosition.Value);
+        for (var i = 1; i < filterCheckpoints.Count; i++)
+            await Assert.That(filterCheckpoints[i].Positions[0].LogPosition.Value)
+                .IsGreaterThanOrEqualTo(filterCheckpoints[i - 1].Positions[0].LogPosition.Value);
     }
 
     [Test]
@@ -181,9 +185,8 @@ public class ClientFilteredCheckpointTests {
             }
         }
 
-        // Act 2 — resume from that scan-position cursor; every target record must still arrive.
-        // Link resolution can surface a target event more than once ($ce/$et links), so prove
-        // no-loss as a set, tolerating duplicates.
+        // Act 2 — resume from that scan-position cursor; every target record must still arrive. The
+        // assertion is a set, so it holds whether or not a record is delivered more than once.
         var deliveredRevisions = new HashSet<Revision>();
 
         using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)) {
@@ -304,6 +307,51 @@ public class ClientFilteredCheckpointTests {
         for (var i = 1; i < checkpoints.Count; i++)
             await Assert.That(checkpoints[i].Positions[0].LogPosition.Value)
                 .IsGreaterThanOrEqualTo(checkpoints[i - 1].Positions[0].LogPosition.Value);
+    }
+
+    [Test]
+    public async ValueTask index_subscription_with_refinement_emits_synthetic_checkpoints(CancellationToken ct) {
+        // Arrange — `category = 'X' AND <predicate>` routes to the category index, a prefix filter the
+        // server serves from the index without scan checkpoints of its own. The predicate discards every
+        // delivered record, so the SDK is the only source of progress and must synthesize at the window.
+        var target = await Fixture.SeedTestStream(20, ct);
+
+        const int window = 5;
+        var       filter = RecordFilter.ByExpression($"category = '{target.Stream.Category}' AND log_position < 0");
+
+        var perWindow        = target.Records.Length / window;
+        var checkpoints      = new List<FilterCheckpoint>();
+        var deliveredRecords = 0;
+
+        // Act — the index feeds the seeded records; stop once a window's worth of checkpoints arrived.
+        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)) {
+            await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
+                               Start                 = RecordPosition.Earliest,
+                               Filter                = filter,
+                               FilterMaxSearchWindow = window,
+                               SkipDecoding          = true,
+                               ResolveLinks          = false
+                           }, cts.Token).ConfigureAwait(false)) {
+                switch (msg.Value) {
+                    case Record: deliveredRecords++; break;
+
+                    case FilterCheckpoint fc:
+                        checkpoints.Add(fc);
+                        if (checkpoints.Count >= perWindow)
+                            await cts.CancelAsync();
+                        break;
+                }
+            }
+        }
+
+        // Assert — everything discarded, yet the SDK carried progress: checkpoints arrived at the window,
+        // and they came from the SDK because the index route puts no regex on the wire.
+        await Assert.That(deliveredRecords).IsEqualTo(0);
+        await Assert.That(checkpoints.Count).IsEqualTo(perWindow);
+
+        for (var i = 1; i < checkpoints.Count; i++)
+            await Assert.That(checkpoints[i].Positions[0].LogPosition.Value)
+                .IsGreaterThan(checkpoints[i - 1].Positions[0].LogPosition.Value);
     }
 
     [Test]

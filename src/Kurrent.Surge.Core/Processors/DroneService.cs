@@ -24,6 +24,10 @@ sealed partial class DroneService<TProcessor>(
         }
         catch (Exception ex) {
             LogFailed(ex, drone.ProcessorId, drone.DroneId);
+
+            // A faulted BackgroundService stops a .NET 10 host with exit code 0. This mirrors .NET 11:
+            // https://learn.microsoft.com/dotnet/core/compatibility/extensions/11/ihost-runasync-stopasync-throw-backgroundservice-failure
+            Environment.ExitCode = 1;
             throw;
         }
     }

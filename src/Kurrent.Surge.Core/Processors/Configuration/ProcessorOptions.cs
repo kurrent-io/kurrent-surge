@@ -7,47 +7,57 @@ using Polly;
 namespace Kurrent.Surge.Processors.Configuration;
 
 /// <summary>
-/// Configuration for a Kurrent processor. Pure data — processor wiring lives on the
-/// <see cref="KurrentProcessor"/> itself, not on options.
+/// Configuration for a Kurrent processor. Pure data — processor wiring lives on
+/// <c>SurgeProcessor</c> and <c>AddKurrentSurge</c>, not on options.
 /// </summary>
-/// <example>
-/// <code>
-/// KurrentProcessor.Create(new OrderProcessor(), opts => {
-///     opts.Connection("kurrentdb://localhost:2113");
-///     opts.ProcessorId                  = "order-processor";
-///     opts.Subscription.Filter          = RecordFilter.ByStream("orders");
-///     opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-///     opts.Checkpointing(c => {
-///         c.IntervalFrom(TimeSpan.FromSeconds(10));
-///         c.FailurePolicy = CheckpointFailurePolicy.Fail;
-///     });
-/// }).RunAsync(ct);
-/// </code>
-/// </example>
 [PublicAPI]
 [WithValidation]
 public sealed partial class ProcessorOptions {
+    bool    _droneIdDerived;
+    string? _droneIdSuffix;
+
     /// <summary>
-    /// Unique identifier for the processor group. Used for checkpoint coordination.
-    /// When not set, auto-derived from the processor type name.
-    /// Setting this auto-derives <see cref="DroneId"/> as <c>{ProcessorId}-{short-guid}</c>
-    /// unless DroneId was already assigned.
+    /// Unique identifier for the processor group. Used for checkpoint coordination. Assigned at
+    /// registration: the id passed, else the processor type name in kebab-case. Setting it here does
+    /// not change which configuration section was read.
     /// </summary>
+    /// <remarks>
+    /// Until <see cref="DroneId"/> is set explicitly, setting this derives it as
+    /// <c>{ProcessorId}-{short-guid}</c>, and a later change of this id re-derives it with the same
+    /// short guid.
+    /// </remarks>
     public string ProcessorId {
         get;
         set {
             field = value;
-            if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(DroneId))
-                DroneId = $"{value}-{Guid.NewGuid().ToString("N")[^8..]}";
+
+            if (!string.IsNullOrWhiteSpace(value) && (string.IsNullOrWhiteSpace(DroneId) || _droneIdDerived)) {
+                _droneIdSuffix  ??= Guid.NewGuid().ToString("N")[^8..];
+                DroneId           = $"{value}-{_droneIdSuffix}";
+                _droneIdDerived   = true;
+            }
         }
     } = "";
 
     /// <summary>
-    /// Unique identifier for this drone instance within the processor group.
-    /// When left blank, auto-derived from <see cref="ProcessorId"/> as <c>{ProcessorId}-{short-guid}</c>.
-    /// Use a consistent value (e.g., machine name) for sticky partitioning.
+    /// Unique identifier for this drone instance within the processor group. Derived from
+    /// <see cref="ProcessorId"/> as <c>{ProcessorId}-{short-guid}</c> until set explicitly, and follows a
+    /// later <see cref="ProcessorId"/> change. Use a consistent value (e.g., machine name) for sticky
+    /// partitioning.
     /// </summary>
-    public string DroneId { get; set; } = "";
+    /// <remarks>
+    /// Assigning the current value again does not count as setting it explicitly, so configuration
+    /// binding that writes back an unconfigured value keeps the derivation.
+    /// </remarks>
+    public string DroneId {
+        get;
+        set {
+            if (!string.IsNullOrWhiteSpace(value) && !string.Equals(field, value, StringComparison.Ordinal))
+                _droneIdDerived = false;
+
+            field = value;
+        }
+    } = "";
 
     /// <summary>
     /// When true, all exceptions are re-thrown and additional diagnostic information is generated.
@@ -80,10 +90,9 @@ public sealed partial class ProcessorOptions {
     /// </summary>
     /// <remarks>
     /// Set this under dependency injection so the container owns meter lifetime and keeps
-    /// identically-named meters isolated per service collection — the registration helpers wire it
-    /// automatically. There is no public <see cref="IMeterFactory"/> implementation outside a
-    /// container, so leaving it null is the correct choice for a standalone
-    /// <c>KurrentProcessor.Build()</c>. Mirrors <c>HttpClientHandler.MeterFactory</c>.
+    /// identically-named meters isolated per service collection — <c>SurgeProcessor</c> and the
+    /// registration helpers wire it automatically. Outside a container leave it null: no public
+    /// <see cref="IMeterFactory"/> implementation exists there. Mirrors <c>HttpClientHandler.MeterFactory</c>.
     /// </remarks>
     public IMeterFactory? MeterFactory { get; set; }
 

@@ -278,17 +278,12 @@ public partial class StreamsClient {
                     if (filtersLocally && ++scannedSinceCheckpoint >= maxSearchWindow) {
                         scannedSinceCheckpoint = 0;
 
-                        // On $all the ReadEvent commit position is the physical scan watermark; with
-                        // link resolution on (the default) the mapped record position points at an
-                        // earlier target event, so a record-position watermark would regress while the
-                        // scan advances. On a single-stream read the ReadEvent carries no commit
-                        // position, so the record's own position is the scan position.
-                        var scanPosition = rsp.Event.HasCommitPosition
-                            ? LogPosition.From((long)rsp.Event.CommitPosition)
-                            : record.Position.LogPosition;
-
+                        // The watermark is the record's original position, the point the scan has
+                        // physically reached. For a resolved link that is the link's own position;
+                        // Record.Position would be the earlier target and regress while the scan
+                        // advances.
                         yield return new FilterCheckpoint(CheckpointId.New(), record.Timestamp) {
-                            Positions = [record.Position with { LogPosition = scanPosition }]
+                            Positions = [record.CheckpointPosition]
                         };
                     }
 

@@ -162,13 +162,14 @@ public record ProcessRecordContext : DroneContext {
     public Action<RecordPosition> RequestTrack { get; init; } = _ => { };
 
     /// <summary>
-    /// Tells the framework that the given record has been durably handled.
+    /// Tells the framework that the given record has been durably handled, at the position the
+    /// subscription delivered it (<c>CheckpointPosition</c>, <see cref="RecordExtensions"/>).
     /// Always valid; in <c>AutoTrack = true</c> mode the framework's auto-track
     /// runs on top, but the tracker is idempotent.
     /// </summary>
     public void Track(Record record) {
         _trackedByUser = true;
-        RequestTrack(record.Position);
+        RequestTrack(record.CheckpointPosition);
     }
 
     /// <summary>
@@ -176,6 +177,11 @@ public record ProcessRecordContext : DroneContext {
     /// Always valid; in <c>AutoTrack = true</c> mode the framework's auto-track
     /// runs on top, but the tracker is idempotent.
     /// </summary>
+    /// <remarks>
+    /// Pass a record's <c>CheckpointPosition</c>, never a resolved link's
+    /// <see cref="Record.Position"/>: the target's position can sit below the committed
+    /// floor and is rejected by the tracker.
+    /// </remarks>
     public void Track(RecordPosition position) {
         _trackedByUser = true;
         RequestTrack(position);
