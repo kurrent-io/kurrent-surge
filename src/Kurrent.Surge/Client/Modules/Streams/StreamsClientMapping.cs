@@ -47,6 +47,11 @@ static partial class StreamsClientMapping {
     /// <c>NoFilter</c>). Self-contained: owns both the unwrap and the
     /// <c>FilterOptions</c> dispatch so no caller can bypass either.
     /// </summary>
+    /// <returns>
+    /// <c>true</c> when the request targets one stream, <c>false</c> when it targets the log. The
+    /// caller sets <c>resolve_links</c> from it: the server acts on <c>$&gt;</c> rows only, so a
+    /// stream read resolves and a log read never does.
+    /// </returns>
     /// <remarks>
     /// Decision table (after unwrap):
     /// <code>
@@ -56,10 +61,11 @@ static partial class StreamsClientMapping {
     ///   IndexFilter             Options.All(start.LogPosition) + Filter.StreamIdentifier.Prefix(IndexName)
     ///   StreamRegexFilter       Options.All(start.LogPosition) + Filter.StreamIdentifier.Regex(Expression)
     ///   SchemaRegexFilter       Options.All(start.LogPosition) + Filter.EventType.Regex(Expression)
+    ///   SystemRecordFilter      Options.All(start.LogPosition) + Filter.StreamIdentifier.Regex(^[^\$])
     ///   EmptyFilter / other     Options.All(start.LogPosition) + NoFilter
     /// </code>
     /// </remarks>
-    static void RouteByFilter(
+    static bool RouteByFilter(
         Contracts.ReadReq.Types.Options opts,
         RecordFilter filter,
         RecordPosition start,
@@ -71,7 +77,7 @@ static partial class StreamsClientMapping {
         if (serverFilter is StreamNameFilter snf) {
             opts.Stream   = ConvertToStreamOptions(snf.TargetStream, start.Revision);
             opts.NoFilter = DefaultEmpty;
-            return;
+            return true;                                   // one stream: the server resolves $> rows, no-ops on real rows
         }
 
         // All other filters target the log.
@@ -82,10 +88,13 @@ static partial class StreamsClientMapping {
         else
             opts.NoFilter = DefaultEmpty;
 
+        return false;                                      // the log: never resolve
+
         // Dispatch unwrapped filter → V1 FilterOptions.
         //   IndexFilter        → StreamIdentifier.Prefix (server index dispatch, DuckDB path)
         //   StreamRegexFilter  → StreamIdentifier.Regex  (filtered $all scan)
         //   SchemaRegexFilter  → EventType.Regex         (filtered $all scan by event type)
+        //   SystemRecordFilter → StreamIdentifier.Regex  (filtered $all scan, no $ streams)
         //   Anything else      → null (caller emits NoFilter)
         static Contracts.ReadReq.Types.Options.Types.FilterOptions? ConvertToFilterOptions(
             RecordFilter f, uint maxSearchWindow
@@ -94,6 +103,7 @@ static partial class StreamsClientMapping {
                 IndexFilter idx     => new() { StreamIdentifier = new() { Prefix = { idx.IndexName } } },
                 StreamRegexFilter r => new() { StreamIdentifier = new() { Regex = r.Expression } },
                 SchemaRegexFilter r => new() { EventType        = new() { Regex = r.Expression } },
+                SystemRecordFilter s => new() { StreamIdentifier = new() { Regex = s.Expression } },
                 _                   => null
             };
 
@@ -169,9 +179,11 @@ static partial class StreamsClientMapping {
     /// <remarks>
     /// The server populates <c>event</c> and/or <c>link</c> in three combinations:
     /// event + link = resolved link (record is the target event, link carries source metadata);
-    /// link only = unresolved link (target deleted or resolution disabled, record IS the link);
-    /// event only = regular event. Schema info in V1 is encoded in the metadata map
-    /// (<c>content-type</c> and <c>type</c> keys); in V2 schema is a first-class wire concept.
+    /// link only = a link whose target could not be resolved (record IS the link);
+    /// event only = a regular event, or a link delivered unresolved because the route never
+    /// resolves, in which case the event's own type is <c>$&gt;</c>. Schema info in V1 is encoded
+    /// in the metadata map (<c>content-type</c> and <c>type</c> keys); in V2 schema is a
+    /// first-class wire concept.
     /// </remarks>
     public static async ValueTask<Record> MapToRecordAsync(
         this Contracts.ReadResp.Types.ReadEvent readEvent,
@@ -183,7 +195,12 @@ static partial class StreamsClientMapping {
         var recorded = readEvent.Event ?? readEvent.Link
             ?? throw new UnreachableException("ReadEvent has neither Event nor Link.");
 
-        var isLink = readEvent.Event is null;
+        var schemaName = SchemaName.From(recorded.Metadata[Constants.Metadata.Type]);
+
+        // The server resolves by event type alone ($>, StorageReaderWorker) and delivers an
+        // unresolved link as the event itself, so the wire shape cannot mark it: a link is a row
+        // with no resolved event, or a row whose own type is $>.
+        var isLink = readEvent.Event is null || schemaName == LinkTo.SchemaName;
 
         var link = readEvent is { Link: { } linkEvent, Event: not null }
             ? new Link {
@@ -207,7 +224,6 @@ static partial class StreamsClientMapping {
         // content-type → SchemaDataFormat (always json or octet-stream)
         // type → SchemaName (the event type name)
         var schemaFormat = recorded.Metadata[Constants.Metadata.ContentType].GetSchemaDataFormat();
-        var schemaName   = SchemaName.From(recorded.Metadata[Constants.Metadata.Type]);
 
         var metadata = await ctx.MetadataDecoder
             .Decode(recorded.CustomMetadata.Memory, new(stream, schemaName, schemaFormat))

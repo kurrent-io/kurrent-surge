@@ -11,9 +11,10 @@ public sealed class SubscriptionOptions {
     /// <summary>
     /// Record filter. Use <see cref="RecordFilter"/> factory methods
     /// (e.g., <c>RecordFilter.ByStream("orders")</c>) or construct an <see cref="ExpressionFilter"/>
-    /// directly for SQL-style filtering.
+    /// directly for SQL-style filtering. Defaults to <see cref="RecordFilter.ExcludeSystemRecords"/>;
+    /// <see cref="RecordFilter.None"/> reads the raw log.
     /// </summary>
-    public RecordFilter Filter { get; set; } = RecordFilter.None;
+    public RecordFilter Filter { get; set; } = RecordFilter.ExcludeSystemRecords;
 
     /// <summary>
     /// Where to start if no checkpoint exists. Default: <see cref="SubscriptionInitialPosition.Latest"/>.

@@ -210,8 +210,7 @@ public class StartSemanticsTests {
         // re-reading the stream, masking the wire value; the resilient cursor uses the raw one.
         var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(
             StreamNameFilter.Parse(stream),
-            RecordPosition.From(LogPosition.Earliest, stream, Revision.Min),
-            resolveLinks: false);
+            RecordPosition.From(LogPosition.Earliest, stream, Revision.Min));
 
         // Act
         Fixture.Logger.LogInformation(

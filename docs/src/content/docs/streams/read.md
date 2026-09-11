@@ -50,7 +50,6 @@ work the client does per record.
 | `Filter` | Which records the read returns at all |
 | `FilterMaxSearchWindow` | How far the server scans for a match before yielding |
 | `SkipDecoding` | Leave payloads as raw bytes, when you only need positions and metadata |
-| `ResolveLinks` | Follow link records to their target. On by default |
 | `ThrowOnUnresolved` | Throw instead of returning a record whose schema name has no mapping |
 
 Reading newest-first is a backwards read anchored at the end. It is the shape you want for "what
@@ -149,7 +148,6 @@ established, `Record` is your data, and `Checkpoint` carries progress.
 | `Start` | Where to begin. Defaults to `Latest`, so history is skipped unless you ask for it |
 | `Filter` | Which records the subscription delivers |
 | `SkipDecoding` | Leave payloads as raw bytes |
-| `ResolveLinks` | Resolve link records to their targets. Default true |
 | `ThrowOnUnresolved` | Fail on a schema name with no mapped type, rather than passing it through raw |
 | `FilterMaxSearchWindow` | Records scanned per filter page before a checkpoint is emitted |
 

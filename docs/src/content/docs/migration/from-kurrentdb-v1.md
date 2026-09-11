@@ -171,6 +171,7 @@ services.AddKurrentSurge(surge => surge
    | `resolvedEvent.Event.EventType` | `record.TypeName` |
    | `resolvedEvent.Event.OriginalEventNumber` | `record.Revision` |
    | `resolvedEvent.Event.Position` | `record.Position` |
+   | `resolvedEvent.OriginalPosition` | `record.CheckpointPosition` |
 
 6. **Concurrency.** `StreamRevision` becomes `Revision`, and `StreamState` becomes
    `ExpectedStreamState`.
@@ -194,6 +195,7 @@ services.AddKurrentSurge(surge => surge
 | Feature access | Top-level methods | Module properties |
 | Append model | `EventData` | `AppendRecord` |
 | Read model | `ResolvedEvent` or `RecordedEvent` | `Record`, with `Checkpoint` interleaved |
+| Link resolution | `resolveLinkTos: true` | Automatic on a stream read, never on `$all` |
 | Stream state | `StreamState` | `ExpectedStreamState` |
 | Revision | `StreamRevision` | `Revision` |
 | Method names | `*Async` suffix | No suffix |

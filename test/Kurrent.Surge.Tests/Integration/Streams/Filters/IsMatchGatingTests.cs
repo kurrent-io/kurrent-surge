@@ -6,8 +6,8 @@ namespace Kurrent.Surge.Tests.Streams;
 /// <summary>
 /// <see cref="RecordFilter.RequiresClientEvaluation"/> is the sole authority on whether the SDK runs
 /// <see cref="RecordFilter.IsMatch"/> on delivered records. When it is <c>false</c> the server filter
-/// is authoritative: the SDK delivers the server's output as-is — in the resolution form the caller
-/// asked for — and never re-applies a client predicate. When it is <c>true</c> the filter carries a
+/// is authoritative: the SDK delivers the server's output as-is — resolved per the route — and
+/// never re-applies a client predicate. When it is <c>true</c> the filter carries a
 /// residual the server could not apply, so <c>IsMatch</c> must still run. Identical on read and
 /// subscribe.
 /// </summary>
@@ -17,8 +17,8 @@ namespace Kurrent.Surge.Tests.Streams;
 /// <item><c>$idx-ce-{cat}</c> (<see cref="RecordFilter.ByCategory"/>) is the secondary index: the
 /// server delivers the <b>resolved origin</b> events, whose category equals the filter's — so
 /// <c>IsMatch</c> would pass anyway and the gate is a safety net.</item>
-/// <item><c>$ce-{cat}</c> (<see cref="RecordFilter.ByStream"/> over a real category link stream) with
-/// link resolution delivers resolved origins whose <b>stream is the origin</b> (e.g. <c>cat-123</c>),
+/// <item><c>$ce-{cat}</c> (<see cref="RecordFilter.ByStream"/> over a real category link stream) is a
+/// stream route, which resolves links: it delivers origins whose <b>stream is the origin</b> (e.g. <c>cat-123</c>),
 /// which the filter's <c>^\$ce-{cat}$</c> regex rejects — without the gate every record is silently
 /// dropped. This is the load-bearing case.</item>
 /// </list>
@@ -55,9 +55,9 @@ public class IsMatchGatingTests {
     [Test]
     public async ValueTask read_with_server_routable_filter_does_not_run_client_ismatch(CancellationToken ct) {
         // Arrange — ByStream over the real category link stream $ce-{cat}. It is server-routable
-        // (RequiresClientEvaluation == false) and its IsMatch is the regex ^\$ce-{cat}$. With link
-        // resolution ON the server returns resolved ORIGIN events (stream {cat}-{id}), which that regex
-        // rejects — so without the gate every one is dropped.
+        // (RequiresClientEvaluation == false) and its IsMatch is the regex ^\$ce-{cat}$. A stream route
+        // resolves links, so the server returns resolved ORIGIN events (stream {cat}-{id}), which that
+        // regex rejects — so without the gate every one is dropped.
         const int seeded = 10;
 
         var (stream, category) = await SeedUniqueCategory(seeded, ct);
@@ -66,7 +66,7 @@ public class IsMatchGatingTests {
 
         await Assert.That(filter.RequiresClientEvaluation).IsFalse();
 
-        // Act — read $ce-{cat} with link resolution, gated. The category is ours alone, so the only
+        // Act — read $ce-{cat}, gated. The category is ours alone, so the only
         // records are the seeded ones. Poll for the eventually-consistent category projection (the
         // $ce- stream does not exist until it runs). A wall-clock deadline rather than a fixed
         // attempt count, matching the sibling test below: a cold server needs well past 10s to
@@ -88,7 +88,7 @@ public class IsMatchGatingTests {
                 await foreach (var msg in Fixture.Client.Streams.ReadStream(ceStream,
                                    new ReadStreamOptions {
                                        Start = Revision.Min, Direction = ReadDirection.Forwards,
-                                       Limit = seeded, ResolveLinks = true, SkipDecoding = true
+                                       Limit = seeded, SkipDecoding = true
                                    }, ct)) {
                     if (msg.Value is Record record)
                         delivered.Add(record);
@@ -121,11 +121,11 @@ public class IsMatchGatingTests {
 
         await Assert.That(filter.RequiresClientEvaluation).IsFalse();
 
-        // Act — subscribe from the start of our (exclusively-owned) $ce-{cat} stream, resolving links;
-        // catch-up naturally waits out the projection lag. Bounded by Take to the seeded count.
+        // Act — subscribe from the start of our (exclusively-owned) $ce-{cat} stream; catch-up
+        // naturally waits out the projection lag. Bounded by Take to the seeded count.
         var delivered = await Fixture.Client.Streams
             .Subscribe(new SubscribeOptions {
-                Start = RecordPosition.Earliest, Filter = filter, ResolveLinks = true, SkipDecoding = true
+                Start = RecordPosition.Earliest, Filter = filter, SkipDecoding = true
             }, ct)
             .Records(_ => { }, ct)
             .Take(seeded)
@@ -144,8 +144,8 @@ public class IsMatchGatingTests {
     [Test]
     public async ValueTask category_index_read_delivers_resolved_origin_records(CancellationToken ct) {
         // Arrange — the OTHER index shape: ByCategory targets the $idx-ce-{cat} secondary index. The
-        // server delivers resolved ORIGIN events (verified: IsLink == false, stream == origin) even with
-        // ResolveLinks = false, and their category equals the filter's — so here IsMatch passes anyway.
+        // server delivers the ORIGIN rows (verified: IsLink == false, stream == origin) with no link
+        // resolution on the $all route, and their category equals the filter's — so here IsMatch passes anyway.
         // This pins the $idx- behavior that contrasts with the $ce- case above.
         const int seeded = 5;
 
@@ -173,7 +173,7 @@ public class IsMatchGatingTests {
             await foreach (var msg in Fixture.Client.Streams.ReadRecords(
                                new ReadRecordsOptions {
                                    Start = anchor.LogPosition, Filter = filter,
-                                   Limit = seeded, ResolveLinks = false, SkipDecoding = true
+                                   Limit = seeded, SkipDecoding = true
                                }, ct)) {
                 if (msg.Value is Record record)
                     delivered.Add(record);

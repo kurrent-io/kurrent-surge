@@ -70,6 +70,10 @@ public record BatchContext : DroneContext {
     /// it stay pending. The tracker is strictly monotonic, so positions at or below the last
     /// committed position are skipped.
     /// </summary>
+    /// <remarks>
+    /// Checkpoint, track, and resume with <c>CheckpointPosition</c>; <see cref="Record.Position"/>
+    /// is where the row lives, and through a pointer stream it sits behind the cursor.
+    /// </remarks>
     /// <param name="upTo">The last position to claim; records beyond it remain untracked.</param>
     public void Track(RecordPosition upTo) {
         _trackedByUser = true;

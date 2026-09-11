@@ -56,6 +56,10 @@ public sealed class CheckpointOptions {
     /// does not track it, a cold restart rescans the already-scanned no-match / caught-up log.
     /// </para>
     /// </summary>
+    /// <remarks>
+    /// Checkpoint, track, and resume with <c>CheckpointPosition</c>; <see cref="Record.Position"/>
+    /// is where the row lives, and through a pointer stream it sits behind the cursor.
+    /// </remarks>
     public bool AutoTrack { get; set; } = true;
 
     /// <summary>

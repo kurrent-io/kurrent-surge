@@ -9,9 +9,17 @@ namespace Kurrent.Surge.Client.Streams;
 [PublicAPI]
 public abstract record RecordFilter : IParsable<RecordFilter> {
     /// <summary>
-    /// A filter that matches all records.
+    /// The raw log: every record, system records and unresolved link rows included. The entry
+    /// point for replication.
     /// </summary>
     public static readonly RecordFilter None = new EmptyFilter();
+
+    /// <summary>
+    /// Excludes every record whose stream name or schema name starts with <c>$</c>: the records the
+    /// server and the projections write for themselves. The default filter for application reads
+    /// of the log.
+    /// </summary>
+    public static readonly RecordFilter ExcludeSystemRecords = new SystemRecordFilter();
 
     /// <summary>
     /// Parses a filter expression. Empty input yields <see cref="None"/>.
@@ -89,8 +97,8 @@ public abstract record RecordFilter : IParsable<RecordFilter> {
     /// Creates a filter from a DuckDB-compatible SQL expression.
     /// </summary>
     /// <remarks>
-    /// An expression filter never delivers a link record, whose schema name is <c>$&gt;</c>. Subscribe
-    /// with <see cref="None"/> to read the raw log, links included.
+    /// On the log an expression filter never delivers a system record: it is combined with
+    /// <see cref="ExcludeSystemRecords"/>. Subscribe with <see cref="None"/> to read the raw log.
     /// </remarks>
     /// <param name="expression">A filter expression (e.g., "stream = 'orders' AND props.amount > 100").</param>
     public static RecordFilter ByExpression(string expression) =>
@@ -101,8 +109,8 @@ public abstract record RecordFilter : IParsable<RecordFilter> {
     /// A bound value becomes a literal in the parsed expression rather than text spliced into it.
     /// </summary>
     /// <remarks>
-    /// An expression filter never delivers a link record, whose schema name is <c>$&gt;</c>. Subscribe
-    /// with <see cref="None"/> to read the raw log, links included.
+    /// On the log an expression filter never delivers a system record: it is combined with
+    /// <see cref="ExcludeSystemRecords"/>. Subscribe with <see cref="None"/> to read the raw log.
     /// </remarks>
     /// <param name="expression">A filter expression (e.g., "stream = @stream AND revision > @from").</param>
     /// <param name="parameters">Values for the expression's placeholders.</param>

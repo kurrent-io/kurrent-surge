@@ -17,7 +17,7 @@ public record ExpressionFilter : RecordFilter {
     /// Callers unwrap via <see cref="RecordFilterExtensions.UnwrapFilter(RecordFilter)"/>
     /// to determine wire routing. A stream constraint becomes a stream-identifier route, a schema
     /// constraint an index prefix or an event-type regex; an expression with neither still routes
-    /// as an event-type regex that admits everything but link records.
+    /// as the stream-identifier regex of <see cref="RecordFilter.ExcludeSystemRecords"/>.
     /// </summary>
     internal RecordFilter ServerFilter { get; }
 

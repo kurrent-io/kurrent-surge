@@ -109,10 +109,12 @@ public class KurrentDBFixture : AspireFixture {
         GetNewClient(AnonymousConnectionString);
 
     public async ValueTask<RecordPosition> LatestRecordPosition(CancellationToken ct = default) {
+        // The physical tail of the log, whatever wrote it: the anchor a test subscribes after.
         var options = new ReadRecordsOptions {
             Direction    = ReadDirection.Backwards,
             Start        = LogPosition.Latest,
             Limit        = 1,
+            Filter       = RecordFilter.None,
             SkipDecoding = true
         };
 

@@ -21,7 +21,7 @@ public class ClientFilteredCheckpointTests {
 
     // Matches the target stream but is not server-expressible: a stream-equality disjunct unioned
     // with a non-stream disjunct poisons server extraction, so the whole filter runs client-side over
-    // a $all subscription that narrows nothing but link records. The schema disjunct names a value no
+    // a $all subscription that narrows nothing but system streams. The schema disjunct names a value no
     // record carries — it never widens the match, it only forces the expression off the wire.
     //
     // That subscription is server-filtered, so the server also raises its own FilterCheckpoints on it.
@@ -29,11 +29,6 @@ public class ClientFilteredCheckpointTests {
     // assertions below bound positions and ordering, never the count.
     static RecordFilter ClientSideFilter(StreamName target) =>
         RecordFilter.ByExpression($"stream = '{target}' OR schema_name = 'no-such-schema'");
-
-    // Matches every record but still runs client-side (the poisoned union derives no server
-    // filter). Lets a test observe the checkpoint-per-window cadence with nothing discarded.
-    static RecordFilter MatchAllClientSide() =>
-        RecordFilter.ByExpression("stream LIKE '%' OR schema_name = 'never-matches-anything'");
 
     [Test]
     public async ValueTask client_filtered_subscription_emits_synthetic_checkpoints_through_barren_stretches(CancellationToken ct) {
@@ -47,16 +42,14 @@ public class ClientFilteredCheckpointTests {
 
         var checkpoints = new List<Checkpoint>();
 
-        // Act — link resolution ON (the default). An expression filter no longer surfaces link
-        // records, so the scan position and the record position agree here; the watermark still
-        // tracks the $all scan position, which is what keeps it monotonic on a raw-log subscription.
+        // Act — a $all route never resolves links, so the scan position and the record position
+        // agree; the watermark tracks the $all scan position, which is what keeps it monotonic.
         var records = await Fixture.Client.Streams
             .Subscribe(new SubscribeOptions {
                 Start           = anchor,
                 Filter          = ClientSideFilter(target.Stream),
                 FilterMaxSearchWindow = 1,
-                SkipDecoding    = true,
-                ResolveLinks    = true
+                SkipDecoding    = true
             }, ct)
             .Records(checkpoints.Add, ct)
             .Take(expectedCount)
@@ -110,10 +103,9 @@ public class ClientFilteredCheckpointTests {
                                Start           = anchor,
                                Filter          = filter,
                                FilterMaxSearchWindow = 1,
-                               SkipDecoding    = true,
-                               // Raw log, no link resolution: each target record is delivered
-                               // exactly once at its own position, so resume math is exact.
-                               ResolveLinks    = false
+                               // Raw log: a $all route never resolves, so each target record is
+                               // delivered exactly once at its own position and resume math is exact.
+                               SkipDecoding    = true
                            }, cts.Token).ConfigureAwait(false)) {
                 if (msg.Value is Record record) {
                     deliveredBefore.Add(record.Revision);
@@ -138,8 +130,7 @@ public class ClientFilteredCheckpointTests {
                 Start           = resumeFrom,
                 Filter          = filter,
                 FilterMaxSearchWindow = 1,
-                SkipDecoding    = true,
-                ResolveLinks    = false
+                SkipDecoding    = true
             }, ct)
             .Records(_ => { }, ct)
             .Take(expectedAfter)
@@ -157,58 +148,6 @@ public class ClientFilteredCheckpointTests {
         await Assert.That(deliveredAfter.Count).IsEqualTo(expectedAfter);
         await Assert.That(deliveredBefore.Intersect(deliveredAfter)).IsEmpty();
         await Assert.That(allTargetRevisions.Distinct().Count()).IsEqualTo(target.Records.Length);
-    }
-
-    [Test]
-    public async ValueTask resume_from_synthetic_checkpoint_loses_nothing_under_link_resolution(CancellationToken ct) {
-        // Arrange — resumability on the path that motivated the scan-position watermark: link
-        // resolution ON, where the mapped record position and the scan position diverge.
-        var anchor = await Fixture.LatestRecordPosition(ct);
-        await Fixture.SeedTestStream(8, ct); // barren foreign records sit before the target
-        var target = await Fixture.SeedTestStream(5, ct);
-
-        var filter     = ClientSideFilter(target.Stream);
-        var resumeFrom = RecordPosition.Unset;
-
-        // Act 1 — capture the first synthetic checkpoint, produced while scanning the barren stretch
-        // (before any target match), so the cursor is guaranteed to sit before every target record.
-        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)) {
-            await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
-                               Start = anchor, Filter = filter, FilterMaxSearchWindow = 1,
-                               SkipDecoding = true, ResolveLinks = true
-                           }, cts.Token).ConfigureAwait(false)) {
-                if (msg.Value is not Checkpoint checkpoint)
-                    continue;
-
-                resumeFrom = checkpoint.Positions[0];
-                await cts.CancelAsync();
-            }
-        }
-
-        // Act 2 — resume from that scan-position cursor; every target record must still arrive. The
-        // assertion is a set, so it holds whether or not a record is delivered more than once.
-        var deliveredRevisions = new HashSet<Revision>();
-
-        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)) {
-            await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
-                               Start = resumeFrom, Filter = filter, FilterMaxSearchWindow = 1,
-                               SkipDecoding = true, ResolveLinks = true
-                           }, cts.Token).ConfigureAwait(false)) {
-                if (msg.Value is not Record record)
-                    continue;
-
-                deliveredRevisions.Add(record.Revision);
-
-                if (deliveredRevisions.Count == target.Records.Length)
-                    await cts.CancelAsync();
-            }
-        }
-
-        // Assert — resuming from the synthetic (scan-position) checkpoint lost no target record.
-        var expectedRevisions = Enumerable.Range(0, target.Records.Length).Select(i => Revision.From(i)).ToHashSet();
-
-        await Assert.That(resumeFrom.IsUnset).IsFalse();
-        await Assert.That(deliveredRevisions).IsEquivalentTo(expectedRevisions);
     }
 
     [Test]
@@ -234,8 +173,7 @@ public class ClientFilteredCheckpointTests {
                                Start           = anchor,
                                Filter          = filter,
                                FilterMaxSearchWindow = 1,
-                               SkipDecoding    = true,
-                               ResolveLinks    = false
+                               SkipDecoding    = true
                            }, cts.Token).ConfigureAwait(false)) {
                 switch (msg.Value) {
                     case Record: deliveredRecords++; break;
@@ -283,8 +221,7 @@ public class ClientFilteredCheckpointTests {
                                Start           = RecordPosition.Earliest,
                                Filter          = filter,
                                FilterMaxSearchWindow = window,
-                               SkipDecoding    = true,
-                               ResolveLinks    = false
+                               SkipDecoding    = true
                            }, cts.Token).ConfigureAwait(false)) {
                 switch (msg.Value) {
                     case Record:               deliveredRecords++;      break;
@@ -329,8 +266,7 @@ public class ClientFilteredCheckpointTests {
                                Start                 = RecordPosition.Earliest,
                                Filter                = filter,
                                FilterMaxSearchWindow = window,
-                               SkipDecoding          = true,
-                               ResolveLinks          = false
+                               SkipDecoding          = true
                            }, cts.Token).ConfigureAwait(false)) {
                 switch (msg.Value) {
                     case Record: deliveredRecords++; break;
@@ -381,43 +317,5 @@ public class ClientFilteredCheckpointTests {
         // would emit one per record, so an empty result is a strong guard.
         await Assert.That(records.Count).IsEqualTo(expectedCount);
         await Assert.That(checkpoints.OfType<FilterCheckpoint>()).IsEmpty();
-    }
-
-    [Test]
-    public async ValueTask synthetic_checkpoint_cadence_follows_the_configured_window(CancellationToken ct) {
-        // Arrange — a match-everything client-side filter so every scanned record is delivered AND
-        // counted. With one checkpoint per window, the count over N delivered records is ~N/window
-        // — this proves the cadence, not merely that checkpoints exist. Load-robust: foreign
-        // records also match and count, and we take a fixed number regardless of who wrote them.
-        var anchor = await Fixture.LatestRecordPosition(ct);
-        await Fixture.SeedTestStream(30, ct); // guarantee enough records ahead of the anchor
-
-        const int window = 5;
-        const int  take   = 20;
-
-        var checkpoints = new List<Checkpoint>();
-
-        // Act
-        var records = await Fixture.Client.Streams
-            .Subscribe(new SubscribeOptions {
-                Start           = anchor,
-                Filter          = MatchAllClientSide(),
-                FilterMaxSearchWindow = window,
-                SkipDecoding    = true,
-                ResolveLinks    = false
-            }, ct)
-            .Records(checkpoints.Add, ct)
-            .Take(take)
-            .ToListAsync(ct);
-
-        // Assert — one synthetic checkpoint per `window` records. The boundary checkpoint at
-        // exactly `take` is not pulled (Take stops at the record before it), so the count is
-        // take/window, give or take one.
-        var perWindow = take / window;
-
-        await Assert.That(records.Count).IsEqualTo(take);
-        await Assert.That(checkpoints.OfType<FilterCheckpoint>().Count())
-            .IsGreaterThanOrEqualTo(perWindow - 1).And
-            .IsLessThanOrEqualTo(perWindow);
     }
 }

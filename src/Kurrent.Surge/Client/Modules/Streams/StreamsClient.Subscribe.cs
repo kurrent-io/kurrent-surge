@@ -52,7 +52,7 @@ public partial class StreamsClient {
         }
 
         var request = StreamsClientMapping.Requests.CreateSubscriptionRequest(
-            options.Filter, start, options.ResolveLinks, (uint)options.FilterMaxSearchWindow);
+            options.Filter, start, (uint)options.FilterMaxSearchWindow);
 
         AsyncServerStreamingCall<ReadResp> grpcSession;
         SessionId                          sessionId;
@@ -120,6 +120,13 @@ public partial class StreamsClient {
 
         var synthesizeCheckpoints = filtersLocally && !serverCheckpoints;
 
+        // An application read of the log never delivers a system record. The server regex drops whole
+        // $ streams when it holds the wire slot; this drop covers both axes on every $all route, since
+        // a hard delete writes a $streamDeleted record into the user's own stream. None is the raw log,
+        // and a named stream is delivered whole.
+        var logRoute   = request.Options.All is not null;
+        var dropSystem = logRoute && options.Filter is not EmptyFilter;
+
         // Records received since the last checkpoint of any kind. A server checkpoint (filter or
         // caught-up) resets it: progress is already accounted for up to the server's watermark, so
         // the count restarts from there — "count locally since the last server-sent one".
@@ -183,9 +190,12 @@ public partial class StreamsClient {
 
                         // Same gating as the read path: when the filter is fully server-side
                         // (filtersLocally == false) the server already delivered exactly its matches,
-                        // resolved per ResolveLinks — re-running IsMatch would drop records the server
+                        // resolved per the route — re-running IsMatch would drop records the server
                         // matched. Only a client-evaluated filter re-checks each record here.
-                        if (!filtersLocally || options.Filter.IsMatch(record))
+                        if (dropSystem && SystemRecordFilter.IsSystemRecord(record)) {
+                            // excluded: scanned, never delivered
+                        }
+                        else if (!filtersLocally || options.Filter.IsMatch(record))
                             yield return record;
 
                         // When the SDK filters locally and the server sends no watermark of its own,

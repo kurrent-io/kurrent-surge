@@ -71,6 +71,13 @@ static class FakeReadEventExtensions {
                 x.CommitPosition = x.Link.CommitPosition;
             });
 
+        // A route that never resolves delivers the link row as the event itself.
+        public Faker<ReadEvent> WithUnresolvedLink() =>
+            faker.FinishWith((_, x) => {
+                x.Event          = FakeRecordedEvent.New.AsLinkEvent().Generate();
+                x.CommitPosition = x.Event.CommitPosition;
+            });
+
         public Faker<ReadEvent> WithoutLinkOrEvent() =>
             faker.RuleFor(x => x.CommitPosition, f => f.Random.ULong(50000, 990000));
     }

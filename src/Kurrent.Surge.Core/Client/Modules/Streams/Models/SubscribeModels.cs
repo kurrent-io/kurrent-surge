@@ -107,11 +107,19 @@ public readonly partial record struct SubscribeMessage : IVariant<Connected, Rec
 public readonly record struct Connected(SessionId SessionId);
 
 public class SubscribeOptions {
-    public RecordFilter   Filter { get; set; } = RecordFilter.None;
+    public RecordFilter   Filter { get; set; } = RecordFilter.ExcludeSystemRecords;
+
+    /// <summary>
+    /// Where the subscription resumes. Delivery is exclusive: the first record is the one after
+    /// this position. Defaults to <see cref="RecordPosition.Latest"/>.
+    /// </summary>
+    /// <remarks>
+    /// Checkpoint, track, and resume with <c>CheckpointPosition</c>; <see cref="Record.Position"/>
+    /// is where the row lives, and through a pointer stream it sits behind the cursor.
+    /// </remarks>
     public RecordPosition Start  { get; set; } = RecordPosition.Latest;
 
     public bool SkipDecoding    { get; set; }
-    public bool ResolveLinks    { get; set; } = true;
     public int FilterMaxSearchWindow { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
 
     /// <summary>

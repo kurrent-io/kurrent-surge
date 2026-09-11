@@ -47,7 +47,8 @@ public class LinkExclusionTests {
 
     static string UniqueSchema(string prefix) => $"{prefix}{Guid.NewGuid():N}";
 
-    // Blocks until $et-{schema} holds `expected` link records, then returns them unresolved.
+    // Blocks until $et-{schema} holds `expected` link records, then returns them resolved: a stream
+    // route resolves, so each record is the origin and carries the link that delivered it.
     async ValueTask<List<Record>> ReadSchemaLinks(string schema, int expected, CancellationToken ct) {
         var etStream = StreamName.From($"$et-{schema}");
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(45);
@@ -62,7 +63,6 @@ public class LinkExclusionTests {
                                        Start        = Revision.Min,
                                        Direction    = ReadDirection.Forwards,
                                        Limit        = expected,
-                                       ResolveLinks = false,
                                        SkipDecoding = true
                                    }, ct)) {
                     if (msg.Value is Record record)
@@ -90,7 +90,6 @@ public class LinkExclusionTests {
         await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
                            Start        = anchor,
                            Filter       = filter,
-                           ResolveLinks = true,
                            SkipDecoding = true
                        }, cts.Token).ConfigureAwait(false)) {
             switch (msg.Value) {
@@ -113,11 +112,15 @@ public class LinkExclusionTests {
         var links = await ReadSchemaLinks(schema, SeededPerSchema, ct);
 
         // Assert — the fixture reproduces the condition the fix defends against: a link record per
-        // appended record, whose own event type is the one the exclusion pattern rejects.
+        // appended record. The stream route resolves each one, so the record carries its link.
+        var expectedLinkStream = StreamName.From($"$et-{schema}");
+
         await Assert.That(links.Count).IsEqualTo(SeededPerSchema);
 
-        foreach (var link in links)
-            await Assert.That(link.Schema.Schema.Value).IsEqualTo("$>");
+        foreach (var link in links) {
+            await Assert.That(link.Link.IsUnset).IsFalse();
+            await Assert.That(link.Link.Position.Stream).IsEqualTo(expectedLinkStream);
+        }
     }
 
     [Test]
@@ -198,7 +201,6 @@ public class LinkExclusionTests {
             .ReadRecords(new ReadRecordsOptions {
                 Start        = anchor.LogPosition,
                 Filter       = filter,
-                ResolveLinks = true,
                 SkipDecoding = true
             }, ct)
             .Where(msg => msg.IsRecord)
@@ -208,44 +210,5 @@ public class LinkExclusionTests {
         // Assert
         await Assert.That(delivered.Count).IsEqualTo(SeededPerSchema);
         await Assert.That(delivered.All(record => record.Stream == stream)).IsTrue();
-    }
-
-    [Test]
-    public async ValueTask raw_log_subscription_still_delivers_links(CancellationToken ct) {
-        // Arrange — RecordFilter.None is the raw log by contract: no server filter, so the links stay and
-        // link resolution turns each one back into the record it points at. This is the documented
-        // exception to the exclusion, and the only remaining way to see a record more than once.
-        var schema = UniqueSchema("RawLogLinks");
-        var anchor = await Fixture.LatestRecordPosition(ct);
-
-        await SeedSchemas(SeededPerSchema, ct, schema);
-        await ReadSchemaLinks(schema, SeededPerSchema, ct);
-
-        // Act — walk the raw log from the anchor and count how often our own records come back. The
-        // links already exist, so the scan reaches them before it catches up.
-        var copies = 0;
-
-        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)) {
-            await foreach (var msg in Fixture.Client.Streams.Subscribe(new SubscribeOptions {
-                               Start        = anchor,
-                               Filter       = RecordFilter.None,
-                               ResolveLinks = true,
-                               SkipDecoding = true
-                           }, cts.Token).ConfigureAwait(false)) {
-                switch (msg.Value) {
-                    case Record record when record.Schema.Schema.Value == schema:
-                        if (++copies > SeededPerSchema)
-                            await cts.CancelAsync();
-                        break;
-
-                    case CaughtUpCheckpoint:
-                        await cts.CancelAsync();
-                        break;
-                }
-            }
-        }
-
-        // Assert — more copies than records appended, because every link resolved back to one.
-        await Assert.That(copies).IsGreaterThan(SeededPerSchema);
     }
 }

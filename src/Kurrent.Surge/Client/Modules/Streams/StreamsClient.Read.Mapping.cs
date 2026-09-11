@@ -67,10 +67,10 @@ static partial class StreamsClientMapping {
                 ControlOption = DefaultControlOption,
                 ReadDirection = ToReadDirection(options.Direction),
                 Count         = (ulong)options.Limit,
-                ResolveLinks  = options.ResolveLinks,
             }};
 
-            RouteByFilter(req.Options, options.Filter, start, (uint)options.FilterMaxSearchWindow);
+            var targetsStream = RouteByFilter(req.Options, options.Filter, start, (uint)options.FilterMaxSearchWindow);
+            req.Options.ResolveLinks = targetsStream;
 
             return req;
         }

@@ -79,6 +79,31 @@ public class MapToRecordAsyncTests {
     }
 
     [Test]
+    public async ValueTask maps_unresolved_link_event_as_a_link() {
+        // Arrange
+        var readEvent = FakeReadEvent.New.WithUnresolvedLink().Generate();
+        var evt       = readEvent.Event;
+
+        var expectedStream   = StreamName.From((string)evt.StreamIdentifier!);
+        var expectedPosition = LogPosition.From((long)evt.CommitPosition);
+
+        // Act
+        var ctx = new MappingContext(
+            NullMetadataDecoder.Instance,
+            NullableRecordDecoder.Instance,
+            CancellationToken.None
+        );
+        var record = await readEvent.MapToRecordAsync(SequenceId.From(1), ctx, skipDecoding: true);
+
+        // Assert — the row is the link: its own stream and position, nothing resolved behind it.
+        await Assert.That(record.IsLink).IsTrue();
+        await Assert.That(record.Link.IsUnset).IsTrue();
+        await Assert.That(record.Stream).IsEqualTo(expectedStream);
+        await Assert.That(record.Position.LogPosition).IsEqualTo(expectedPosition);
+        await Assert.That(record.CheckpointPosition).IsEqualTo(record.Position);
+    }
+
+    [Test]
     public void throws_when_neither_event_nor_link() {
         // Arrange
         var readEvent = FakeReadEvent.New.WithoutLinkOrEvent().Generate();

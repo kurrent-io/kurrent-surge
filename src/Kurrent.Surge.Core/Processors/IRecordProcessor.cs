@@ -178,9 +178,9 @@ public record ProcessRecordContext : DroneContext {
     /// runs on top, but the tracker is idempotent.
     /// </summary>
     /// <remarks>
-    /// Pass a record's <c>CheckpointPosition</c>, never a resolved link's
-    /// <see cref="Record.Position"/>: the target's position can sit below the committed
-    /// floor and is rejected by the tracker.
+    /// Checkpoint, track, and resume with <c>CheckpointPosition</c>; <see cref="Record.Position"/>
+    /// is where the row lives, and through a pointer stream it sits behind the cursor. A target
+    /// position below the committed floor is rejected by the tracker.
     /// </remarks>
     public void Track(RecordPosition position) {
         _trackedByUser = true;
@@ -284,7 +284,9 @@ public record InitializeContext : DroneContext {
     /// All three operations move together — a processor that supplies its resume positions must also
     /// persist them, or the two records of progress diverge and the processor replays the same span
     /// forever. A checkpoint owner commits its positions from <c>OnCheckpoint</c>, and must not call
-    /// <c>ctx.Track</c> there: it would commit one set and flush a larger one.
+    /// <c>ctx.Track</c> there: it would commit one set and flush a larger one. Checkpoint, track, and
+    /// resume with <c>CheckpointPosition</c>; <see cref="Record.Position"/> is where the row lives, and
+    /// through a pointer stream it sits behind the cursor.
     /// </remarks>
     /// <param name="resumeFrom">The positions this processor resumes from, one per owned partition.</param>
     public void OwnCheckpoints(RecordPosition[] resumeFrom) => OwnedCheckpoints = resumeFrom;
@@ -345,6 +347,10 @@ public record CheckpointContext : DroneContext {
     /// snapshot, the position is committed by this same barrier. Positions at or below the current
     /// per-partition progress are skipped, so re-tracking a stale watermark is a no-op.
     /// </summary>
+    /// <remarks>
+    /// Checkpoint, track, and resume with <c>CheckpointPosition</c>; <see cref="Record.Position"/>
+    /// is where the row lives, and through a pointer stream it sits behind the cursor.
+    /// </remarks>
     /// <param name="position">The position to track — typically <see cref="ScanPosition"/>.</param>
     public void Track(RecordPosition position) =>
         RequestTrack(position);

@@ -6,6 +6,9 @@ description: Where a processor resumes from, and who decides when a position is 
 A checkpoint is the position a processor resumes from after a restart. The runtime tracks and
 commits it for you.
 
+Checkpoint, track, and resume with `record.CheckpointPosition`. `Position` is where the row lives,
+and through a pointer stream such as `$ce-orders` it sits behind the cursor.
+
 ## Defaults
 
 ```csharp
@@ -23,7 +26,9 @@ again.
 
 `AutoTrack` decides whether a processed record advances the tracked position automatically. Turn it
 off and you call `context.Track(...)` yourself, which is what you want when a record is handed to
-something asynchronous and "processed" does not mean "done".
+something asynchronous and "processed" does not mean "done". Pass the record, or its
+`CheckpointPosition`. A resolved link's `Position` is its target, earlier in the log, and the tracker
+rejects it once the floor has moved past it.
 
 `AutoCheckpoint` decides whether tracked positions are committed on the interval. Turn it off and
 you request a commit explicitly.

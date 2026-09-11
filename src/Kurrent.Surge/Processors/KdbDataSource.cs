@@ -9,9 +9,8 @@ using Polly;
 namespace Kurrent.Surge.Processors.Gateway;
 
 sealed class KdbDataSourceOptions {
-    public RecordFilter Filter               { get; set; } = RecordFilter.None;
+    public RecordFilter Filter               { get; set; } = RecordFilter.ExcludeSystemRecords;
     public bool         SkipDecoding         { get; set; } = false;
-    public bool         ResolveLinks         { get; set; } = true;
     public int          FilterMaxSearchWindow { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
     public string       PartitionKeySelector { get; set; } = "";
 
@@ -60,7 +59,6 @@ class KdbDataSource : IDataSource {
         var defaultOptions = new SubscribeOptions {
             Filter          = _options.Filter,
             SkipDecoding    = _options.SkipDecoding,
-            ResolveLinks    = _options.ResolveLinks,
             FilterMaxSearchWindow = _options.FilterMaxSearchWindow
         };
 

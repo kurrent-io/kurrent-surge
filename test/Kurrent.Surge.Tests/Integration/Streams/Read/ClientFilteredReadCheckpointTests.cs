@@ -28,7 +28,7 @@ public class ClientFilteredReadCheckpointTests {
 
     // Matches the target stream but is not server-expressible: a stream-equality disjunct unioned
     // with a non-stream disjunct poisons server extraction, so the whole filter runs client-side over
-    // a $all read that narrows nothing but link records. The schema disjunct names a value no record
+    // a $all read that narrows nothing but system streams. The schema disjunct names a value no record
     // carries — it never widens the match, it only forces the expression off the wire
     // (RequiresClientEvaluation).
     static RecordFilter ClientSideFilter(StreamName target) =>
@@ -48,15 +48,13 @@ public class ClientFilteredReadCheckpointTests {
         var records     = new List<Record>();
         var checkpoints = new List<FilterCheckpoint>();
 
-        // Act — link resolution ON (the default). An expression filter no longer surfaces link
-        // records, so the scan position and the record position agree here; the watermark still
-        // tracks the $all scan position, which is what keeps it monotonic on a raw-log read.
+        // Act — a $all route never resolves links, so the scan position and the record position
+        // agree; the watermark tracks the $all scan position, which is what keeps it monotonic.
         var options = new ReadRecordsOptions {
             Start                 = anchor.LogPosition,
             Filter                = ClientSideFilter(target.Stream),
             FilterMaxSearchWindow = 1,
-            SkipDecoding          = true,
-            ResolveLinks          = true
+            SkipDecoding          = true
         };
 
         using (var cts = CancellationTokenSource.CreateLinkedTokenSource(ct)) {
@@ -113,8 +111,7 @@ public class ClientFilteredReadCheckpointTests {
             Start                 = LogPosition.Earliest,
             Filter                = filter,
             FilterMaxSearchWindow = window,
-            SkipDecoding          = true,
-            ResolveLinks          = false
+            SkipDecoding          = true
         };
 
         await foreach (var msg in Fixture.Client.Streams.ReadRecords(options, ct).ConfigureAwait(false)) {
@@ -159,8 +156,7 @@ public class ClientFilteredReadCheckpointTests {
             Start                 = LogPosition.Earliest,
             Filter                = filter,
             FilterMaxSearchWindow = 1,
-            SkipDecoding          = true,
-            ResolveLinks          = false
+            SkipDecoding          = true
         };
 
         await foreach (var msg in Fixture.Client.Streams.ReadRecords(options, ct).ConfigureAwait(false)) {
@@ -187,7 +183,7 @@ public class ClientFilteredReadCheckpointTests {
         // cursor on every synthetic checkpoint as it processes records (the realistic pattern), then
         // resumes from the last cursor. Reads are INCLUSIVE, so resuming may re-deliver the boundary
         // record — that is the read contract, not a defect — so we assert no-loss as a set, tolerating
-        // a duplicate. Raw log (ResolveLinks = false): each target record sits at its own position.
+        // a duplicate. Raw log: a $all route never resolves, so each target record sits at its own position.
         var anchor = await Fixture.LatestRecordPosition(ct);
         await Fixture.SeedTestStream(8, ct); // barren foreign records before the target
         var target = await Fixture.SeedTestStream(5, ct);
@@ -206,8 +202,7 @@ public class ClientFilteredReadCheckpointTests {
                            Start                 = anchor.LogPosition,
                            Filter                = filter,
                            FilterMaxSearchWindow = 1,
-                           SkipDecoding          = true,
-                           ResolveLinks          = false
+                           SkipDecoding          = true
                        }, ct).ConfigureAwait(false)) {
             switch (msg.Value) {
                 case Record record:
@@ -233,8 +228,7 @@ public class ClientFilteredReadCheckpointTests {
                            Start                 = resumeFrom,
                            Filter                = filter,
                            FilterMaxSearchWindow = 1,
-                           SkipDecoding          = true,
-                           ResolveLinks          = false
+                           SkipDecoding          = true
                        }, ct).ConfigureAwait(false)) {
             if (msg.Value is not Record record)
                 continue;

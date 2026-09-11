@@ -100,7 +100,9 @@ public record Record {
     public RecordSchemaInfo Schema { get; internal set; } = RecordSchemaInfo.None;
 
     /// <summary>
-    /// Indicates whether this record is a link event whose resolved target was unavailable.
+    /// Indicates whether this record is a link row (<c>$&gt;</c>) delivered as itself: read through
+    /// a route that never resolves, or with a target that could not be resolved. A resolved link
+    /// is its target and carries the link in <see cref="Link"/>.
     /// </summary>
     public bool IsLink { get; init; }
 

@@ -24,10 +24,9 @@ static class ServerFilterExtractor {
         if (filter.ConstraintOn("schema_name") is { Any: true } schema)
             return (ToSchemaFilter(schema), RequiresClientEvaluation: !schema.IsExact);
 
-        // Nothing the server can narrow by, but the request still carries a filter: an unfiltered $all
-        // with link resolution on delivers every record once per standard-projection link, and the
-        // client predicate accepts each resolved copy.
-        return (SchemaRegexFilter.ExcludeLinks, RequiresClientEvaluation: true);
+        // Nothing the server can narrow by, but the request still carries a filter: the system-record
+        // exclusion takes the wire slot and the whole expression runs on the client.
+        return (RecordFilter.ExcludeSystemRecords, RequiresClientEvaluation: true);
     }
 
     // A stream is the one column all three wire shapes can carry. One case-sensitive literal reads the

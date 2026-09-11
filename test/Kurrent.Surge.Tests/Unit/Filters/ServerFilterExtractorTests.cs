@@ -177,21 +177,21 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async ValueTask category_in_falls_back_to_link_exclusion() {
+    public async ValueTask category_in_falls_back_to_system_record_exclusion() {
         // IN cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("category IN ('orders', 'payments')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask category_like_falls_back_to_link_exclusion() {
+    public async ValueTask category_like_falls_back_to_system_record_exclusion() {
         // LIKE cannot target a single index stream — evaluated client-side
         var expr   = ParseExpression("category LIKE 'order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
@@ -213,11 +213,11 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async ValueTask category_or_schema_falls_back_to_link_exclusion() {
+    public async ValueTask category_or_schema_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("category = 'orders' OR schema = 'OrderPlaced'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -286,35 +286,35 @@ public class ServerFilterExtractorTests {
     #region Client-Side Filters (nothing the server can narrow by)
 
     [Test]
-    public async ValueTask timestamp_filter_falls_back_to_link_exclusion() {
+    public async ValueTask timestamp_filter_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("timestamp >= epoch_ms(TIMESTAMP '2024-01-01')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask position_filter_falls_back_to_link_exclusion() {
+    public async ValueTask position_filter_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("position > 1000");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask properties_filter_falls_back_to_link_exclusion() {
+    public async ValueTask properties_filter_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("properties['amount'] > 100");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask revision_filter_falls_back_to_link_exclusion() {
+    public async ValueTask revision_filter_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("stream_revision > 10");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -362,28 +362,28 @@ public class ServerFilterExtractorTests {
     #region Negated Expressions
 
     [Test]
-    public async ValueTask negated_stream_filter_falls_back_to_link_exclusion() {
+    public async ValueTask negated_stream_filter_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("stream != 'Test-123'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         // Negated comparisons cannot be lifted to server
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask negated_like_falls_back_to_link_exclusion() {
+    public async ValueTask negated_like_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("stream NOT LIKE 'Test-%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask negated_in_falls_back_to_link_exclusion() {
+    public async ValueTask negated_in_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("stream NOT IN ('Test-001', 'Demo-002')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -400,13 +400,13 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async ValueTask or_with_non_stream_disjunct_falls_back_to_link_exclusion() {
+    public async ValueTask or_with_non_stream_disjunct_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("stream = 'Orders-001' OR schema_name = 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         // A non-stream disjunct poisons the union — a stream regex would under-match,
         // so the whole expression stays client-side.
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -428,12 +428,12 @@ public class ServerFilterExtractorTests {
     #region Edge Cases
 
     [Test]
-    public async ValueTask client_only_expression_falls_back_to_link_exclusion() {
+    public async ValueTask client_only_expression_falls_back_to_system_record_exclusion() {
         // Create a simple expression that doesn't match any server patterns
         var expr   = ParseExpression("position > 0");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
@@ -584,27 +584,27 @@ public class ServerFilterExtractorTests {
     #region Schema Negated Expressions
 
     [Test]
-    public async ValueTask negated_schema_equality_falls_back_to_link_exclusion() {
+    public async ValueTask negated_schema_equality_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("schema != 'OrderCreated'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask negated_schema_like_falls_back_to_link_exclusion() {
+    public async ValueTask negated_schema_like_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("schema_name NOT LIKE 'Order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask negated_schema_in_falls_back_to_link_exclusion() {
+    public async ValueTask negated_schema_in_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("schema NOT IN ('OrderCreated', 'OrderUpdated')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -612,27 +612,27 @@ public class ServerFilterExtractorTests {
     #region Category Negated Expressions
 
     [Test]
-    public async ValueTask negated_category_equality_falls_back_to_link_exclusion() {
+    public async ValueTask negated_category_equality_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("category != 'orders'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask negated_category_like_falls_back_to_link_exclusion() {
+    public async ValueTask negated_category_like_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("category NOT LIKE 'order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask negated_category_in_falls_back_to_link_exclusion() {
+    public async ValueTask negated_category_in_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("category NOT IN ('orders', 'payments')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -651,12 +651,12 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async ValueTask category_ilike_falls_back_to_link_exclusion() {
+    public async ValueTask category_ilike_falls_back_to_system_record_exclusion() {
         // ILIKE is a pattern match — cannot target a single index stream
         var expr   = ParseExpression("category ILIKE 'order%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -677,11 +677,11 @@ public class ServerFilterExtractorTests {
     }
 
     [Test]
-    public async ValueTask multiple_category_like_predicates_fall_back_to_link_exclusion() {
+    public async ValueTask multiple_category_like_predicates_fall_back_to_system_record_exclusion() {
         var expr   = ParseExpression("category LIKE 'order%' AND category LIKE '%payment%'");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -689,7 +689,7 @@ public class ServerFilterExtractorTests {
     #region IN with Non-String Values
 
     [Test]
-    public async ValueTask stream_in_with_numeric_values_falls_back_to_link_exclusion() {
+    public async ValueTask stream_in_with_numeric_values_falls_back_to_system_record_exclusion() {
         // IN with non-string values cannot be extracted — TryExtractStringValues rejects them
         var expr   = ParseExpression("stream IN ('orders-1', 'orders-2') AND position > 100");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
@@ -704,7 +704,7 @@ public class ServerFilterExtractorTests {
         var expr   = ParseExpression("position > 100");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -760,20 +760,20 @@ public class ServerFilterExtractorTests {
     #region NOT-Wrapped Compound Expressions
 
     [Test]
-    public async ValueTask not_wrapping_compound_falls_back_to_link_exclusion() {
+    public async ValueTask not_wrapping_compound_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("NOT (stream = 'orders-1' AND schema = 'OrderPlaced')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
         // NOT wrapping a compound expression is not an AND at the top level
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     [Test]
-    public async ValueTask not_wrapping_stream_equality_falls_back_to_link_exclusion() {
+    public async ValueTask not_wrapping_stream_equality_falls_back_to_system_record_exclusion() {
         var expr   = ParseExpression("NOT (stream = 'orders-1')");
         var filter = ServerFilterExtractor.Extract(expr).ServerFilter;
 
-        await Assert.That(filter).IsEqualTo(SchemaRegexFilter.ExcludeLinks);
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
     }
 
     #endregion
@@ -802,16 +802,16 @@ public class ServerFilterExtractorTests {
 
     #endregion
 
-    #region Link Exclusion Fallback
+    #region System Record Exclusion Fallback
 
     [Test]
-    public async ValueTask fallback_sends_the_link_exclusion_pattern_and_still_evaluates_on_the_client() {
+    public async ValueTask fallback_sends_the_system_record_exclusion_pattern_and_still_evaluates_on_the_client() {
         var expr = ParseExpression("properties['amount'] > 100");
 
         var (filter, requiresClientEvaluation) = ServerFilterExtractor.Extract(expr);
 
-        await Assert.That(filter).IsTypeOf<SchemaRegexFilter>();
-        await Assert.That(filter.Expression).IsEqualTo(@"^(?!\$>)");
+        await Assert.That(filter).IsEqualTo(RecordFilter.ExcludeSystemRecords);
+        await Assert.That(filter.Expression).IsEqualTo(@"^[^\$]");
         await Assert.That(requiresClientEvaluation).IsTrue();
     }
 

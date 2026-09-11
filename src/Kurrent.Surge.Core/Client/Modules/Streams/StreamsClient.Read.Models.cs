@@ -27,6 +27,10 @@ public sealed partial class ReadRecordsOptions {
     /// natural edge for the <see cref="Direction"/>: the beginning when reading forwards, the end
     /// when reading backwards.
     /// </summary>
+    /// <remarks>
+    /// Checkpoint, track, and resume with <c>CheckpointPosition</c>; <see cref="Record.Position"/>
+    /// is where the row lives, and through a pointer stream it sits behind the cursor.
+    /// </remarks>
     public RecordPosition Start { get; set; } = RecordPosition.Unset;
 
     /// <summary>
@@ -35,9 +39,10 @@ public sealed partial class ReadRecordsOptions {
     public long Limit { get; set; } = long.MaxValue;
 
     /// <summary>
-    /// Record filtering criteria to apply during read operations.
+    /// Record filtering criteria to apply during read operations. Defaults to
+    /// <see cref="RecordFilter.ExcludeSystemRecords"/>; <see cref="RecordFilter.None"/> reads the raw log.
     /// </summary>
-    public RecordFilter Filter { get; set; } = RecordFilter.None;
+    public RecordFilter Filter { get; set; } = RecordFilter.ExcludeSystemRecords;
 
     /// <summary>
     /// Number of raw log records the server scans per filter page before emitting a
@@ -62,14 +67,6 @@ public sealed partial class ReadRecordsOptions {
     /// handlers, not an error. Has no effect when <see cref="SkipDecoding"/> is set.
     /// </summary>
     public bool ThrowOnUnresolved { get; set; }
-
-    /// <summary>
-    /// Resolve link records (<c>$&gt;</c>) to their target events. Index streams (<c>$ce-*</c>,
-    /// <c>$idx-*</c>) contain links; without resolution, consumers see opaque link records
-    /// instead of the underlying events. Default <c>true</c>. Set <c>false</c> for low-level
-    /// inspection of index/projection streams.
-    /// </summary>
-    public bool ResolveLinks { get; set; } = true;
 
     static partial void ConfigureRules(Validator rules) {
         rules.RuleFor(options => options.Limit)
@@ -123,13 +120,6 @@ public sealed partial class ReadStreamOptions {
     /// handlers, not an error. Has no effect when <see cref="SkipDecoding"/> is set.
     /// </summary>
     public bool ThrowOnUnresolved { get; set; }
-
-    /// <summary>
-    /// Resolve link records (<c>$&gt;</c>) to their target events. Default <c>true</c>.
-    /// Set <c>false</c> when inspecting an index/projection stream and you want the raw
-    /// link records instead of their resolved targets.
-    /// </summary>
-    public bool ResolveLinks { get; set; } = true;
 
     static partial void ConfigureRules(Validator rules) {
         rules.RuleFor(options => options.Limit)

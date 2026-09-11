@@ -12,7 +12,7 @@ public class StreamsClientMappingTests {
     const uint Window = 64;
 
     static Contracts.ReadReq Subscription(RecordFilter filter) =>
-        StreamsClientMapping.Requests.CreateSubscriptionRequest(filter, RecordPosition.Earliest, resolveLinks: true, Window);
+        StreamsClientMapping.Requests.CreateSubscriptionRequest(filter, RecordPosition.Earliest, Window);
 
     [Test]
     public async ValueTask schema_alternation_maps_to_an_event_type_regex() {
@@ -32,18 +32,37 @@ public class StreamsClientMappingTests {
     }
 
     [Test]
-    public async ValueTask unroutable_expression_maps_to_the_link_exclusion_regex() {
+    public async ValueTask unroutable_expression_maps_to_the_system_stream_exclusion_regex() {
         // Arrange
         var filter        = RecordFilter.ByExpression("properties['amount'] > 100");
-        var expectedRegex = @"^(?!\$>)";
+        var expectedRegex = @"^[^\$]";
 
         // Act
         var request = Subscription(filter);
 
-        // Assert — the request never carries NoFilter, so the server drops the projection links.
+        // Assert — the request never carries NoFilter, so the server drops the system streams.
         await Assert.That(request.Options.StreamOptionCase).IsEqualTo(StreamOptionCase.All);
-        await Assert.That(request.Options.Filter.FilterCase).IsEqualTo(FilterCase.EventType);
-        await Assert.That(request.Options.Filter.EventType.Regex).IsEqualTo(expectedRegex);
+        await Assert.That(request.Options.Filter.FilterCase).IsEqualTo(FilterCase.StreamIdentifier);
+        await Assert.That(request.Options.Filter.StreamIdentifier.Regex).IsEqualTo(expectedRegex);
+        await Assert.That(request.Options.ResolveLinks).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask exclude_system_records_maps_to_a_stream_identifier_regex() {
+        // Arrange
+        var filter        = RecordFilter.ExcludeSystemRecords;
+        var expectedRegex = @"^[^\$]";
+
+        // Act
+        var request = Subscription(filter);
+
+        // Assert — the default filter is a server-checkpointed $all scan with the scan window applied.
+        await Assert.That(request.Options.StreamOptionCase).IsEqualTo(StreamOptionCase.All);
+        await Assert.That(request.Options.Filter.FilterCase).IsEqualTo(FilterCase.StreamIdentifier);
+        await Assert.That(request.Options.Filter.StreamIdentifier.Regex).IsEqualTo(expectedRegex);
+        await Assert.That(request.Options.Filter.Max).IsEqualTo(Window);
+        await Assert.That(request.Options.Filter.CheckpointIntervalMultiplier).IsEqualTo(1u);
+        await Assert.That(request.Options.ResolveLinks).IsFalse();
     }
 
     [Test]
@@ -82,9 +101,10 @@ public class StreamsClientMappingTests {
         // Act
         var request = Subscription(filter);
 
-        // Assert — the raw log stays raw: links included, resolved per ResolveLinks.
+        // Assert — the raw log stays raw: links included, never resolved.
         await Assert.That(request.Options.StreamOptionCase).IsEqualTo(StreamOptionCase.All);
         await Assert.That(request.Options.FilterOptionCase).IsEqualTo(FilterOptionCase.NoFilter);
+        await Assert.That(request.Options.ResolveLinks).IsFalse();
     }
 
     [Test]
@@ -95,8 +115,9 @@ public class StreamsClientMappingTests {
         // Act
         var request = Subscription(filter);
 
-        // Assert
+        // Assert — a stream route is the only one that resolves links.
         await Assert.That(request.Options.StreamOptionCase).IsEqualTo(StreamOptionCase.Stream);
         await Assert.That(request.Options.FilterOptionCase).IsEqualTo(FilterOptionCase.NoFilter);
+        await Assert.That(request.Options.ResolveLinks).IsTrue();
     }
 }

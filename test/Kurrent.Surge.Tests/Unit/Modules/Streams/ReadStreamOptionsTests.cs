@@ -17,7 +17,6 @@ public class ReadStreamOptionsTests {
         await Assert.That(options.Limit).IsEqualTo(long.MaxValue);
         await Assert.That(options.Direction).IsEqualTo(ReadDirection.Forwards);
         await Assert.That(options.SkipDecoding).IsFalse();
-        await Assert.That(options.ResolveLinks).IsTrue();
     }
 
     [Test]

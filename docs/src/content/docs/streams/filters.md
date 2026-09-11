@@ -13,7 +13,9 @@ var options = new ReadRecordsOptions {
 };
 ```
 
-`RecordFilter.None` is the default and matches everything.
+`RecordFilter.ExcludeSystemRecords` is the default. It drops every record whose stream or schema name
+starts with `$`, the records the server and the projections write for themselves. `RecordFilter.None`
+is the raw log.
 
 ## Choosing a filter
 

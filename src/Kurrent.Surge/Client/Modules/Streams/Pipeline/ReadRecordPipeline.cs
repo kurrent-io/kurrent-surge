@@ -50,13 +50,10 @@ sealed class ReadRecordPipeline : IPipelineStep<Record, DecodeOutcome>, IRecordD
         if (record.Data.IsEmpty)
             return DecodeOutcome.NoData;
 
-        if (record.Schema.DataFormat == SchemaDataFormat.Bytes) {
-            // Wire hazard carried over from the bytes serializer this pipeline replaced: a $>
-            // link record's Bytes payload is "{revision}@{stream}" text, not opaque bytes, and
-            // decodes into a LinkTo value. Every other Bytes record has nothing to decode.
-            if (record.Schema.Schema != LinkTo.SchemaName)
-                return DecodeOutcome.Unavailable;
-
+        // Wire hazard: a $> link row's payload is "{revision}@{stream}" text whatever content type
+        // the writer stamped on it. Links arrive stamped as JSON (the fixture's standard projections)
+        // and as bytes; neither payload is what the content type says.
+        if (record.Schema.Schema == LinkTo.SchemaName) {
             try {
                 var linkTo = LinkTo.Parse(record.Data.Span);
                 record.Value     = linkTo;
@@ -67,6 +64,10 @@ sealed class ReadRecordPipeline : IPipelineStep<Record, DecodeOutcome>, IRecordD
                 throw new SchemaCodecDecodingException(record.Schema.DataFormat, record.Schema.Schema, ex);
             }
         }
+
+        // Every other Bytes record has nothing to decode.
+        if (record.Schema.DataFormat == SchemaDataFormat.Bytes)
+            return DecodeOutcome.Unavailable;
 
         return await _pipeline.Execute(record, ct).ConfigureAwait(false);
     }

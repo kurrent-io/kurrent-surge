@@ -205,8 +205,7 @@ public partial class StreamsClient {
             Direction             = options.Direction,
             FilterMaxSearchWindow = options.FilterMaxSearchWindow,
             SkipDecoding          = options.SkipDecoding,
-            ThrowOnUnresolved     = options.ThrowOnUnresolved,
-            ResolveLinks          = options.ResolveLinks
+            ThrowOnUnresolved     = options.ThrowOnUnresolved
         }, ct);
     }
 
@@ -225,6 +224,11 @@ public partial class StreamsClient {
         // long sparse client-filtered read would otherwise have no progress signal and no cheap
         // resume point. A server-routable filter leaves this off: the server delivers only matches.
         var filtersLocally = filter.RequiresClientEvaluation;
+
+        // Same rule as the subscription: on the log, a system record is dropped on both axes before the
+        // filter runs. None is the raw log, and a named stream is delivered whole.
+        var logRoute   = request.Options.All is not null;
+        var dropSystem = logRoute && filter is not EmptyFilter;
 
         // Records scanned since the last synthetic checkpoint. Unlike the subscription path there is
         // no server checkpoint to reset against — a V1 read emits none — so this only ever resets
@@ -263,10 +267,13 @@ public partial class StreamsClient {
                         .ConfigureAwait(false);
 
                     // Re-filter only when the filter runs client-side. A server-routable filter
-                    // already delivered exactly its matches (per ResolveLinks), so re-running IsMatch
+                    // already delivered exactly its matches (resolved per the route), so re-running IsMatch
                     // would drop records the caller asked for — e.g. a $ce-/$et- read resolved to
                     // origin streams.
-                    if (!filtersLocally || filter.IsMatch(record))
+                    if (dropSystem && SystemRecordFilter.IsSystemRecord(record)) {
+                        // excluded: scanned, never delivered
+                    }
+                    else if (!filtersLocally || filter.IsMatch(record))
                         yield return record;
 
                     // When the SDK filters locally it discards records the consumer never sees, so —

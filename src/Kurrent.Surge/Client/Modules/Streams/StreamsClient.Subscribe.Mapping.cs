@@ -13,7 +13,6 @@ static partial class StreamsClientMapping {
         public static Contracts.ReadReq CreateSubscriptionRequest(
             RecordFilter filter,
             RecordPosition start,
-            bool resolveLinks,
             uint maxSearchWindow = DefaultMaxSearchWindow
         ) {
             var req = new Contracts.ReadReq { Options = new() {
@@ -21,10 +20,10 @@ static partial class StreamsClientMapping {
                 Subscription  = DefaultSubscriptionOptions,
                 UuidOption    = DefaultUuidOptions,
                 ControlOption = DefaultControlOption,
-                ResolveLinks  = resolveLinks,
             }};
 
-            RouteByFilter(req.Options, filter, start, maxSearchWindow);
+            var targetsStream = RouteByFilter(req.Options, filter, start, maxSearchWindow);
+            req.Options.ResolveLinks = targetsStream;
             return req;
         }
     }

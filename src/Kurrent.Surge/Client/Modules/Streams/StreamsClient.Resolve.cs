@@ -116,9 +116,11 @@ public partial class StreamsClient {
         // Stream half only — fill the log half with one stream read at the revision. The read
         // direction follows the read: scavenged revision gaps land on the correct surviving
         // neighbour (forwards → next survivor, backwards → previous; stream reads are inclusive).
+        // A stream read resolves links, so on a pointer stream the record's Position is the
+        // target's; the start is the link's own revision.
         if (hasStream) {
             var record = await ReadOneFromStream(position.Stream, position.Revision, direction, ct).ConfigureAwait(false);
-            return record?.Position ?? RecordPosition.Unset;
+            return record?.CheckpointPosition ?? RecordPosition.Unset;
         }
 
         if (!hasLog)
@@ -163,10 +165,11 @@ public partial class StreamsClient {
             return position;
 
         // Stream half only — at-or-before the revision: one backwards stream read (inclusive),
-        // landing on the closest surviving record at-or-below a scavenged gap.
+        // landing on the closest surviving record at-or-below a scavenged gap. A stream read
+        // resolves links, so on a pointer stream the start is the link's own revision.
         if (hasStream) {
             var record = await ReadOneFromStream(position.Stream, position.Revision, ReadDirection.Backwards, cancellationToken).ConfigureAwait(false);
-            return record?.Position ?? RecordPosition.Unset;
+            return record?.CheckpointPosition ?? RecordPosition.Unset;
         }
 
         if (!hasLog)
@@ -190,8 +193,7 @@ public partial class StreamsClient {
             Direction    = direction,
             Filter       = stream == StreamName.Unset ? RecordFilter.None : StreamRegexFilter.Parse($"^{Regex.Escape(stream)}$"),
             Limit        = 1,
-            SkipDecoding = true,
-            ResolveLinks = false
+            SkipDecoding = true
         };
 
         // Limit bounds the server scan (count tallies events only); take the first RECORD —
@@ -211,8 +213,7 @@ public partial class StreamsClient {
             Start        = revision,
             Direction    = direction,
             // Limit        = 1,
-            SkipDecoding = true,
-            ResolveLinks = false
+            SkipDecoding = true
         };
 
         try {
