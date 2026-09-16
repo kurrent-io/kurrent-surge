@@ -321,8 +321,11 @@ The table shows the health for each processor status:
 | Not started | Degraded |
 | `Starting` | Degraded |
 | `Processing` | Healthy |
+| `Processing`, and the last checkpoint failed | Degraded, with the exception |
 | `Stopping` or `Stopped` | Unhealthy |
-| Failed | Unhealthy, with the exception |
+| Failed, at start-up or while processing | Unhealthy, with the exception |
+
+A failed checkpoint keeps the check Degraded until the next checkpoint commits.
 
 To read the health check, get `IDrone` and `HealthCheckService` from the host services:
 
@@ -340,24 +343,9 @@ var report = await health.CheckHealthAsync();
 var processor = report.Entries[drone.ProcessorId];
 ```
 
-After the processor starts, each result contains these data entries:
-
-| Key | Contains |
-|---|---|
-| `processorId` | The processor id |
-| `droneId` | The id of this instance |
-| `status` | The `DroneStatus` of the processor |
-| `totalRecords` | The number of processed records |
-| `recordsPerSecond` | The current throughput |
-| `lowestCommittedPosition` | The lowest committed position |
-| `lastProcessedAt` | The time of the last processed record. Absent before the first record |
-
 `SurgeProcessor` has no HTTP endpoint. To send the report to a different system, register an
 `IHealthCheckPublisher` as a singleton. By default, the host runs each publisher at 30-second
 intervals.
-
-The health check does not show an exception from `OnInitialize`. The host stops, and the exit code
-is 1.
 
 ## Failure and exit code
 

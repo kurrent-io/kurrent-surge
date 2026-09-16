@@ -18,8 +18,9 @@ public sealed partial class ProcessorOptions {
 
     /// <summary>
     /// Unique identifier for the processor group. Used for checkpoint coordination. Assigned at
-    /// registration: the id passed, else the processor type name in kebab-case. Setting it here does
-    /// not change which configuration section was read.
+    /// registration: the id passed, else the processor type name in kebab-case. A blank id reads as
+    /// none given, so it also takes the type name. Setting it here does not change which
+    /// configuration section was read.
     /// </summary>
     /// <remarks>
     /// Until <see cref="DroneId"/> is set explicitly, setting this derives it as

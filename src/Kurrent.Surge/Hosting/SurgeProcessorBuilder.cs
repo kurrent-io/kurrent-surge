@@ -17,8 +17,8 @@ namespace Kurrent.Surge;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The processor id is the one passed to <c>SurgeProcessor.CreateBuilder</c>, else the type name in
-/// kebab-case. Options are read from the one section <c>Kurrent:Surge:Processors:{id}</c>, then the
+/// The processor id is the one passed to <c>SurgeProcessor.CreateBuilder</c>. A blank id, or none,
+/// gives the type name in kebab-case. Options are read from the one section <c>Kurrent:Surge:Processors:{id}</c>, then the
 /// configure delegate runs over them, so values it sets win. The connection resolves last. The
 /// processor reports health under the id.
 /// </para>

@@ -50,12 +50,17 @@ public class SurgeProcessorTests {
     }
 
     [Test]
-    public async ValueTask uses_the_passed_processor_id_for_the_drone_and_the_health_check(CancellationToken ct) {
-        // Arrange
-        var processorId = NewProcessorId();
+    [Arguments(true)]
+    [Arguments(false)]
+    public async ValueTask uses_the_processor_id_for_the_drone_and_the_health_check(bool passed, CancellationToken ct) {
+        // Arrange — a passed id is used as given; without one the id is the type name in kebab case.
+        var processorId = passed ? NewProcessorId() : "testable-record-processor";
         var dronePrefix = $"{processorId}-";
 
-        var builder = SurgeProcessor.CreateBuilder<TestableRecordProcessor>([], processorId);
+        var builder = passed
+            ? SurgeProcessor.CreateBuilder<TestableRecordProcessor>([], processorId)
+            : SurgeProcessor.CreateBuilder<TestableRecordProcessor>();
+
         UseFixtureConnection(builder);
 
         // Act
@@ -75,55 +80,19 @@ public class SurgeProcessorTests {
     }
 
     [Test]
-    public async ValueTask derives_the_processor_id_from_the_type_name_in_kebab_case() {
-        // Arrange
-        var expected    = "testable-record-processor";
-        var dronePrefix = $"{expected}-";
-
-        var builder = SurgeProcessor.CreateBuilder<TestableRecordProcessor>();
-        UseFixtureConnection(builder);
-
-        // Act
-        using var host = builder.Build();
-
-        // Assert
-        var options     = DroneOptions(host);
-        var processorId = options.ProcessorId;
-        var droneId     = options.DroneId;
-
-        await Assert.That(processorId).IsEqualTo(expected);
-        await Assert.That(droneId).StartsWith(dronePrefix);
-    }
-
-    [Test]
-    public async ValueTask sets_the_application_name_to_the_title_case_of_the_passed_processor_id() {
+    [Arguments(true)]
+    [Arguments(false)]
+    public async ValueTask sets_the_application_name_to_the_title_case_of_the_processor_id(bool passed) {
         // Arrange
         var words       = Faker.Lorem.Words(3);
-        var processorId = string.Join('-', words);
-        var expected    = string.Join(' ', words.Select(Capitalise));
+        var processorId = passed ? string.Join('-', words) : "testable-record-processor";
+        var expected    = passed ? string.Join(' ', words.Select(Capitalise)) : "Testable Record Processor";
 
         // Act
-        var builder = SurgeProcessor.CreateBuilder<TestableRecordProcessor>([], processorId);
-        UseFixtureConnection(builder);
+        var builder = passed
+            ? SurgeProcessor.CreateBuilder<TestableRecordProcessor>([], processorId)
+            : SurgeProcessor.CreateBuilder<TestableRecordProcessor>();
 
-        var atCreation = builder.Environment.ApplicationName;
-
-        using var host = builder.Build();
-
-        // Assert
-        var applicationName = host.Services.GetRequiredService<IHostEnvironment>().ApplicationName;
-
-        await Assert.That(atCreation).IsEqualTo(expected);
-        await Assert.That(applicationName).IsEqualTo(expected);
-    }
-
-    [Test]
-    public async ValueTask sets_the_application_name_to_the_title_case_of_the_derived_processor_id() {
-        // Arrange
-        var expected = "Testable Record Processor";
-
-        // Act
-        var builder = SurgeProcessor.CreateBuilder<TestableRecordProcessor>();
         UseFixtureConnection(builder);
 
         var atCreation = builder.Environment.ApplicationName;
@@ -158,15 +127,20 @@ public class SurgeProcessorTests {
     }
 
     [Test]
-    public async ValueTask passes_the_section_keyed_by_the_passed_processor_id_to_the_configure_delegate() {
+    [Arguments(true)]
+    [Arguments(false)]
+    public async ValueTask passes_the_section_keyed_by_the_processor_id_to_the_configure_delegate(bool passed) {
         // Arrange
-        var processorId  = NewProcessorId();
+        var processorId  = passed ? NewProcessorId() : "testable-record-processor";
         var maxBatchSize = Faker.Random.Int(501, 10_000);
         var received     = 0;
 
         string[] args = [$"--Kurrent:Surge:Processors:{processorId}:Batching:MaxBatchSize={maxBatchSize}"];
 
-        var builder = SurgeProcessor.CreateBuilder<TestableRecordProcessor>(args, processorId, opts => received = opts.Batching.MaxBatchSize);
+        var builder = passed
+            ? SurgeProcessor.CreateBuilder<TestableRecordProcessor>(args, processorId, opts => received = opts.Batching.MaxBatchSize)
+            : SurgeProcessor.CreateBuilder<TestableRecordProcessor>(args, opts => received = opts.Batching.MaxBatchSize);
+
         UseFixtureConnection(builder);
 
         // Act
@@ -176,25 +150,6 @@ public class SurgeProcessorTests {
         var actual = DroneOptions(host).Batching.MaxBatchSize;
 
         await Assert.That(received).IsEqualTo(maxBatchSize);
-        await Assert.That(actual).IsEqualTo(maxBatchSize);
-    }
-
-    [Test]
-    public async ValueTask reads_the_section_keyed_by_the_derived_processor_id() {
-        // Arrange
-        var maxBatchSize = Faker.Random.Int(501, 10_000);
-
-        string[] args = [$"--Kurrent:Surge:Processors:testable-record-processor:Batching:MaxBatchSize={maxBatchSize}"];
-
-        var builder = SurgeProcessor.CreateBuilder<TestableRecordProcessor>(args);
-        UseFixtureConnection(builder);
-
-        // Act
-        using var host = builder.Build();
-
-        // Assert
-        var actual = DroneOptions(host).Batching.MaxBatchSize;
-
         await Assert.That(actual).IsEqualTo(maxBatchSize);
     }
 
@@ -290,6 +245,29 @@ public class SurgeProcessorTests {
     }
 
     [Test]
+    [Arguments("")]
+    [Arguments("   ")]
+    public async ValueTask falls_back_to_the_type_name_when_the_passed_processor_id_is_blank(string processorId) {
+        // Arrange — a blank id reads as "none given", so the type name applies as if none was passed.
+        var expected    = "testable-record-processor";
+        var dronePrefix = $"{expected}-";
+
+        var builder = SurgeProcessor.CreateBuilder<TestableRecordProcessor>([], processorId);
+        UseFixtureConnection(builder);
+
+        // Act
+        using var host = builder.Build();
+
+        // Assert
+        var options = DroneOptions(host);
+        var actual  = options.ProcessorId;
+        var droneId = options.DroneId;
+
+        await Assert.That(actual).IsEqualTo(expected);
+        await Assert.That(droneId).StartsWith(dronePrefix);
+    }
+
+    [Test]
     public async ValueTask reports_healthy_while_processing_and_unhealthy_after_stop(CancellationToken ct) {
         // Arrange
         var data        = await Fixture.SeedTestStream(10, ct);
@@ -324,7 +302,92 @@ public class SurgeProcessorTests {
     }
 
     [Test]
-    [NotInParallel]
+    [NotInParallel("exit-code")]
+    public async ValueTask reports_unhealthy_when_the_processor_fails_to_start(CancellationToken ct) {
+        var originalExitCode = Environment.ExitCode;
+
+        try {
+            // Arrange
+            Environment.ExitCode = 0;
+
+            var failure     = new InvalidOperationException(Faker.Lorem.Sentence());
+            var processorId = NewProcessorId();
+
+            var builder = SurgeProcessor.CreateBuilder<FailingProcessor>([], processorId);
+            UseFixtureConnection(builder);
+
+            builder.Services.AddSingleton(new FailingProcessor(failure));
+
+            using var host = builder.Build();
+
+            var health = host.Services.GetRequiredService<HealthCheckService>();
+
+            // Act
+            await host.StartAsync(ct);
+
+            // Assert
+            await Assert.That(() => ProcessorHealth())
+                .EventuallyPasses(status => status.IsEqualTo(HealthStatus.Unhealthy), Within(ct));
+
+            async Task<HealthStatus> ProcessorHealth() {
+                var report = await health.CheckHealthAsync(ct);
+                return report.Entries[processorId].Status;
+            }
+        }
+        finally {
+            Environment.ExitCode = originalExitCode;
+        }
+    }
+
+    [Test]
+    public async ValueTask reports_degraded_while_checkpoints_fail_and_healthy_once_one_commits(CancellationToken ct) {
+        // Arrange
+        var data        = await Fixture.SeedTestStream(10, ct);
+        var processorId = NewProcessorId();
+        var failure     = new InvalidOperationException(Faker.Lorem.Sentence());
+        var failing     = true;
+
+        (HealthStatus Status, Exception? Error) degraded = (HealthStatus.Degraded, failure);
+        (HealthStatus Status, Exception? Error) healthy  = (HealthStatus.Healthy, null);
+
+        var builder = SurgeProcessor.CreateBuilder<TestableRecordProcessor>([], processorId, opts => {
+            Subscribe(opts, data);
+            opts.Checkpoint.Interval = TimeSpan.FromMilliseconds(100);
+        });
+        UseFixtureConnection(builder);
+
+        using var host = builder.Build();
+
+        var processor = host.Services.GetRequiredService<TestableRecordProcessor>();
+        var health    = host.Services.GetRequiredService<HealthCheckService>();
+
+        processor.OnCheckpointHook = _ => Volatile.Read(ref failing) ? throw failure : ValueTask.CompletedTask;
+
+        // Act
+        await host.StartAsync(ct);
+
+        // Assert
+        await Assert.That(() => ProcessorHealth())
+            .EventuallyPasses(actual => actual.IsEqualTo(degraded), Within(ct));
+
+        // Act
+        Volatile.Write(ref failing, false);
+
+        // Assert
+        await Assert.That(() => ProcessorHealth())
+            .EventuallyPasses(actual => actual.IsEqualTo(healthy), Within(ct));
+
+        await host.StopAsync(ct);
+
+        async Task<(HealthStatus Status, Exception? Error)> ProcessorHealth() {
+            var report = await health.CheckHealthAsync(ct);
+            var entry  = report.Entries[processorId];
+            return (entry.Status, entry.Exception?.InnerException);
+        }
+    }
+
+    [Test]
+    [NotInParallel("exit-code")]
     public async ValueTask sets_a_failing_exit_code_when_the_processor_faults(CancellationToken ct) {
         var originalExitCode = Environment.ExitCode;
 
@@ -416,6 +479,47 @@ public class SurgeProcessorTests {
         await Assert.That(processorFactory).IsSameReferenceAs(loggerFactory);
     }
 
+    [Test]
+    [NotInParallel("exit-code")]
+    public async ValueTask stops_gracefully_when_a_handler_observes_the_stopping_token(CancellationToken ct) {
+        var originalExitCode = Environment.ExitCode;
+
+        try {
+            // Arrange
+            Environment.ExitCode = 0;
+
+            var processorId = NewProcessorId();
+            var processor   = new WaitsOnTheStoppingToken();
+
+            var builder = SurgeProcessor.CreateBuilder<WaitsOnTheStoppingToken>([], processorId);
+            UseFixtureConnection(builder);
+
+            builder.Services.AddSingleton(processor);
+
+            using var host = builder.Build();
+
+            var service = host.Services.GetRequiredService<DroneService<WaitsOnTheStoppingToken>>();
+            var drone   = host.Services.GetRequiredService<IDrone>();
+
+            // Act
+            await host.StartAsync(ct);
+            await processor.Connected.Task.WaitAsync(TimeSpan.FromSeconds(5), ct);
+            await host.StopAsync(ct);
+
+            // Assert
+            var faulted  = service.ExecuteTask is { IsFaulted: true };
+            var exitCode = Environment.ExitCode;
+            var status   = drone.Status;
+
+            await Assert.That(faulted).IsFalse();
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(status).IsEqualTo(DroneStatus.Stopped);
+        }
+        finally {
+            Environment.ExitCode = originalExitCode;
+        }
+    }
+
     string NewProcessorId() => Faker.Random.AlphaNumeric(12);
 
     void UseFixtureConnection(IHostApplicationBuilder builder) =>
@@ -435,6 +539,18 @@ public class SurgeProcessorTests {
 
     static EventuallyOptions Within(CancellationToken ct) =>
         new() { Timeout = TimeSpan.FromSeconds(5), CancellationToken = ct };
+
+    sealed class WaitsOnTheStoppingToken : IRecordProcessor {
+        public TaskCompletionSource Connected { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
+
+        async ValueTask IProcessor.OnConnected(ConnectedContext context) {
+            Connected.TrySetResult();
+
+            await Task.Delay(Timeout.Infinite, context.CancellationToken);
+        }
+    }
 
     sealed class FailingProcessor(Exception failure) : IRecordProcessor {
         public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
