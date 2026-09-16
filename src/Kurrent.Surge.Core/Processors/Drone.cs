@@ -118,55 +118,58 @@ sealed class Drone : IDrone {
         var initialize = DroneContext.ForInitialize(
             partitions, Options.Subscription.InitialPosition, Options.Subscription.StartPosition);
 
-        await _dispatcher.OnInitialize(initialize).ConfigureAwait(false);
-
-        // The checkpointer resolves the start: load committed, fold the initial-position fallback across owned
-        // partitions, reset the store when an explicit start overrides, and seed the tracker. The explicit start
-        // is a log position only — the runtime orders by log position and the client fills stream/revision
-        // currency lazily at subscribe for stream-targeted filters, so nothing to complete here.
-        // A checkpoint owner has already done all of that against its own storage, including honouring the
-        // explicit start; the checkpointer takes its positions and never touches the store.
-        RecordPosition[] startPositions;
-
-        if (initialize.OwnedCheckpoints is { } owned) {
-            _checkpointer.InitializeOwned(owned, stoppingToken);
-            startPositions = owned;
-        }
-        else {
-            startPositions = await _checkpointer
-                .Initialize(partitions, Options.Subscription.InitialPosition, Options.Subscription.StartPosition, stoppingToken)
-                .ConfigureAwait(false);
-        }
-
-        // Hand the resume point to progress as well: it is the baseline every at-risk measurement is
-        // taken from, and without it nothing at risk is measurable until the first checkpoint.
-        _progress.Initialize(startPositions);
-
-        // The data source is feed-only: it subscribes from the least-advanced start, tags partitions, and prunes
-        // the caught-up prefix against the floors these positions carry — so the Run loop below sees only new
-        // records. It writes to the channel and completes it when done (faulting it on failure). Never throws.
-        _ = _dataSource.Connect(_channel.Writer, startPositions, stoppingToken);
-
-        // Optional source-lag probe (opt-in). It reads the readable log head on a fixed cadence —
-        // the only way a gRPC client learns the head moved ahead — and reports the lag gauges.
-        // Always an unfiltered head read; a filtered backward read would scan the whole log.
-        if (Options.TrackSourceLag) {
-            _sourceLagProbe = new(
-                readHead: ct => _streams.InspectRecord(LogPosition.Latest, skipDecoding: true, ct),
-                snapshot: () => Progress,
-                onSample: (lagBytes, lagSeconds) =>
-                    _observers.SourceLagSampled(
-                        new(_info, lagBytes, lagSeconds, _timeProvider.GetUtcNow())),
-                timeProvider: _timeProvider,
-                refreshInterval: Options.SourceLagRefreshInterval);
-
-            _sourceLagProbe.Start(stoppingToken);
-        }
-
         Exception? fatalError = null;
 
         try {
+            await _dispatcher.OnInitialize(initialize).ConfigureAwait(false);
+
+            // The checkpointer resolves the start: load committed, fold the initial-position fallback across owned
+            // partitions, reset the store when an explicit start overrides, and seed the tracker. The explicit start
+            // is a log position only — the runtime orders by log position and the client fills stream/revision
+            // currency lazily at subscribe for stream-targeted filters, so nothing to complete here.
+            // A checkpoint owner has already done all of that against its own storage, including honouring the
+            // explicit start; the checkpointer takes its positions and never touches the store.
+            RecordPosition[] startPositions;
+
+            if (initialize.OwnedCheckpoints is { } owned) {
+                _checkpointer.InitializeOwned(owned, stoppingToken);
+                startPositions = owned;
+            }
+            else {
+                startPositions = await _checkpointer
+                    .Initialize(partitions, Options.Subscription.InitialPosition, Options.Subscription.StartPosition, stoppingToken)
+                    .ConfigureAwait(false);
+            }
+
+            // Hand the resume point to progress as well: it is the baseline every at-risk measurement is
+            // taken from, and without it nothing at risk is measurable until the first checkpoint.
+            _progress.Initialize(startPositions);
+
+            // The data source is feed-only: it subscribes from the least-advanced start, tags partitions, and prunes
+            // the caught-up prefix against the floors these positions carry — so the Run loop below sees only new
+            // records. It writes to the channel and completes it when done (faulting it on failure). Never throws.
+            _ = _dataSource.Connect(_channel.Writer, startPositions, stoppingToken);
+
+            // Optional source-lag probe (opt-in). It reads the readable log head on a fixed cadence —
+            // the only way a gRPC client learns the head moved ahead — and reports the lag gauges.
+            // Always an unfiltered head read; a filtered backward read would scan the whole log.
+            if (Options.TrackSourceLag) {
+                _sourceLagProbe = new(
+                    readHead: ct => _streams.InspectRecord(LogPosition.Latest, skipDecoding: true, ct),
+                    snapshot: () => Progress,
+                    onSample: (lagBytes, lagSeconds) =>
+                        _observers.SourceLagSampled(
+                            new(_info, lagBytes, lagSeconds, _timeProvider.GetUtcNow())),
+                    timeProvider: _timeProvider,
+                    refreshInterval: Options.SourceLagRefreshInterval);
+
+                _sourceLagProbe.Start(stoppingToken);
+            }
+
             await Run(partitions).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) {
+            // A stop, never a failure: the shutdown below runs with no error, so the host exits 0.
         }
         catch (ChannelClosedException ex) {
             fatalError = ex.InnerException;

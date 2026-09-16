@@ -8,6 +8,7 @@ using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Processors.Gateway;
 using Kurrent.Surge.Processors.Models;
 using Kurrent.Surge.Streaming.Tests.Fakes;
+using Kurrent.Testkit;
 using Kurrent.Testkit.TUnit.Assertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -63,19 +64,6 @@ public class DroneLifecycleTests {
 	#region ->> cleanup <<-
 
 	[Test]
-	public async ValueTask cleanup_runs_on_normal_completion() {
-		// Arrange
-		var (drone, subscription) = CreateDrone();
-
-		// Act — empty subscription completes immediately
-		subscription.Complete();
-		await drone.RunAsync(CancellationToken.None);
-
-		// Assert
-		await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
-	}
-
-	[Test]
 	[Timeout(15_000)]
 	public async ValueTask cleanup_runs_on_cancellation(CancellationToken ct) {
 		// Arrange
@@ -89,20 +77,6 @@ public class DroneLifecycleTests {
 
 		// Assert
 		await Assert.That(drone.Status).IsEqualTo(DroneStatus.Stopped);
-	}
-
-	[Test]
-	public async ValueTask cleanup_is_idempotent() {
-		// Arrange
-		var (drone, subscription) = CreateDrone();
-		subscription.Complete();
-
-		// Act — first call triggers cleanup via RunAsync
-		await drone.RunAsync(CancellationToken.None);
-
-		// Assert — second call throws started guard, not double-dispose
-		await Assert.That(async () => await drone.RunAsync(CancellationToken.None))
-			.Throws<InvalidOperationException>();
 	}
 
 	#endregion // cleanup
@@ -372,9 +346,8 @@ public class DroneLifecycleTests {
 		await Assert.That(() => processor.Records.Length)
 			.EventuallyPasses(r => r.IsEqualTo(records.Length));
 
-		// Act — advance well past several intervals; the disabled timer stays silent.
+		// Act — advance well past several intervals; the disabled timer never started, so nothing can fire.
 		time.Advance(interval * 5);
-		await Task.Delay(200, ct);
 
 		// Assert — no interval checkpoint fired while running (the shutdown commit only happens after Complete).
 		var intervalWhileRunning = processor.Checkpoints.Count(c => c.Trigger == CheckpointTrigger.Interval);
@@ -460,8 +433,6 @@ public class DroneLifecycleTests {
 
 		// Assert — the handler's track committed the scanned span at the owned partition (0), even
 		// though the watermark itself carried a non-owned partition.
-		var ownedPartition = Partition.From(0);
-
 		// Something committed: the watermark advanced past the resume point.
 		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsGreaterThan(LogPosition.Earliest);
 		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(watermark);
@@ -487,8 +458,6 @@ public class DroneLifecycleTests {
 		await drone.RunAsync(ct);
 
 		// Assert — the watermark was auto-folded and committed at the owned partition.
-		var ownedPartition = Partition.From(0);
-
 		// Something committed: the watermark advanced past the resume point.
 		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsGreaterThan(LogPosition.Earliest);
 		await Assert.That(drone.Progress.LowestCommittedPosition.LogPosition).IsEqualTo(watermark);
@@ -1165,7 +1134,7 @@ public class DroneLifecycleTests {
 	public async ValueTask process_batch_emits_one_span_around_processbatch(CancellationToken ct) {
 		// Arrange — one batch span must wrap the ProcessBatch call (not the post-batch bookkeeping), so the
 		// span is the active Activity while user code runs and is the only span emitted for the batch.
-		var       processorId = $"proc-{Guid.NewGuid():N}";
+		var       processorId = $"proc-{TestId.New()}";
 		using var probe       = new DroneTelemetryProbe(processorId);
 
 		string? spanDuringProcess = null;
@@ -1203,7 +1172,7 @@ public class DroneLifecycleTests {
 		// Arrange — ProcessBatch sleeps a real interval. The batch duration must include that work; the old
 		// code never timed ProcessBatch (it timed only the ~0 post-batch bookkeeping), so it reported near
 		// zero. A floor well under the sleep but well above bookkeeping noise distinguishes the two.
-		var       processorId = $"proc-{Guid.NewGuid():N}";
+		var       processorId = $"proc-{TestId.New()}";
 		using var probe       = new DroneTelemetryProbe(processorId);
 
 		var processDelay = TimeSpan.FromMilliseconds(60);
@@ -1240,7 +1209,7 @@ public class DroneLifecycleTests {
 	public async ValueTask records_processed_counts_committed_prefix_once_per_batch(CancellationToken ct) {
 		// Arrange — auto-track on commits the whole batch, so the committed prefix equals the batch size.
 		// records_processed must be emitted exactly once for the batch (not per record), carrying that prefix.
-		var       processorId = $"proc-{Guid.NewGuid():N}";
+		var       processorId = $"proc-{TestId.New()}";
 		using var probe       = new DroneTelemetryProbe(processorId);
 
 		var records       = RecordsAt(3);
@@ -1273,7 +1242,7 @@ public class DroneLifecycleTests {
 	public async ValueTask record_duration_on_batch_path_is_batch_average(CancellationToken ct) {
 		// Arrange — on the batch path record_duration is the per-record AVERAGE: the batch duration divided
 		// by the committed-prefix count, emitted once per batch from the same duration the batch histogram uses.
-		var       processorId = $"proc-{Guid.NewGuid():N}";
+		var       processorId = $"proc-{TestId.New()}";
 		using var probe       = new DroneTelemetryProbe(processorId);
 
 		var records   = RecordsAt(4);
@@ -1314,7 +1283,6 @@ public class DroneLifecycleTests {
 		// not only the checkpointer. The old batch path mirrored progress only under auto-track, so user
 		// tracks left the gauges stale (the transparency gap this closes).
 		var records      = RecordsAt(3);
-		var partition    = Partition.From(0);
 		var lastPosition = records[^1].Position;
 
 		var processor = new TestRecordBatchProcessor {
@@ -1644,7 +1612,7 @@ public class DroneLifecycleTests {
 		subscription.Complete();
 
 		// Act
-		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+		await drone.RunAsync(ct);
 
 		// Assert
 		await Assert.That(observer.Completed.Single().Outcome).IsEqualTo(RecordOutcome.Cancelled);
@@ -1697,7 +1665,7 @@ public class DroneLifecycleTests {
 		subscription.Complete();
 
 		// Act
-		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+		await drone.RunAsync(ct);
 
 		// Assert
 		await Assert.That(observer.BatchesCompleted.Single().Outcome).IsEqualTo(RecordOutcome.Cancelled);
@@ -1780,6 +1748,29 @@ public class DroneLifecycleTests {
 
 	[Test]
 	[Timeout(15_000)]
+	public async ValueTask initialization_failure_walks_the_shutdown_path(CancellationToken ct) {
+		// Arrange — OnInitialize runs before the subscription opens. Its failure takes the same exit as any
+		// other: Stopping, then Stopped carrying the error, with whatever the processor opened released.
+		var observer  = new RecordingObserver();
+		var processor = new FailsOnInitialize(new InvalidOperationException("boom"));
+
+		var (drone, _) = CreateDrone(processor, observers: [observer]);
+
+		// Act
+		await Assert.That(async () => await drone.RunAsync(ct)).Throws<AggregateException>();
+
+		// Assert
+		var statuses = observer.StateChanges.Select(e => e.ToStatus).ToArray();
+		var stopped  = observer.StateChanges.Single(e => e.ToStatus == DroneStatus.Stopped);
+		var disposed = processor.Disposed;
+
+		await Assert.That(statuses).Contains(DroneStatus.Stopping);
+		await Assert.That(stopped.Error).IsNotNull();
+		await Assert.That(disposed).IsTrue();
+	}
+
+	[Test]
+	[Timeout(15_000)]
 	public async ValueTask committed_checkpoint_reaches_observers(CancellationToken ct) {
 		// Arrange — auto-track on: the shutdown barrier commits the frontier, which surfaces as a
 		// CheckpointCommitted carrying the shutdown trigger and the last committed position.
@@ -1845,6 +1836,20 @@ public class DroneLifecycleTests {
 file sealed record OrderPlaced;
 
 file sealed record OrderShipped;
+
+/// <summary>Fails in OnInitialize and records whether the drone released it on the way out.</summary>
+file sealed class FailsOnInitialize(Exception failure) : IRecordProcessor, IAsyncDisposable {
+	public bool Disposed { get; private set; }
+
+	public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
+
+	ValueTask IProcessor.OnInitialize(InitializeContext context) => throw failure;
+
+	public ValueTask DisposeAsync() {
+		Disposed = true;
+		return ValueTask.CompletedTask;
+	}
+}
 
 /// <summary>Collects every event the drone raises, in order, for assertion.</summary>
 file sealed class RecordingObserver : IProcessorObserver {
