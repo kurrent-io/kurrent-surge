@@ -1,0 +1,71 @@
+/* Section furniture for the v2 landing page, held in one place.
+ *
+ * Each component used to declare these four rules itself. That cost a real bug.
+ * The eyebrow rendered at the wrong weight, and the fix had to be applied once
+ * per component. One component was missed. A new section now inherits the
+ * furniture instead of carrying a copy that can drift.
+ *
+ * Imported by src/content/docs/home-v2.mdx, the same way index.astro imports
+ * home.css. It is not in customCss, so it never loads on a docs page.
+ *
+ * Every selector leads with `.home-v2` for specificity, not for scoping. The
+ * page sits inside Starlight's content column, where `.sl-markdown-content
+ * :is(p, li)` is (0,1,1) and `.content-panel h2` is (0,1,1). A lone class loses
+ * to both. `.home-v2 .eyebrow` at (0,2,0) and `.home-v2 .wrap h2` at (0,2,1)
+ * win. Astro's own scope hash compiles to `:where()` and is worth nothing, which
+ * is why the component copies needed the same treatment.
+ */
+
+/* The reading column. Every section centres its content on these margins while
+   the section itself paints edge to edge. */
+.home-v2 .wrap {
+  position: relative;
+  max-width: 82rem;
+  margin-inline: auto;
+  padding-inline: 2rem;
+}
+
+/* home.css's `.sect__lbl`, matched property for property so both landing pages
+   set the same label at every width. */
+.home-v2 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  font-family: var(--font-eyebrow);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.home-v2 .eyebrow::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  flex: 0 0 auto;
+  background: var(--accent);
+}
+
+/* The section headline. home.css's `.sect__h` formula, copied rather than
+   approximated, so a heading on either landing page is the same size at the
+   same width. The hero's wordmark is an h1 and keeps its own rule. */
+.home-v2 .wrap h2 {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: clamp(28px, 3.6vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -0.018em;
+  color: var(--fg);
+  margin: 14px 0 0;
+  text-wrap: balance;
+}
+
+/* The accented half of a headline carries no extra weight. The Inverse Weight
+   Rule holds, and the hue does the work. */
+.home-v2 .wrap h2 b {
+  font-weight: 300;
+  color: var(--accent);
+}

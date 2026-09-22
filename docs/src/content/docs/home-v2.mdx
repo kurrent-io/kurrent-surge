@@ -4,6 +4,12 @@ description: A second landing page, built inside the content collection so it in
 template: splash
 editUrl: false
 pagefind: false
+# Docs-page footer chrome. A landing page has no "last updated" and nothing to
+# page to. With the content-width cap released these render full-bleed, and the
+# date right-aligns to the viewport edge rather than the reading column.
+lastUpdated: false
+prev: false
+next: false
 # A second landing page carrying the same copy as / would compete with it in
 # search. Excluded here rather than through the sitemap integration, which has
 # no per-page seam and would mean reconfiguring it for the whole site.
@@ -14,16 +20,23 @@ head:
       content: noindex, nofollow
 ---
 
+{/* Section furniture shared by all three components. Imported here rather than
+    added to customCss, so it never loads on a docs page. index.astro imports
+    home.css the same way for the v1 landing. */}
+import '../../styles/home-v2.css';
+
 import MotionField from '../../components/MotionField.astro';
 import HomeHero from '../../components/home/HomeHero.astro';
+import HomeCode from '../../components/home/HomeCode.astro';
 import HomeCapabilities from '../../components/home/HomeCapabilities.astro';
 
-{/* Deep Arc — the same Three.js field the current landing page runs. It is
+{/* Deep Arc. This is the same Three.js field the current landing page runs. It is
     fixed to the viewport and finds the hero by `.hero`, so it sits behind
     every section rather than inside one. */}
 <MotionField />
 
 <div class="home-v2 not-content">
   <HomeHero />
+  <HomeCode />
   <HomeCapabilities />
 </div>

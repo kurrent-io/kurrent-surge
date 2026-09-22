@@ -2,14 +2,17 @@
 import { Icon } from '@astrojs/starlight/components';
 import type { StarlightIcon } from '@astrojs/starlight/types';
 /**
- * The six capabilities, as one ruled block.
+ * The capability lattice.
+ *
+ * The cells are indexed. The heading is not. The SDK has more capability than
+ * the six cells shown, so the heading must not put a count on it.
  *
  * A lattice rather than cards: shared 1px borders at zero gap and zero radius,
  * so the group reads as one table. `grid-auto-rows: 1fr` keeps every rectangle
  * identical regardless of what it holds.
  */
 
-type Card = {
+type Cell = {
   num: string;
   label: string;
   title: string;
@@ -21,12 +24,12 @@ type Card = {
   expr?: boolean;
 };
 
-const cards: Card[] = [
+const cells: Cell[] = [
   {
     num: '01',
     label: 'Hosted runtime',
     title: 'Processing, already wired',
-    body: 'Write the handler. The runtime owns the subscription, the checkpoints and the shutdown — and gives them back on request.',
+    body: 'Write the handler. The runtime owns the subscription, the checkpoints and the shutdown, and gives them back on request.',
     ok: 'Nothing to wire. Nothing to remember.',
     icon: 'download',
     link: { href: '/kurrent-surge/processors/', text: 'Read the guide' },
@@ -39,7 +42,6 @@ const cards: Card[] = [
     ok: 'JSON, Protobuf and Avro. Same stream.',
     icon: 'comment',
     link: { href: '/kurrent-surge/schema/', text: 'See the schema layer' },
-    marks: true,
   },
   {
     num: '03',
@@ -84,26 +86,16 @@ const cards: Card[] = [
 <section class="caps not-content">
   <div class="wrap">
     <p class="eyebrow">What you get</p>
-    <h2>Six capabilities, <b>one package</b>.</h2>
+    <h2>All of this. <b>One package.</b></h2>
 
-    <ul class="setup">
-      <li>
-        <Icon name="approve-check-circle" />
-        <span>KurrentDB stores an ordered log, not a set of queues.</span>
-      </li>
-      <li>
-        <Icon name="approve-check-circle" />
-        <span>Most clients hand you bytes and a callback.</span>
-      </li>
-      <li>
-        <Icon name="approve-check-circle" />
-        <span>Surge hands you your own messages, and runs the loop around them.</span>
-      </li>
-    </ul>
+    <p class="setup">
+      KurrentDB stores an ordered log, not a set of queues. Most clients stop at moving bytes
+      across it.
+    </p>
 
     <div class="block">
       <div class="lattice">
-        {cards.map((c) => (
+        {cells.map((c) => (
           <div class="cell">
             <div class="cell__top">
               <span class="num">{c.num}</span>
@@ -113,6 +105,10 @@ const cards: Card[] = [
             <h3>{c.title}</h3>
             <p class="body">{c.body}</p>
 
+            {/* Parked, not dead. No cell sets `marks` today, because the three
+                format logos did not sit well in a cell. The artwork is kept here
+                rather than re-sourced later. Set `marks: true` on a cell to
+                bring them back. */}
             {c.marks && (
               <div class="marks">
                 <svg viewBox="0 0 32 32" aria-label="JSON"><path fill="#f5de19" d="M4.014 14.976a2.5 2.5 0 0 0 1.567-.518a2.38 2.38 0 0 0 .805-1.358a15.3 15.3 0 0 0 .214-2.944q.012-2.085.075-2.747a5.2 5.2 0 0 1 .418-1.686a3 3 0 0 1 .755-1.018A3.05 3.05 0 0 1 9 4.125A6.8 6.8 0 0 1 10.544 4h.7v1.96h-.387a2.34 2.34 0 0 0-1.723.468a3.4 3.4 0 0 0-.425 2.092a36 36 0 0 1-.137 4.133a4.7 4.7 0 0 1-.768 2.06A4.6 4.6 0 0 1 6.1 16a3.8 3.8 0 0 1 1.992 1.754a8.9 8.9 0 0 1 .618 3.865q0 2.435.05 2.9a1.76 1.76 0 0 0 .504 1.181a2.64 2.64 0 0 0 1.592.337h.387V28h-.7a5.7 5.7 0 0 1-1.773-.2a2.97 2.97 0 0 1-1.324-.93a3.35 3.35 0 0 1-.681-1.63a24 24 0 0 1-.165-3.234a16.5 16.5 0 0 0-.214-3.106a2.4 2.4 0 0 0-.805-1.361a2.5 2.5 0 0 0-1.567-.524Zm23.972 2.035a2.5 2.5 0 0 0-1.567.524a2.4 2.4 0 0 0-.805 1.361a16.5 16.5 0 0 0-.212 3.109a24 24 0 0 1-.169 3.234a3.35 3.35 0 0 1-.681 1.63a2.97 2.97 0 0 1-1.324.93a5.7 5.7 0 0 1-1.773.2h-.7V26.04h.387a2.64 2.64 0 0 0 1.592-.337a1.76 1.76 0 0 0 .506-1.186q.05-.462.05-2.9a8.9 8.9 0 0 1 .618-3.865A3.8 3.8 0 0 1 25.9 16a4.6 4.6 0 0 1-1.7-1.286a4.7 4.7 0 0 1-.768-2.06a36 36 0 0 1-.137-4.133a3.4 3.4 0 0 0-.425-2.092a2.34 2.34 0 0 0-1.723-.468h-.387V4h.7a6.8 6.8 0 0 1 1.54.125a3.05 3.05 0 0 1 1.149.581a3 3 0 0 1 .755 1.018a5.2 5.2 0 0 1 .418 1.686q.062.662.075 2.747a15.3 15.3 0 0 0 .212 2.947a2.38 2.38 0 0 0 .805 1.355a2.5 2.5 0 0 0 1.567.518Z"/></svg>
@@ -135,63 +131,28 @@ const cards: Card[] = [
 </section>
 
 <style>
-  /* The reading column for this page. Declared per component because Astro
-     scopes styles, and home.css only loads on the old standalone index. */
-  .wrap {
-    max-width: 82rem;
-    margin-inline: auto;
-    padding-inline: 2rem;
-  }
+  /* Section furniture lives in home-v2.css, imported by the page. That file
+     holds `.wrap`, `.eyebrow` and the h2 rule. */
 
   .caps {
     border-top: 1px solid var(--border);
     padding: 64px 0;
   }
 
-  /* home.css's `.sect__lbl`, matched property for property. `.wrap` is carried
-     for specificity: this is a <p>, and surge.css's `.sl-markdown-content
-     :is(p, li)` is (0,1,1), which takes the weight off a lone class. */
-  .wrap .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-    margin: 0;
-    font-family: var(--font-eyebrow);
-    font-size: 12.5px;
-    font-weight: 500;
-    line-height: 1.55;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--fg-dim);
-  }
-  .wrap .eyebrow::before { content: ""; width: 28px; height: 1px; flex: 0 0 auto; background: var(--accent); }
-
-  /* `.caps .wrap` is carried for specificity alone — see the note on the h3
-     below; surge.css styles `.content-panel h2` at (0,1,1). */
-  .caps .wrap h2 {
-    font-family: var(--font-sans);
-    font-weight: 300;
-    font-size: clamp(28px, 3.6vw, 42px);
-    line-height: 1.05;
-    letter-spacing: -0.018em;
-    color: var(--fg);
-    margin: 14px 0 0;
-    text-wrap: balance;
-  }
-  .caps .wrap h2 b { font-weight: 300; color: var(--accent); }
-
-  /* Context, gap, answer — the setup the grid then answers six times. */
-  .setup { list-style: none; margin: 20px 0 0; padding: 0; display: grid; gap: 9px; }
-  /* Same mark as the hero's properties list — one tick, drawn once. */
-  .setup li {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 11px;
-    align-items: baseline;
+  /* Context and gap, in one sentence. This was three ticked list items, which
+     read as three features. Only the first was a claim about the product,
+     and a tick beside "most clients stop at moving bytes" ticks nothing. Prose
+     states what it is: the setup the lattice below answers.
+     `.caps .wrap` is for specificity. surge.css's `.sl-markdown-content
+     :is(p, li)` is (0,1,1) and would take the size off a lone class. */
+  .caps .wrap .setup {
+    margin: 20px 0 0;
     font-size: 18px;
+    line-height: 1.55;
     color: var(--fg-1);
+    max-width: 62ch;
+    text-wrap: pretty;
   }
-  .setup :global(svg) { width: 16px; height: 16px; color: var(--outcome); margin-top: 0.18em; }
 
   .block { border: 1px solid var(--border); margin-top: 34px; }
 
@@ -214,20 +175,21 @@ const cards: Card[] = [
     align-items: flex-start;
     transition: background-color 180ms ease;
   }
-  /* The wash stays on the accent — it is the surface, not the interaction. The
+  /* The wash stays on the accent. It is the surface, not the interaction. The
      three marks that answer the pointer move to --lit. */
   .cell:hover { background: color-mix(in oklab, var(--accent) 5%, var(--bg)); }
   .cell:hover .num { border-color: color-mix(in oklab, var(--lit) 55%, transparent); color: var(--lit); }
   .cell:hover .cell__top :global(svg) { color: var(--lit); }
-  /* The title keeps its own colour on hover. Recolouring the largest type on
-     the card put the accent on five elements at once, and DESIGN.md's One
-     Family Rule has no second hue to spend on it — things are told apart by
-     weight, size and position instead. The hover now moves one accent, onto
+  /* The title keeps its own colour on hover. Recolouring the largest type in a
+     cell put the accent on five elements at once. DESIGN.md's One Family Rule
+     has no second hue to spend on it. Things are told apart by weight, size and
+     position instead. The hover now moves one accent, onto
      the link, which is the thing the pointer is heading for. */
   .lattice .cell:hover .link { color: var(--lit); }
 
-  /* align-self:stretch — the cell is a flex column with align-items:flex-start,
-     which would otherwise shrink this row and strand the icon beside the number. */
+  /* align-self:stretch is required. The cell is a flex column with
+     align-items:flex-start, which would otherwise shrink this row and strand
+     the icon beside the number. */
   .cell__top {
     display: flex;
     align-items: center;
@@ -263,8 +225,8 @@ const cards: Card[] = [
   /* `.lattice .cell` is carried for specificity alone. surge.css styles
      `.sl-markdown-content h3` at (0,1,1) with its own margins, weight and
      line-height, and Astro compiles a component's scope hash as `:where()`,
-     which counts for nothing — a bare `h3` here is (0,0,1) and loses all four
-     properties to it. */
+     which counts for nothing. A bare `h3` here is (0,0,1) and loses all four
+     properties to that rule. */
   .lattice .cell h3 {
     font-family: var(--font-sans);
     font-weight: 400;
@@ -304,9 +266,9 @@ const cards: Card[] = [
   }
   .ok::before { content: "\2022"; position: absolute; left: 0; top: 0; }
 
-  /* home.css's `.cell__link`, copied — the same device on both landing pages.
-     The vertical padding is the hit area, not the look: at 12px mono the text box
-     is 21px tall, under the 24px WCAG 2.2 target-size floor. The margin drops by
+  /* home.css's `.cell__link`, copied. The same device serves both landing pages.
+     The vertical padding is the hit area, not the look. At 12px mono the text
+     box is 21px tall. That is under the 24px WCAG 2.2 target-size floor. The margin drops by
      the same 7px the padding adds, so the text sits where it did before. */
   .lattice .cell .link {
     margin-top: 13px;
@@ -319,7 +281,7 @@ const cards: Card[] = [
     border-bottom: 1px dotted transparent;
     transition: color 160ms ease, border-color 160ms ease;
   }
-  /* Mix, Never Match — the underline is a mix of --lit, not a literal. */
+  /* Mix, Never Match: the underline is a mix of --lit, not a literal. */
   .lattice .cell .link:hover {
     color: var(--lit);
     border-bottom-color: color-mix(in oklab, var(--lit) 45%, transparent);

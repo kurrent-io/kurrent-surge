@@ -6,8 +6,9 @@
  *
  * The install line renders through Starlight's own Code component so it picks
  * up the site's Expressive Code frame, syntax theme and copy button. A bare
- * <code> element inherits surge.css's inline-code chip instead — a tinted
- * background and a 4px radius that made it read as a badge, not a terminal.
+ * <code> element inherits surge.css's inline-code chip instead. That chip has a
+ * tinted background and a 4px radius, which made it read as a badge rather than
+ * a terminal.
  */
 import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
 ---
@@ -16,12 +17,13 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
   <div class="wrap">
     <div class="top">
       <div>
-        <p class="eyebrow">Open source &middot; .NET 10</p>
+        {/* No eyebrow above the wordmark: index.astro's hero opens on the h1
+            too, and at 112px it introduces itself. */}
         <h1>Kurrent <b>Surge</b></h1>
         <p class="lede">Append <em>anything</em>. Process <em>everything</em>.</p>
         <p class="sub">
           The .NET SDK for KurrentDB. Append across streams, process what arrives, and evolve
-          your events &mdash; without writing the machinery around any of it.
+          your events, without writing the machinery around any of it.
         </p>
 
         <ul class="props">
@@ -35,7 +37,7 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
           </li>
           <li>
             <Icon name="approve-check-circle" />
-            <span>No reflection anywhere &mdash; source generators instead</span>
+            <span>No reflection anywhere. Source generators instead</span>
           </li>
         </ul>
 
@@ -55,18 +57,13 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
 </section>
 
 <style>
-  /* The reading column for this page. Declared per component because Astro
-     scopes styles, and home.css only loads on the old standalone index. */
-  .wrap {
-    max-width: 82rem;
-    margin-inline: auto;
-    padding-inline: 2rem;
-  }
+  /* Section furniture lives in home-v2.css, imported by the page. That file
+     holds `.wrap`, `.eyebrow` and the h2 rule. */
 
   /* A landing page is full-bleed: every section paints edge to edge and only
      .wrap holds the reading column, centred on its own auto margins. Starlight
-     caps .sl-container at --sl-content-width instead, and surge.css then pins
-     --sl-content-margin-inline to 0 on .main-pane so the docs column sits
+     caps .sl-container at --sl-content-width instead. surge.css then pins
+     --sl-content-margin-inline to 0 on .main-pane, so the docs column sits
      beside the navigation rather than centring. Together those left the page
      hard against the left edge with the slack on the right, and clipped the
      section rules short of the viewport. Releasing the cap here restores both.
@@ -79,11 +76,11 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
   :global(.home-v2 > section) { position: relative; z-index: 1; }
 
   /* ContentPanel and main carry their own padding, and the inline half is not
-     symmetric here — measured 47px left against 17px right. Zeroing it lets
+     symmetric here. It measured 47px left against 17px right. Zeroing it lets
      .wrap centre on its own margins. The block half pushed the hero 43px below
-     the fixed header, and because `.hero` clips its accent wash with
-     `overflow: hidden`, that gap exposed the wash's top edge as a hard-edged
-     band instead of letting it start behind the header. */
+     the fixed header. `.hero` clips its accent wash with `overflow: hidden`, so
+     that gap exposed the wash's top edge as a hard band. Without the gap the
+     wash starts behind the header. */
   :global(:root:has(.home-v2) main) { padding: 0; }
   :global(:root:has(.home-v2) .content-panel) { padding: 0; border: 0; }
 
@@ -93,30 +90,53 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
 
   /* Starlight's markdown sibling spacing puts 1rem above this wrapper. Its
      `.not-content` escape hatch is written as `:where(.not-content *)`, which
-     covers descendants — and this element carries the class itself, so it is
-     never matched by its own exemption. MotionField renders before it, which
+     covers descendants. This element carries the class itself, so its own
+     exemption never matches it. MotionField renders before it, which
      is what makes it a sibling at all. */
   :global(.home-v2) { margin-top: 0; }
 
+  /* Starlight's page footer holds the last-updated date, the pagination links
+     and the edit link. The frontmatter turns all three off, but the element
+     still renders. It is empty, 77px tall with a 25.5px margin, and it sits
+     between the last section and the copyright. It is a sibling of `.site-footer`, not a parent,
+     so hiding it leaves the copyright alone. */
+  :global(:root:has(.home-v2) main footer.sl-flex) { display: none; }
+
   /* A landing page carries no site furniture. The footer's community links,
-     preference controls and build SHA are docs chrome; only the copyright
+     preference controls and build SHA are docs chrome. Only the copyright
      stays, centred. Scoped to this route so every docs page keeps its footer. */
   :global(:root:has(.home-v2) .site-footer__utility),
   :global(:root:has(.home-v2) .site-footer__commit) { display: none; }
+
+  /* 34px of margin separating the footer from the docs content above it. With
+     the utility panel hidden there is nothing left to separate, so it only
+     pushes the copyright away from the last section. */
+  :global(:root:has(.home-v2) .site-footer) { margin-top: 0; }
   :global(:root:has(.home-v2) .site-footer__bottom) {
+    /* This row is sized for the full docs footer. It carries a 55px min-height
+       and 17px of padding to clear the utility panel above it. With that panel hidden the
+       copyright is the only thing in it, so the reserved height reads as a void
+       under the last section. */
+    min-height: 0;
+    padding: 22px 0 26px;
     justify-content: center;
-    /* Footer.astro pushes the copyright right with `margin-inline-start: auto`,
-       which consumes every pixel of free space and leaves justify-content
-       nothing to distribute. The margin has to go before centring can apply. */
+    /* Both axes, because Footer.astro flips this row to `flex-direction: column;
+       align-items: flex-start` under a container query. In column mode
+       justify-content runs vertically and centres nothing, which left the
+       copyright hard against the left edge at 390px. */
+    align-items: center;
     border-top: 0;
   }
+  /* Footer.astro pushes the copyright right with `margin-inline-start: auto`.
+     That margin takes every pixel of free space, so justify-content has nothing
+     left to distribute. The margin goes first, then centring applies. */
   :global(:root:has(.home-v2) .site-footer__copyright) { margin-inline-start: 0; }
 
   /* Starlight renders a page title above the content. Here the hero's
      wordmark IS the title, so the framework's copy is suppressed rather than
-     shown twice. Setting `hero:` in frontmatter would be the other route —
-     it moves the <h1> into Starlight's own Hero — but that component cannot
-     do this two-column layout with a code block beside the copy. */
+     shown twice. Setting `hero:` in frontmatter is the other route. It moves
+     the <h1> into Starlight's own Hero. That component cannot do this
+     two-column layout with a code block beside the copy. */
   :global(:root:has(.home-v2) .content-panel:first-of-type) { display: none; }
 
   .hero {
@@ -139,7 +159,6 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
       color-mix(in oklab, var(--accent) 6%, transparent) 0%, transparent 70%);
   }
 
-  .wrap { position: relative; }
   .top {
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
@@ -152,35 +171,13 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
      A zero floor lets the frame scroll inside itself instead. */
   @media (max-width: 61rem) { .top { grid-template-columns: minmax(0, 1fr); gap: 34px; } }
 
-  /* home.css's `.sect__lbl`, matched property for property. `.wrap` is carried
-     for specificity: this is a <p>, and surge.css's `.sl-markdown-content
-     :is(p, li)` is (0,1,1), which takes the weight off a lone class. */
-  .wrap .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-    margin: 0;
-    font-family: var(--font-eyebrow);
-    font-size: 12.5px;
-    font-weight: 500;
-    line-height: 1.55;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--fg-dim);
-  }
-  .wrap .eyebrow::before {
-    content: "";
-    width: 28px;
-    height: 1px;
-    flex: 0 0 auto;
-    background: var(--accent);
-  }
-
   /* Type below is home.css's own scale, copied formula for formula so both
-     landing pages set the same sizes at every width — not matched at one. */
-  /* `.wrap .top` is carried for specificity alone — surge.css styles headings
-     through `.content-panel h1/h2`, and Astro's scope hash is `:where()`, so a
-     bare element selector here loses its weight, leading and margins to it. */
+     landing pages set the same sizes at every width. The formula is copied,
+     not matched at a single width. */
+  /* `.wrap .top` is carried for specificity alone. surge.css styles headings
+     through `.content-panel h1/h2`, and Astro compiles a scope hash as
+     `:where()`. A bare element selector here loses its weight, leading and
+     margins to that rule. */
   .wrap .top h1 {
     font-family: var(--font-sans);
     font-weight: 300;
@@ -207,12 +204,15 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
 
   /* `.wrap` for specificity: surge.css's `.sl-markdown-content :is(p, li)` is
      (0,1,1) and `:is()` takes its strongest argument, so a lone class loses. */
+  /* No measure cap. --sl-content-width already caps the column, so at full width
+     this paragraph settles at about 71ch. That sits inside the 65 to 75ch body
+     range. The 48ch cap held it to 60ch and stopped it 130px short of the column
+     edge that the buttons and the list below both reach. */
   .wrap .sub {
     font-size: 20px;
     font-weight: 400;
     line-height: 1.55;
     color: var(--fg-1);
-    max-width: 48ch;
     margin: 18px 0 0;
     padding-left: 22px;
     border-left: 2px solid var(--accent);
@@ -232,15 +232,41 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
   }
   .props :global(svg) { width: 16px; height: 16px; color: var(--outcome); margin-top: 0.18em; }
 
-  /* LinkButton brings its own shape and states; these only pull it onto the
-     4px radius and the accent tokens this system uses. */
-  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; padding-left: 20px; }
+  /* LinkButton brings its own shape and states. These rules only pull it onto
+     the 4px radius and the accent tokens this system uses. */
+  /* Three equal tracks spanning the copy column, rather than three
+     content-sized buttons huddled at its left edge. The 20px inset keeps them
+     on the same left edge as the ticks in the list above. */
+  .cta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 26px;
+    padding-left: 20px;
+  }
+  /* Same breakpoint as the hero grid: once the column is the full page width,
+     three tracks would put "Get started" on two lines. */
+  @media (max-width: 61rem) { .cta { grid-template-columns: minmax(0, 1fr); } }
   /* LinkButton marks its variant with a class, not a data attribute, and its
-     primary fills with Starlight's --sl-color-accent — which here resolves to
+     primary fills with Starlight's --sl-color-accent. Here that resolves to
      our bright text stop. White on that measures 1.97:1, so the fill is moved
      onto --accent-fill per the Text/Fill Split Rule. */
-  /* 44px is the touch floor; Starlight's own padding lands the button at 35. */
-  .cta :global(.sl-link-button) { border-radius: 4px; font-size: 15px; min-height: 44px; }
+  /* 44px is the touch floor. Starlight's own padding lands the button at 35. */
+  /* LinkButton is an inline-flex sized to its label. As a grid item it now
+     fills the track, so the label needs centring inside the wider box. */
+  .cta :global(.sl-link-button) {
+    border-radius: 4px;
+    font-size: 15px;
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+    /* Starlight ships a 1rem margin on all four sides, for laying these out in a
+       flex row. A grid subtracts the inline half from the item, which left a
+       213px button in a 230px track and a ragged right edge. The block half adds
+       to the row gap, which made the stacked gap 17+12+17 = 46px. All four sides
+       go. `gap` is the only spacing here. */
+    margin: 0;
+  }
   .cta :global(.sl-link-button.primary) {
     background: var(--accent-fill);
     border-color: var(--accent-fill);
@@ -255,7 +281,7 @@ import { Code, Icon, LinkButton } from '@astrojs/starlight/components';
   .install :global(.expressive-code) { margin: 0; }
 
   /* The block label. home.css uses the same uppercase device without the accent
-     rule for the labels that sit on a block rather than open a section — INSTALL
+     rule for the labels that sit on a block rather than open a section. INSTALL
      and WHAT A PROCESSOR DOES BY DEFAULT both drop it. `.wrap` is for
      specificity, as with every other <p> here. */
   .wrap .lbl {

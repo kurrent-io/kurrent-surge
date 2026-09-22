@@ -1,0 +1,220 @@
+---
+/**
+ * The two halves of an integration, side by side.
+ *
+ * Not tabs. These are two halves of one stream, and a tab hides one of them.
+ *
+ * Both programs are verified against the runnable examples rather than written
+ * for the page. The producer follows examples/streams/Streams.QuickStart. The
+ * consumer follows examples/processors/Processor.QuickStart. The processor class
+ * sits after the top-level statements because C# requires that order, and the
+ * example does the same.
+ *
+ * Both halves open the same way, with one host and one AddKurrentSurge call. The
+ * only difference between producing and consuming is what each one declares
+ * inside that call.
+ *
+ * The domain is a bike share because two streams in one transaction is the
+ * honest shape there. The bike's history and the rider's history both advance.
+ * Land only the unlock and a bike is loose with no rider against it. Land only
+ * the ride and a rider pays for a bike they never got.
+ *
+ * Lines stay under about 66 characters, so neither frame scrolls sideways from
+ * 768px up. A scrollbar on a sample that claims to be small argues against the
+ * claim. Below 768px the frames do scroll, which is what the hero's install
+ * terminal already does. Expressive Code's word wrap is off in this project. A
+ * `wrap` prop and `meta="wrap"` were both tried, and both measured as no-ops.
+ */
+import { Code } from '@astrojs/starlight/components';
+
+// The attribute scans the namespace of the assembly that declares it. It
+// therefore belongs on the library that holds the records, not on either
+// program. Both ends pick the catalog up through the assembly's own provider.
+const shared = `[assembly: MessageCatalog("BikeShare.Rides", AlwaysActive = true)]
+
+namespace BikeShare.Rides;
+
+public record BikeUnlocked(string BikeId, string RiderId);
+public record RideStarted(string RiderId, string BikeId);`;
+
+const producer = `var builder = Host.CreateApplicationBuilder(args);
+builder.AddKurrentSurge("kurrentdb");
+
+using var host = builder.Build();
+var client = host.Services.GetRequiredService<KurrentClient>();
+
+var records = new[] {
+    AppendRecord.Create(new BikeUnlocked("991", "alice"),
+        r => r with { Stream = "bike-991" }),
+    AppendRecord.Create(new RideStarted("alice", "991"),
+        r => r with { Stream = "rider-alice" })
+};
+
+await client.Streams.AppendRecords(records, default);`;
+
+const consumer = `var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddKurrentSurge("kurrentdb", surge => surge
+    .AddProcessor(new FleetWatch(), opts =>
+        opts.Subscription.Filter = RecordFilter.ByCategory("bike")));
+
+await builder.Build().RunAsync();
+
+sealed class FleetWatch : MessageProcessor {
+    public FleetWatch() =>
+        Process<BikeUnlocked>((ride, ctx) =>
+            ctx.Logger.LogInformation("Bike {Id} is out", ride.BikeId));
+}`;
+
+const halves = [
+  {
+    label: 'Produce',
+    caption: 'One unlock, two streams. Both land, or a bike goes missing.',
+    title: 'Producer/Program.cs',
+    code: producer,
+  },
+  {
+    label: 'Consume',
+    caption: 'A typed handler on the same records. The runtime owns the loop.',
+    title: 'Consumer/Program.cs',
+    code: consumer,
+  },
+];
+---
+
+<section class="codepair not-content">
+  <div class="wrap">
+    <p class="eyebrow">What it takes</p>
+    <h2>This much. <b>No more.</b></h2>
+
+    <div class="block">
+      <div class="shared">
+        <p class="label">Declared once</p>
+        <p class="caption">
+          The attribute scans this assembly at compile time. Both programs below reference it and
+          pick the catalog up automatically. Neither declares anything.
+        </p>
+        <Code code={shared} lang="csharp" title="BikeShare.Rides/Events.cs" />
+      </div>
+
+      <div class="pair">
+        {halves.map((h) => (
+          <div class="half">
+            <p class="label">{h.label}</p>
+            <p class="caption">{h.caption}</p>
+            <Code code={h.code} lang="csharp" title={h.title} />
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <p class="foot">
+      No subscription loop, no checkpoint bookkeeping, no reconnect policy. Those are the
+      runtime&rsquo;s, and it hands them back the moment you ask for them.
+    </p>
+  </div>
+</section>
+
+<style>
+  /* Section furniture lives in home-v2.css, imported by the page. That file
+     holds `.wrap`, `.eyebrow` and the h2 rule. */
+
+  .codepair {
+    border-top: 1px solid var(--border);
+    padding: 64px 0;
+  }
+
+  /* The section is not called `.code` because Expressive Code emits its own
+     `<div class="code">`, which made every selector and every probe ambiguous. */
+
+  /* One object split by a seam, not two cards. It uses the same device as the
+     capability lattice: a 1px gap over a ruled ground. */
+  .block { border: 1px solid var(--border); margin-top: 34px; }
+  .pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+  /* Two-up only where both samples fit the frame without scrolling. Measured:
+     at a 605px column the producer wraps to 441px and overflows. At 637px it
+     settles at 439px. 84rem resolves against the 16px media base, not the page's
+     17px root, so this stacks below 1344px. Below that width each frame gets
+     the full column and fits easily. */
+  @media (max-width: 84rem) { .pair { grid-template-columns: minmax(0, 1fr); } }
+
+  /* min-width comes from the minmax above. The code frame scrolls inside the
+     half rather than forcing the track wider than the column. */
+  .half { background: var(--bg); padding: 26px 28px 28px; }
+
+  /* The shared row sits above the pair inside the same ruled object, separated
+     by the same 1px seam. Its frame is not held to the pair's fixed height. It
+     is a different kind of thing, and forcing it to match would only add dead
+     space. */
+  .shared {
+    background: var(--bg);
+    padding: 26px 28px 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .shared .caption { min-height: 0; }
+
+  .label {
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 7px;
+  }
+  /* No measure cap: the caption labels the frame beneath it, so the frame's own
+     width is the right line length. A 48ch cap wrapped it ~220px short of the
+     frame edge and read as a mistake.
+
+     Two lines are reserved whether or not both are used. One caption wrapping
+     while the other does not starts the two frames at different heights, and
+     the pair stops reading as a pair. Reserving the space survives a copy edit.
+     Counting characters does not. */
+  .caption {
+    margin: 0 0 18px;
+    min-height: 2lh;
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--fg-1);
+    text-wrap: pretty;
+  }
+
+  /* Expressive Code brings its own frame. This only removes its stock margin. */
+  .half :global(.expressive-code) { margin: 0; }
+
+  /* One fixed height for both frames at every width, so the pair stays a matched
+     pair whatever either sample grows to. 448px clears the taller of the two at
+     every two-up width. overflow-y guards a future edit that runs long. It is
+     not a state either sample reaches on a desktop today. */
+  .half :global(.expressive-code pre) {
+    height: 448px;
+    max-height: none;
+    overflow-y: auto;
+  }
+
+  /* The matched height only earns its place while the two frames sit side by
+     side. Below the stacking breakpoint they never do, and a fixed height there
+     buys nothing while hiding 280px of a sample at 390px. Same breakpoint as
+     the grid, so the height and the layout always change together. */
+  @media (max-width: 84rem) {
+    .half :global(.expressive-code pre) { height: auto; overflow-y: visible; }
+  }
+
+  .shared :global(.expressive-code pre) { max-height: none; }
+
+  .foot {
+    margin: 26px 0 0;
+    font-size: 18px;
+    line-height: 1.55;
+    color: var(--fg-1);
+    max-width: 68ch;
+    text-wrap: pretty;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
