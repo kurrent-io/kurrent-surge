@@ -8,7 +8,7 @@ namespace Kurrent.Surge.Processors.Configuration;
 
 /// <summary>
 /// Configuration for a Kurrent processor. Pure data — processor wiring lives on
-/// <c>SurgeProcessor</c> and <c>AddKurrentSurge</c>, not on options.
+/// <c>AddKurrentSurge</c>, not on options.
 /// </summary>
 [PublicAPI]
 [WithValidation]
@@ -91,8 +91,8 @@ public sealed partial class ProcessorOptions {
     /// </summary>
     /// <remarks>
     /// Set this under dependency injection so the container owns meter lifetime and keeps
-    /// identically-named meters isolated per service collection — <c>SurgeProcessor</c> and the
-    /// registration helpers wire it automatically. Outside a container leave it null: no public
+    /// identically-named meters isolated per service collection — <c>AddKurrentSurge</c> wires it
+    /// automatically. Outside a container leave it null: no public
     /// <see cref="IMeterFactory"/> implementation exists there. Mirrors <c>HttpClientHandler.MeterFactory</c>.
     /// </remarks>
     public IMeterFactory? MeterFactory { get; set; }

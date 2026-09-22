@@ -1,1259 +1,603 @@
-using Kurrent.Surge.Processors;
-using System.Text;
+using System.Net;
+using Bogus;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Surge.Processors;
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Processors.Hosting;
 using Kurrent.Surge.Processors.Models;
-using Kurrent.Surge.Validation;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ValidationException = Kurrent.Surge.Validation.ValidationException;
 
 namespace Kurrent.Surge.Streaming.Tests;
 
-/// <summary>
-/// Unit tests for processor configuration, validation, and drone creation.
-/// </summary>
 [Category("Processors")]
 public class ConfigurationTests {
     const string TestConnectionString = "kurrentdb://localhost:2113";
 
-    #region ->> Default Values Tests <<-
+    [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
+    public required BogusFaker Faker { get; [UsedImplicitly] init; }
+
+    #region ->> Options <<-
 
     [Test]
-    public async ValueTask default_processor_id_is_empty() {
-        var settings = new ProcessorOptions();
-        await Assert.That(settings.ProcessorId).IsEqualTo("");
-    }
-
-    [Test]
-    public async ValueTask default_drone_id_is_empty() {
-        var settings = new ProcessorOptions();
-        await Assert.That(settings.DroneId).IsEqualTo("");
-    }
-
-    [Test]
-    public async ValueTask setting_processor_id_derives_drone_id() {
-        var settings = new ProcessorOptions { ProcessorId = "order-processor" };
-        await Assert.That(settings.DroneId).StartsWith("order-processor-");
-    }
-
-    [Test]
-    public async ValueTask setting_processor_id_preserves_explicit_drone_id() {
-        var settings = new ProcessorOptions { DroneId = "machine-01" };
-        settings.ProcessorId = "order-processor";
-        await Assert.That(settings.DroneId).IsEqualTo("machine-01");
-    }
-
-    [Test]
-    public async ValueTask derives_drone_id_from_the_final_processor_id() {
-        var settings = new ProcessorOptions { ProcessorId = "first" };
-        var suffix   = settings.DroneId["first-".Length..];
-
-        settings.ProcessorId = "second";
-
-        await Assert.That(settings.DroneId).IsEqualTo($"second-{suffix}");
-    }
-
-    [Test]
-    public async ValueTask keeps_an_explicit_drone_id_when_the_processor_id_changes() {
-        var settings = new ProcessorOptions { ProcessorId = "first" };
-
-        settings.DroneId     = "machine-01";
-        settings.ProcessorId = "second";
-
-        await Assert.That(settings.DroneId).IsEqualTo("machine-01");
-    }
-
-    [Test]
-    public async ValueTask keeps_deriving_the_drone_id_when_its_current_value_is_assigned_again() {
-        var settings = new ProcessorOptions { ProcessorId = "first" };
-
-        // Configuration binding writes an unconfigured DroneId back unchanged.
-        settings.DroneId     = settings.DroneId;
-        settings.ProcessorId = "second";
-
-        await Assert.That(settings.DroneId).StartsWith("second-");
-    }
-
-    [Test]
-    public async ValueTask default_batching_is_size_500_window_100ms_multiplier_2() {
-        var settings = new ProcessorOptions();
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(500);
-        await Assert.That(settings.Batching.BatchWindow).IsEqualTo(TimeSpan.FromMilliseconds(100));
-        await Assert.That(settings.Batching.BufferMultiplier).IsEqualTo(2);
-    }
-
-    [Test]
-    public async ValueTask default_checkpoint_interval_is_30000() {
-        var settings = new ProcessorOptions();
-        await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(30000));
-    }
-
-    [Test]
-    public async ValueTask default_initial_position_is_latest() {
-        var settings = new ProcessorOptions();
-        await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Latest);
-    }
-
-    [Test]
-    public async ValueTask default_skip_decoding_is_false() {
-        var settings = new ProcessorOptions();
-        await Assert.That(settings.SkipDecoding).IsFalse();
-    }
-
-    #endregion // Default Values Tests
-
-    #region ->> Builder Configuration Tests <<-
-
-    [Test]
-    public async ValueTask with_processor_id_sets_settings_processor_id() {
-        var processorId = "test-processor-id";
-
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = processorId;
-        }).Build();
-
-        await Assert.That(drone.Options.ProcessorId).IsEqualTo(processorId);
-        await Assert.That(drone.ProcessorId).IsEqualTo(processorId);
-    }
-
-    [Test]
-    public async ValueTask with_drone_id_sets_settings_drone_id() {
-        var droneId = "test-drone-id";
-
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "test-processor";
-            opts.DroneId     = droneId;
-        }).Build();
-
-        await Assert.That(drone.Options.DroneId).IsEqualTo(droneId);
-        await Assert.That(drone.DroneId).IsEqualTo(droneId);
-    }
-
-    [Test]
-    public async ValueTask without_drone_id_derives_from_processor_id() {
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "test-processor";
-        }).Build();
-
-        await Assert.That(drone.DroneId).StartsWith("test-processor-");
-    }
-
-    [Test]
-    public async ValueTask configure_drone_sets_batching() {
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId               = "test-processor";
-            opts.Batching.MaxBatchSize     = 5000;
-            opts.Batching.BufferMultiplier = 4;
-        }).Build();
-
-        await Assert.That(drone.Options.Batching.MaxBatchSize).IsEqualTo(5000);
-        await Assert.That(drone.Options.Batching.BufferMultiplier).IsEqualTo(4);
-    }
-
-    [Test]
-    public async ValueTask configure_checkpointing_sets_settings() {
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "test-processor";
-            opts.Checkpointing(c => {
-                c.IntervalFrom(60000L);
-                c.RetentionCount = 5;
-            });
-        }).Build();
-
-        await Assert.That(drone.Options.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(60000));
-        await Assert.That(drone.Options.Checkpoint.RetentionCount).IsEqualTo(5);
-    }
-
-    [Test]
-    public async ValueTask with_initial_position_sets_settings() {
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId                  = "test-processor";
-            opts.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
-        }).Build();
-
-        await Assert.That(drone.Options.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
-    }
-
-    [Test]
-    public async ValueTask with_filter_sets_settings() {
-        var filter = RecordFilter.ByStream("test-stream");
-
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId         = "test-processor";
-            opts.Subscription.Filter = filter;
-        }).Build();
-
-        await Assert.That(drone.Options.Subscription.Filter).IsEqualTo(filter);
-    }
-
-    [Test]
-    public async ValueTask with_expression_filter_sets_filter() {
-        var expression = "stream LIKE 'orders-%'";
-
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId         = "test-processor";
-            opts.Subscription.Filter = RecordFilter.ByExpression(expression);
-        }).Build();
-
-        await Assert.That(drone.Options.Subscription.Filter).IsNotNull();
-        await Assert.That(drone.Options.Subscription.Filter).IsTypeOf<ExpressionFilter>();
-    }
-
-    [Test]
-    public async ValueTask with_partition_key_selector_sets_settings() {
-        var selector = "data.customer_id";
-
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId                       = "test-processor";
-            opts.Subscription.PartitionKeySelector = selector;
-        }).Build();
-
-        await Assert.That(drone.Options.Subscription.PartitionKeySelector).IsEqualTo(selector);
-    }
-
-    [Test]
-    public async ValueTask configure_drone_sets_skip_decoding() {
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId  = "test-processor";
-            opts.SkipDecoding = true;
-        }).Build();
-
-        await Assert.That(drone.Options.SkipDecoding).IsTrue();
-    }
-
-    [Test]
-    public async ValueTask configure_multiple_settings_applies_all() {
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId           = "test-processor";
-            opts.Batching.MaxBatchSize = 2000;
-            opts.SkipDecoding          = true;
-        }).Build();
-
-        await Assert.That(drone.Options.Batching.MaxBatchSize).IsEqualTo(2000);
-        await Assert.That(drone.Options.SkipDecoding).IsTrue();
-    }
-
-    #endregion // Builder Configuration Tests
-
-    #region ->> Drone Creation Tests <<-
-
-    [Test]
-    public async ValueTask build_returns_drone_with_correct_settings() {
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "test-processor";
-            opts.DroneId     = "test-drone";
-        }).Build();
-
-        await Assert.That(drone).IsNotNull();
-        await Assert.That(drone.ProcessorId).IsEqualTo("test-processor");
-        await Assert.That(drone.DroneId).IsEqualTo("test-drone");
-        await Assert.That(drone.Options).IsNotNull();
-    }
-
-    [Test]
-    public async ValueTask drone_initial_status_is_starting() {
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "test-processor";
-        }).Build();
-
-        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Starting);
-    }
-
-    #endregion // Drone Creation Tests
-
-    #region ->> Validation Tests <<-
-
-    [Test]
-    public async ValueTask valid_configuration_passes_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "valid-processor",
-            MaxParallelism = 1
-        };
-        settings.Connection(TestConnectionString);
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsTrue();
-    }
-
-    [Test]
-    public async ValueTask empty_processor_id_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "",
-            MaxParallelism = 1
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask invalid_max_parallelism_zero_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 0
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask invalid_max_parallelism_negative_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = -1
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask invalid_max_parallelism_exceeds_limit_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 32769
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask invalid_max_batch_size_zero_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 1,
-            Batching       = new BatchOptions { MaxBatchSize = 0 }
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask invalid_max_batch_size_exceeds_limit_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 1,
-            Batching       = new BatchOptions { MaxBatchSize = 10001 }
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask invalid_batch_window_zero_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 1,
-            Batching       = new BatchOptions { BatchWindow = TimeSpan.Zero }
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask invalid_buffer_multiplier_zero_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 1,
-            Batching       = new BatchOptions { BufferMultiplier = 0 }
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask invalid_buffer_multiplier_exceeds_limit_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 1,
-            Batching       = new BatchOptions { BufferMultiplier = 101 }
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask invalid_checkpoint_interval_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 1,
-            Checkpoint     = new CheckpointOptions { Interval = TimeSpan.Zero }
-        };
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask max_parallelism_without_partition_key_fails_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 4,
-            Subscription   = new SubscriptionOptions()
-        };
-        settings.Connection(TestConnectionString);
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsFalse();
-    }
-
-    [Test]
-    public async ValueTask max_parallelism_with_partition_key_passes_validation() {
-        var settings = new ProcessorOptions {
-            ProcessorId    = "test-processor",
-            MaxParallelism = 4,
-            Subscription   = new SubscriptionOptions { PartitionKeySelector = "stream" }
-        };
-        settings.Connection(TestConnectionString);
-
-        var result = settings.Validate();
-
-        await Assert.That(result.IsValid).IsTrue();
-    }
-
-    [Test]
-    public async ValueTask build_with_invalid_max_batch_size_throws() {
-        await Assert.That(() =>
-            KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId           = "test-processor";
-                opts.Batching.MaxBatchSize = 0;
-            }).Build()
-        ).Throws<ValidationException>();
-    }
-
-    [Test]
-    public async ValueTask build_without_processor_id_auto_generates_from_type_name() {
-        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-        }).Build();
-
-        await Assert.That(drone.ProcessorId).IsEqualTo("testable-record-processor");
-    }
-
-    #endregion // Validation Tests
-
-    #region ->> Connection Resolution Tests <<-
-
-    [Test]
-    public async ValueTask standalone_processor_throws_when_no_connection_is_configured() {
-        var options = new ProcessorOptions { ProcessorId = "test-processor" };
-
-        var processor = new KurrentProcessor(options, new TestableRecordProcessor());
-
-        await Assert.That(() => processor.Build()).Throws<InvalidOperationException>();
-    }
-
-    #endregion // Connection Resolution Tests
-
-    #region ->> DI Registration Tests <<-
-
-    [Test]
-    public async ValueTask duplicate_registration_is_idempotent() {
-        var services = new ServiceCollection();
-
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "first";
-        }));
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "second";
-        }));
-
-        var hostedServiceCount = services.Count(d =>
-            d.ServiceType == typeof(IHostedService) &&
-            d.ImplementationFactory is not null);
-
-        await Assert.That(hostedServiceCount).IsEqualTo(1);
-    }
-
-    [Test]
-    public async ValueTask duplicate_registration_with_factory_is_idempotent() {
-        var services = new ServiceCollection();
-
-        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(
-            _ => new TestableRecordProcessor(),
-            opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId = "first";
-            }));
-        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(
-            _ => new TestableRecordProcessor(),
-            opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId = "second";
-            }));
-
-        var hostedServiceCount = services.Count(d =>
-            d.ServiceType == typeof(IHostedService) &&
-            d.ImplementationFactory is not null);
-
-        await Assert.That(hostedServiceCount).IsEqualTo(1);
-    }
-
-    [Test]
-    public async ValueTask configuration_with_service_provider_can_access_services() {
-        var services = new ServiceCollection();
-        services.AddSingleton(new TestSettings { ProcessorId = "configured-processor-id" });
-        services.AddLogging();
-
-        string? capturedId = null;
-
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), (opts, sp) => {
-            var settings = sp.GetRequiredService<TestSettings>();
-            capturedId = settings.ProcessorId;
-            opts.ProcessorId = capturedId;
-            opts.Connection(TestConnectionString);
-        }));
-
-        var provider = services.BuildServiceProvider();
-
-        // Force the hosted service to be materialized, triggering the configure delegate.
-        _ = provider.GetServices<IHostedService>().ToList();
-
-        await Assert.That(capturedId).IsEqualTo("configured-processor-id");
-    }
-
-    [Test]
-    public async ValueTask di_resolves_connection_from_client_options_in_service_provider() {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton(KurrentClientOptions.Parse(TestConnectionString));
-
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), opts => {
-            opts.ProcessorId = "sp-resolved";
-        }));
-
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
-
-        await Assert.That(droneService.Drone.Options.ClientOptions).IsNotNull();
-        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
-    }
-
-    [Test]
-    public async ValueTask di_explicit_connection_wins_over_client_options_in_service_provider() {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton(KurrentClientOptions.Parse("kurrentdb://other-host:2113"));
-
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), opts => {
-            opts.ProcessorId = "explicit-wins";
-            opts.Connection(TestConnectionString);
-        }));
-
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
-
-        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
-    }
-
-    [Test]
-    public async ValueTask configure_delegate_receives_the_connection_resolved_from_configuration() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "ConnectionStrings": {
-                "KurrentDB": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton<IConfiguration>(configuration);
-
-        string? seen = null;
-
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(),
-            opts => seen = ((KurrentClientOptions?)opts.ClientOptions)?.Endpoints[0].Host));
-
-        var provider = services.BuildServiceProvider();
-
-        _ = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
-
-        await Assert.That(seen).IsEqualTo("localhost");
-    }
-
-    [Test]
-    public async ValueTask di_resolves_connection_from_configuration_default_resource_name() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton<IConfiguration>(configuration);
-
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), opts => opts.ProcessorId = "unknown-processor"));
-
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
-
-        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
-    }
-
-    record TestSettings {
-        public string ProcessorId { get; init; } = "";
-    }
-
-    #endregion // DI Registration Tests
-
-    #region ->> Configuration Binding Tests <<-
-
-    [Test]
-    public async ValueTask settings_loaded_from_json_configuration_by_processor_type_name() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "ProcessorId": "config-processor",
-                      "Batching": { "MaxBatchSize": 2000 },
-                      "Checkpoint": {
-                        "Interval": 15000
-                      }
-                    }
-                  }
-              
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var settings = ResolveProcessorOptions(configuration);
-
-        await Assert.That(settings.ProcessorId).IsEqualTo("testable-record-processor");
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(2000);
-        await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(15000));
-    }
-
-    [Test]
-    public async ValueTask json_configuration_supports_camel_case_properties() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "processorId": "camel-processor",
-                      "batching": { "maxBatchSize": 1500 },
-                      "checkpoint": {
-                        "interval": 20000
-                      },
-                      "subscription": {
-                        "initialPosition": "Earliest"
-                      }
-                    }
-                  }
-              
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var settings = ResolveProcessorOptions(configuration);
-
-        await Assert.That(settings.ProcessorId).IsEqualTo("testable-record-processor");
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(1500);
-        await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(20000));
-        await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
-    }
-
-    [Test]
-    public async ValueTask json_configuration_does_not_support_snake_case_properties() {
-        // snake_case is NOT supported by default .NET configuration binding
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "processor_id": "snake-processor",
-                      "max_parallelism": 4,
-                      "batching": { "max_batch_size": 1500 }
-                    }
-                  }
-              
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var settings = ResolveProcessorOptions(configuration, configure: opts => {
-            opts.ProcessorId    = "fallback-processor";
-            opts.MaxParallelism = 1;
-        });
-
-        await Assert.That(settings.ProcessorId).IsEqualTo("fallback-processor");
-        await Assert.That(settings.MaxParallelism).IsEqualTo(1);
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(500);
-    }
-
-    [Test]
-    public async ValueTask fluent_configuration_overrides_json_settings() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "ProcessorId": "config-processor",
-                      "Batching": { "MaxBatchSize": 2000 }
-                    }
-                  }
-              
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var settings = ResolveProcessorOptions(configuration, configure: opts => opts.ProcessorId = "fluent-processor");
-
-        await Assert.That(settings.ProcessorId).IsEqualTo("fluent-processor");
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(2000);
-    }
-
-    [Test]
-    public async ValueTask missing_json_section_uses_defaults() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "SomeOther": {
-                "Section": "value"
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var settings = ResolveProcessorOptions(configuration, configure: opts => {
-            opts.ProcessorId    = "test-processor";
-            opts.MaxParallelism = 1;
-        });
-
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(500);
-        await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(30000));
-    }
-
-    [Test]
-    public async ValueTask nested_subscription_settings_bind_from_json() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "ProcessorId": "test-processor",
-                      "MaxParallelism": 1,
-                      "Subscription": {
-                        "InitialPosition": "Earliest"
-                      }
-                    }
-                  }
-              
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var settings = ResolveProcessorOptions(configuration);
-
-        await Assert.That(settings.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
-    }
-
-    [Test]
-    public async ValueTask configuration_binding_works_with_service_provider_overload() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "Batching": { "MaxBatchSize": 3000 }
-                    }
-                  }
-              
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var services = new ServiceCollection();
-        services.AddSingleton(configuration);
-        services.AddSingleton(new TestSettings { ProcessorId = "sp-processor" });
-        services.AddLogging();
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), (opts, sp) => {
-            var testSettings = sp.GetRequiredService<TestSettings>();
-            opts.ProcessorId    = testSettings.ProcessorId;
-            opts.MaxParallelism = 1;
-        }));
-
-        var provider = services.BuildServiceProvider();
-        var hostedService = provider.GetServices<IHostedService>()
-            .OfType<DroneService<TestableRecordProcessor>>()
-            .Single();
-
-        var settings = hostedService.Drone.Options;
-
-        await Assert.That(settings.ProcessorId).IsEqualTo("sp-processor");
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(3000);
-    }
-
-    [Test]
-    public async ValueTask no_configuration_registered_uses_defaults() {
-        var services = new ServiceCollection();
-        // Intentionally NOT registering IConfiguration
-        services.AddLogging();
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId    = "test-processor";
-            opts.MaxParallelism = 1;
-        }));
-
-        var provider = services.BuildServiceProvider();
-        var hostedService = provider.GetServices<IHostedService>()
-            .OfType<DroneService<TestableRecordProcessor>>()
-            .Single();
-
-        var settings = hostedService.Drone.Options;
-
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(500);
-        await Assert.That(settings.Checkpoint.Interval).IsEqualTo(TimeSpan.FromMilliseconds(30000));
-    }
-
-    [Test]
-    public async ValueTask processor_id_auto_generated_from_processor_type_name_when_not_in_config() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "Batching": { "MaxBatchSize": 2000 }
-                    }
-                  }
-              
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var settings = ResolveProcessorOptions(configuration);
-
-        await Assert.That(settings.ProcessorId).IsEqualTo("testable-record-processor");
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(2000);
-    }
-
-    [Test]
-    public async ValueTask processor_id_key_in_configuration_does_not_change_the_derived_id() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "ProcessorId": "my-custom-id"
-                    }
-                  }
-              
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var settings = ResolveProcessorOptions(configuration);
-
-        await Assert.That(settings.ProcessorId).IsEqualTo("testable-record-processor");
-    }
-
-    [Test]
-    public async ValueTask reports_a_processor_id_key_as_an_unrecognised_setting() {
+    public async ValueTask options_default_to_the_documented_values() {
         // Arrange
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "ProcessorId": "my-custom-id"
-                    }
-                  }
-                }
-              }
-            }
-            """);
-
-        var options      = new ProcessorOptions { ProcessorId = "testable-record-processor" };
-        var expectedPath = "Kurrent:Surge:Processors:TestableRecordProcessor:ProcessorId";
+        var expectedBatchWindow = TimeSpan.FromMilliseconds(100);
+        var expectedInterval    = TimeSpan.FromSeconds(30);
 
         // Act
-        var result = options.FromConfiguration(configuration, "TestableRecordProcessor");
+        var options = new ProcessorOptions();
 
         // Assert
-        var warnings    = result.Problems.Where(p => p.Severity == ConfigurationProblemSeverity.Warning).Select(p => p.Path).ToList();
-        var processorId = options.ProcessorId;
+        await Assert.That(options.ProcessorId).IsEqualTo("");
+        await Assert.That(options.DroneId).IsEqualTo("");
+        await Assert.That(options.SkipDecoding).IsFalse();
+        await Assert.That(options.Batching.MaxBatchSize).IsEqualTo(500);
+        await Assert.That(options.Batching.BatchWindow).IsEqualTo(expectedBatchWindow);
+        await Assert.That(options.Batching.BufferMultiplier).IsEqualTo(2);
+        await Assert.That(options.Checkpoint.Interval).IsEqualTo(expectedInterval);
+        await Assert.That(options.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Latest);
+    }
+
+    [Test]
+    public async ValueTask drone_id_follows_the_processor_id_until_set_explicitly() {
+        // Arrange
+        var firstId    = Faker.Random.AlphaNumeric(10);
+        var secondId   = Faker.Random.AlphaNumeric(10);
+        var thirdId    = Faker.Random.AlphaNumeric(10);
+        var fourthId   = Faker.Random.AlphaNumeric(10);
+        var explicitId = Faker.Random.AlphaNumeric(10);
+
+        var options = new ProcessorOptions { ProcessorId = firstId };
+        var derived = options.DroneId;
+        var suffix  = derived[(firstId.Length + 1)..];
+
+        var expectedPrefix         = $"{firstId}-";
+        var expectedAfterChange    = $"{secondId}-{suffix}";
+        var expectedAfterWriteBack = $"{thirdId}-{suffix}";
+
+        // Act
+        options.ProcessorId = secondId;
+        var afterChange = options.DroneId;
+
+        // Configuration binding writes an unconfigured DroneId back unchanged.
+        options.DroneId     = options.DroneId;
+        options.ProcessorId = thirdId;
+        var afterWriteBack = options.DroneId;
+
+        options.DroneId     = explicitId;
+        options.ProcessorId = fourthId;
+        var afterExplicit = options.DroneId;
+
+        var pinnedBeforeAnyId = new ProcessorOptions { DroneId = explicitId, ProcessorId = fourthId }.DroneId;
+
+        // Assert
+        var suffixLength = suffix.Length;
+
+        await Assert.That(derived).StartsWith(expectedPrefix);
+        await Assert.That(suffixLength).IsEqualTo(8);
+        await Assert.That(afterChange).IsEqualTo(expectedAfterChange);
+        await Assert.That(afterWriteBack).IsEqualTo(expectedAfterWriteBack);
+        await Assert.That(afterExplicit).IsEqualTo(explicitId);
+        await Assert.That(pinnedBeforeAnyId).IsEqualTo(explicitId);
+    }
+
+    [Test]
+    public async ValueTask build_carries_every_option_to_the_drone() {
+        // Arrange
+        var processorId      = Faker.Random.AlphaNumeric(12);
+        var droneId          = Faker.Random.AlphaNumeric(12);
+        var maxBatchSize     = Faker.Random.Int(1, 10_000);
+        var batchWindow      = TimeSpan.FromMilliseconds(Faker.Random.Int(1, 5_000));
+        var bufferMultiplier = Faker.Random.Int(1, 100);
+        var interval         = TimeSpan.FromSeconds(Faker.Random.Int(1, 300));
+        var retentionCount   = Faker.Random.Int(1, 100);
+        var selector         = $"data.{Faker.Random.String2(8, "abcdefghijklmnopqrstuvwxyz")}";
+        var filter           = RecordFilter.ByExpression($"stream LIKE '{Faker.Random.AlphaNumeric(8)}-%'");
+        var maxRetryAttempts = Faker.Random.Int(0, 100);
+        var baseDelay        = TimeSpan.FromMilliseconds(Faker.Random.Int(100, 1_000));
+        var maxDelay         = TimeSpan.FromSeconds(Faker.Random.Int(2, 60));
+        var connectionString = NewConnectionString();
+        var expectedEndpoint = EndpointOf(KurrentClientOptions.Parse(connectionString));
+
+        // Act
+        var drone = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
+            opts.Connection(connectionString);
+
+            opts.ProcessorId    = processorId;
+            opts.DroneId        = droneId;
+            opts.Debug          = true;
+            opts.SkipDecoding   = true;
+            opts.TrackSourceLag = true;
+
+            opts.Batching.MaxBatchSize     = maxBatchSize;
+            opts.Batching.BatchWindow      = batchWindow;
+            opts.Batching.BufferMultiplier = bufferMultiplier;
+
+            opts.Checkpointing(c => {
+                c.IntervalFrom(interval);
+                c.RetentionCount = retentionCount;
+                c.AutoTrack      = false;
+                c.AutoCheckpoint = false;
+                c.FailurePolicy  = CheckpointFailurePolicy.Fail;
+            });
+
+            opts.Subscription.Filter               = filter;
+            opts.Subscription.InitialPosition      = SubscriptionInitialPosition.Earliest;
+            opts.Subscription.PartitionKeySelector = selector;
+
+            opts.Resilience.MaxRetryAttempts = maxRetryAttempts;
+            opts.Resilience.BaseDelay        = baseDelay;
+            opts.Resilience.MaxDelay         = maxDelay;
+        }).Build();
+
+        // Assert
+        var options        = drone.Options;
+        var actualEndpoint = EndpointOf(options.ClientOptions);
+
+        await Assert.That(drone.ProcessorId).IsEqualTo(processorId);
+        await Assert.That(drone.DroneId).IsEqualTo(droneId);
+        await Assert.That(drone.Status).IsEqualTo(DroneStatus.Starting);
+        await Assert.That(options.Debug).IsTrue();
+        await Assert.That(options.SkipDecoding).IsTrue();
+        await Assert.That(options.TrackSourceLag).IsTrue();
+        await Assert.That(options.Batching.MaxBatchSize).IsEqualTo(maxBatchSize);
+        await Assert.That(options.Batching.BatchWindow).IsEqualTo(batchWindow);
+        await Assert.That(options.Batching.BufferMultiplier).IsEqualTo(bufferMultiplier);
+        await Assert.That(options.Checkpoint.Interval).IsEqualTo(interval);
+        await Assert.That(options.Checkpoint.RetentionCount).IsEqualTo(retentionCount);
+        await Assert.That(options.Checkpoint.AutoTrack).IsFalse();
+        await Assert.That(options.Checkpoint.AutoCheckpoint).IsFalse();
+        await Assert.That(options.Checkpoint.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.Fail);
+        await Assert.That(options.Subscription.Filter).IsEqualTo(filter);
+        await Assert.That(options.Subscription.Filter).IsTypeOf<ExpressionFilter>();
+        await Assert.That(options.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
+        await Assert.That(options.Subscription.PartitionKeySelector).IsEqualTo(selector);
+        await Assert.That(options.Resilience.MaxRetryAttempts).IsEqualTo(maxRetryAttempts);
+        await Assert.That(options.Resilience.BaseDelay).IsEqualTo(baseDelay);
+        await Assert.That(options.Resilience.MaxDelay).IsEqualTo(maxDelay);
+        await Assert.That(actualEndpoint).IsEqualTo(expectedEndpoint);
+    }
+
+    [Test]
+    [OutOfRangeValues]
+    public async ValueTask rejects_out_of_range_values(Action<ProcessorOptions> corrupt) {
+        // Arrange
+        var options = ValidOptions();
+        corrupt(options);
+
+        // Act
+        var result = options.Validate();
+
+        // Assert
+        await Assert.That(result.IsValid).IsFalse();
+    }
+
+    [Test]
+    [ValidValues]
+    public async ValueTask accepts_valid_values(Action<ProcessorOptions> configure) {
+        // Arrange
+        var options = ValidOptions();
+        configure(options);
+
+        // Act
+        var result = options.Validate();
+
+        // Assert
+        await Assert.That(result.IsValid).IsTrue();
+    }
+
+    [Test]
+    public async ValueTask build_validates_and_derives_the_id() {
+        // Arrange
+        var expectedId     = "testable-record-processor";
+        var expectedPrefix = $"{expectedId}-";
+
+        var unnamed = KurrentProcessor.Create(new TestableRecordProcessor(), opts => opts.Connection(TestConnectionString));
+
+        var invalid = KurrentProcessor.Create(new TestableRecordProcessor(), opts => {
+            opts.Connection(TestConnectionString);
+            opts.Batching.MaxBatchSize = 0;
+        });
+
+        var unconnected = KurrentProcessor.Create(new TestableRecordProcessor());
+
+        // Act
+        var drone = unnamed.Build();
+
+        // Assert
+        await Assert.That(drone.ProcessorId).IsEqualTo(expectedId);
+        await Assert.That(drone.DroneId).StartsWith(expectedPrefix);
+        await Assert.That(() => invalid.Build()).Throws<ValidationException>();
+        await Assert.That(() => unconnected.Build()).Throws<InvalidOperationException>();
+    }
+
+    #endregion // Options
+
+    #region ->> Hosting <<-
+
+    [Test]
+    public async ValueTask registers_one_hosted_service_per_processor_id() {
+        // Arrange
+        var services = NewServices();
+        var firstId  = Faker.Random.AlphaNumeric(12);
+        var secondId = Faker.Random.AlphaNumeric(12);
+
+        Action<ProcessorOptions> connect = static opts => opts.Connection(TestConnectionString);
+
+        // Act
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(firstId, connect));
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(secondId, connect));
+        services.AddKurrentSurge(surge => surge.AddBatchProcessor<TestableBatchProcessor>(connect));
+
+        // Assert
+        var descriptors = services.Count(d => d.ServiceType == typeof(IHostedService) && d.ImplementationFactory is not null);
+        var hosted      = services.BuildServiceProvider().GetServices<IHostedService>().ToList();
+        var records     = hosted.OfType<DroneService<TestableRecordProcessor>>().Count();
+        var batches     = hosted.OfType<DroneService<TestableBatchProcessor>>().Count();
+
+        await Assert.That(descriptors).IsEqualTo(3);
+        await Assert.That(records).IsEqualTo(2);
+        await Assert.That(batches).IsEqualTo(1);
+    }
+
+    [Test]
+    [Shapes]
+    public async ValueTask reads_the_processor_section(Shape shape) {
+        // Arrange
+        var droneId          = Faker.Random.AlphaNumeric(12);
+        var maxBatchSize     = Faker.Random.Int(1, 10_000);
+        var batchWindowMs    = Faker.Random.Int(1, 5_000);
+        var bufferMultiplier = Faker.Random.Int(1, 100);
+        var intervalMs       = Faker.Random.Int(1_000, 300_000);
+        var retentionCount   = Faker.Random.Int(1, 100);
+        var maxRetryAttempts = Faker.Random.Int(0, 100);
+        var baseDelayMs      = Faker.Random.Int(100, 1_000);
+        var maxDelayMs       = Faker.Random.Int(1_000, 60_000);
+        var connectionString = NewConnectionString();
+
+        var expectedBatchWindow = TimeSpan.FromMilliseconds(batchWindowMs);
+        var expectedInterval    = TimeSpan.FromMilliseconds(intervalMs);
+        var expectedBaseDelay   = TimeSpan.FromMilliseconds(baseDelayMs);
+        var expectedMaxDelay    = TimeSpan.FromMilliseconds(maxDelayMs);
+        var expectedEndpoint    = EndpointOf(KurrentClientOptions.Parse(connectionString));
+
+        var services = NewServices(Configuration(new() {
+            [Key("DroneId")]                      = droneId,
+            [Key("Debug")]                        = "true",
+            [Key("SkipDecoding")]                 = "true",
+            [Key("TrackSourceLag")]               = "true",
+            [Key("Batching:MaxBatchSize")]        = $"{maxBatchSize}",
+            [Key("Batching:BatchWindow")]         = $"{batchWindowMs}",
+            [Key("Batching:BufferMultiplier")]    = $"{bufferMultiplier}",
+            [Key("Checkpoint:AutoTrack")]         = "false",
+            [Key("Checkpoint:AutoCheckpoint")]    = "false",
+            [Key("Checkpoint:Interval")]          = $"{intervalMs}",
+            [Key("Checkpoint:RetentionCount")]    = $"{retentionCount}",
+            [Key("Checkpoint:FailurePolicy")]     = nameof(CheckpointFailurePolicy.Fail),
+            [Key("Subscription:InitialPosition")] = nameof(SubscriptionInitialPosition.Earliest),
+            [Key("Resilience:MaxRetryAttempts")]  = $"{maxRetryAttempts}",
+            [Key("Resilience:BaseDelay")]         = $"{baseDelayMs}",
+            [Key("Resilience:MaxDelay")]          = $"{maxDelayMs}",
+            [Key("ConnectionString")]             = connectionString
+        }));
+
+        // Act
+        services.AddKurrentSurge(surge => shape.Register(surge));
+
+        var options = shape.Options(services);
+
+        // Assert
+        var actualEndpoint = EndpointOf(options.ClientOptions);
+
+        await Assert.That(options.ProcessorId).IsEqualTo(shape.ExpectedId);
+        await Assert.That(options.DroneId).IsEqualTo(droneId);
+        await Assert.That(options.Debug).IsTrue();
+        await Assert.That(options.SkipDecoding).IsTrue();
+        await Assert.That(options.TrackSourceLag).IsTrue();
+        await Assert.That(options.Batching.MaxBatchSize).IsEqualTo(maxBatchSize);
+        await Assert.That(options.Batching.BatchWindow).IsEqualTo(expectedBatchWindow);
+        await Assert.That(options.Batching.BufferMultiplier).IsEqualTo(bufferMultiplier);
+        await Assert.That(options.Checkpoint.AutoTrack).IsFalse();
+        await Assert.That(options.Checkpoint.AutoCheckpoint).IsFalse();
+        await Assert.That(options.Checkpoint.Interval).IsEqualTo(expectedInterval);
+        await Assert.That(options.Checkpoint.RetentionCount).IsEqualTo(retentionCount);
+        await Assert.That(options.Checkpoint.FailurePolicy).IsEqualTo(CheckpointFailurePolicy.Fail);
+        await Assert.That(options.Subscription.InitialPosition).IsEqualTo(SubscriptionInitialPosition.Earliest);
+        await Assert.That(options.Resilience.MaxRetryAttempts).IsEqualTo(maxRetryAttempts);
+        await Assert.That(options.Resilience.BaseDelay).IsEqualTo(expectedBaseDelay);
+        await Assert.That(options.Resilience.MaxDelay).IsEqualTo(expectedMaxDelay);
+        await Assert.That(actualEndpoint).IsEqualTo(expectedEndpoint);
+
+        string Key(string path) {
+            var key = $"Kurrent:Surge:Processors:{shape.SectionName}:{path}";
+            return shape.CamelCaseKeys ? CamelCase(key) : key;
+        }
+    }
+
+    [Test]
+    [ConnectionPrecedence]
+    public async ValueTask resolves_the_connection_in_precedence_order(Precedence precedence) {
+        // Arrange
+        var processorId = Faker.Random.AlphaNumeric(12);
+        var changedId   = Faker.Random.AlphaNumeric(12);
+        var connections = Enum.GetValues<ConnectionSource>().ToDictionary(source => source, _ => NewConnectionString());
+        var expected    = EndpointOf(KurrentClientOptions.Parse(connections[precedence.Winner]));
+
+        var settings = new Dictionary<string, string?>();
+
+        if (precedence.Has(ConnectionSource.Section))
+            settings[$"Kurrent:Surge:Processors:{processorId}:ConnectionString"] = connections[ConnectionSource.Section];
+
+        if (precedence.Has(ConnectionSource.SectionOfIdSetInLambda))
+            settings[$"Kurrent:Surge:Processors:{changedId}:ConnectionString"] = connections[ConnectionSource.SectionOfIdSetInLambda];
+
+        if (precedence.Has(ConnectionSource.SharedSurge))
+            settings["ConnectionStrings:Kurrent:Surge"] = connections[ConnectionSource.SharedSurge];
+
+        if (precedence.Has(ConnectionSource.SharedKurrentDB))
+            settings["ConnectionStrings:kurrent-db"] = connections[ConnectionSource.SharedKurrentDB];
+
+        var services = NewServices(Configuration(settings));
+
+        // Act
+        services.AddKurrentSurge(surge => {
+            if (precedence.Has(ConnectionSource.Scope))
+                surge.Connection(connections[ConnectionSource.Scope]);
+
+            surge.AddProcessor<TestableRecordProcessor>(processorId, opts => {
+                if (precedence.Has(ConnectionSource.SectionOfIdSetInLambda))
+                    opts.ProcessorId = changedId;
+
+                if (precedence.Has(ConnectionSource.Lambda))
+                    opts.Connection(connections[ConnectionSource.Lambda]);
+            });
+        });
+
+        // Assert
+        var actual = EndpointOf(DroneOptions<TestableRecordProcessor>(services).ClientOptions);
+
+        await Assert.That(actual).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask configure_delegate_sees_configuration_and_wins() {
+        // Arrange
+        var processorId        = Faker.Random.AlphaNumeric(12);
+        var changedId          = Faker.Random.AlphaNumeric(12);
+        var configuredBatch    = Faker.Random.Int(1, 5_000);
+        var unreadBatch        = Faker.Random.Int(5_001, 10_000);
+        var configuredInterval = Faker.Random.Int(1_000, 100_000);
+        var overriddenInterval = TimeSpan.FromMilliseconds(Faker.Random.Int(100_001, 200_000));
+        var connectionString   = NewConnectionString();
+        var expectedEndpoint   = EndpointOf(KurrentClientOptions.Parse(connectionString));
+
+        var services = NewServices(Configuration(new() {
+            [$"Kurrent:Surge:Processors:{processorId}:Batching:MaxBatchSize"] = $"{configuredBatch}",
+            [$"Kurrent:Surge:Processors:{processorId}:Checkpoint:Interval"]   = $"{configuredInterval}",
+            [$"Kurrent:Surge:Processors:{changedId}:Batching:MaxBatchSize"]   = $"{unreadBatch}",
+            ["ConnectionStrings:KurrentDB"]                                    = connectionString
+        }));
+
+        services.AddSingleton(new TestSettings { ProcessorId = changedId });
+
+        var          seenBatch    = 0;
+        DnsEndPoint? seenEndpoint = null;
+
+        // Act
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId, (opts, sp) => {
+            seenBatch    = opts.Batching.MaxBatchSize;
+            seenEndpoint = EndpointOf(opts.ClientOptions);
+
+            opts.ProcessorId         = sp.GetRequiredService<TestSettings>().ProcessorId;
+            opts.Checkpoint.Interval = overriddenInterval;
+        }));
+
+        var options = DroneOptions<TestableRecordProcessor>(services);
+
+        // Assert
+        await Assert.That(seenBatch).IsEqualTo(configuredBatch);
+        await Assert.That(seenEndpoint).IsEqualTo(expectedEndpoint);
+        await Assert.That(options.ProcessorId).IsEqualTo(changedId);
+        await Assert.That(options.Batching.MaxBatchSize).IsEqualTo(configuredBatch);
+        await Assert.That(options.Checkpoint.Interval).IsEqualTo(overriddenInterval);
+    }
+
+    [Test]
+    [WithoutConfiguration]
+    public async ValueTask uses_defaults_without_configuration(Action<IServiceCollection> arrange) {
+        // Arrange
+        var defaults = new ProcessorOptions();
+        var services = NewServices();
+
+        arrange(services);
+
+        // Act
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(opts => opts.Connection(TestConnectionString)));
+
+        var options = DroneOptions<TestableRecordProcessor>(services);
+
+        // Assert
+        await Assert.That(options.SkipDecoding).IsEqualTo(defaults.SkipDecoding);
+        await Assert.That(options.Batching.MaxBatchSize).IsEqualTo(defaults.Batching.MaxBatchSize);
+        await Assert.That(options.Batching.BatchWindow).IsEqualTo(defaults.Batching.BatchWindow);
+        await Assert.That(options.Batching.BufferMultiplier).IsEqualTo(defaults.Batching.BufferMultiplier);
+        await Assert.That(options.Checkpoint.Interval).IsEqualTo(defaults.Checkpoint.Interval);
+        await Assert.That(options.Subscription.InitialPosition).IsEqualTo(defaults.Subscription.InitialPosition);
+    }
+
+    [Test]
+    public async ValueTask ignores_a_processor_id_key_and_reports_it() {
+        // Arrange
+        var processorId  = Faker.Random.AlphaNumeric(12);
+        var configuredId = Faker.Random.AlphaNumeric(12);
+        var expectedPath = $"Kurrent:Surge:Processors:{processorId}:ProcessorId";
+
+        var configuration = Configuration(new() {
+            [expectedPath]                  = configuredId,
+            ["ConnectionStrings:KurrentDB"] = TestConnectionString
+        });
+
+        var options  = new ProcessorOptions { ProcessorId = processorId };
+        var services = NewServices(configuration);
+
+        // Act
+        var read = options.FromConfiguration(configuration, processorId);
+
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId));
+
+        var hosted = DroneOptions<TestableRecordProcessor>(services);
+
+        // Assert
+        var warnings = read.Problems.Where(p => p.Severity == ConfigurationProblemSeverity.Warning).Select(p => p.Path).ToList();
+        var readId   = options.ProcessorId;
+        var hostedId = hosted.ProcessorId;
 
         await Assert.That(warnings).Contains(expectedPath);
-        await Assert.That(processorId).IsEqualTo("testable-record-processor");
+        await Assert.That(readId).IsEqualTo(processorId);
+        await Assert.That(hostedId).IsEqualTo(processorId);
     }
 
     [Test]
     public async ValueTask unusable_configuration_value_fails_drone_materialization() {
         // Arrange
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableRecordProcessor": {
-                      "Checkpoint": { "Interval": "not-a-duration" }
-                    }
-                  }
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
+        var processorId = Faker.Random.AlphaNumeric(12);
 
-        var services = new ServiceCollection();
-        services.AddSingleton(configuration);
-        services.AddLogging();
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor()));
+        var services = NewServices(Configuration(new() {
+            [$"Kurrent:Surge:Processors:{processorId}:Checkpoint:Interval"] = "not-a-duration",
+            ["ConnectionStrings:KurrentDB"]                                 = TestConnectionString
+        }));
+
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId));
 
         var provider = services.BuildServiceProvider();
-
-        // Act & Assert
-        await Assert.That(() => provider.GetServices<IHostedService>().ToList()).Throws<InvalidOperationException>();
-    }
-
-    [Test]
-    public async ValueTask configure_setting_a_processor_id_reads_no_second_section() {
-        // Arrange
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "fraud-eu": {
-                      "Batching": { "MaxBatchSize": 2500 }
-                    }
-                  }
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var expectedBatchSize = new ProcessorOptions().Batching.MaxBatchSize;
 
         // Act
-        var settings = ResolveProcessorOptions(configuration, configure: opts => opts.ProcessorId = "fraud-eu");
+        var materialize = () => provider.GetServices<IHostedService>().ToList();
 
         // Assert
-        await Assert.That(settings.ProcessorId).IsEqualTo("fraud-eu");
-        await Assert.That(settings.Batching.MaxBatchSize).IsEqualTo(expectedBatchSize);
+        await Assert.That(materialize).Throws<InvalidOperationException>();
     }
 
-    [Test]
-    public async ValueTask configure_setting_a_processor_id_does_not_read_the_connection_from_that_section() {
-        // Arrange
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "fraud-eu": {
-                      "ConnectionString": "kurrentdb://other-host:2113"
-                    }
-                  }
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
+    #endregion // Hosting
 
-        // Act
-        var settings = ResolveProcessorOptions(configuration, configure: opts => opts.ProcessorId = "fraud-eu");
+    #region ->> Data <<-
 
-        // Assert
-        var host = ((KurrentClientOptions)settings.ClientOptions!).Endpoints[0].Host;
-
-        await Assert.That(host).IsEqualTo("localhost");
+    public class OutOfRangeValues : TestCaseDataGenerator<Action<ProcessorOptions>> {
+        protected override IEnumerable<TestCase<Action<ProcessorOptions>>> Data() {
+            yield return new(static o => o.ProcessorId = "", DisplayName: "empty ProcessorId");
+            yield return new(static o => o.MaxParallelism = 0, DisplayName: "MaxParallelism 0");
+            yield return new(static o => o.MaxParallelism = -1, DisplayName: "MaxParallelism -1");
+            yield return new(static o => o.MaxParallelism = 32769, DisplayName: "MaxParallelism 32769");
+            yield return new(static o => o.MaxParallelism = 4, DisplayName: "MaxParallelism 4 without PartitionKeySelector");
+            yield return new(static o => o.Batching.MaxBatchSize = 0, DisplayName: "MaxBatchSize 0");
+            yield return new(static o => o.Batching.MaxBatchSize = 10001, DisplayName: "MaxBatchSize 10001");
+            yield return new(static o => o.Batching.BatchWindow = TimeSpan.Zero, DisplayName: "BatchWindow zero");
+            yield return new(static o => o.Batching.BufferMultiplier = 0, DisplayName: "BufferMultiplier 0");
+            yield return new(static o => o.Batching.BufferMultiplier = 101, DisplayName: "BufferMultiplier 101");
+            yield return new(static o => o.Checkpoint.Interval = TimeSpan.Zero, DisplayName: "Checkpoint.Interval zero");
+        }
     }
 
-    static IConfiguration BuildJsonConfiguration(string json) {
-        var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-        return new ConfigurationBuilder()
-            .AddJsonStream(stream)
-            .Build();
+    public class ValidValues : TestCaseDataGenerator<Action<ProcessorOptions>> {
+        protected override IEnumerable<TestCase<Action<ProcessorOptions>>> Data() {
+            yield return new(static _ => { }, DisplayName: "defaults with an id and a connection");
+            yield return new(static o => {
+                o.MaxParallelism                    = 4;
+                o.Subscription.PartitionKeySelector = "stream";
+            }, DisplayName: "MaxParallelism 4 with PartitionKeySelector");
+        }
     }
 
-    static ProcessorOptions ResolveProcessorOptions(
-        IConfiguration configuration,
-        Action<ProcessorOptions>? configure = null) {
-        var services = new ServiceCollection();
-        services.AddSingleton(configuration);
-        services.AddLogging();
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), opts => configure?.Invoke(opts)));
+    public sealed record Shape(
+        string SectionName,
+        string ExpectedId,
+        bool CamelCaseKeys,
+        Func<IKurrentSurgeBuilder, IKurrentSurgeBuilder> Register,
+        Func<IServiceCollection, ProcessorOptions> Options);
 
-        var provider = services.BuildServiceProvider();
-        var hostedService = provider.GetServices<IHostedService>()
-            .OfType<DroneService<TestableRecordProcessor>>()
-            .Single();
+    public class Shapes : TestCaseDataGenerator<Shape> {
+        protected override IEnumerable<TestCase<Shape>> Data() {
+            yield return new(new(
+                nameof(TestableRecordProcessor), "testable-record-processor", CamelCaseKeys: false,
+                static surge => surge.AddProcessor<TestableRecordProcessor>(),
+                DroneOptions<TestableRecordProcessor>), DisplayName: "record, PascalCase keys");
 
-        return hostedService.Drone.Options;
+            yield return new(new(
+                nameof(TestableBatchProcessor), "testable-batch-processor", CamelCaseKeys: true,
+                static surge => surge.AddBatchProcessor<TestableBatchProcessor>(),
+                DroneOptions<TestableBatchProcessor>), DisplayName: "batch, camelCase keys");
+        }
     }
 
-    #endregion // Configuration Binding Tests
+    public enum ConnectionSource { Lambda, Section, Scope, SharedSurge, SharedKurrentDB, SectionOfIdSetInLambda }
 
-    #region ->> Batch Processor DI Registration Tests <<-
-
-    [Test]
-    public async ValueTask batch_processor_duplicate_registration_is_idempotent() {
-        var services = new ServiceCollection();
-
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor(new TestableBatchProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "first";
-        }));
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor(new TestableBatchProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "second";
-        }));
-
-        var hostedServiceCount = services.Count(d =>
-            d.ServiceType == typeof(IHostedService) &&
-            d.ImplementationFactory is not null);
-
-        await Assert.That(hostedServiceCount).IsEqualTo(1);
+    public sealed record Precedence(ConnectionSource[] Present, ConnectionSource Winner) {
+        public bool Has(ConnectionSource source) => Present.Contains(source);
     }
 
-    [Test]
-    public async ValueTask batch_processor_duplicate_registration_with_factory_is_idempotent() {
-        var services = new ServiceCollection();
-
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor<TestableBatchProcessor>(
-            _ => new TestableBatchProcessor(),
-            opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId = "first";
-            }));
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor<TestableBatchProcessor>(
-            _ => new TestableBatchProcessor(),
-            opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId = "second";
-            }));
-
-        var hostedServiceCount = services.Count(d =>
-            d.ServiceType == typeof(IHostedService) &&
-            d.ImplementationFactory is not null);
-
-        await Assert.That(hostedServiceCount).IsEqualTo(1);
+    public class ConnectionPrecedence : TestCaseDataGenerator<Precedence> {
+        protected override IEnumerable<TestCase<Precedence>> Data() {
+            yield return new(new([ConnectionSource.Lambda, ConnectionSource.Section, ConnectionSource.Scope, ConnectionSource.SharedSurge, ConnectionSource.SharedKurrentDB], ConnectionSource.Lambda), DisplayName: "lambda beats the section");
+            yield return new(new([ConnectionSource.Section, ConnectionSource.Scope, ConnectionSource.SharedSurge, ConnectionSource.SharedKurrentDB], ConnectionSource.Section), DisplayName: "section beats the scope");
+            yield return new(new([ConnectionSource.Scope, ConnectionSource.SharedSurge, ConnectionSource.SharedKurrentDB], ConnectionSource.Scope), DisplayName: "scope beats the shared Kurrent Surge key");
+            yield return new(new([ConnectionSource.SharedSurge, ConnectionSource.SharedKurrentDB], ConnectionSource.SharedSurge), DisplayName: "shared Kurrent Surge key beats KurrentDB");
+            yield return new(new([ConnectionSource.SharedKurrentDB], ConnectionSource.SharedKurrentDB), DisplayName: "KurrentDB alone, spelling-insensitive");
+            yield return new(new([ConnectionSource.SectionOfIdSetInLambda, ConnectionSource.SharedKurrentDB], ConnectionSource.SharedKurrentDB), DisplayName: "an id set in the lambda reads no connection from that section");
+        }
     }
 
-    [Test]
-    public async ValueTask batch_processor_configuration_with_service_provider_can_access_services() {
-        var services = new ServiceCollection();
-        services.AddSingleton(new TestSettings { ProcessorId = "batch-configured-id" });
-        services.AddLogging();
-
-        string? capturedId = null;
-
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor(new TestableBatchProcessor(), (opts, sp) => {
-            var settings = sp.GetRequiredService<TestSettings>();
-            capturedId = settings.ProcessorId;
-            opts.ProcessorId = capturedId;
-            opts.Connection(TestConnectionString);
-        }));
-
-        var provider = services.BuildServiceProvider();
-        _ = provider.GetServices<IHostedService>().ToList();
-
-        await Assert.That(capturedId).IsEqualTo("batch-configured-id");
+    public class WithoutConfiguration : TestCaseDataGenerator<Action<IServiceCollection>> {
+        protected override IEnumerable<TestCase<Action<IServiceCollection>>> Data() {
+            yield return new(static _ => { }, DisplayName: "no IConfiguration registered");
+            yield return new(static services => services.AddSingleton(Configuration(new() { ["SomeOther:Section"] = "value" })), DisplayName: "no processor section");
+        }
     }
 
-    [Test]
-    public async ValueTask batch_processor_di_resolves_connection_from_client_options_in_service_provider() {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton(KurrentClientOptions.Parse(TestConnectionString));
+    #endregion // Data
 
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor(new TestableBatchProcessor(), opts => {
-            opts.ProcessorId = "batch-sp-resolved";
-        }));
+    #region ->> Helpers <<-
 
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
+    string NewConnectionString() => $"kurrentdb://node-{Faker.Random.Hash(8)}:2113";
 
-        await Assert.That(droneService.Drone.Options.ClientOptions).IsNotNull();
-        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
+    ProcessorOptions ValidOptions() {
+        var options = new ProcessorOptions { ProcessorId = Faker.Random.AlphaNumeric(12) };
+        options.Connection(TestConnectionString);
+        return options;
     }
 
-    [Test]
-    public async ValueTask batch_processor_di_explicit_connection_wins_over_client_options() {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddSingleton(KurrentClientOptions.Parse("kurrentdb://other-host:2113"));
+    static IConfiguration Configuration(Dictionary<string, string?> settings) =>
+        new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
 
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor(new TestableBatchProcessor(), opts => {
-            opts.ProcessorId = "batch-explicit-wins";
-            opts.Connection(TestConnectionString);
-        }));
-
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
-
-        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
-    }
-
-    [Test]
-    public async ValueTask batch_processor_auto_generates_processor_id_from_type_name() {
+    static ServiceCollection NewServices(IConfiguration? configuration = null) {
         var services = new ServiceCollection();
         services.AddLogging();
 
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor(new TestableBatchProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-        }));
+        if (configuration is not null)
+            services.AddSingleton(configuration);
 
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
-
-        await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("testable-batch-processor");
+        return services;
     }
 
-    [Test]
-    public async ValueTask batch_and_record_processors_register_independently() {
-        var services = new ServiceCollection();
-        services.AddLogging();
+    static ProcessorOptions DroneOptions<TProcessor>(IServiceCollection services) where TProcessor : class, IProcessor =>
+        services.BuildServiceProvider().GetServices<IHostedService>().OfType<DroneService<TProcessor>>().Single().Drone.Options;
 
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "record-processor";
-        }));
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor(new TestableBatchProcessor(), opts => {
-            opts.Connection(TestConnectionString);
-            opts.ProcessorId = "batch-processor";
-        }));
+    static DnsEndPoint? EndpointOf(IKurrentClientOptions? client) =>
+        client is KurrentClientOptions options ? options.Endpoints.Single() : null;
 
-        var provider = services.BuildServiceProvider();
-        var hosted   = provider.GetServices<IHostedService>().ToList();
+    static string CamelCase(string path) =>
+        string.Join(':', path.Split(':').Select(segment => $"{char.ToLowerInvariant(segment[0])}{segment[1..]}"));
 
-        var expectedRecordService = hosted.OfType<DroneService<TestableRecordProcessor>>().SingleOrDefault();
-        var expectedBatchService  = hosted.OfType<DroneService<TestableBatchProcessor>>().SingleOrDefault();
-
-        await Assert.That(expectedRecordService).IsNotNull();
-        await Assert.That(expectedBatchService).IsNotNull();
-    }
-
-    [Test]
-    public async ValueTask batch_processor_configuration_binding_from_json() {
-        var configuration = BuildJsonConfiguration("""
-            {
-              "Kurrent": {
-                "Surge": {
-                  "Processors": {
-                    "TestableBatchProcessor": {
-                      "ProcessorId": "batch-config-processor",
-                      "Batching": { "MaxBatchSize": 2000 }
-                    }
-                  }
-              
-                }
-              },
-              "ConnectionStrings": {
-                "kurrentdb": "kurrentdb://localhost:2113"
-              }
-            }
-            """);
-
-        var services = new ServiceCollection();
-        services.AddSingleton(configuration);
-        services.AddLogging();
-        services.AddKurrentSurge(surge => surge.AddBatchProcessor(new TestableBatchProcessor()));
-
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
-
-        await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("testable-batch-processor");
-        await Assert.That(droneService.Drone.Options.Batching.MaxBatchSize).IsEqualTo(2000);
+    record TestSettings {
+        public string ProcessorId { get; init; } = "";
     }
 
     sealed class TestableBatchProcessor : RecordBatchProcessor {
         public override ValueTask ProcessBatch(BatchContext context) => ValueTask.CompletedTask;
     }
 
-    #endregion // Batch Processor DI Registration Tests
-
+    #endregion // Helpers
 }

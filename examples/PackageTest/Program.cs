@@ -20,7 +20,7 @@ var catalogs = typeof(MessageCatalog).Assembly;   // message declaration layer, 
 var variant  = typeof(IVariant).Assembly;         // Kurrent.Variant (bundled via Kurrent.Surge.Core)
 
 // The streaming API also lives in Kurrent.Surge — touch it so a missing streaming surface fails here too.
-_ = typeof(Kurrent.Surge.SurgeProcessor);
+_ = typeof(Kurrent.Surge.IKurrentSurgeBuilder);
 
 Console.WriteLine($"Kurrent.Surge                 -> {surge.GetName().Name} v{surge.GetName().Version}");
 Console.WriteLine($"Kurrent.Surge.Core            -> {core.GetName().Name} v{core.GetName().Version}");

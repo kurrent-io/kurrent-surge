@@ -5,23 +5,25 @@ top-level statements make the host, and the processor class is below them.
 
 ## What You'll Learn
 
-- How to make a host for one processor class with `SurgeProcessor.CreateBuilder<T>`
-- How to give the processor an ID: pass `live-transfers` as the second argument of `CreateBuilder<T>`
-- How to set the processor options in the `CreateBuilder<T>` lambda: the filter, the start position, and the checkpoint interval
+- How to make a host with `Host.CreateApplicationBuilder(args)` and add a processor with
+  `builder.AddKurrentSurge(surge => surge.AddProcessor<T>(...))`
+- How to give the processor an ID: pass `live-transfers` as the first argument of `AddProcessor<T>`
+- How to set the processor options in the `AddProcessor<T>` lambda: the filter, the start position, and the checkpoint interval
 - How to write a `MessageProcessor` class with one handler for each message type
 - How to add Serilog and a `BackgroundService` through `builder.Services`
 - How the host gets the connection string from `appsettings.json`, with no connection code
 
 ## How It Works
 
-1. `SurgeProcessor.CreateBuilder<LiveTransferProcessor>(args, "live-transfers", options => { ... })`
-   makes a builder for a host with one `LiveTransferProcessor`. The processor ID is `live-transfers`.
+1. `builder.AddKurrentSurge(surge => surge.AddProcessor<LiveTransferProcessor>("live-transfers", options => { ... }))`
+   registers one `LiveTransferProcessor` on the host builder. The processor ID is `live-transfers`.
 2. The host reads the options from the `Kurrent:Surge:Processors:live-transfers` configuration
    section. Then the lambda sets the subscription filter, the start position, and the checkpoint
    interval.
 3. The top-level statements add Serilog and `TransferSeeder` to `builder.Services`.
 4. `builder.Build().RunAsync()` starts the host and runs the processor until you press `Ctrl+C`.
-5. If the processor stops because of an error, the host stops. The exit code is then 1.
+5. If the processor stops because of an error, the host stops. To make the process exit with a
+   failure code, add `surge.FailProcessOnFatalError()` inside `AddKurrentSurge`.
 
 `LiveTransferProcessor` is below the top-level statements. Its constructor adds one handler for
 `PlayerTransferred` and one handler for `PlayerRegistered`.
@@ -57,15 +59,16 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-var builder = SurgeProcessor.CreateBuilder<LiveTransferProcessor>(
-    args, "live-transfers", options => {
-        options.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
-        options.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
+var builder = Host.CreateApplicationBuilder(args);
 
-        // Tailing live data only, so there is nothing to resume after a restart — checkpoint
-        // rarely rather than never, so the drone never wastes writes catching up to itself.
-        options.Checkpoint.Interval = TimeSpan.FromDays(1);
-    });
+builder.AddKurrentSurge(surge => surge.AddProcessor<LiveTransferProcessor>("live-transfers", options => {
+    options.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
+    options.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
+
+    // Tailing live data only, so there is nothing to resume after a restart — checkpoint
+    // rarely rather than never, so the drone never wastes writes catching up to itself.
+    options.Checkpoint.Interval = TimeSpan.FromDays(1);
+}));
 
 builder.Services.AddSerilog();
 builder.Services.AddHostedService<TransferSeeder>();
@@ -97,8 +100,8 @@ sealed class LiveTransferProcessor : MessageProcessor {
 
 ## Configuration
 
-`Program.cs` passes the processor ID `live-transfers` to `CreateBuilder`. The health check uses this
-ID, and the application name is `Live Transfers`.
+`Program.cs` passes the processor ID `live-transfers` to `AddProcessor<T>`. The health check uses
+this ID.
 
 The host reads the options from the `Kurrent:Surge:Processors:live-transfers` configuration section
 before the lambda runs, so a value that the lambda sets replaces the configured value.

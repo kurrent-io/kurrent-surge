@@ -12,7 +12,7 @@ var surge    = typeof(KurrentClient).Assembly;    // Kurrent.Surge (impl: client
 var core     = typeof(IKurrentClient).Assembly;   // Kurrent.Surge.Core (contracts)
 var catalogs = typeof(MessageCatalog).Assembly;   // message declaration layer, ships in Kurrent.Surge.Core
 var variant  = typeof(IVariant).Assembly;         // Kurrent.Variant (bundled via Kurrent.Surge.Core)
-_ = typeof(Kurrent.Surge.SurgeProcessor);   // streaming surface (also Kurrent.Surge)
+_ = typeof(Kurrent.Surge.IKurrentSurgeBuilder);   // streaming surface (also Kurrent.Surge)
 
 Console.WriteLine($"Kurrent.Surge                 -> {surge.GetName().Name} v{surge.GetName().Version}");
 Console.WriteLine($"Kurrent.Surge.Core            -> {core.GetName().Name} v{core.GetName().Version}");

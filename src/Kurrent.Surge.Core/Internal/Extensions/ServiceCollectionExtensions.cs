@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace Kurrent.Toolkit;
 
@@ -207,40 +206,6 @@ static class ServiceCollectionExtensions {
                 return false;
 
             services.ActivateKeyedSingleton<T>(serviceKey);
-            return true;
-        }
-
-        #endregion
-
-        #region ->> TryRegisterHostedService <<-
-
-        /// <summary>
-        /// Registers <typeparamref name="THostedService"/> as an <see cref="IHostedService"/>
-        /// unless already registered. Unlike <c>AddHostedService</c>, the concrete hosted-service
-        /// type is the dedup key — not <c>TryAddEnumerable</c>'s (ServiceType, ImplementationType).
-        /// </summary>
-        public bool TryRegisterHostedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] THostedService>()
-            where THostedService : class, IHostedService {
-            if (services.IsRegistered<THostedService>())
-                return false;
-
-            services.AddSingleton<THostedService>();
-            services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<THostedService>());
-            return true;
-        }
-
-        /// <summary>
-        /// Registers a factory-backed <typeparamref name="THostedService"/> as an
-        /// <see cref="IHostedService"/> unless already registered.
-        /// </summary>
-        public bool TryRegisterHostedService<THostedService>(
-            Func<IServiceProvider, THostedService> factory
-        ) where THostedService : class, IHostedService {
-            if (services.IsRegistered<THostedService>())
-                return false;
-
-            services.AddSingleton(factory);
-            services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<THostedService>());
             return true;
         }
 

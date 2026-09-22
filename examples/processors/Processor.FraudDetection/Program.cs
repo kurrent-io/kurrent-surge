@@ -15,8 +15,14 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 try {
-    var builder = SurgeProcessor.CreateBuilder<FraudDetectionProcessor>(args, options =>
-        options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'Transaction'"));
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.AddKurrentSurge(surge => {
+        surge.FailProcessOnFatalError();
+
+        surge.AddProcessor<FraudDetectionProcessor>(options =>
+            options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'Transaction'"));
+    });
 
     builder.Services.AddSerilog();
 

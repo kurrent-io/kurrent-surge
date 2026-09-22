@@ -1,13 +1,12 @@
 using System.Runtime.CompilerServices;
-using Kurrent.Surge.Processors;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Kurrent.Surge;
+namespace Kurrent.Surge.Processors.Hosting;
 
 /// <summary>
 /// Reports the hosted processor as healthy, degraded, or unhealthy from its lifecycle and checkpoint events.
 /// </summary>
-sealed class ProcessorHealthCheck<TProcessor> : IHealthCheck, IProcessorObserver where TProcessor : class, IProcessor {
+sealed class ProcessorHealthCheck : IHealthCheck, IProcessorObserver {
     volatile StrongBox<ProcessorStateChanged>? _latest;
     volatile Exception?                        _checkpointFailure;
 

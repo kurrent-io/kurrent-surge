@@ -55,7 +55,6 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
-<!--    <PackageReference Include="Microsoft.Extensions.Diagnostics.ExceptionSummarization" />-->
     <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
     <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
   </ItemGroup>

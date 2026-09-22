@@ -15,8 +15,14 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 try {
-    var builder = SurgeProcessor.CreateBuilder<TemperatureMonitorProcessor>(args, options =>
-        options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'"));
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.AddKurrentSurge(surge => {
+        surge.FailProcessOnFatalError();
+
+        surge.AddProcessor<TemperatureMonitorProcessor>(options =>
+            options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'SensorReading'"));
+    });
 
     builder.Services.AddSerilog();
 

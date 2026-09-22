@@ -24,14 +24,19 @@ try {
     var stream  = $"WordCount-{Guid.NewGuid().ToString()[..8]}";
     var catalog = new MessageCatalog("wordcount").Map<TextSubmitted>();
 
-    var builder = SurgeProcessor.CreateBuilder<WordCountProcessor>(args, options => {
-        options.Subscription.Filter          = RecordFilter.ByStream(stream);
-        options.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+    var builder = Host.CreateApplicationBuilder(args);
 
-        options.Debug = true;
+    builder.AddKurrentSurge(surge => {
+        surge.FailProcessOnFatalError();
+        surge.Connection(client => client.Messages.UseCatalog(catalog));
+
+        surge.AddProcessor<WordCountProcessor>(options => {
+            options.Subscription.Filter          = RecordFilter.ByStream(stream);
+            options.Subscription.InitialPosition = SubscriptionInitialPosition.Earliest;
+
+            options.Debug = true;
+        });
     });
-
-    builder.AddKurrentSurge(surge => surge.Connection(client => client.Messages.UseCatalog(catalog)));
 
     builder.Services.AddSerilog();
     builder.Services.AddUselessFactsClient();

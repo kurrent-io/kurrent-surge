@@ -2,18 +2,13 @@ using Bogus;
 using Kurrent.Surge.Processors;
 using Kurrent.Surge.Client;
 using Kurrent.Surge.Processors.Configuration;
-using Kurrent.Surge.Processors.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 namespace Kurrent.Surge.Streaming.Tests;
 
-/// <summary>
-/// Unit tests for processor registration through the <c>AddKurrentSurge</c> builder scope.
-/// Drone construction and options resolution are covered by <see cref="ConfigurationTests"/>;
-/// these verify the builder surface wires into the same pipeline.
-/// </summary>
 [Category("Processors")]
 public class KurrentSurgeBuilderProcessorTests {
     const string TestConnectionString = "kurrentdb://localhost:2113";
@@ -21,31 +16,41 @@ public class KurrentSurgeBuilderProcessorTests {
     [ClassDataSource<BogusFaker>(Shared = SharedType.PerTestSession)]
     public required BogusFaker Faker { get; [UsedImplicitly] init; }
 
-    public class NamedRecordRegistrations : TestCaseDataGenerator<Func<IKurrentSurgeBuilder, string, IKurrentSurgeBuilder>> {
+    public class NamedRegistrations : TestCaseDataGenerator<Func<IKurrentSurgeBuilder, string, IKurrentSurgeBuilder>> {
         protected override IEnumerable<TestCase<Func<IKurrentSurgeBuilder, string, IKurrentSurgeBuilder>>> Data() {
-            yield return new(static (surge, id) => surge.AddProcessor<TestableRecordProcessor>(id), DisplayName: "resolved");
-            yield return new(static (surge, id) => surge.AddProcessor<TestableRecordProcessor>(id, static (_, _) => { }), DisplayName: "resolved, with services");
-            yield return new(static (surge, id) => surge.AddProcessor<TestableRecordProcessor>(id, static _ => new TestableRecordProcessor()), DisplayName: "factory");
-            yield return new(static (surge, id) => surge.AddProcessor<TestableRecordProcessor>(id, static _ => new TestableRecordProcessor(), static (_, _) => { }), DisplayName: "factory, with services");
-            yield return new(static (surge, id) => surge.AddProcessor<TestableRecordProcessor>(id, new TestableRecordProcessor()), DisplayName: "instance");
-            yield return new(static (surge, id) => surge.AddProcessor<TestableRecordProcessor>(id, new TestableRecordProcessor(), static (_, _) => { }), DisplayName: "instance, with services");
+            yield return new(static (surge, id) => surge.AddProcessor<TestableRecordProcessor>(id), DisplayName: "record");
+            yield return new(static (surge, id) => surge.AddProcessor<TestableRecordProcessor>(id, static (_, _) => { }), DisplayName: "record, with services");
+            yield return new(static (surge, id) => surge.AddBatchProcessor<TestableBatchProcessor>(id), DisplayName: "batch");
+            yield return new(static (surge, id) => surge.AddBatchProcessor<TestableBatchProcessor>(id, static (_, _) => { }), DisplayName: "batch, with services");
         }
     }
 
-    public class NamedBatchRegistrations : TestCaseDataGenerator<Func<IKurrentSurgeBuilder, string, IKurrentSurgeBuilder>> {
-        protected override IEnumerable<TestCase<Func<IKurrentSurgeBuilder, string, IKurrentSurgeBuilder>>> Data() {
-            yield return new(static (surge, id) => surge.AddBatchProcessor<TestableBatchProcessor>(id), DisplayName: "resolved");
-            yield return new(static (surge, id) => surge.AddBatchProcessor<TestableBatchProcessor>(id, static (_, _) => { }), DisplayName: "resolved, with services");
-            yield return new(static (surge, id) => surge.AddBatchProcessor<TestableBatchProcessor>(id, static _ => new TestableBatchProcessor()), DisplayName: "factory");
-            yield return new(static (surge, id) => surge.AddBatchProcessor<TestableBatchProcessor>(id, static _ => new TestableBatchProcessor(), static (_, _) => { }), DisplayName: "factory, with services");
-            yield return new(static (surge, id) => surge.AddBatchProcessor<TestableBatchProcessor>(id, new TestableBatchProcessor()), DisplayName: "instance");
-            yield return new(static (surge, id) => surge.AddBatchProcessor<TestableBatchProcessor>(id, new TestableBatchProcessor(), static (_, _) => { }), DisplayName: "instance, with services");
+    public class UnnamedRegistrations : TestCaseDataGenerator<(Func<IKurrentSurgeBuilder, IKurrentSurgeBuilder> Register, string ExpectedId)> {
+        protected override IEnumerable<TestCase<(Func<IKurrentSurgeBuilder, IKurrentSurgeBuilder> Register, string ExpectedId)>> Data() {
+            yield return new((static surge => surge.AddProcessor<TestableRecordProcessor>(), "testable-record-processor"), DisplayName: "record");
+            yield return new((static surge => surge.AddProcessor<TestableRecordProcessor>(static (_, _) => { }), "testable-record-processor"), DisplayName: "record, with services");
+            yield return new((static surge => surge.AddBatchProcessor<TestableBatchProcessor>(), "testable-batch-processor"), DisplayName: "batch");
+            yield return new((static surge => surge.AddBatchProcessor<TestableBatchProcessor>(static (_, _) => { }), "testable-batch-processor"), DisplayName: "batch, with services");
+        }
+    }
+
+    public class BlankIds : TestCaseDataGenerator<string> {
+        protected override IEnumerable<TestCase<string>> Data() {
+            yield return new("", DisplayName: "empty");
+            yield return new("   ", DisplayName: "whitespace");
+        }
+    }
+
+    public class DuplicateIds : TestCaseDataGenerator<Action<IKurrentSurgeBuilder, string>> {
+        protected override IEnumerable<TestCase<Action<IKurrentSurgeBuilder, string>>> Data() {
+            yield return new(static (surge, id) => surge.AddProcessor<TestableRecordProcessor>(id), DisplayName: "same type");
+            yield return new(static (surge, id) => surge.AddBatchProcessor<TestableBatchProcessor>(id), DisplayName: "another type");
         }
     }
 
     [Test]
-    [NamedRecordRegistrations]
-    public async ValueTask named_processor_overloads_read_the_section_keyed_by_the_passed_id(Func<IKurrentSurgeBuilder, string, IKurrentSurgeBuilder> register) {
+    [NamedRegistrations]
+    public async ValueTask named_overloads_read_the_section_keyed_by_the_passed_id(Func<IKurrentSurgeBuilder, string, IKurrentSurgeBuilder> register) {
         // Arrange
         var processorId  = Faker.Random.AlphaNumeric(12);
         var maxBatchSize = Faker.Random.Int(501, 10_000);
@@ -54,65 +59,58 @@ public class KurrentSurgeBuilderProcessorTests {
             [$"Kurrent:Surge:Processors:{processorId}:Batching:MaxBatchSize"] = $"{maxBatchSize}"
         });
 
-        services.AddSingleton<TestableRecordProcessor>();
-
         // Act
         services.AddKurrentSurge(surge => register(surge, processorId));
 
         // Assert
-        var options      = DroneOptions<TestableRecordProcessor>(services);
-        var actualId     = options.ProcessorId;
-        var actualBatch  = options.Batching.MaxBatchSize;
+        var options     = DroneOptions(services, processorId);
+        var actualId    = options.ProcessorId;
+        var actualBatch = options.Batching.MaxBatchSize;
 
         await Assert.That(actualId).IsEqualTo(processorId);
         await Assert.That(actualBatch).IsEqualTo(maxBatchSize);
     }
 
     [Test]
-    [NamedBatchRegistrations]
-    public async ValueTask named_batch_processor_overloads_read_the_section_keyed_by_the_passed_id(Func<IKurrentSurgeBuilder, string, IKurrentSurgeBuilder> register) {
+    [UnnamedRegistrations]
+    public async ValueTask unnamed_overloads_read_the_section_keyed_by_the_type_name(Func<IKurrentSurgeBuilder, IKurrentSurgeBuilder> register, string expectedId) {
         // Arrange
-        var processorId  = Faker.Random.AlphaNumeric(12);
         var maxBatchSize = Faker.Random.Int(501, 10_000);
 
         var services = NewServices(new() {
-            [$"Kurrent:Surge:Processors:{processorId}:Batching:MaxBatchSize"] = $"{maxBatchSize}"
-        });
-
-        services.AddSingleton<TestableBatchProcessor>();
-
-        // Act
-        services.AddKurrentSurge(surge => register(surge, processorId));
-
-        // Assert
-        var options      = DroneOptions<TestableBatchProcessor>(services);
-        var actualId     = options.ProcessorId;
-        var actualBatch  = options.Batching.MaxBatchSize;
-
-        await Assert.That(actualId).IsEqualTo(processorId);
-        await Assert.That(actualBatch).IsEqualTo(maxBatchSize);
-    }
-
-    [Test]
-    public async ValueTask unnamed_overload_reads_the_section_keyed_by_the_type_name() {
-        // Arrange
-        var maxBatchSize = Faker.Random.Int(501, 10_000);
-        var expectedId   = "testable-record-processor";
-
-        var services = NewServices(new() {
-            [$"Kurrent:Surge:Processors:{nameof(TestableRecordProcessor)}:Batching:MaxBatchSize"] = $"{maxBatchSize}"
+            [$"Kurrent:Surge:Processors:{expectedId}:Batching:MaxBatchSize"] = $"{maxBatchSize}"
         });
 
         // Act
-        services.AddKurrentSurge(surge => surge.AddProcessor(new TestableRecordProcessor()));
+        services.AddKurrentSurge(surge => register(surge));
 
         // Assert
-        var options     = DroneOptions<TestableRecordProcessor>(services);
+        var options     = DroneOptions(services, expectedId);
         var actualId    = options.ProcessorId;
         var actualBatch = options.Batching.MaxBatchSize;
 
         await Assert.That(actualId).IsEqualTo(expectedId);
         await Assert.That(actualBatch).IsEqualTo(maxBatchSize);
+    }
+
+    [Test]
+    [BlankIds]
+    public async ValueTask a_blank_id_reads_as_none_given(string processorId) {
+        // Arrange
+        var expectedId  = "testable-record-processor";
+        var dronePrefix = $"{expectedId}-";
+        var services    = NewServices();
+
+        // Act
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId));
+
+        // Assert
+        var drone    = services.BuildServiceProvider().GetRequiredKeyedService<IDrone>(expectedId);
+        var actualId = drone.ProcessorId;
+        var droneId  = drone.DroneId;
+
+        await Assert.That(actualId).IsEqualTo(expectedId);
+        await Assert.That(droneId).StartsWith(dronePrefix);
     }
 
     [Test]
@@ -122,6 +120,7 @@ public class KurrentSurgeBuilderProcessorTests {
         var changedId   = Faker.Random.AlphaNumeric(12);
         var registered  = Faker.Random.Int(501, 5_000);
         var unread      = Faker.Random.Int(5_001, 10_000);
+        var dronePrefix = $"{changedId}-";
 
         var services = NewServices(new() {
             [$"Kurrent:Surge:Processors:{processorId}:Batching:MaxBatchSize"] = $"{registered}",
@@ -129,132 +128,228 @@ public class KurrentSurgeBuilderProcessorTests {
         });
 
         // Act
-        services.AddKurrentSurge(surge =>
-            surge.AddProcessor(processorId, new TestableRecordProcessor(), opts => opts.ProcessorId = changedId));
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId, opts => opts.ProcessorId = changedId));
 
         // Assert
-        var options     = DroneOptions<TestableRecordProcessor>(services);
+        var options     = DroneOptions(services, processorId);
         var actualId    = options.ProcessorId;
         var actualBatch = options.Batching.MaxBatchSize;
+        var droneId     = options.DroneId;
 
         await Assert.That(actualId).IsEqualTo(changedId);
         await Assert.That(actualBatch).IsEqualTo(registered);
+        await Assert.That(droneId).StartsWith(dronePrefix);
     }
 
     [Test]
-    public async ValueTask builder_registers_processor_as_hosted_service() {
-        var services = new ServiceCollection();
-        services.AddLogging();
+    public async ValueTask registers_the_processor_as_a_keyed_singleton() {
+        // Arrange
+        var processorId = Faker.Random.AlphaNumeric(12);
+        var otherId     = Faker.Random.AlphaNumeric(12);
+        var services    = NewServices();
 
-        services.AddKurrentSurge(surge =>
-            surge.AddProcessor(new TestableRecordProcessor(), opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId = "builder-processor";
-            }));
+        // Act
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId));
 
+        // Assert
+        var provider = services.BuildServiceProvider();
+        var first    = provider.GetRequiredKeyedService<TestableRecordProcessor>(processorId);
+        var second   = provider.GetRequiredKeyedService<TestableRecordProcessor>(processorId);
+        var other    = provider.GetKeyedService<TestableRecordProcessor>(otherId);
+
+        await Assert.That(second).IsSameReferenceAs(first);
+        await Assert.That(other).IsNull();
+    }
+
+    [Test]
+    public async ValueTask keeps_a_keyed_registration_the_caller_made() {
+        // Arrange
+        var processorId = Faker.Random.AlphaNumeric(12);
+        var instance    = new TestableRecordProcessor();
+        var services    = NewServices();
+
+        services.AddKeyedSingleton(processorId, instance);
+
+        // Act
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId));
+
+        // Assert
+        var resolved = services.BuildServiceProvider().GetRequiredKeyedService<TestableRecordProcessor>(processorId);
+
+        await Assert.That(resolved).IsSameReferenceAs(instance);
+    }
+
+    [Test]
+    public async ValueTask a_lone_processor_also_resolves_unkeyed() {
+        // Arrange
+        var processorId = Faker.Random.AlphaNumeric(12);
+        var services    = NewServices();
+
+        // Act
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId));
+
+        // Assert
+        var provider = services.BuildServiceProvider();
+        var keyed    = provider.GetRequiredKeyedService<TestableRecordProcessor>(processorId);
+        var unkeyed  = provider.GetRequiredService<TestableRecordProcessor>();
+
+        await Assert.That(unkeyed).IsSameReferenceAs(keyed);
+    }
+
+    [Test]
+    public async ValueTask a_second_id_of_the_same_type_removes_the_unkeyed_registration() {
+        // Arrange
+        var firstId  = Faker.Random.AlphaNumeric(12);
+        var secondId = Faker.Random.AlphaNumeric(12);
+        var services = NewServices();
+
+        // Act
+        services.AddKurrentSurge(surge => surge
+            .AddProcessor<TestableRecordProcessor>(firstId)
+            .AddProcessor<TestableRecordProcessor>(secondId));
+
+        // Assert
+        var provider = services.BuildServiceProvider();
+        var first    = provider.GetRequiredKeyedService<TestableRecordProcessor>(firstId);
+        var second   = provider.GetRequiredKeyedService<TestableRecordProcessor>(secondId);
+        var unkeyed  = provider.GetService<TestableRecordProcessor>();
+
+        await Assert.That(second).IsNotSameReferenceAs(first);
+        await Assert.That(unkeyed).IsNull();
+    }
+
+    [Test]
+    public async ValueTask an_unkeyed_registration_the_caller_made_is_a_separate_instance() {
+        // Arrange
+        var firstId  = Faker.Random.AlphaNumeric(12);
+        var secondId = Faker.Random.AlphaNumeric(12);
+        var instance = new TestableRecordProcessor();
+        var services = NewServices();
+
+        services.AddSingleton(instance);
+
+        // Act
+        services.AddKurrentSurge(surge => surge
+            .AddProcessor<TestableRecordProcessor>(firstId)
+            .AddProcessor<TestableRecordProcessor>(secondId));
+
+        // Assert
+        var provider = services.BuildServiceProvider();
+        var keyed    = provider.GetRequiredKeyedService<TestableRecordProcessor>(firstId);
+        var unkeyed  = provider.GetRequiredService<TestableRecordProcessor>();
+
+        await Assert.That(unkeyed).IsSameReferenceAs(instance);
+        await Assert.That(keyed).IsNotSameReferenceAs(instance);
+    }
+
+    [Test]
+    [DuplicateIds]
+    public async ValueTask a_duplicate_processor_id_throws(Action<IKurrentSurgeBuilder, string> registerAgain) {
+        // Arrange
+        var processorId = Faker.Random.AlphaNumeric(12);
+        var services    = NewServices();
+
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId));
+
+        // Act
+        var exception = await Assert.That(() => services.AddKurrentSurge(surge => registerAgain(surge, processorId)))
+            .Throws<InvalidOperationException>();
+
+        // Assert
+        var message = exception!.Message;
+
+        await Assert.That(message).Contains(processorId);
+    }
+
+    [Test]
+    public async ValueTask registers_the_drone_keyed_by_the_processor_id() {
+        // Arrange
+        var firstId     = Faker.Random.AlphaNumeric(12);
+        var secondId    = Faker.Random.AlphaNumeric(12);
+        var firstPrefix = $"{firstId}-";
+        var services    = NewServices();
+
+        // Act
+        services.AddKurrentSurge(surge => surge
+            .AddProcessor<TestableRecordProcessor>(firstId)
+            .AddProcessor<TestableRecordProcessor>(secondId));
+
+        // Assert
+        var provider      = services.BuildServiceProvider();
+        var first         = provider.GetRequiredKeyedService<IDrone>(firstId);
+        var second        = provider.GetRequiredKeyedService<IDrone>(secondId);
+        var firstActualId = first.ProcessorId;
+        var firstDroneId  = first.DroneId;
+        var secondActual  = second.ProcessorId;
+
+        await Assert.That(firstActualId).IsEqualTo(firstId);
+        await Assert.That(firstDroneId).StartsWith(firstPrefix);
+        await Assert.That(secondActual).IsEqualTo(secondId);
+    }
+
+    [Test]
+    public async ValueTask registers_a_health_check_named_by_the_processor_id(CancellationToken ct) {
+        // Arrange
+        var processorId  = Faker.Random.AlphaNumeric(12);
+        var expectedTags = new[] { "kurrent", "surge", "processor" };
+        var services     = NewServices();
+
+        // Act
+        services.AddKurrentSurge(surge => surge.AddProcessor<TestableRecordProcessor>(processorId));
+
+        // Assert
         var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
+        var registration = provider.GetRequiredService<IOptions<HealthCheckServiceOptions>>().Value.Registrations.Single(r => r.Name == processorId);
+        var report       = await provider.GetRequiredService<HealthCheckService>().CheckHealthAsync(ct);
+        var tags         = registration.Tags.ToArray();
+        var status       = report.Entries[processorId].Status;
 
-        await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("builder-processor");
+        await Assert.That(tags).IsEquivalentTo(expectedTags);
+        await Assert.That(status).IsEqualTo(HealthStatus.Degraded);
     }
 
     [Test]
-    public async ValueTask builder_processor_inherits_scope_connection() {
-        var services = new ServiceCollection();
+    public async ValueTask inherits_the_scope_connection() {
+        // Arrange
+        var processorId = Faker.Random.AlphaNumeric(12);
+        var services    = new ServiceCollection();
+
         services.AddLogging();
 
+        // Act
         services.AddKurrentSurge(surge => surge
             .Connection(TestConnectionString)
-            .AddProcessor(new TestableRecordProcessor(), opts => opts.ProcessorId = "scope-inherited"));
+            .AddProcessor<TestableRecordProcessor>(processorId));
 
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
+        // Assert
+        var clientOptions = (KurrentClientOptions)DroneOptions(services, processorId).ClientOptions!;
+        var host          = clientOptions.Endpoints[0].Host;
 
-        await Assert.That(droneService.Drone.Options.ClientOptions).IsNotNull();
-        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(host).IsEqualTo("localhost");
     }
 
     [Test]
-    public async ValueTask builder_processor_explicit_connection_wins_over_scope_connection() {
-        var services = new ServiceCollection();
+    public async ValueTask an_explicit_connection_wins_over_the_scope_connection() {
+        // Arrange
+        var processorId = Faker.Random.AlphaNumeric(12);
+        var services    = new ServiceCollection();
+
         services.AddLogging();
 
+        // Act
         services.AddKurrentSurge(surge => surge
             .Connection("kurrentdb://other-host:2113")
-            .AddProcessor(new TestableRecordProcessor(), opts => {
-                opts.ProcessorId = "explicit-wins";
-                opts.Connection(TestConnectionString);
-            }));
+            .AddProcessor<TestableRecordProcessor>(processorId, opts => opts.Connection(TestConnectionString)));
 
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
+        // Assert
+        var clientOptions = (KurrentClientOptions)DroneOptions(services, processorId).ClientOptions!;
+        var host          = clientOptions.Endpoints[0].Host;
 
-        await Assert.That(((KurrentClientOptions)droneService.Drone.Options.ClientOptions!).Endpoints[0].Host).IsEqualTo("localhost");
+        await Assert.That(host).IsEqualTo("localhost");
     }
 
-    [Test]
-    public async ValueTask repeated_registrations_of_the_same_processor_dedupe() {
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        services.AddKurrentSurge(surge =>
-            surge.AddProcessor(new TestableRecordProcessor(), opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId = "first";
-            }));
-
-        services.AddKurrentSurge(surge =>
-            surge.AddProcessor(new TestableRecordProcessor(), opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId = "second";
-            }));
-
-        var provider      = services.BuildServiceProvider();
-        var droneServices = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().ToList();
-
-        // Dedup keys on the closed DroneService<T> type, so the first registration wins.
-        await Assert.That(droneServices.Count).IsEqualTo(1);
-        await Assert.That(droneServices[0].Drone.Options.ProcessorId).IsEqualTo("first");
-    }
-
-    [Test]
-    public async ValueTask builder_processor_derives_drone_id_from_the_configured_processor_id() {
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        // The derived id is assigned before the delegate runs; the drone id follows the delegate's id.
-        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
-
-        services.AddKurrentSurge(surge =>
-            surge.AddProcessor(new TestableRecordProcessor(), opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId = "custom-processor";
-            }));
-
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableRecordProcessor>>().Single();
-
-        await Assert.That(droneService.Drone.DroneId).StartsWith("custom-processor-");
-    }
-
-    [Test]
-    public async ValueTask builder_registers_batch_processor_as_hosted_service() {
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        services.AddKurrentSurge(surge =>
-            surge.AddBatchProcessor(new TestableBatchProcessor(), opts => {
-                opts.Connection(TestConnectionString);
-                opts.ProcessorId = "builder-batch-processor";
-            }));
-
-        var provider     = services.BuildServiceProvider();
-        var droneService = provider.GetServices<IHostedService>().OfType<DroneService<TestableBatchProcessor>>().Single();
-
-        await Assert.That(droneService.Drone.Options.ProcessorId).IsEqualTo("builder-batch-processor");
-    }
-
-    static ServiceCollection NewServices(Dictionary<string, string?> settings) {
+    static ServiceCollection NewServices(Dictionary<string, string?>? settings = null) {
+        settings ??= [];
         settings["ConnectionStrings:KurrentDB"] = TestConnectionString;
 
         var services = new ServiceCollection();
@@ -264,8 +359,8 @@ public class KurrentSurgeBuilderProcessorTests {
         return services;
     }
 
-    static ProcessorOptions DroneOptions<TProcessor>(IServiceCollection services) where TProcessor : class, IProcessor =>
-        services.BuildServiceProvider().GetServices<IHostedService>().OfType<DroneService<TProcessor>>().Single().Drone.Options;
+    static ProcessorOptions DroneOptions(IServiceCollection services, string processorId) =>
+        services.BuildServiceProvider().GetRequiredKeyedService<IDrone>(processorId).Options;
 
     sealed class TestableBatchProcessor : RecordBatchProcessor {
         public override ValueTask ProcessBatch(BatchContext context) => ValueTask.CompletedTask;

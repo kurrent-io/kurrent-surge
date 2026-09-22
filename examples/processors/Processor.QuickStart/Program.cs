@@ -14,15 +14,16 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 
-var builder = SurgeProcessor.CreateBuilder<LiveTransferProcessor>(
-    args, "live-transfers", options => {
-        options.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
-        options.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
+var builder = Host.CreateApplicationBuilder(args);
 
-        // Tailing live data only, so there is nothing to resume after a restart — checkpoint
-        // rarely rather than never, so the drone never wastes writes catching up to itself.
-        options.Checkpoint.Interval = TimeSpan.FromDays(1);
-    });
+builder.AddKurrentSurge(surge => surge.AddProcessor<LiveTransferProcessor>("live-transfers", options => {
+    options.Subscription.Filter          = RecordFilter.ByExpression("stream like 'player-%'");
+    options.Subscription.InitialPosition = SubscriptionInitialPosition.Latest;
+
+    // Tailing live data only, so there is nothing to resume after a restart — checkpoint
+    // rarely rather than never, so the drone never wastes writes catching up to itself.
+    options.Checkpoint.Interval = TimeSpan.FromDays(1);
+}));
 
 builder.Services.AddSerilog();
 builder.Services.AddHostedService<TransferSeeder>();

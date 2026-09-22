@@ -234,69 +234,11 @@ public class ServiceCollectionExtensionsTests {
 
     #endregion // TryRegisterActivated
 
-    #region ->> TryRegisterHostedService <<-
-
-    [Test]
-    public async ValueTask try_register_hosted_service_adds_on_first_call() {
-        var services = new ServiceCollection();
-
-        var added = services.TryRegisterHostedService<TestHostedService>();
-
-        await Assert.That(added).IsTrue();
-        await Assert.That(services.IsRegistered<TestHostedService>()).IsTrue();
-        await Assert.That(services.Any(d => d.ServiceType == typeof(IHostedService))).IsTrue();
-    }
-
-    [Test]
-    public async ValueTask try_register_hosted_service_skips_on_duplicate() {
-        var services = new ServiceCollection();
-        services.TryRegisterHostedService<TestHostedService>();
-
-        var added = services.TryRegisterHostedService<TestHostedService>();
-
-        await Assert.That(added).IsFalse();
-        await Assert.That(services.Count(d => d.ServiceType == typeof(TestHostedService))).IsEqualTo(1);
-    }
-
-    [Test]
-    public async ValueTask try_register_hosted_service_with_factory_uses_factory() {
-        var services = new ServiceCollection();
-        var instance = new TestHostedService();
-
-        var added = services.TryRegisterHostedService(_ => instance);
-
-        await Assert.That(added).IsTrue();
-        var provider = services.BuildServiceProvider();
-        var resolved = provider.GetRequiredService<TestHostedService>();
-        await Assert.That(resolved).IsEqualTo(instance);
-    }
-
-    [Test]
-    public async ValueTask try_register_hosted_service_survives_addhostedservice_dedup_trap() {
-        // AddHostedService<T>(factory) dedups on (IHostedService, T) — second call is silently dropped.
-        // TryRegisterHostedService uses AddSingleton<IHostedService>(factory), which bypasses the dedup,
-        // but the concrete type IsRegistered<T> check still gates duplicate registration at the API level.
-        var services = new ServiceCollection();
-
-        var first  = services.TryRegisterHostedService<TestHostedService>();
-        var second = services.TryRegisterHostedService<TestHostedService>();
-
-        await Assert.That(first).IsTrue();
-        await Assert.That(second).IsFalse();
-    }
-
-    #endregion // TryRegisterHostedService
-
     #region ->> Fixtures <<-
 
     interface IFoo { }
 
     sealed class Foo : IFoo;
-
-    sealed class TestHostedService : IHostedService {
-        public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task StopAsync(CancellationToken cancellationToken)  => Task.CompletedTask;
-    }
 
     #endregion // Fixtures
 }

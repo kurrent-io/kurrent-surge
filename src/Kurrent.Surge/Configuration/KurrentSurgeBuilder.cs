@@ -1,4 +1,5 @@
 using Kurrent.Toolkit;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Metrics;
 using Kurrent.Surge.Processors.Configuration;
 using Kurrent.Surge.Client;
@@ -10,6 +11,8 @@ using Kurrent.Surge.Processors.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
 
 namespace Kurrent.Surge;
 
@@ -118,177 +121,168 @@ sealed class KurrentSurgeBuilder(IServiceCollection services) : IKurrentSurgeBui
 
     #region ->> Processor <<-
 
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(null, static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
+    public IKurrentSurgeBuilder AddProcessor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
+        Action<ProcessorOptions>? configure = null
+    ) where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore<TProcessor>(null, (opts, _) => configure?.Invoke(opts));
 
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(string processorId, Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(processorId, static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(null, static sp => sp.GetRequiredService<TProcessor>(), configure);
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(string processorId, Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(processorId, static sp => sp.GetRequiredService<TProcessor>(), configure);
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
-        Func<IServiceProvider, TProcessor> processorFactory,
-        Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(null, processorFactory, (opts, _) => configure?.Invoke(opts));
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
+    public IKurrentSurgeBuilder AddProcessor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
         string processorId,
-        Func<IServiceProvider, TProcessor> processorFactory,
-        Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(processorId, processorFactory, (opts, _) => configure?.Invoke(opts));
+        Action<ProcessorOptions>? configure = null
+    ) where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore<TProcessor>(processorId, (opts, _) => configure?.Invoke(opts));
 
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
-        Func<IServiceProvider, TProcessor> processorFactory,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(null, processorFactory, configure);
+    public IKurrentSurgeBuilder AddProcessor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
+        Action<ProcessorOptions, IServiceProvider> configure
+    ) where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore<TProcessor>(null, configure);
 
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
+    public IKurrentSurgeBuilder AddProcessor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
         string processorId,
-        Func<IServiceProvider, TProcessor> processorFactory,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(processorId, processorFactory, configure);
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
-        TProcessor instance,
-        Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(null, _ => instance, (opts, _) => configure?.Invoke(opts));
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
-        string processorId,
-        TProcessor instance,
-        Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(processorId, _ => instance, (opts, _) => configure?.Invoke(opts));
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
-        TProcessor instance,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(null, _ => instance, configure);
-
-    public IKurrentSurgeBuilder AddProcessor<TProcessor>(
-        string processorId,
-        TProcessor instance,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordProcessor =>
-        AddProcessorCore(processorId, _ => instance, configure);
+        Action<ProcessorOptions, IServiceProvider> configure
+    ) where TProcessor : class, IRecordProcessor =>
+        AddProcessorCore<TProcessor>(processorId, configure);
 
     /// <summary>
-    /// Registers the hosted drone for a processor of either shape. The drone picks the record or
-    /// batch dispatcher from the processor's runtime type. The id is <paramref name="processorId"/>,
-    /// else the type name in kebab-case.
+    /// Registers a processor of either shape under one id: <paramref name="processorId"/>, else the
+    /// type name in kebab-case. The processor is a keyed singleton the container constructs, with a
+    /// hosted drone, an <see cref="IDrone"/> and a health check keyed by the same id. The drone picks
+    /// the record or batch dispatcher from the processor's runtime type.
     /// </summary>
-    internal IKurrentSurgeBuilder AddProcessorCore<TProcessor>(
+    IKurrentSurgeBuilder AddProcessorCore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
         string? processorId,
-        Func<IServiceProvider, TProcessor> processorFactory,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IProcessor {
-        Services.TryRegisterHostedService<DroneService<TProcessor>>(sp => {
-            var options   = BuildOptions<TProcessor>(sp, processorId, configure);
-            var processor = processorFactory(sp);
-            var drone     = new KurrentProcessor(options, processor).Build();
+        Action<ProcessorOptions, IServiceProvider> configure
+    ) where TProcessor : class, IProcessor {
+        var id = string.IsNullOrWhiteSpace(processorId) ? typeof(TProcessor).Name.ToKebabCase() : processorId;
+
+        if (Services.IsRegistered<IDrone>(id))
+            throw new InvalidOperationException($"A processor with id '{id}' is already registered.");
+
+        Services.TryAddKeyedSingleton<TProcessor>(id);
+        Services.AddKeyedSingleton<ProcessorHealthCheck>(id);
+
+        Services.AddKeyedSingleton<DroneService<TProcessor>>(id, (sp, _) => {
+            var options = BuildOptions(sp, id, configure);
+
+            options.Observers.Add(sp.GetRequiredKeyedService<ProcessorHealthCheck>(id));
+
+            if (sp.GetService<ProcessorFailureRecorder>() is { } recorder)
+                options.Observers.Add(recorder);
+
+            var drone = new KurrentProcessor(options, sp.GetRequiredKeyedService<TProcessor>(id)).Build();
+
             return new DroneService<TProcessor>(drone, sp.GetRequiredService<ILogger<DroneService<TProcessor>>>());
         });
 
+        Services.AddSingleton<IHostedService>(sp => sp.GetRequiredKeyedService<DroneService<TProcessor>>(id));
+        Services.AddKeyedSingleton<IDrone>(id, (sp, _) => sp.GetRequiredKeyedService<DroneService<TProcessor>>(id).Drone);
+
+        Services.AddHealthChecks().Add(new HealthCheckRegistration(
+            id,
+            sp => sp.GetRequiredKeyedService<ProcessorHealthCheck>(id),
+            failureStatus: null,
+            tags: ["kurrent", "surge", "processor"]));
+
+        RegisterUnkeyed<TProcessor>(id);
+
         return this;
+    }
+
+    /// <summary>
+    /// Keeps an unkeyed registration of the processor type, forwarding to the keyed one, while the
+    /// type is registered under a single id. A second id removes it. An unkeyed registration the
+    /// caller made is left alone.
+    /// </summary>
+    void RegisterUnkeyed<TProcessor>(string id) where TProcessor : class, IProcessor {
+        var ids = Services.Count(static descriptor => descriptor.IsKeyedService && descriptor.ServiceType == typeof(DroneService<TProcessor>));
+
+        if (ids == 1) {
+            Services.TryAddSingleton<TProcessor>(new UnkeyedProcessor<TProcessor>(id).Resolve);
+            return;
+        }
+
+        var forwarder = Services.FirstOrDefault(static descriptor =>
+            !descriptor.IsKeyedService
+         && descriptor.ServiceType == typeof(TProcessor)
+         && descriptor.ImplementationFactory?.Target is UnkeyedProcessor<TProcessor>);
+
+        if (forwarder is not null)
+            Services.Remove(forwarder);
+    }
+
+    sealed class UnkeyedProcessor<TProcessor>(string processorId) where TProcessor : class {
+        public TProcessor Resolve(IServiceProvider sp) => sp.GetRequiredKeyedService<TProcessor>(processorId);
     }
 
     #endregion // Processor
 
     #region ->> Batch Processor <<-
 
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(null, static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
+    public IKurrentSurgeBuilder AddBatchProcessor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
+        Action<ProcessorOptions>? configure = null
+    ) where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore<TProcessor>(null, (opts, _) => configure?.Invoke(opts));
 
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(string processorId, Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(processorId, static sp => sp.GetRequiredService<TProcessor>(), (opts, _) => configure?.Invoke(opts));
-
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(null, static sp => sp.GetRequiredService<TProcessor>(), configure);
-
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(string processorId, Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(processorId, static sp => sp.GetRequiredService<TProcessor>(), configure);
-
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
-        Func<IServiceProvider, TProcessor> processorFactory,
-        Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(null, processorFactory, (opts, _) => configure?.Invoke(opts));
-
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+    public IKurrentSurgeBuilder AddBatchProcessor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
         string processorId,
-        Func<IServiceProvider, TProcessor> processorFactory,
-        Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(processorId, processorFactory, (opts, _) => configure?.Invoke(opts));
+        Action<ProcessorOptions>? configure = null
+    ) where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore<TProcessor>(processorId, (opts, _) => configure?.Invoke(opts));
 
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
-        Func<IServiceProvider, TProcessor> processorFactory,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(null, processorFactory, configure);
+    public IKurrentSurgeBuilder AddBatchProcessor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
+        Action<ProcessorOptions, IServiceProvider> configure
+    ) where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore<TProcessor>(null, configure);
 
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
+    public IKurrentSurgeBuilder AddBatchProcessor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
         string processorId,
-        Func<IServiceProvider, TProcessor> processorFactory,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(processorId, processorFactory, configure);
-
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
-        TProcessor instance,
-        Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(null, _ => instance, (opts, _) => configure?.Invoke(opts));
-
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
-        string processorId,
-        TProcessor instance,
-        Action<ProcessorOptions>? configure = null)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(processorId, _ => instance, (opts, _) => configure?.Invoke(opts));
-
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
-        TProcessor instance,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(null, _ => instance, configure);
-
-    public IKurrentSurgeBuilder AddBatchProcessor<TProcessor>(
-        string processorId,
-        TProcessor instance,
-        Action<ProcessorOptions, IServiceProvider> configure)
-        where TProcessor : class, IRecordBatchProcessor =>
-        AddProcessorCore(processorId, _ => instance, configure);
+        Action<ProcessorOptions, IServiceProvider> configure
+    ) where TProcessor : class, IRecordBatchProcessor =>
+        AddProcessorCore<TProcessor>(processorId, configure);
 
     #endregion // Batch Processor
 
+    #region ->> Failure <<-
+
+    internal const string InnerLifetimeKey = "Kurrent.Surge.FailProcessOnFatalError";
+
+    public IKurrentSurgeBuilder FailProcessOnFatalError() {
+        if (Services.IsRegistered<IHostLifetime>(InnerLifetimeKey))
+            return this;
+
+        var lifetime = Services.LastOrDefault(static descriptor => !descriptor.IsKeyedService && descriptor.ServiceType == typeof(IHostLifetime))
+                    ?? throw new InvalidOperationException(
+                           "No IHostLifetime is registered. Call FailProcessOnFatalError on a host application builder, after the host lifetime is chosen.");
+
+        // The captured lifetime is re-registered under a private key so the container still constructs
+        // it, whatever shape its registration had, and the decorator resolves it from there.
+        Services.Remove(lifetime);
+
+        Services.Add(lifetime switch {
+            { ImplementationInstance: { } instance } => new ServiceDescriptor(typeof(IHostLifetime), InnerLifetimeKey, instance),
+            { ImplementationFactory: { } factory }   => new ServiceDescriptor(typeof(IHostLifetime), InnerLifetimeKey, (sp, _) => factory(sp), lifetime.Lifetime),
+            _                                        => new ServiceDescriptor(typeof(IHostLifetime), InnerLifetimeKey, lifetime.ImplementationType!, lifetime.Lifetime)
+        });
+
+        Services.TryAddSingleton<ProcessorFailureRecorder>();
+
+        Services.AddSingleton<IHostLifetime>(static sp => new ProcessorFailureHostLifetime(
+            sp.GetRequiredKeyedService<IHostLifetime>(InnerLifetimeKey),
+            sp.GetRequiredService<ProcessorFailureRecorder>()));
+
+        return this;
+    }
+
+    #endregion // Failure
+
     #region ->> Options resolution <<-
 
-    static ProcessorOptions BuildOptions<TProcessor>(
+    static ProcessorOptions BuildOptions(
         IServiceProvider sp,
-        string? processorId,
+        string id,
         Action<ProcessorOptions, IServiceProvider> configure
     ) {
         var configuration = sp.GetService<IConfiguration>();
-        var id            = processorId ?? typeof(TProcessor).Name.ToKebabCase();
         var options       = new ProcessorOptions { ProcessorId = id };
 
         // Everything configuration has to say about the processor is on the options before the

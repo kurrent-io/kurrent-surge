@@ -15,10 +15,16 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 try {
-    // The three source streams by prefix. A stream constraint travels to the server as a regex over
-    // $all, so the standard projections' link events ($ce-*, $et-*) never reach the processor.
-    var builder = SurgeProcessor.CreateBuilder<OrderEnrichmentProcessor>(args, options =>
-        options.Subscription.Filter = RecordFilter.ByExpression("stream LIKE 'customer-%' OR stream LIKE 'product-%' OR stream LIKE 'order-%'"));
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.AddKurrentSurge(surge => {
+        surge.FailProcessOnFatalError();
+
+        // The three source streams by prefix. A stream constraint travels to the server as a regex over
+        // $all, so the standard projections' link events ($ce-*, $et-*) never reach the processor.
+        surge.AddProcessor<OrderEnrichmentProcessor>(options =>
+            options.Subscription.Filter = RecordFilter.ByExpression("stream LIKE 'customer-%' OR stream LIKE 'product-%' OR stream LIKE 'order-%'"));
+    });
 
     builder.Services.AddSerilog();
 

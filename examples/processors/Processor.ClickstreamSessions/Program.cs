@@ -15,8 +15,14 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 try {
-    var builder = SurgeProcessor.CreateBuilder<SessionAnalyticsProcessor>(args, options =>
-        options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'PageView'"));
+    var builder = Host.CreateApplicationBuilder(args);
+
+    builder.AddKurrentSurge(surge => {
+        surge.FailProcessOnFatalError();
+
+        surge.AddProcessor<SessionAnalyticsProcessor>(options =>
+            options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'PageView'"));
+    });
 
     builder.Services.AddSerilog();
 
