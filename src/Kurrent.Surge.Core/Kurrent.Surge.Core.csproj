@@ -1,13 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <PackageId>Kurrent.Surge.Core</PackageId>
-    <IsPackable>true</IsPackable>
+    <!-- Not a package. Kurrent.Surge bundles this assembly into Kurrent.Surge.nupkg, together with
+         the libraries, packed generators, and build/*.props that this project declares
+         (Directory.Build.targets, Bundle="true"). -->
+    <IsPackable>false</IsPackable>
     <RootNamespace>Kurrent.Surge</RootNamespace>
-    <Title>Kurrent .NET Abstractions</Title>
-    <Product>Kurrent .NET Abstractions</Product>
-    <Description>The contract layer for the Kurrent .NET SDK: the client and stream-processing interfaces and the data types they exchange — options, results, value objects, filters, and the streaming wire contracts — plus the message declaration layer (catalogs, schema names, naming strategies) with its compile-time catalog generator, and the built-in JSON, Protobuf, and Avro codecs with the compile-time Avro codec generator. No gRPC client or transport. Reference this to depend on the Kurrent contracts without the implementation.</Description>
-    <PackageTags>kurrent kurrentdb abstractions contracts sdk event-sourcing stream-processing</PackageTags>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 
     <!-- The source-generated metric attributes (Unit, generic [Gauge<T>]) sit behind the
@@ -48,7 +46,8 @@
 
   <ItemGroup>
     <!-- NuGet imports build/{PackageId}.props into the consumer's build automatically, which is what
-         makes the KurrentAvro* properties visible to the codec generator. -->
+         makes the KurrentAvro* properties visible to the codec generator. The bundle closure carries
+         this file into the packing project's package under that project's id. -->
     <None Include="build\**" Pack="true" PackagePath="build" />
   </ItemGroup>
 

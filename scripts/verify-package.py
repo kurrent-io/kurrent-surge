@@ -167,6 +167,22 @@ def _suppressed_package_ids(assets_path: Path) -> set[str]:
     return suppressed
 
 
+def _ships_build_props(csproj_path: Path) -> bool:
+    """True when the project declares <None Include=... Pack="true" PackagePath="build" />."""
+    root = ET.parse(csproj_path).getroot()
+    for elem in root.iter():
+        if _strip_ns(elem.tag) != "None":
+            continue
+        if _flag(elem, "Pack") and (elem.get("PackagePath") or "").strip().lower() == "build":
+            return True
+    return False
+
+
+def _nuspec_package_id(nuspec_text: str) -> str:
+    m = re.search(r"<id>\s*([^<\s]+)\s*</id>", nuspec_text)
+    return m.group(1) if m else ""
+
+
 def parse_csproj(path: Path) -> CsprojContract:
     if not path.is_file():
         raise SystemExit(f"csproj not found: {path}")
@@ -538,6 +554,19 @@ def run_csproj_checks(
 
     public_dep_ids = {p.identity.lower() for p in contract.normal_packages}
 
+    # A consumer restores the transitive closure of the nuspec dependencies, so everything reachable
+    # from them arrives without being shipped inside the package. Resolve that closure per TFM from the
+    # main project's own graph. A bundled or vendored closure only has to ship what falls outside it.
+    covered_by_tfm: dict[str, set[str]] = {}
+    if main_assets is not None:
+        roots = public_dep_ids | pkg.declared_deps
+        for tfm, graph in main_assets.graphs.items():
+            covered_by_tfm[tfm] = graph.closure(sorted(roots)) | roots
+            r.note(f"[tfm={tfm}] {len(covered_by_tfm[tfm])} package(s) reach consumers through the declared dependencies")
+
+    def covered(tfm: str) -> set[str]:
+        return covered_by_tfm.get(tfm, public_dep_ids)
+
     # ---- Vendored packages ----
     for vp in contract.vendored_packages:
         if vp.identity.lower() in pkg.declared_deps:
@@ -562,7 +591,7 @@ def run_csproj_checks(
                 parent_tfm=tfm,
                 closure_pkg_ids=closure,
                 graph=graph,
-                public_dep_ids=public_dep_ids,
+                public_dep_ids=covered(tfm),
                 pkg=pkg,
             )
             all_natives.extend(result.native_files)
@@ -636,7 +665,7 @@ def run_csproj_checks(
                 parent_tfm=tfm,
                 closure_pkg_ids=closure,
                 graph=graph,
-                public_dep_ids=public_dep_ids,
+                public_dep_ids=covered(tfm),
                 pkg=pkg,
             )
             all_natives.extend(result.native_files)
@@ -655,6 +684,55 @@ def run_csproj_checks(
             else:
                 r.ok(f"bundled '{bp.identity}' [native] — {count} RID-scoped file(s) present")
 
+    # ---- Nested bundle closure ----
+    # Directory.Build.targets walks Bundle="true" references recursively. A bundled project's own
+    # bundles, PackedAnalyzer generators, and build/*.props all ship in the parent package. Assert that
+    # each of them arrived, so a regression in that walk cannot pass on the parent's own checks alone.
+    package_id = _nuspec_package_id(pkg.nuspec_text)
+    nested_props_owners: list[str] = []
+    nested_packed_names: set[str] = set()
+    seen_nested: set[Path] = set()
+    stack = [(bp, bp.csproj_path) for bp in contract.bundled_projects if bp.csproj_path is not None]
+    while stack:
+        owner, owner_csproj = stack.pop()
+        if owner_csproj is None or owner_csproj in seen_nested or not owner_csproj.is_file():
+            continue
+        seen_nested.add(owner_csproj)
+        nested = parse_csproj(owner_csproj)
+
+        for nb in nested.bundled_projects:
+            for tfm in parent_tfms:
+                expected = f"lib/{tfm}/{nb.assembly_name}.dll"
+                if pkg.has_path(expected):
+                    r.ok(f"nested bundle '{nb.identity}' (via {owner.identity}) [tfm={tfm}] — present at {expected}")
+                else:
+                    r.bad(f"nested bundle '{nb.identity}' (via {owner.identity}) [tfm={tfm}] — missing at {expected}")
+            stack.append((nb, nb.csproj_path))
+
+        for na in nested.packed_analyzer_projects:
+            nested_packed_names.add(na.assembly_name.lower())
+            if na.raw_include.startswith("@("):
+                # An MSBuild item include cannot be resolved to one assembly statically; the
+                # analyzers/dotnet/cs/ population check below covers it.
+                continue
+            expected = f"analyzers/dotnet/cs/{na.assembly_name}.dll"
+            if pkg.has_path(expected):
+                r.ok(f"nested packed analyzer '{na.identity}' (via {owner.identity}) — present at {expected}")
+            else:
+                r.bad(f"nested packed analyzer '{na.identity}' (via {owner.identity}) — missing at {expected}")
+
+        if _ships_build_props(owner_csproj):
+            nested_props_owners.append(owner.identity)
+
+    if nested_props_owners:
+        expected = f"build/{package_id}.props"
+        if pkg.has_path(expected):
+            r.ok(f"bundled build props from {', '.join(nested_props_owners)} — present at {expected}")
+        else:
+            r.bad(f"bundled build props from {', '.join(nested_props_owners)} — missing at {expected}; NuGet imports only build/{{PackageId}}.props")
+
+    nested_packed = any(parse_csproj(p).packed_analyzer_projects for p in seen_nested)
+
     # ---- Analyzer projects ----
     for ap in contract.analyzer_projects:
         ap_dep_names = {ap.identity.lower(), ap.assembly_name.lower()}
@@ -663,6 +741,12 @@ def run_csproj_checks(
             r.bad(f"analyzer project '{ap.identity}' is declared as a dependency '{next(iter(leaked))}' (should be hidden)")
         else:
             r.ok(f"analyzer project '{ap.identity}' correctly absent from nuspec dependencies")
+
+        # A generator this project only RUNS (Analyzer="true") may still ship legitimately when a
+        # bundled project PACKS the same generator; the nested closure check above owns that case.
+        if ap.assembly_name.lower() in nested_packed_names:
+            r.note(f"analyzer project '{ap.identity}' ships because a bundled project packs it")
+            continue
 
         # Check both project name and assembly name for leaked DLLs.
         forbidden = [e for e in pkg.entries if Path(e).name.lower() in
@@ -678,7 +762,7 @@ def run_csproj_checks(
     # The generator's Include is typically an MSBuild item (e.g. @(PackedAnalyzerProject)), so it can't
     # be resolved to a single assembly name statically — assert the payload folder is populated rather
     # than matching each generator by name.
-    if contract.packed_analyzer_projects:
+    if contract.packed_analyzer_projects or nested_packed:
         analyzer_dlls = [e for e in pkg.entries
                          if e.lower().startswith("analyzers/dotnet/cs/") and e.lower().endswith(".dll")]
         if analyzer_dlls:
@@ -687,7 +771,7 @@ def run_csproj_checks(
                 r.note(f"  {dll}")
         else:
             r.bad(
-                "csproj declares a PackedAnalyzer=\"true\" reference but the package ships no "
+                "a PackedAnalyzer=\"true\" reference exists (own or bundled) but the package ships no "
                 "analyzers/dotnet/cs/*.dll — the generator will not run in consumers"
             )
 

@@ -1,8 +1,10 @@
 <Project>
 
   <!-- Suppress all warnings in Release for non-packable projects (tests, tools, shared infra).
-       Evaluated in .targets so IsPackable has its final value from each .csproj. -->
-  <PropertyGroup Condition="'$(Configuration)' == 'Release' And '$(IsPackable)' != 'true'">
+       Evaluated in .targets so IsPackable has its final value from each .csproj. Projects that opt
+       into AOT analysis keep their warnings. The trim and AOT diagnostics are the point of that opt-in,
+       and a bundled library (IsPackable=false) still ships to consumers. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' And '$(IsPackable)' != 'true' And '$(IsAotCompatible)' != 'true'">
     <WarningLevel>0</WarningLevel>
   </PropertyGroup>
 
@@ -13,8 +15,10 @@
 
       PackageReference  Vendor="true"          → ship binaries inside our package,
                                                   hide from nuspec dependencies
-      ProjectReference  Bundle="true"          → ship the project's output + its runtime
-                                                  closure inside our package, hide from nuspec
+      ProjectReference  Bundle="true"          → ship the project's output inside our package, hide
+                                                  from nuspec. Nests: whatever the bundled project
+                                                  itself bundles, packs as an analyzer, or ships as
+                                                  build/*.props ships too, at any depth
       ProjectReference  Analyzer="true"        → wire as a source generator; ship nothing;
                                                   hide from nuspec (SDK-internal generators)
       ProjectReference  PackedAnalyzer="true"  → wire as a source generator AND ship it in
@@ -31,7 +35,7 @@
       $(TargetsForTfmSpecificBuildOutput);_CollectVendoredAndBundledFiles
     </TargetsForTfmSpecificBuildOutput>
     <TargetsForTfmSpecificContentInPackage>
-      $(TargetsForTfmSpecificContentInPackage);_CollectPackedAnalyzers
+      $(TargetsForTfmSpecificContentInPackage);_CollectPackedAnalyzers;_CollectBundledBuildProps
     </TargetsForTfmSpecificContentInPackage>
   </PropertyGroup>
 
@@ -116,15 +120,18 @@
   <Target Name="_CollectVendoredAndBundledFiles"
           DependsOnTargets="ResolveAssemblyReferences;ResolveTargetingPackAssets">
 
-    <!-- Bundled projects: ask each for its output path directly via GetTargetPath.
-         This resolves AssemblyName correctly regardless of project filename. -->
+    <!-- Bundled projects: ask each for its own output and, recursively, for everything it bundles.
+         GetTargetPath underneath resolves AssemblyName correctly regardless of project filename. -->
     <MSBuild Projects="@(ProjectReference->WithMetadataValue('Bundle', 'true'))"
-             Targets="GetTargetPath"
+             Targets="_GetBundledClosure"
              Properties="TargetFramework=$(TargetFramework)">
       <Output TaskParameter="TargetOutputs" ItemName="_BundledProjectAssembly" />
     </MSBuild>
+    <RemoveDuplicates Inputs="@(_BundledProjectAssembly)">
+      <Output TaskParameter="Filtered" ItemName="_BundledProjectAssemblyUnique" />
+    </RemoveDuplicates>
     <ItemGroup>
-      <BuildOutputInPackage Include="@(_BundledProjectAssembly)" />
+      <BuildOutputInPackage Include="@(_BundledProjectAssemblyUnique)" />
     </ItemGroup>
 
     <!-- Vendored packages: collect from resolved copy-local paths by NuGetPackageId. -->
@@ -155,20 +162,88 @@
   </Target>
 
   <!--
-    Ship PackedAnalyzer references into analyzers/dotnet/cs so they run in consumer
-    compilations. Generators target netstandard2.0 (Roslyn requirement), so TargetFramework
-    is passed explicitly regardless of the packable project's TFM. Generators that bake
-    their helper sources in (Kurrent.CodeAnalysis.Sources.props) return a single DLL;
-    generators with project-reference deps must implement GetDependencyTargetPaths.
+    The bundle closure. Every project has these targets (this file is imported everywhere), so a
+    packable project asks each Bundle reference once and the recursion walks the Bundle flags the
+    referenced projects already carry. Nothing is listed by hand.
+
+    _GetBundledClosure          own output DLL + the closure of every Bundle reference
+    _GetPackedAnalyzerClosure   own PackedAnalyzer DLLs + the closure of every Bundle reference
+    _GetBundledBuildProps       own build/*.props items (None, Pack=true, PackagePath=build)
+                                + the closure of every Bundle reference
   -->
-  <Target Name="_CollectPackedAnalyzers">
+  <Target Name="_GetBundledClosure" DependsOnTargets="GetTargetPath" Returns="@(_BundledClosure)">
+    <ItemGroup>
+      <_BundledClosure Include="@(TargetPathWithTargetPlatformMoniker)" />
+    </ItemGroup>
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('Bundle', 'true'))"
+             Targets="_GetBundledClosure"
+             Properties="TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="_BundledClosure" />
+    </MSBuild>
+  </Target>
+
+  <!-- Generators target netstandard2.0 (Roslyn requirement), so TargetFramework is passed
+       explicitly regardless of the referencing project's TFM. Generators that bake their helper
+       sources in (Kurrent.CodeAnalysis.Sources.props) return a single DLL; generators with
+       project-reference deps must implement GetDependencyTargetPaths. -->
+  <Target Name="_GetPackedAnalyzerClosure" Returns="@(_PackedAnalyzerClosure)">
     <MSBuild Projects="@(ProjectReference->WithMetadataValue('PackedAnalyzer', 'true'))"
              Targets="GetTargetPathWithTargetPlatformMoniker"
              Properties="TargetFramework=netstandard2.0">
-      <Output TaskParameter="TargetOutputs" ItemName="_PackedAnalyzerAssembly" />
+      <Output TaskParameter="TargetOutputs" ItemName="_PackedAnalyzerClosure" />
     </MSBuild>
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('Bundle', 'true'))"
+             Targets="_GetPackedAnalyzerClosure"
+             Properties="TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="_PackedAnalyzerClosure" />
+    </MSBuild>
+  </Target>
+
+  <Target Name="_GetBundledBuildProps" Returns="@(_BundledBuildProps)">
+    <ItemGroup>
+      <_BundledBuildProps Include="@(None->WithMetadataValue('Pack', 'true')->WithMetadataValue('PackagePath', 'build'))"
+                          Condition="'%(Extension)' == '.props'" />
+    </ItemGroup>
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('Bundle', 'true'))"
+             Targets="_GetBundledBuildProps"
+             Properties="TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="_BundledBuildProps" />
+    </MSBuild>
+  </Target>
+
+  <!--
+    Ship PackedAnalyzer references, own and bundled, into analyzers/dotnet/cs so they run in
+    consumer compilations.
+  -->
+  <Target Name="_CollectPackedAnalyzers" DependsOnTargets="_GetPackedAnalyzerClosure">
+    <RemoveDuplicates Inputs="@(_PackedAnalyzerClosure)">
+      <Output TaskParameter="Filtered" ItemName="_PackedAnalyzerAssembly" />
+    </RemoveDuplicates>
     <ItemGroup>
       <TfmSpecificPackageFile Include="@(_PackedAnalyzerAssembly)" PackagePath="analyzers/dotnet/cs" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    A bundled project's build/*.props reaches consumers only under THIS package's id. NuGet imports
+    build/{PackageId}.props and nothing else. So this target collects the file from the bundle closure
+    and renames it on the way in. NuGet treats a PackagePath that ends in the file's own extension as a
+    file name. That performs the rename. Two such files cannot both become build/{PackageId}.props, so
+    that case is an error rather than a silent overwrite.
+  -->
+  <Target Name="_CollectBundledBuildProps">
+    <MSBuild Projects="@(ProjectReference->WithMetadataValue('Bundle', 'true'))"
+             Targets="_GetBundledBuildProps"
+             Properties="TargetFramework=$(TargetFramework)">
+      <Output TaskParameter="TargetOutputs" ItemName="_BundledBuildPropsAll" />
+    </MSBuild>
+    <RemoveDuplicates Inputs="@(_BundledBuildPropsAll)">
+      <Output TaskParameter="Filtered" ItemName="_BundledBuildProps" />
+    </RemoveDuplicates>
+    <Error Condition="@(_BundledBuildProps->Count()) &gt; 1"
+           Text="More than one bundled project ships a build/*.props (@(_BundledBuildProps)); only one can become build/$(PackageId).props." />
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="@(_BundledBuildProps)" PackagePath="build/$(PackageId).props" />
     </ItemGroup>
   </Target>
 

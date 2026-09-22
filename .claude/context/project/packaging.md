@@ -14,7 +14,7 @@ Shorthand flags on references drive the whole pack pipeline. Prefer these over h
 |-------------------------------------------|------------------------------------------|-------------------------------------------|
 | Declare a NuGet dependency                | *(none)*                                 | `.nuspec` dependency                      |
 | Flow ALL assets (incl. analyzers) with it | `PrivateAssets="none"`                   | `.nuspec` dependency with `include="All"` |
-| Embed an internal library                 | `ProjectReference Bundle="true"`         | `lib/{tfm}/`                              |
+| Embed an internal library                 | `ProjectReference Bundle="true"`         | `lib/{tfm}/`, plus everything it bundles, packs, or ships as `build/*.props` |
 | Vendor a NuGet package's binaries         | `PackageReference Vendor="true"`         | `lib/{tfm}/` + `runtimes/`                |
 | Use an SDK-internal source generator      | `ProjectReference Analyzer="true"`       | *(nothing, build-time only)*             |
 | Ship a generator to consumers             | `ProjectReference PackedAnalyzer="true"` | `analyzers/dotnet/cs/`                    |
@@ -23,10 +23,15 @@ Shorthand flags on references drive the whole pack pipeline. Prefer these over h
 flags) produces a `.nuspec` with a NuGet dependency that doesn't exist on any feed → consumers get
 `NU1101`.
 
-**Analyzer flow:** NuGet excludes `Build,Analyzers` on dependency edges by default. A consumer that
-installs only `Kurrent.Surge` would NOT get the generators shipped inside
-`Kurrent.Surge.Core`. That is why Surge's reference to Core carries `PrivateAssets="none"`, which becomes
-`include="All"` in the nuspec dependency.
+**Bundles nest.** A bundled project's own `Bundle`, `PackedAnalyzer`, and `build/*.props` items ship in
+the packing project's package, at any depth. `Kurrent.Surge` bundles `Kurrent.Surge.Core`. Core bundles
+`Variant` and `RecordFilters` and packs two generators. All of it lands in `Kurrent.Surge.nupkg` with one
+flag on Surge's reference. Nothing is listed by hand.
+
+The nuspec dependency list does not nest. NuGet reads it from the restore graph. So the packing project
+declares every package that a bundled project needs and that nothing else in the packing project's graph
+pulls. For Core, Surge declares `NJsonSchema`, `NodaTime`, `NodaTime.Serialization.SystemTextJson`, and
+`Ulid`. `verify-package.py` fails when one is missing.
 
 The **in-repo** counterpart is a separate problem: getting that same generator to run on projects that
 reference the SDK by source. Analyzers are not transitive through a `ProjectReference`. See
@@ -65,7 +70,7 @@ detects `IsPackable=true` and wires the pack pipeline (`_CollectVendoredAndBundl
 `_CollectPackedAnalyzers`) automatically. There are no per-project `PackProjectDependencies` /
 `PackSourceGenerators` targets to copy anymore; everything is centralized.
 
-Currently packable: `Kurrent.Surge`, `Kurrent.Surge.Core`.
+Currently packable: `Kurrent.Surge`. `Kurrent.Surge.Core` is a project bundled inside it.
 
 How a reference is treated is controlled by **metadata flags** on the `<ProjectReference>` /
 `<PackageReference>` item. The next section covers each flag; [How Suppression Works](#how-suppression-works)
@@ -77,14 +82,13 @@ nuspec.
 ### Public dependency (becomes a NuGet dependency)
 
 ```xml
-<ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+<ProjectReference Include="..\Some.Published.Package\Some.Published.Package.csproj" />
 ```
 
 No special metadata. The SDK declares it as a package dependency in the `.nuspec`. Use only when the
-referenced project is itself a published NuGet package. Example: `Kurrent.Surge` references
-`Kurrent.Surge.Core` this way, with `PrivateAssets="none"` so Core's packed
-analyzers flow to consumers that install only Surge (see [Analyzer flow](#tldr)). External `<PackageReference>` items
-(`Google.Protobuf`, `kurrent.quack`, …) are handled conventionally by the SDK.
+referenced project is itself a published NuGet package. No project in this repo does this today: the
+only package is `Kurrent.Surge`, and everything it depends on in-repo is bundled. External
+`<PackageReference>` items (`Google.Protobuf`, `kurrent.quack`, …) are handled conventionally by the SDK.
 
 ### Embedded library (bundled in `lib/{tfm}/`)
 
@@ -93,13 +97,22 @@ analyzers flow to consumers that install only Surge (see [Analyzer flow](#tldr))
 ```
 
 `Bundle="true"` ships the referenced project's output DLL inside `lib/{tfm}/` alongside the main
-assembly, and hides it from the nuspec dependency list. `_CollectVendoredAndBundledFiles` resolves the
-DLL via the referenced project's `GetTargetPath` target (so `AssemblyName` is honoured regardless of the
-project filename) and adds it to `BuildOutputInPackage`.
+assembly, and hides it from the nuspec dependency list. `_CollectVendoredAndBundledFiles` calls
+`_GetBundledClosure` on the referenced project. That target returns the project's own DLL, resolved
+through `GetTargetPath` so that `AssemblyName` is honoured regardless of the project filename. It then
+calls itself on every `Bundle="true"` reference the project carries, so the result covers any depth.
+Two sibling targets do the same walk: `_GetPackedAnalyzerClosure` for `PackedAnalyzer` references, and
+`_GetBundledBuildProps` for `build/*.props` items. The props file is renamed to `build/{PackageId}.props`
+on the way in. Two such files across the closure is an error. The three targets live in
+`Directory.Build.targets`, so every project answers them.
 
 Use for internal libraries that are not published as their own package (e.g. `Variant`, which ships as
-`Kurrent.Variant.dll` inside both SDK packages). The library project stays `IsPackable=false` and uses
+`Kurrent.Variant.dll`). The library project stays `IsPackable=false` and uses
 `<DebugType>embedded</DebugType>` so debuggers can step into it when shipped inside another package.
+
+A bundled project's package dependencies do **not** flow into the nuspec (see [TL;DR](#tldr)). Declare
+on the packing project any that nothing else in its graph pulls; `verify-package.py` reports the exact
+set as missing files under `lib/`.
 
 ### Vendored package (binaries in `lib/{tfm}/` + `runtimes/`)
 
@@ -142,8 +155,9 @@ requirement, regardless of the packable project's TFM) and places the result und
 `@(PackedAnalyzerProject)` in `Directory.Build.props` holds the generators that must **also** reach
 in-repo source consumers; today that is one project, `Kurrent.Surge.Schema.Catalogs.Generators`.
 `Kurrent.Surge.Core` references it with `PackedAnalyzer="true"` and, separately, flags
-`Kurrent.Surge.Generators` the same way by direct reference. Both ship under `analyzers/dotnet/cs/`;
-only the ones in the item are additionally wired for source consumers (below).
+`Kurrent.Surge.Generators` the same way by direct reference. Both ship under `analyzers/dotnet/cs/` of
+`Kurrent.Surge.nupkg`, because Surge bundles Core and the packed-analyzer walk nests; only the ones in the
+item are additionally wired for source consumers (below).
 
 > **Generator helper code is baked in by source, not shipped as a DLL.** Generators include shared Roslyn
 > helpers via `Kurrent.CodeAnalysis.Sources.props` (source compiled into each generator), so each packed
@@ -213,32 +227,37 @@ the refs keep flowing.
 What a packable project's `.nupkg` contains and where each assembly comes from:
 
 ```
-Kurrent.Surge.Core.nupkg
+Kurrent.Surge.nupkg
 ├── lib/net10.0/
-│   ├── Kurrent.Surge.Core.dll                      ← main assembly (SDK default)
-│   ├── Kurrent.Variant.dll                         ← Bundle (_CollectVendoredAndBundledFiles)
-│   └── Kurrent.Surge.RecordFilters.dll             ← Bundle (_CollectVendoredAndBundledFiles)
+│   ├── Kurrent.Surge.dll                           ← main assembly (SDK default)
+│   ├── Kurrent.Surge.Core.dll                      ← Bundle on Surge
+│   ├── Kurrent.Variant.dll                         ← Bundle on Core, nested
+│   └── Kurrent.Surge.RecordFilters.dll             ← Bundle on Core, nested
 ├── analyzers/dotnet/cs/
-│   ├── Kurrent.Surge.Generators.dll                ← PackedAnalyzer (_CollectPackedAnalyzers)
-│   └── Kurrent.Surge.Schema.Catalogs.Generators.dll ← PackedAnalyzer (_CollectPackedAnalyzers)
+│   ├── Kurrent.Surge.Generators.dll                ← PackedAnalyzer on Core, nested
+│   └── Kurrent.Surge.Schema.Catalogs.Generators.dll ← PackedAnalyzer on Core, nested
 └── build/
-    └── Kurrent.Surge.Core.props                    ← KurrentAvro* generator knobs (NuGet auto-import)
+    └── Kurrent.Surge.props                         ← Core's build/Kurrent.Surge.Core.props, renamed to this package's id
 ```
 
 `Variant.SourceGenerators` is `Analyzer="true"` (SDK-internal) on both `Kurrent.Surge` and
 `Kurrent.Surge.Core`. It runs while building them and ships **nothing**. `Kurrent.Surge.Generators` is
-`PackedAnalyzer="true"` on Core, so it ships to consumers. The nuspec lists only the real external
-dependencies (`Google.*`, `Grpc.*`, `Microsoft.Extensions.*`, `NJsonSchema`, …); `Kurrent.Variant` and the
-generators are absent.
+`Analyzer="true"` on Surge (runs there) and `PackedAnalyzer="true"` on Core (ships). The nuspec lists only
+the real external dependencies (`Google.*`, `Grpc.*`, `Microsoft.Extensions.*`, `NJsonSchema`, `NodaTime`,
+`Ulid`, …); `Kurrent.Surge.Core`, `Kurrent.Variant`, and the generators are absent.
 
 The targets that build this, all in the root `Directory.Build.targets`, auto-wired for every
 `IsPackable=true` project:
 
-1. **`_CollectVendoredAndBundledFiles`** (`TargetsForTfmSpecificBuildOutput`). Bundle projects → `lib/{tfm}/`
-   via `GetTargetPath`; Vendor packages → `lib/{tfm}/` + `runtimes/` via `ReferenceCopyLocalPaths`.
-2. **`_CollectPackedAnalyzers`** (`TargetsForTfmSpecificContentInPackage`). PackedAnalyzer projects →
-   `analyzers/dotnet/cs/` via `GetTargetPathWithTargetPlatformMoniker` (`TargetFramework=netstandard2.0`).
-3. **`_RestoreForPack`** (`BeforeTargets="GenerateNuspec"`). Guarantees the restore graph carries the
+1. **`_CollectVendoredAndBundledFiles`** (`TargetsForTfmSpecificBuildOutput`). Bundle projects →
+   `lib/{tfm}/` via `_GetBundledClosure` (recursive); Vendor packages → `lib/{tfm}/` + `runtimes/` via
+   `ReferenceCopyLocalPaths`.
+2. **`_CollectPackedAnalyzers`** (`TargetsForTfmSpecificContentInPackage`). PackedAnalyzer projects, own
+   and nested, → `analyzers/dotnet/cs/` via `_GetPackedAnalyzerClosure`
+   (`TargetFramework=netstandard2.0`).
+3. **`_CollectBundledBuildProps`** (`TargetsForTfmSpecificContentInPackage`). A bundled project's
+   `build/*.props` → `build/{PackageId}.props` via `_GetBundledBuildProps`.
+4. **`_RestoreForPack`** (`BeforeTargets="GenerateNuspec"`). Guarantees the restore graph carries the
    Bundle/Vendor suppression regardless of pack invocation (see [How Suppression Works](#how-suppression-works)).
 
 ## How To
@@ -270,9 +289,9 @@ not** add `PackProjectDependencies` / `PackSourceGenerators` targets. They no lo
 
 ### Add a project-to-project public dependency
 
-Only when both projects are published packages (e.g. `Kurrent.Surge` → `Kurrent.Surge.Core`). Reference with
-no special metadata; add `PrivateAssets="none"` if the dependency ships an analyzer that consumers need to
-receive transitively. Never use a bare reference for an unpublished project. Use `Bundle="true"`.
+Only when both projects are published packages. Reference with no special metadata; add
+`PrivateAssets="none"` if the dependency ships an analyzer that consumers need to receive transitively.
+Never use a bare reference for an unpublished project. Use `Bundle="true"`.
 
 ## Verifying a package
 
@@ -289,9 +308,16 @@ python3 scripts/verify-package.py path/to/Kurrent.Surge.1.2.3.nupkg --csproj src
 
 By default it packs **the way CI ships** (standalone restore, then `--no-build --no-restore`). That is the path
 that surfaces restore-graph-dependent leaks. A plain `dotnet pack` (`--fresh-pack`) does its own
-pack-owned restore and can hide them, which is why the default is the CI path. It asserts: bundled DLLs
-present in `lib/`, vendored binaries + native assets present, analyzers/bundles absent from nuspec deps,
-packed generators present in `analyzers/dotnet/cs/`, and every real dependency declared.
+pack-owned restore and can hide them, which is why the default is the CI path. It asserts that:
+
+- bundled DLLs are present in `lib/`, including a bundle's own nested bundles
+- vendored binaries and native assets are present
+- analyzers and bundles are absent from the nuspec dependencies
+- packed generators are present in `analyzers/dotnet/cs/`, nested ones included
+- a bundled `build/*.props` is present under this package's id
+- every real dependency is declared
+- every package in a bundled project's closure is either reachable from the declared dependencies or
+  shipped in `lib/`
 
 ## Project Templates
 
@@ -313,7 +339,7 @@ references. No custom pack targets.
 
   <ItemGroup>
     <!-- Public dependency: becomes a NuGet dependency. Only for other published packages. -->
-    <ProjectReference Include="..\Kurrent.Surge.Core\Kurrent.Surge.Core.csproj" />
+    <ProjectReference Include="..\Some.Published.Package\Some.Published.Package.csproj" />
 
     <!-- Internal library: shipped in lib/{tfm}/, hidden from nuspec deps. -->
     <ProjectReference Include="..\Variant\Variant.csproj" Bundle="true" />

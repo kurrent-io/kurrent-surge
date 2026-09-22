@@ -92,18 +92,19 @@ do not exist in the proto yet. Proto definitions live in `proto/kurrentdb/protoc
 
 ## Structure
 
-Two packages ship:
+One package ships:
 
 ```text
-Kurrent.Surge         gRPC client and processor runtime
-Kurrent.Surge.Core    contracts, message catalogs, and the JSON, Protobuf, and Avro codecs
+Kurrent.Surge         gRPC client and processor runtime, with the contract layer bundled inside
 ```
 
 Regenerate that list with `grep -l "IsPackable>true" src/*/*.csproj`.
 
-`Variant` and `Kurrent.CodeAnalysis` are solution-level libraries and are not published.
-`Kurrent.Surge.Generators` and `Kurrent.Surge.Schema.Catalogs.Generators` are not packages either, but
-their DLLs ship inside `Kurrent.Surge.Core` under `analyzers/dotnet/cs/`.
+`Kurrent.Surge.Core` holds the contracts, message catalogs, and the JSON, Protobuf, and Avro codecs. It
+is a project, not a package. `Kurrent.Surge` bundles the Core DLL. `Variant` and `Kurrent.CodeAnalysis` are
+solution-level libraries and are not published. `Kurrent.Surge.Generators` and
+`Kurrent.Surge.Schema.Catalogs.Generators` are not packages either, but their DLLs ship inside
+`Kurrent.Surge` under `analyzers/dotnet/cs/`.
 
 `Kurrent.Surge.Generators` emits three things: unique-identifier value types, Avro codecs, and options
 validation.
