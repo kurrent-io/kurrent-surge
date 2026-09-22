@@ -129,38 +129,47 @@ public class KurrentDBFixture : AspireFixture {
         int? numberOfEvents = null,
         CancellationToken ct = default
     ) {
-        var ds = numberOfEvents is null
-            ? await TestData.GenerateSet(ct).ConfigureAwait(false)
-            : await TestData.GenerateSet(numberOfEvents.Value, ct).ConfigureAwait(false);
+        try {
+            var ds = numberOfEvents is null
+                ? await TestData.GenerateSet(ct).ConfigureAwait(false)
+                : await TestData.GenerateSet(numberOfEvents.Value, ct).ConfigureAwait(false);
 
-        var rsp = await Client.Streams.AppendStream(ds.Stream, ds.Records, ct).ConfigureAwait(false);
+            var rsp = await Client.Streams.AppendStream(ds.Stream, ds.Records, ct).ConfigureAwait(false);
 
-        var seeded = new SeededTestStream(ds, rsp.Revision, rsp.Position.LogPosition);
+            var seeded = new SeededTestStream(ds, rsp.Revision, rsp.Position.LogPosition);
 
-        Logger.LogDebug(
-            "Seeded {Count} {DataSource} events: {Stream} v{Revision} @ {Position}",
-            seeded.Records.Length, TestData.Name, seeded.Stream, seeded.Revision.Value, seeded.Position.Value);
+            Logger.LogDebug(
+                "Seeded {Count} {DataSource} events: {Stream} v{Revision} @ {Position}",
+                seeded.Records.Length, TestData.Name, seeded.Stream, seeded.Revision.Value, seeded.Position.Value);
 
-        return seeded;
+            return seeded;
+        }
+        catch (Exception ex) when (ct.IsCancellationRequested) {
+            throw new OperationCanceledException("Seeding a test stream was cancelled by the caller's token.", ex, ct);
+        }
+        catch (OperationCanceledException ex) {
+            throw new AspireFixtureException(
+                "Test setup failed: seeding a test stream was cancelled, but the caller's token was not cancelled.", ex);
+        }
+        catch (Exception ex) {
+            throw new AspireFixtureException("Test setup failed: seeding a test stream failed.", ex);
+        }
     }
 
     public ValueTask<SeededTestStream> SeedTestStream(CancellationToken ct) => SeedTestStream(null, ct);
 
     public async IAsyncEnumerable<SeededTestStream> TestStreams([EnumeratorCancellation] CancellationToken ct) {
-        while (!ct.IsCancellationRequested) {
-            SeededTestStream seededStream;
-            try {
-                seededStream = await SeedTestStream(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) {
-                yield break;
-            }
-            yield return seededStream;
-        }
+        while (true)
+            yield return await SeedTestStream(ct).ConfigureAwait(false);
     }
 
-    public ValueTask<List<SeededTestStream>> SeedManyTestStreams(int numberOfStreams, CancellationToken ct) =>
-        TestStreams(ct).Take(numberOfStreams).ToListAsync(ct);
+    public async ValueTask<List<SeededTestStream>> SeedManyTestStreams(int numberOfStreams, CancellationToken ct) {
+        var seeded = await TestStreams(ct).Take(numberOfStreams).ToListAsync(ct).ConfigureAwait(false);
+
+        return seeded.Count == numberOfStreams
+            ? seeded
+            : throw new AspireFixtureException($"Test setup failed: seeded {seeded.Count} of {numberOfStreams} test streams.");
+    }
 }
 
 public sealed class KurrentDBInsecureFixture : KurrentDBFixture {
