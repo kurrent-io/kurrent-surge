@@ -84,7 +84,7 @@ process has no type for. A client has the type, and the codec gives it the value
 
 ## Links
 
-- [Documentation](https://kurrent.io/docs)
+- [Documentation](https://kurrent-io.github.io/kurrent-surge/)
 - [Examples](https://github.com/kurrent-io/kurrent-surge/tree/main/examples)
 - [GitHub Repository](https://github.com/kurrent-io/kurrent-surge)
 - [License (Apache 2.0)](https://github.com/kurrent-io/kurrent-surge/blob/main/LICENSE.md)

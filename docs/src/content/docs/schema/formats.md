@@ -108,7 +108,7 @@ The codec is built in. There is no extra package, no opt-in call, and no propert
 
 ## Avro
 
-The codec is built in — it ships inside `Kurrent.Surge.Core` with its compile-time generator. There
+The codec is built in — it ships inside `Kurrent.Surge` with its compile-time generator. There
 is no extra package, no opt-in call, and no property to set.
 
 ```csharp

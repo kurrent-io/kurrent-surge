@@ -79,20 +79,22 @@ issue IDs. Linear links PRs to issues via the branch name.
 Validate package contents before proposing packaging changes with the verification gate:
 
 ```bash
-python3 scripts/verify-package.py --csproj src/Kurrent.Surge/Kurrent.Surge.csproj
-python3 scripts/verify-package.py --csproj src/Kurrent.Surge.Core/Kurrent.Surge.Core.csproj --list
+python3 scripts/verify-package.py --csproj src/Kurrent.Surge/Kurrent.Surge.csproj --list
 ```
 
 Pass an existing `.nupkg` as a positional argument to verify a pre-built package instead of packing.
 
 ## Project layout
 
-Publishable packages (no meta-package — consumers install only what they need):
+One package ships:
 
 | Package                                                             | What it does                                                       |
 |---------------------------------------------------------------------|--------------------------------------------------------------------|
-| [Kurrent.Surge](src/Kurrent.Surge/)                                 | gRPC client and stream processing — streams, schema registry, indexes, connectors, admin |
-| [Kurrent.Surge.Core](src/Kurrent.Surge.Core/)                       | The contract layer, message declaration and the catalog generator, and the JSON, Protobuf, and Avro codecs, with no transport dependencies |
+| [Kurrent.Surge](src/Kurrent.Surge/)                                 | gRPC client and stream processing: streams, schema registry, indexes, connectors, admin. The contract layer is bundled inside |
+
+`src/Kurrent.Surge.Core` holds the contract layer, the message declaration layer with its catalog
+generator, and the JSON, Protobuf, and Avro codecs. It is a project, not a package. `Kurrent.Surge`
+bundles it.
 
 Everything else under `src/` (source generators, `Variant`, `Kurrent.CodeAnalysis`) is shared
 solution infrastructure, not shipped as standalone packages. Proto definitions live in

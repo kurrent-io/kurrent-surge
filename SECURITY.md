@@ -5,9 +5,8 @@ efforts of security researchers and the community in responsibly disclosing vuln
 
 ## Supported versions
 
-The SDK is published as independent NuGet packages: `Kurrent.Surge` and `Kurrent.Surge.Core`.
-Security fixes are released against the **latest published version** of each package. We
-recommend always running the latest release.
+Kurrent Surge ships as one NuGet package, `Kurrent.Surge`. Security fixes go into the **latest
+published version**. Run the latest release.
 
 | Version            | Supported          |
 |--------------------|--------------------|

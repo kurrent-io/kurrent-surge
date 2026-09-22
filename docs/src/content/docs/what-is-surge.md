@@ -17,7 +17,7 @@ than an outage, because the name on the wire is something you wrote down.
 ## How it is designed
 
 **Built for Native AOT.** Catalogs, discriminated unions and Avro codecs come from source generators.
-Both packages are `IsAotCompatible` and `IsTrimmable`, and trim and AOT analysis runs unsuppressed
+The package is `IsAotCompatible` and `IsTrimmable`, and trim and AOT analysis runs unsuppressed
 across the repository. The map from CLR type to schema name and the table of codecs are both frozen
 dictionaries built once at startup. JSON goes through a source-generated
 `JsonSerializerContext`, with the reflection fallback behind a feature switch the linker removes.

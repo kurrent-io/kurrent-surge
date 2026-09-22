@@ -1,15 +1,17 @@
 # Support
 
-Thanks for using the Kurrent .NET SDK! This document explains where to get help.
+Where to get help with Kurrent Surge.
 
 GitHub issues are for **bug reports** and **feature requests** only — please use the
 channels below for questions and general help.
 
 ## Asking questions and getting help
 
-- **Documentation** — [developers.kurrent.io/clients](https://developers.kurrent.io/clients/)
-  is the best first stop for guides, API references, and examples.
-- **Examples** — runnable samples live in the [`examples/`](./examples) directory.
+- **Documentation** — [kurrent-io.github.io/kurrent-surge](https://kurrent-io.github.io/kurrent-surge/)
+  is the first stop: [getting started](https://kurrent-io.github.io/kurrent-surge/getting-started/),
+  guides for streams, processors, and schema, and the client configuration reference.
+- **Examples** — runnable projects live in the [`examples/`](./examples) directory, from a minimal
+  program to full processors against Postgres and Redis. Each has its own README.
 - **Discord** — join the community at [discord.gg/Phn9pmCw3t](https://discord.gg/Phn9pmCw3t) for
   real-time help and discussion.
 - **GitHub Discussions** — ask questions and share ideas in
