@@ -187,7 +187,7 @@ public class LinkExclusionTests {
     [Test]
     public async ValueTask read_with_unroutable_expression_excludes_link_records(CancellationToken ct) {
         // Arrange — the read counterpart. A forwards $all read from the anchor ends at the log tail, so
-        // it is bounded without a limit, and a limit would bound server deliveries rather than matches.
+        // it is bounded without a limit.
         var schema = UniqueSchema("UnroutableRead");
         var anchor = await Fixture.LatestRecordPosition(ct);
 

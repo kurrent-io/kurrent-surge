@@ -113,6 +113,155 @@ public class SystemRecordExclusionTests {
     }
 
     [Test]
+    public async ValueTask limit_read_behind_a_tombstone_delivers_the_last_user_record(CancellationToken ct) {
+        // Arrange — the stream's tail row is its tombstone. The server's count is met by that row
+        // and the client drops it, so the read must page on to the record behind it.
+        var target = await Fixture.SeedTestStream(2, ct);
+
+        await Fixture.Client.Streams.Tombstone(target.Stream, target.Revision, ct);
+
+        var filter           = RecordFilter.ByExpression($"stream LIKE '{target.Stream}%'");
+        var expectedPosition = RecordPosition.From(target.Position, target.Stream, target.Revision);
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadRecords(new ReadRecordsOptions {
+                Start        = LogPosition.Latest,
+                Direction    = ReadDirection.Backwards,
+                Limit        = 1,
+                Filter       = filter,
+                SkipDecoding = true
+            }, ct)
+            .ToListAsync();
+
+        // Assert
+        await Assert.That(records.Count).IsEqualTo(1);
+
+        var latest = records[0].Position;
+
+        await Assert.That(latest).IsEqualTo(expectedPosition);
+    }
+
+    [Test]
+    public async ValueTask default_limit_one_read_of_the_tail_delivers_a_user_record(CancellationToken ct) {
+        // Arrange — the shape the Aspire health check reads with. A tombstone at the tail must not
+        // turn a Limit = 1 read into an empty one.
+        var target = await Fixture.SeedTestStream(1, ct);
+
+        await Fixture.Client.Streams.Tombstone(target.Stream, target.Revision, ct);
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadRecords(new ReadRecordsOptions {
+                Start        = LogPosition.Latest,
+                Direction    = ReadDirection.Backwards,
+                Limit        = 1,
+                SkipDecoding = true
+            }, ct)
+            .ToListAsync();
+
+        // Assert
+        await Assert.That(records.Count).IsEqualTo(1);
+
+        var latest       = records[0];
+        var latestStream = latest.Stream.Value;
+        var latestSchema = latest.Schema.Schema.Value;
+
+        await Assert.That(latestStream.StartsWith('$')).IsFalse();
+        await Assert.That(latestSchema.StartsWith('$')).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask forwards_limit_read_delivers_the_rows_past_a_dropped_one(CancellationToken ct) {
+        // Arrange — A0, A's tombstone, B0, B1 in log order, narrowed to the two streams on the wire.
+        // Limit 3 counts delivered rows, so the dropped tombstone must not shorten the result.
+        var first = await Fixture.SeedTestStream(1, ct);
+
+        await Fixture.Client.Streams.Tombstone(first.Stream, first.Revision, ct);
+
+        var second = await Fixture.SeedTestStream(2, ct);
+
+        var filter   = RecordFilter.ByExpression($"stream IN ('{first.Stream}', '{second.Stream}')");
+        var expected = new List<RecordPosition> {
+            RecordPosition.From(first.Position, first.Stream, Revision.Min),
+        };
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadRecords(new ReadRecordsOptions {
+                Start        = first.Position,
+                Direction    = ReadDirection.Forwards,
+                Limit        = 3,
+                Filter       = filter,
+                SkipDecoding = true
+            }, ct)
+            .ToListAsync();
+
+        // Assert — three user rows, none repeated, the tombstone absent.
+        var expectedStreams   = new List<string> { first.Stream.Value, second.Stream.Value };
+        var expectedRevisions = new List<Revision> { Revision.Min, Revision.From(1) };
+
+        var positions = records.Select(record => record.Position).ToList();
+        var streams   = records.Select(record => record.Stream.Value).Distinct().ToList();
+        var revisions = records.Where(record => record.Stream == second.Stream).Select(record => record.Revision).ToList();
+        var schemas   = records.Select(record => record.Schema.Schema.Value).ToList();
+
+        await Assert.That(records.Count).IsEqualTo(3);
+        await Assert.That(positions[0]).IsEqualTo(expected[0]);
+        await Assert.That(streams).IsEquivalentTo(expectedStreams);
+        await Assert.That(revisions).IsEquivalentTo(expectedRevisions);
+        await Assert.That(schemas.Any(schema => schema.StartsWith('$'))).IsFalse();
+    }
+
+    [Test]
+    public async ValueTask limit_counts_delivered_matches_on_a_client_evaluated_stream_read(CancellationToken ct) {
+        // Arrange — a stream route with a residual the server cannot apply: the client rejects
+        // revisions 0..2, so a Limit of 2 must read through the rejected head and deliver 3 and 4.
+        var target = await Fixture.SeedTestStream(5, ct);
+
+        var filter   = RecordFilter.ByExpression($"stream = '{target.Stream}' AND revision >= 3");
+        var expected = new List<Revision> { Revision.From(3), Revision.From(4) };
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadRecords(new ReadRecordsOptions {
+                Start        = RecordPosition.Earliest,
+                Direction    = ReadDirection.Forwards,
+                Limit        = 2,
+                Filter       = filter,
+                SkipDecoding = true
+            }, ct)
+            .ToListAsync();
+
+        // Assert
+        var revisions = records.Select(record => record.Revision).ToList();
+
+        await Assert.That(revisions).IsEquivalentTo(expected);
+    }
+
+    [Test]
+    public async ValueTask backwards_stream_read_with_a_residual_matching_nothing_is_empty(CancellationToken ct) {
+        // Arrange — a residual no row satisfies: the read walks the whole stream, delivers nothing,
+        // and ends at the first revision.
+        var target = await Fixture.SeedTestStream(5, ct);
+
+        var filter = RecordFilter.ByExpression($"stream = '{target.Stream}' AND revision < 0");
+
+        // Act
+        var records = await Fixture.Client.Streams
+            .ReadRecords(new ReadRecordsOptions {
+                Direction    = ReadDirection.Backwards,
+                Limit        = 1,
+                Filter       = filter,
+                SkipDecoding = true
+            }, ct)
+            .ToListAsync();
+
+        // Assert
+        await Assert.That(records).IsEmpty();
+    }
+
+    [Test]
     public async ValueTask user_stream_regex_on_all_drops_system_types_client_side(CancellationToken ct) {
         // Arrange — the user's regex takes the wire slot, so the server passes every record of the
         // stream, tombstone included; only the client can drop it by type.

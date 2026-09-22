@@ -25,12 +25,15 @@ sealed partial class KurrentDBHealthCheck(string resourceName, ResourceConnectio
                 opts.Resilience     = KurrentClientResilienceOptions.NoResilience;
             });
 
+            // The raw log, not the application default: a fresh node holds only system records, and a
+            // record of any kind is what proves the log answers a read.
             var hasRecords = await client.Streams
                 .ReadRecords(
                     new ReadRecordsOptions {
                         Start        = LogPosition.Latest,
                         Direction    = ReadDirection.Backwards,
                         Limit        = 1,
+                        Filter       = RecordFilter.None,
                         SkipDecoding = true
                     },
                     cancellationToken)

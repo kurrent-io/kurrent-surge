@@ -59,14 +59,16 @@ static partial class StreamsClientMapping {
         /// Creates a request to read records based on the provided options. <paramref name="start"/>
         /// arrives pre-resolved by the client routing (see <c>StreamsClient.ReadRecordsCore</c>):
         /// <see cref="RouteByFilter"/> consumes the half matching the branch it picks —
-        /// the revision for a stream target, the log position for the log.
+        /// the revision for a stream target, the log position for the log. The wire count is
+        /// unbounded: <c>Limit</c> is applied by the caller after client-side filtering, and
+        /// disposing the call ends the read.
         /// </summary>
         public static Contracts.ReadReq CreateReadRecordsRequest(ReadRecordsOptions options, RecordPosition start) {
             var req = new Contracts.ReadReq { Options = new() {
                 UuidOption    = DefaultUuidOptions,
                 ControlOption = DefaultControlOption,
                 ReadDirection = ToReadDirection(options.Direction),
-                Count         = (ulong)options.Limit,
+                Count         = (ulong)long.MaxValue,
             }};
 
             var targetsStream = RouteByFilter(req.Options, options.Filter, start, (uint)options.FilterMaxSearchWindow);

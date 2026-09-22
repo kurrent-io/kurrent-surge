@@ -168,10 +168,19 @@ public partial class StreamsClient {
             if (start.IsUnset)
                 yield break;
 
-            var request = Requests.CreateReadRecordsRequest(options, start);
+            // The server streams the log. Limit counts the records delivered here, after the
+            // system-record drop and the client-evaluated filter; ending the enumeration disposes the
+            // call and the server stops. Sent as the wire count, Limit came back short whenever the
+            // client dropped a row: a Limit = 1 read of a tombstoned tail returned nothing.
+            var request   = Requests.CreateReadRecordsRequest(options, start);
+            var delivered = 0L;
 
-            await foreach (var msg in ReadCore(request, options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, (uint)options.FilterMaxSearchWindow, ct).ConfigureAwait(false))
+            await foreach (var msg in ReadCore(request, options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, (uint)options.FilterMaxSearchWindow, ct).ConfigureAwait(false)) {
                 yield return msg;
+
+                if (msg.Value is Record && ++delivered >= options.Limit)
+                    yield break;
+            }
         }
     }
 
