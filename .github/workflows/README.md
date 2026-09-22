@@ -69,9 +69,9 @@ publishes to both GitHub Packages and NuGet.org, and creates a GitHub Release. C
 
 ### [`benchmark.yml`](benchmark.yml) — Performance Benchmarks
 
-Triggers on manual dispatch, merge groups, pushes touching `perf/**`, and pull requests labeled
-`run-benchmarks`. Runs BenchmarkDotNet on the self-hosted runners across a category matrix, generates an
-HTML report, and uploads results as artifacts.
+Triggers on manual dispatch only. Dispatch needs write access to the repository. Never runs on a push or
+a pull request, so no fork code reaches the self-hosted runners. Runs BenchmarkDotNet on the self-hosted
+runners across a category matrix, generates an HTML report, and uploads the results as artifacts.
 
 ### Auxiliary workflows
 

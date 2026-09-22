@@ -2,21 +2,9 @@ name: Run Benchmarks
 
 on:
   workflow_dispatch:
-  merge_group:
-  pull_request:
-    branches: [main]
-    types: [labeled]
-  push:
-    branches: [main]
-    paths:
-      - 'perf/**'
 
 jobs:
   benchmark:
-    if: >-
-      github.event_name != 'pull_request'
-      || github.event.label.name == 'run-benchmarks'
-
     strategy:
       fail-fast: false
       matrix:
