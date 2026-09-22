@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Codecs.Json;
 using Kurrent.Surge.Tests.Codecs.Fixtures;
 using Kurrent.Testkit.Datasets.ArcadeRacer.Contracts;
@@ -296,6 +297,23 @@ public class JsonSchemaCodecOptionsTests {
 
         // Assert
         await Assert.That(actual).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async ValueTask source_gen_options_round_trip_stream_metadata() {
+        // Arrange — SystemMessageCatalog maps StreamMetadata as "$metadata" and the metastream write encodes
+        // it as Json, so it must resolve without the reflection fallback: under trimming or AOT that fallback
+        // is gone and the checkpoint store fails at start-up while configuring stream retention.
+        var options  = JsonSchemaCodecOptions.CreateSourceGenOptions([]);
+        var expected = new StreamMetadata { MaxAge = TimeSpan.FromHours(1) };
+
+        // Act
+        var json   = System.Text.Json.JsonSerializer.Serialize(expected, options);
+        var actual = System.Text.Json.JsonSerializer.Deserialize<StreamMetadata>(json, options);
+
+        // Assert
+        await Assert.That(actual).IsNotNull();
+        await Assert.That(actual!.MaxAge).IsEqualTo(expected.MaxAge);
     }
 
     record UnregisteredProbe(string Name);

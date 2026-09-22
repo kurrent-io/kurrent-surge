@@ -9,7 +9,10 @@ namespace Kurrent.Surge.Codecs.Json;
 [JsonSerializable(typeof(JsonNode))]
 [JsonSerializable(typeof(Dictionary<string, JsonValue>))]
 [JsonSerializable(typeof(Metadata))]
-[JsonConverter(typeof(StreamMetadataJsonConverter))]
+// Mapped by SystemMessageCatalog as "$metadata" and encoded as Json, so it needs a resolver of its own:
+// under trimming or AOT the reflection fallback in JsonSchemaCodecOptions is gone and the checkpoint
+// store fails at start-up while writing stream retention. The record carries its own converter.
+[JsonSerializable(typeof(StreamMetadata))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy   = JsonKnownNamingPolicy.CamelCase,
     DictionaryKeyPolicy    = JsonKnownNamingPolicy.CamelCase,
