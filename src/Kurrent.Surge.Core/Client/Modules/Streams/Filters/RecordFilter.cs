@@ -22,17 +22,21 @@ public abstract record RecordFilter : IParsable<RecordFilter> {
     public static readonly RecordFilter ExcludeSystemRecords = new SystemRecordFilter();
 
     /// <summary>
-    /// Parses a filter expression. Empty input yields <see cref="None"/>.
+    /// Parses a filter expression.
     /// </summary>
     /// <remarks>
     /// Present so a filter can be written as its expression wherever a scalar is expected —
     /// configuration binding above all. Every filter shape reduces to an expression, so the
-    /// expression is the lossless text form.
+    /// expression is the lossless text form. An empty expression is not a filter: the raw log is
+    /// <see cref="None"/>, asked for by name, never by leaving a value blank.
     /// </remarks>
     /// <param name="s">The filter expression.</param>
     /// <param name="provider">Unused. Filter expressions are culture-invariant.</param>
+    /// <exception cref="FormatException">The expression is empty or whitespace.</exception>
     public static RecordFilter Parse(string s, IFormatProvider? provider) =>
-        string.IsNullOrWhiteSpace(s) ? None : ByExpression(s);
+        string.IsNullOrWhiteSpace(s)
+            ? throw new FormatException("A filter expression must not be empty. Use RecordFilter.None to read the raw log.")
+            : ByExpression(s);
 
     /// <inheritdoc cref="Parse"/>
     public static bool TryParse(

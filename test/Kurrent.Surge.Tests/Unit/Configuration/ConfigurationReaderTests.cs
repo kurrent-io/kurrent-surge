@@ -1,4 +1,5 @@
 using System.Net;
+using Kurrent.Surge.Client.Streams;
 using Microsoft.Extensions.Configuration;
 
 namespace Kurrent.Surge.Tests.Configuration;
@@ -239,6 +240,22 @@ public class ConfigurationReaderTests {
         // Assert
         var clientOptions = (KurrentClientOptions)result.Value.ClientOptions!;
         await Assert.That(clientOptions.Endpoints[0].Host).IsEqualTo("dedicated");
+    }
+
+    [Test]
+    public async ValueTask an_empty_filter_is_a_configuration_error() {
+        // Arrange — the raw log is RecordFilter.None, asked for by name; a blank value must not select
+        // it silently, and the default stays in place.
+        var untouched     = RecordFilter.ExcludeSystemRecords;
+        var configuration = Config(("Kurrent:Surge:Processors:Fraud:Subscription:Filter", ""));
+
+        // Act
+        var result = KurrentSurgeConfigurationReader.ReadProcessorOptions(configuration, "Fraud");
+
+        // Assert
+        await Assert.That(result.Value.Subscription.Filter).IsEqualTo(untouched);
+        await Assert.That(result.HasErrors).IsTrue();
+        await Assert.That(result.Problems.Any(p => p.Path.EndsWith("Subscription:Filter"))).IsTrue();
     }
 
     [Test]

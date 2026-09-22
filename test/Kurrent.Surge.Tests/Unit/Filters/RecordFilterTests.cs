@@ -51,4 +51,41 @@ public class RecordFilterTests {
 
         await Assert.That(filter).IsTypeOf<ExpressionFilter>();
     }
+
+    [Test]
+    public async ValueTask parse_returns_an_expression_filter() {
+        // Arrange
+        var expression = "stream = 'orders'";
+
+        // Act
+        var filter = RecordFilter.Parse(expression, null);
+
+        // Assert
+        await Assert.That(filter).IsTypeOf<ExpressionFilter>();
+        await Assert.That(filter.Expression).IsEqualTo(expression);
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("   ")]
+    public async ValueTask parse_rejects_an_empty_expression(string expression) {
+        // Arrange — the raw log is None, asked for by name; a blank value must not select it.
+        var parse = () => RecordFilter.Parse(expression, null);
+
+        // Act & Assert
+        await Assert.That(parse).Throws<FormatException>();
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments("   ")]
+    [Arguments(null)]
+    public async ValueTask try_parse_returns_false_for_an_empty_expression(string? expression) {
+        // Act
+        var parsed = RecordFilter.TryParse(expression, null, out var filter);
+
+        // Assert
+        await Assert.That(parsed).IsFalse();
+        await Assert.That(filter).IsNull();
+    }
 }
