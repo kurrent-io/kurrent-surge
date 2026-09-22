@@ -9,6 +9,11 @@
     <Project Path="examples/PackageTest/PackageTest.csproj" />
     <Project Path="examples/Transfermarkt.Domain/Transfermarkt.Domain.csproj" />
   </Folder>
+  <Folder Name="/.Examples/BikeShare/">
+    <Project Path="examples/bikeshare/BikeShare.Consumer/BikeShare.Consumer.csproj" />
+    <Project Path="examples/bikeshare/BikeShare.Producer/BikeShare.Producer.csproj" />
+    <Project Path="examples/bikeshare/BikeShare.Rides/BikeShare.Rides.csproj" />
+  </Folder>
   <Folder Name="/.Examples/Processors/">
     <Project Path="examples/processors/Processor.AspNetMinimal/Processor.AspNetMinimal.csproj" />
     <Project Path="examples/processors/Processor.ClickstreamSessions/Processor.ClickstreamSessions.csproj" />

@@ -123,16 +123,18 @@ Pages.
 
 ### Examples
 
-`examples/` holds 19 runnable projects, carried by `examples/Examples.slnx` and by `Kurrent.Surge.slnx`.
+`examples/` holds 22 runnable projects, carried by `examples/Examples.slnx` and by `Kurrent.Surge.slnx`.
 Read one before you hand-write a usage sample.
 
 ```text
 examples/streams/     QuickStart (38 lines, the minimal complete program), InventoryManagement
-examples/processors/  QuickStart (one file, inline handlers on SurgeProcessor), WordCount,
+examples/processors/  QuickStart (one file, a MessageProcessor subclass hosted with AddKurrentSurge), WordCount,
                       FraudDetection, IoTMonitoring, OrderEnrichment, ClickstreamSessions,
                       Leaderboard, WithPostgres, WithRedisCache, FullExample, AspNetMinimal,
                       Connector.Management
 examples/registry/    Quickstart, OrderManagement
+examples/bikeshare/   Rides (records and catalog), Producer (ride simulator), Consumer (two processors),
+                      one README for the three
 examples/             PackageTest, PackageTest.Streaming, Transfermarkt.Domain
 ```
 

@@ -20,12 +20,13 @@ Kafka sink connector, which requires a licensed KurrentDB.
 
 ## Wireup
 
-Each example makes a host. The examples register the SDK in one of two modes.
+Each example makes a host — `Host.CreateApplicationBuilder(args)` for the console examples,
+`WebApplication.CreateBuilder(args)` for the web ones — and registers Surge with
+`builder.AddKurrentSurge(surge => { ... })`.
 
-- **One processor in each host.** The console processor examples use
-  `SurgeProcessor.CreateBuilder<T>(args, options => { ... })` and set the processor options in the
-  lambda. This builder adds the processor, its health check, and the `KurrentClient` to the
-  container. If you register a second processor, `Build()` throws an `InvalidOperationException`.
+- **One processor in each host.** The console processor examples call `surge.AddProcessor<T>(...)`
+  once inside `AddKurrentSurge` and set the processor options in the lambda. `AddKurrentSurge` adds
+  the `KurrentClient` to the container, and `AddProcessor<T>` adds the processor and its health check.
 
 - **Many components in one host.** The web examples use `WebApplication.CreateBuilder` and
   `AddKurrentSurge`. `Streams.QuickStart` and `Registry.Quickstart` use `AddKurrentSurge` with
@@ -36,30 +37,32 @@ class is below the top-level statements.
 
 `Processor.WordCount` adds a message catalog to the `KurrentClient` connection. The processor and
 `FactSeeder` use that connection. To tune the configured connection, `Processor.WordCount` calls
-`AddKurrentSurge` on the `SurgeProcessor` builder:
+`surge.Connection(...)` in the same `AddKurrentSurge` scope as `AddProcessor<T>`:
 
 ```csharp
-builder.AddKurrentSurge(surge => surge.Connection(client => client.Messages.UseCatalog(catalog)));
+surge.Connection(client => client.Messages.UseCatalog(catalog));
 ```
 
 A console processor example has this structure:
 
 ```csharp
-var builder = SurgeProcessor.CreateBuilder<OrderProcessor>(args, options =>
-    options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'OrderPlaced'"));
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddKurrentSurge(surge => surge.AddProcessor<OrderProcessor>(options =>
+    options.Subscription.Filter = RecordFilter.ByExpression("schema_name = 'OrderPlaced'")));
 
 builder.Services.AddHostedService<OrderSeeder>();
 
 await builder.Build().RunAsync();
 ```
 
-To give the processor an explicit id, pass the id as the second argument:
-`CreateBuilder<OrderProcessor>(args, "orders", options => ...)`. `Processor.QuickStart` does this.
+To give the processor an explicit id, pass the id as the first argument:
+`surge.AddProcessor<OrderProcessor>("orders", options => ...)`. `Processor.QuickStart` does this.
 
 The examples do not contain a connection string in code. Each example has an `appsettings.json` file
 with the connection string at `ConnectionStrings:kurrentdb`.
 
-`SurgeProcessor` reads that key without connection code. It looks for two key names in this
+`AddKurrentSurge` reads that key without connection code. It looks for two key names in this
 sequence: `Kurrent:Surge`, then `KurrentDB`. For `KurrentDB` it ignores the difference between
 uppercase and lowercase letters, and the `-` and `_` characters.
 

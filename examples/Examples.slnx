@@ -4,6 +4,12 @@
     <Project Path="PackageTest.Streaming/PackageTest.Streaming.csproj" />
   </Folder>
 
+  <Folder Name="/BikeShare/">
+    <Project Path="bikeshare/BikeShare.Consumer/BikeShare.Consumer.csproj" />
+    <Project Path="bikeshare/BikeShare.Producer/BikeShare.Producer.csproj" />
+    <Project Path="bikeshare/BikeShare.Rides/BikeShare.Rides.csproj" />
+  </Folder>
+
   <Folder Name="/Connectors/">
     <Project Path="processors/Connector.Management/Connector.Management.csproj" />
   </Folder>
