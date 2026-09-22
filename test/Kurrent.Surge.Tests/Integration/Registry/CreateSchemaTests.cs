@@ -7,6 +7,7 @@ namespace Kurrent.Surge.Tests.Registry;
 
 [Category("Registry")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class CreateSchemaTests {
 	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }

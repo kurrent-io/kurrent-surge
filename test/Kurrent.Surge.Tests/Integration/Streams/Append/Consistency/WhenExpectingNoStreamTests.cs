@@ -5,6 +5,7 @@ namespace Kurrent.Surge.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class WhenExpectingNoStreamTests : AppendConsistencyTestBase {
     [Test]
     public async ValueTask succeeds_when_stream_does_not_exist(CancellationToken ct) {

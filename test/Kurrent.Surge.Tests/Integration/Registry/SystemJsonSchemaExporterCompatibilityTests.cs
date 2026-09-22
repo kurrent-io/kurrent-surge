@@ -18,6 +18,7 @@ namespace Kurrent.Surge.Tests.SchemaExportProof;
 /// </summary>
 [Category("Registry")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class SystemJsonSchemaExporterCompatibilityTests {
 	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }

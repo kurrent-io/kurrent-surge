@@ -5,6 +5,7 @@ namespace Kurrent.Surge.Tests.Connectors;
 
 [Category("Connectors")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class ConnectorErrorTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }

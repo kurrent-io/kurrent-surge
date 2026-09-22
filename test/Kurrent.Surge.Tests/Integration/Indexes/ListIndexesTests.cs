@@ -4,6 +4,7 @@ namespace Kurrent.Surge.Tests.Indexes;
 
 [Category("Indexes")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class ListIndexesTests {
     const int TestTimeoutMs = 20_000;
 

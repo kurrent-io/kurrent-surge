@@ -5,6 +5,7 @@ using Kurrent.Surge.Errors;
 namespace Kurrent.Surge.Tests.Client.LoadBalancing;
 
 [Category("Integration")]
+[Timeout(10_000)]
 public class LargeClusterConvergenceTests {
     [ClassDataSource<KurrentDBLargeClusterFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBLargeClusterFixture Fixture { get; [UsedImplicitly] init; }

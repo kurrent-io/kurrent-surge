@@ -6,6 +6,7 @@ using Kurrent.Surge.Schema;
 namespace Kurrent.Surge.Tests.Client;
 
 [Category("Integration")]
+[Timeout(10_000)]
 public class CompressionTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }

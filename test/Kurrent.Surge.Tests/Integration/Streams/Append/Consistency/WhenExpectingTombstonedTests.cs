@@ -5,6 +5,7 @@ namespace Kurrent.Surge.Tests.Streams;
 
 [Category("Streams")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class WhenExpectingTombstonedTests : AppendConsistencyTestBase {
     [Test]
     public async ValueTask succeeds_when_stream_is_tombstoned(CancellationToken ct) {

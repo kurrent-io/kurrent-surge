@@ -4,6 +4,7 @@ namespace Kurrent.Surge.Tests.Secure;
 
 [Category("Secure")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class AuthenticationTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }

@@ -7,6 +7,7 @@ namespace Kurrent.Surge.Tests.Streams;
 [Category("Streams")]
 [Category("StreamInfo")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class SetCustomMetadataTests {
 	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }

@@ -6,6 +6,7 @@ namespace Kurrent.Surge.Tests.Streams;
 [Category("Streams")]
 [Category("Delete")]
 [Category("Integration")]
+[Timeout(10_000)]
 public class DeleteTests {
     [ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
     public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
