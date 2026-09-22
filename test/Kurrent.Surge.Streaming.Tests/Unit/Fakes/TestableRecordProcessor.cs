@@ -8,14 +8,18 @@ namespace Kurrent.Surge.Streaming.Tests;
 /// Shared test processor with optional hooks and record collection.
 /// Works as a no-op by default — set hooks to customize behavior per test.
 /// </summary>
-sealed class TestableRecordProcessor : IRecordProcessor {
+sealed class TestableRecordProcessor : IRecordProcessor, IAsyncDisposable {
     readonly ConcurrentQueue<CheckpointContext> _checkpoints = new();
     readonly ConcurrentQueue<ConnectedContext>  _connected   = new();
     readonly ConcurrentQueue<Record>            _records     = new();
 
-    public Func<ProcessRecordContext, ValueTask>? OnProcessRecord  { get; set; }
-    public Func<CheckpointContext, ValueTask>?    OnCheckpointHook { get; set; }
-    public Func<ConnectedContext, ValueTask>?     OnConnectedHook  { get; set; }
+    public Func<ProcessRecordContext, ValueTask>? OnProcessRecord   { get; set; }
+    public Func<InitializeContext, ValueTask>?    OnInitializeHook  { get; set; }
+    public Func<CheckpointContext, ValueTask>?    OnCheckpointHook  { get; set; }
+    public Func<ConnectedContext, ValueTask>?     OnConnectedHook   { get; set; }
+
+    /// <summary>Set when the drone released the processor on the way out.</summary>
+    public bool Disposed { get; private set; }
 
     public Record[]                         Records     => _records.ToArray();
     public IReadOnlyList<CheckpointContext> Checkpoints => _checkpoints.ToArray();
@@ -29,6 +33,9 @@ sealed class TestableRecordProcessor : IRecordProcessor {
             _records.Enqueue(context.Record);
     }
 
+    ValueTask IProcessor.OnInitialize(InitializeContext context) =>
+        OnInitializeHook?.Invoke(context) ?? ValueTask.CompletedTask;
+
     ValueTask IProcessor.OnCheckpoint(CheckpointContext context) {
         _checkpoints.Enqueue(context);
         return OnCheckpointHook?.Invoke(context) ?? ValueTask.CompletedTask;
@@ -37,5 +44,10 @@ sealed class TestableRecordProcessor : IRecordProcessor {
     ValueTask IProcessor.OnConnected(ConnectedContext context) {
         _connected.Enqueue(context);
         return OnConnectedHook?.Invoke(context) ?? ValueTask.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync() {
+        Disposed = true;
+        return ValueTask.CompletedTask;
     }
 }

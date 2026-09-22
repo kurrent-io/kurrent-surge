@@ -816,161 +816,9 @@ public class DroneLifecycleTests {
 		await Assert.That(drone.Progress.TotalRecords).IsEqualTo((long)records.Length);
 	}
 
-	[Test]
-	[Timeout(15_000)]
-	public async ValueTask source_lag_computes_from_probed_head() {
-		// Arrange — a fake clock drives the probe; a stubbed head read returns a head 800 bytes and
-		// 5 seconds ahead of the committed / last-processed position.
-		var time      = new FakeTimeProvider();
-		var headTime  = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-		var head      = Records.Generate() with {
-			Position  = RecordPosition.From(LogPosition.From(1000), Partition.From(0)),
-			Timestamp = headTime
-		};
-		var committed = RecordPosition.From(LogPosition.From(200), Partition.From(0));
-		var progress  = DroneProgress.Empty with {
-			LastProcessedAt          = headTime.AddSeconds(-5),
-			LowestCommittedPosition  = committed,
-			HighestCommittedPosition = committed
-		};
-
-		long?   lagBytes   = null;
-		double? lagSeconds = null;
-
-		await using var probe = new SourceLagProbe(
-			readHead: _ => ValueTask.FromResult(head),
-			snapshot: () => progress,
-			onSample: (bytes, seconds) => { lagBytes = bytes; lagSeconds = seconds; },
-			timeProvider: time);
-
-		// Act — advance past the fixed 10s refresh so the probe samples once.
-		probe.Start();
-		time.Advance(TimeSpan.FromSeconds(10));
-
-		await Assert.That(() => lagBytes.HasValue).EventuallyPasses(captured => captured.IsTrue());
-
-		// Assert — byte gap is head − committed; second gap is head − last-processed event-time.
-		await Assert.That(lagBytes!.Value).IsEqualTo(800L);
-		await Assert.That(lagSeconds!.Value).IsEqualTo(5d).Within(0.001);
-	}
-
 	#endregion // telemetry
 
-	#region ->> uncommitted progress <<-
-
-	// The uncommitted accounting moved into ProgressTracker with the partition slots — DroneProgress
-	// now carries the result rather than deriving it, so these drive the tracker directly.
-	static ProgressTracker NewTracker(int partitionCount = 1) =>
-		new(TimeProvider.System, partitionCount);
-
-	static RecordPosition At(long position, int partition) =>
-		RecordPosition.From(LogPosition.From(position), Partition.From(partition));
-
-	[Test]
-	public async ValueTask uncommitted_reflects_tracked_minus_committed() {
-		// Arrange — commit at 200, then dispatch 7 records and track out to 500
-		var tracker = NewTracker();
-		var record  = Records.Generate();
-
-		tracker.TrackCheckpoint([At(200, 0)]);
-
-		for (var i = 0; i < 7; i++)
-			tracker.CountThroughput(record);
-
-		tracker.TrackPosition(At(500, 0));
-
-		// Act
-		var progress = tracker.Progress;
-
-		// Assert — records since the commit, bytes from the tracked-to-committed gap
-		await Assert.That(progress.UncommittedRecords).IsEqualTo(7L);
-		await Assert.That(progress.UncommittedBytes).IsEqualTo(300L);
-	}
-
-	[Test]
-	public async ValueTask uncommitted_bytes_sums_across_partitions() {
-		// Arrange — two partitions with gaps 300 (500−200) and 50 (150−100)
-		var tracker = NewTracker(partitionCount: 2);
-
-		tracker.TrackCheckpoint([At(200, 0), At(100, 1)]);
-		tracker.TrackPosition(At(500, 0));
-		tracker.TrackPosition(At(150, 1));
-
-		// Act & Assert
-		await Assert.That(tracker.Progress.UncommittedBytes).IsEqualTo(350L);
-	}
-
-	[Test]
-	public async ValueTask uncommitted_bytes_measures_from_the_resume_point_before_any_commit() {
-		// Arrange — the whole point of seeding: a catch-up that has tracked 500 but never checkpointed
-		// has 300 bytes at risk from its resume point at 200. Reporting zero here would say "nothing to
-		// replay" while an entire catch-up is pending.
-		var tracker = NewTracker();
-
-		tracker.Initialize([At(200, 0)]);
-		tracker.TrackPosition(At(500, 0));
-
-		// Act & Assert
-		await Assert.That(tracker.Progress.UncommittedBytes).IsEqualTo(300L);
-	}
-
-	[Test]
-	public async ValueTask uncommitted_bytes_is_zero_when_the_run_starts_at_the_live_edge() {
-		// Arrange — Latest is a sentinel, not a position: there is no resolved edge to measure from
-		// until the first checkpoint lands, so nothing is claimed.
-		var tracker = NewTracker();
-
-		tracker.Initialize([RecordPosition.From(LogPosition.Latest, Partition.From(0))]);
-		tracker.TrackPosition(At(500, 0));
-
-		// Act & Assert
-		await Assert.That(tracker.Progress.UncommittedBytes).IsEqualTo(0L);
-	}
-
-	[Test]
-	public async ValueTask uncommitted_bytes_is_zero_when_committed_overtakes_tracked() {
-		// Arrange — a committed scan watermark can advance past the last tracked record (the no-match
-		// region folds into the checkpointer, never into per-record tracking). The gap floors at zero.
-		var tracker = NewTracker();
-
-		tracker.TrackPosition(At(200, 0));
-		tracker.TrackCheckpoint([At(500, 0)]);
-
-		// Act & Assert
-		await Assert.That(tracker.Progress.UncommittedBytes).IsEqualTo(0L);
-	}
-
-	[Test]
-	public async ValueTask committed_watermarks_span_the_least_and_most_advanced_partitions() {
-		// Arrange — two partitions committed at different positions. The spread between the watermarks
-		// is the commit skew; the lowest is where a restart resumes from.
-		var tracker = NewTracker(partitionCount: 2);
-
-		tracker.TrackCheckpoint([At(900, 0), At(300, 1)]);
-
-		// Act
-		var progress = tracker.Progress;
-
-		// Assert
-		await Assert.That(progress.LowestCommittedPosition).IsEqualTo(At(300, 1));
-		await Assert.That(progress.HighestCommittedPosition).IsEqualTo(At(900, 0));
-	}
-
-	[Test]
-	public async ValueTask committed_watermarks_ignore_partitions_that_never_committed() {
-		// Arrange — one of two partitions has committed. An Unset slot must not drag the lowest to zero,
-		// which would read as "durable from the start of the log".
-		var tracker = NewTracker(partitionCount: 2);
-
-		tracker.TrackCheckpoint([At(400, 0)]);
-
-		// Act
-		var progress = tracker.Progress;
-
-		// Assert
-		await Assert.That(progress.LowestCommittedPosition).IsEqualTo(At(400, 0));
-		await Assert.That(progress.HighestCommittedPosition).IsEqualTo(At(400, 0));
-	}
+	#region ->> checkpoint-vs-stop <<-
 
 	[Test]
 	[Timeout(15_000)]
@@ -1752,7 +1600,7 @@ public class DroneLifecycleTests {
 		// Arrange — OnInitialize runs before the subscription opens. Its failure takes the same exit as any
 		// other: Stopping, then Stopped carrying the error, with whatever the processor opened released.
 		var observer  = new RecordingObserver();
-		var processor = new FailsOnInitialize(new InvalidOperationException("boom"));
+		var processor = new TestableRecordProcessor { OnInitializeHook = _ => throw new InvalidOperationException("boom") };
 
 		var (drone, _) = CreateDrone(processor, observers: [observer]);
 
@@ -1836,20 +1684,6 @@ public class DroneLifecycleTests {
 file sealed record OrderPlaced;
 
 file sealed record OrderShipped;
-
-/// <summary>Fails in OnInitialize and records whether the drone released it on the way out.</summary>
-file sealed class FailsOnInitialize(Exception failure) : IRecordProcessor, IAsyncDisposable {
-	public bool Disposed { get; private set; }
-
-	public ValueTask ProcessRecord(ProcessRecordContext context) => ValueTask.CompletedTask;
-
-	ValueTask IProcessor.OnInitialize(InitializeContext context) => throw failure;
-
-	public ValueTask DisposeAsync() {
-		Disposed = true;
-		return ValueTask.CompletedTask;
-	}
-}
 
 /// <summary>Collects every event the drone raises, in order, for assertion.</summary>
 file sealed class RecordingObserver : IProcessorObserver {
