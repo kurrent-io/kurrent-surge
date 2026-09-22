@@ -27,13 +27,13 @@ public class CheckpointerTests {
             Interval       = TimeSpan.FromSeconds(30)
         };
 
-        var store = new KurrentDBCheckpointStore(
+        var store = new KdbCheckpointStore(
             processorId,
             partitionCount,
             maxCount,
             Fixture.Client.Streams,
             TimeProvider.System,
-            TestkitExecutionContext.LoggerFactory.CreateLogger<KurrentDBCheckpointStore>()
+            TestkitExecutionContext.LoggerFactory.CreateLogger<KdbCheckpointStore>()
         );
 
         return new Checkpointer($"{processorId}-drone", opts, store, writer, TimeProvider.System);

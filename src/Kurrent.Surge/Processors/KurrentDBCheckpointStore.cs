@@ -26,7 +26,7 @@ namespace Kurrent.Surge.Processors.Checkpointing;
 /// </para>
 /// </remarks>
 [PublicAPI]
-public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
+public sealed partial class KdbCheckpointStore : CheckpointStoreBase {
     readonly IStreamsClient _client;
     readonly ILogger       _logger;
     readonly int           _maxCount;
@@ -34,7 +34,7 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     readonly StreamName    _stream;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="KurrentDBCheckpointStore"/> class.
+    /// Initializes a new instance of the <see cref="KdbCheckpointStore"/> class.
     /// </summary>
     /// <param name="processorId">The processor group identifier this store is bound to.</param>
     /// <param name="partitionCount">Total number of partitions in the processor group.</param>
@@ -51,13 +51,13 @@ public sealed partial class KurrentDBCheckpointStore : CheckpointStoreBase {
     /// auto-discovery — no per-store registration required or possible: the client's
     /// resolver snapshot is taken at client construction.
     /// </remarks>
-    public KurrentDBCheckpointStore(
+    public KdbCheckpointStore(
         string processorId,
         int partitionCount,
         int maxCount,
         IStreamsClient client,
         TimeProvider time,
-        ILogger<KurrentDBCheckpointStore> logger
+        ILogger<KdbCheckpointStore> logger
     ) : base(processorId, time, logger) {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(partitionCount, 0);
 

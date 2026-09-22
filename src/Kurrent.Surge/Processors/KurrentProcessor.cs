@@ -96,13 +96,13 @@ sealed class KurrentProcessor {
 				SingleWriter = false
 			});
 
-		var checkpointStore = new KurrentDBCheckpointStore(
+		var checkpointStore = new KdbCheckpointStore(
 			_options.ProcessorId,
 			_options.MaxParallelism,
 			_options.Checkpoint.RetentionCount,
 			client.Streams,
 			TimeProvider.System,
-			NullLogger<KurrentDBCheckpointStore>.Instance
+			NullLogger<KdbCheckpointStore>.Instance
 		);
 
 		var checkpointer = new Checkpointer(

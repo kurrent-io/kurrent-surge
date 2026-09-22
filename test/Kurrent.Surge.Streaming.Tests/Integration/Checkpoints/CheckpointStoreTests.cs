@@ -15,14 +15,14 @@ public class CheckpointStoreTests {
 	[ClassDataSource<KurrentDBFixture>(Shared = SharedType.PerTestSession)]
 	public required KurrentDBFixture Fixture { get; [UsedImplicitly] init; }
 
-	KurrentDBCheckpointStore CreateStore(string processorId, int partitionCount = 8, int maxCount = 100) =>
+	KdbCheckpointStore CreateStore(string processorId, int partitionCount = 8, int maxCount = 100) =>
         new(
             processorId,
             partitionCount,
             maxCount,
             Fixture.Client.Streams,
             TimeProvider.System,
-            logger: TestkitExecutionContext.LoggerFactory.CreateLogger<KurrentDBCheckpointStore>()
+            logger: TestkitExecutionContext.LoggerFactory.CreateLogger<KdbCheckpointStore>()
         );
 
     #region ->> Core Operations <<-
