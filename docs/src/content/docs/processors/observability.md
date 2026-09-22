@@ -54,8 +54,8 @@ ask, and leave it off on a processor you already know keeps up.
 
 ## Health
 
-`SurgeProcessor` registers one health check. The name of the health check is the processor id. The
-check reports Healthy while the processor processes records. It reports Degraded while the
+`AddProcessor` registers one health check for each processor. The name of the health check is the
+processor id. The check reports Healthy while the processor processes records. It reports Degraded while the
 processor starts, and while its checkpoints fail. After the processor stops or fails, the check
 reports Unhealthy.
 [Running a Processor](/kurrent-surge/processors/running-a-processor/#read-the-health-check) has the

@@ -63,9 +63,8 @@ resources opened in `OnInitialize` have somewhere to go.
 
 ## Failure
 
-Throw from a handler and the run ends. The processor stops, and the host stops with exit code 1. The
-position is not committed past the record that threw. A stop by Ctrl+C or SIGTERM is not a failure,
-so the exit code stays 0.
+Throw from a handler and the run ends. The processor stops, and the host stops. The position is not
+committed past the record that threw. A stop by Ctrl+C or SIGTERM is not a failure.
 
 The resilience options govern the subscription, not your handler. A handler exception is never
 retried.
@@ -76,7 +75,9 @@ what happens when a checkpoint fails.
 ## Running it
 
 ```csharp
-var builder = SurgeProcessor.CreateBuilder<OrderProcessor>(args);
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddKurrentSurge(surge => surge.AddProcessor<OrderProcessor>());
 
 await builder.Build().RunAsync();
 ```
@@ -89,8 +90,6 @@ configuration, the processor identity, the health check, and the exit code.
 `AddKurrentSurge` registers the processor as a hosted service, so the host starts it and stops it.
 
 ```csharp
-builder.Services.AddSingleton<OrderProcessor>();
-
 builder.Services.AddKurrentSurge(surge => {
     surge.Connection("kurrentdb://localhost:2113");
     surge.AddProcessor<OrderProcessor>(opts =>
@@ -98,13 +97,6 @@ builder.Services.AddKurrentSurge(surge => {
 });
 ```
 
-`AddProcessor<T>` resolves `T` from the container and never registers it, so register it yourself.
-Pass an instance or a factory instead when that suits the processor better:
-
-```csharp
-surge.AddProcessor(new OrderProcessor());
-surge.AddProcessor(sp => new OrderProcessor(sp.GetRequiredService<IOrderStore>()));
-```
-
-Neither of those two adds the type to the container. `AddBatchProcessor` carries the same twelve
-overloads for `IRecordBatchProcessor`.
+`AddProcessor<T>` registers `T` in the container, keyed by the processor id, so you do not register
+it. The dependencies of `T` are yours to register. `AddBatchProcessor` takes the same arguments for
+`IRecordBatchProcessor`.

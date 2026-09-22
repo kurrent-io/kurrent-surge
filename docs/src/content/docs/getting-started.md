@@ -105,7 +105,7 @@ public sealed class OrderNotifier : IRecordProcessor {
 }
 ```
 
-To run the processor, give its type to `SurgeProcessor.CreateBuilder<T>`:
+To run the processor, give its type to `AddProcessor<T>` on the host builder:
 
 ```csharp
 using Kurrent.Surge;
@@ -113,16 +113,18 @@ using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors;
 using Microsoft.Extensions.Hosting;
 
-var builder = SurgeProcessor.CreateBuilder<OrderNotifier>(args, options => {
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddKurrentSurge(surge => surge.AddProcessor<OrderNotifier>(options => {
     // tls=false is the local development mode. Production drops it: /kurrent-surge/client/security/
     options.Connection("kurrentdb://localhost:2113?tls=false");
     options.Subscription.Filter = RecordFilter.ByStream("order-001");
-});
+}));
 
 await builder.Build().RunAsync();
 ```
 
-`SurgeProcessor` registers `OrderNotifier` in the container for you. Without a filter the processor
+`AddProcessor` registers `OrderNotifier` in the container for you. Without a filter the processor
 reads every stream. SIGINT and SIGTERM stop the host, and the processor commits what it has handled
 before it exits, so a container stop drains rather than kills.
 

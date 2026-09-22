@@ -4,14 +4,15 @@ description: What happens when a handler throws, what the runtime retries, and w
 ---
 
 Throwing from a handler is how you report failure, and it ends the run. The runtime stops the
-processor and logs the exception. The host then stops, and the process exit code is 1. Records later
-in the batch are never dispatched.
+processor and logs the exception. The host then stops. Records later in the batch are never
+dispatched.
 
 The guarantee that matters: **a failed record is not checkpointed past.** Restart and processing
 resumes at or before it, so the work is retried rather than skipped. Restarting is your job, or your
 host's.
 
-A container orchestrator sees exit code 1 and starts the process again. See
+To make the process exit with a failure code, so a container orchestrator starts it again, call
+`surge.FailProcessOnFatalError()`. See
 [Running a Processor](/kurrent-surge/processors/running-a-processor/#failure-and-exit-code).
 
 ## What the runtime retries, and what it does not

@@ -44,10 +44,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddKurrentSurge(surge => {
     surge.Connection("kurrentdb://localhost:2113");
 
-    surge.AddProcessor(new TransferWatch(), prx => {
-        prx.ProcessorId         = "transfer-watch";
-        prx.Subscription.Filter = RecordFilter.ByCategory("player");
-    });
+    surge.AddProcessor<TransferWatch>("transfer-watch", prx =>
+        prx.Subscription.Filter = RecordFilter.ByCategory("player"));
 });
 
 await builder.Build().RunAsync();`;

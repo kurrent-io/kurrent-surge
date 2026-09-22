@@ -31,12 +31,13 @@ using Kurrent.Surge.Client.Streams;
 using Kurrent.Surge.Processors;
 using Microsoft.Extensions.Hosting;
 
-var builder = SurgeProcessor.CreateBuilder<TemperatureMonitorProcessor>(
-    args, options => {
-        options.Connection("kurrentdb://localhost:2113");
-        options.Subscription.Filter =
-            RecordFilter.ByExpression("schema_name = 'SensorReading'");
-    });
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.AddKurrentSurge(surge => surge.AddProcessor<TemperatureMonitorProcessor>(options => {
+    options.Connection("kurrentdb://localhost:2113");
+    options.Subscription.Filter =
+        RecordFilter.ByExpression("schema_name = 'SensorReading'");
+}));
 
 await builder.Build().RunAsync();
 ```

@@ -11,8 +11,6 @@ using Kurrent.Surge;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-builder.Services.AddSingleton<OrderProcessor>();
-
 builder.Services.AddKurrentSurge(surge => {
     surge.Connection("kurrentdb://localhost:2113");
     surge.AddProcessor<OrderProcessor>(opts =>
@@ -25,8 +23,8 @@ await builder.Build().RunAsync();
 The scope registers a `KurrentClient` for injection, and the processor runs as a hosted service that
 the host starts and stops.
 
-For an application with one processor only, use `SurgeProcessor`. It builds the host and the
-scope for you. See [Running a Processor](/kurrent-surge/processors/running-a-processor/).
+[Running a Processor](/kurrent-surge/processors/running-a-processor/) shows how to host a processor,
+read its health check, and handle its failure.
 
 One `using` covers the lambda. The builder's methods are declared on `IKurrentSurgeBuilder` rather
 than as extension methods, so a call site needs no `using` for the options namespaces.
@@ -78,26 +76,19 @@ instead of on first use.
 
 ## Processors
 
-`AddProcessor<T>` and `AddBatchProcessor<T>` each carry twelve overloads over three ways of getting
-the processor. Each overload has a twin that takes the processor id first.
+`AddProcessor<T>` has four overloads. Two take the processor id first. Each takes the
+per-processor settings as `Action<ProcessorOptions>`, or as `Action<ProcessorOptions, IServiceProvider>`
+when those settings need something resolved.
 
 ```csharp
-// Resolved from the container. Register it yourself.
-builder.Services.AddSingleton<OrderProcessor>();
-surge.AddProcessor<OrderProcessor>();
-
-// Built by a factory, once per drone at host startup.
-surge.AddProcessor(sp => new OrderProcessor(sp.GetRequiredService<IOrderStore>()));
-
-// A pre-built instance, reused for the drone's lifetime.
-surge.AddProcessor(new OrderProcessor());
+IKurrentSurgeBuilder AddProcessor<T>(Action<ProcessorOptions>? configure = null);
+IKurrentSurgeBuilder AddProcessor<T>(string processorId, Action<ProcessorOptions>? configure = null);
+IKurrentSurgeBuilder AddProcessor<T>(Action<ProcessorOptions, IServiceProvider> configure);
+IKurrentSurgeBuilder AddProcessor<T>(string processorId, Action<ProcessorOptions, IServiceProvider> configure);
 ```
 
-The type overload resolves `T` and never registers it, so an unregistered processor fails at host
-startup. The factory and instance overloads do not add the type to the container.
-
-Each of the three takes per-processor settings, either as `Action<ProcessorOptions>` or as
-`Action<ProcessorOptions, IServiceProvider>` when those settings need something resolved.
+`AddBatchProcessor<T>` has the same four overloads for `IRecordBatchProcessor`. See
+[writing a processor](/kurrent-surge/processors/writing-a-processor/) for the two handler contracts.
 
 ```csharp
 surge.AddProcessor<OrderProcessor>("orders-eu", (opts, sp) =>
@@ -106,8 +97,26 @@ surge.AddProcessor<OrderProcessor>("orders-eu", (opts, sp) =>
 
 The first argument, `orders-eu`, is the processor id.
 
-`AddBatchProcessor` has the same twelve overloads for `IRecordBatchProcessor`. See
-[writing a processor](/kurrent-surge/processors/writing-a-processor/) for the two handler contracts.
+The scope registers `T` in the container as a singleton, keyed by the processor id. It uses
+`TryAdd`, so a keyed registration of your own for that id wins. The scope registers `T` and nothing
+else. The dependencies of `T` are yours to register, the way you register any service.
+
+Each processor id gets one hosted service, so the same type runs several times under different ids:
+one per tenant, or one per feed. A duplicate id throws `InvalidOperationException`, and the message
+names the id.
+
+The health check comes with the registration. Each processor gets one check, named by its id.
+`IDrone` is registered keyed by the id too.
+
+Resolve a processor elsewhere by its id: `GetRequiredKeyedService<OrderProcessor>("orders-eu")`, or
+`[FromKeyedServices("orders-eu")]` on a minimal API parameter. While a type runs under one id only,
+`GetRequiredService<OrderProcessor>()` resolves it as well. A second id for the same type removes
+that unkeyed registration. A `services.AddSingleton<OrderProcessor>()` of your own is a separate
+instance that the processor runtime never uses.
+
+`surge.FailProcessOnFatalError()` makes `RunAsync` throw the exception of a failed processor, so the
+process exits with a failure code on .NET 10. See
+[Failure and exit code](/kurrent-surge/processors/running-a-processor/#failure-and-exit-code).
 
 ## Configuration
 
