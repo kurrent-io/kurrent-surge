@@ -41,6 +41,7 @@
     "docs/**",
     "playground/**",
     "tools/**",
-    "LICENSE.md"
+    "LICENSE.md",
+    "DESIGN.md"
   ]
 }
