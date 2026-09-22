@@ -3,7 +3,7 @@ using ProtobufTranscoder.Descriptors;
 namespace ProtobufTranscoder.Parser;
 
 /// <summary>Raw parse output for a .proto file, before cross-reference resolution.</summary>
-internal sealed class FileDescriptorProto
+sealed class FileDescriptorProto
 {
     public string Name { get; init; } = "";
     public string Syntax { get; set; } = "proto3";
@@ -16,7 +16,7 @@ internal sealed class FileDescriptorProto
     public FeatureSetOverrides? Features { get; set; }
 }
 
-internal sealed class MessageDescriptorProto
+sealed class MessageDescriptorProto
 {
     public string Name { get; init; } = "";
     public List<FieldDescriptorProto> Fields { get; } = [];
@@ -29,7 +29,7 @@ internal sealed class MessageDescriptorProto
     public FeatureSetOverrides? Features { get; set; }
 }
 
-internal sealed class FieldDescriptorProto
+sealed class FieldDescriptorProto
 {
     public string Name { get; init; } = "";
     public string? JsonName { get; init; }
@@ -45,20 +45,20 @@ internal sealed class FieldDescriptorProto
     public FeatureSetOverrides? Features { get; set; }
 }
 
-internal sealed class EnumDescriptorProto
+sealed class EnumDescriptorProto
 {
     public string Name { get; init; } = "";
     public List<EnumValueProto> Values { get; } = [];
     public FeatureSetOverrides? Features { get; set; }
 }
 
-internal sealed class EnumValueProto
+sealed class EnumValueProto
 {
     public string Name { get; init; } = "";
     public int Number { get; init; }
 }
 
-internal sealed class ExtensionRangeProto
+sealed class ExtensionRangeProto
 {
     public int Start { get; init; }
     public int End { get; init; }
@@ -67,7 +67,7 @@ internal sealed class ExtensionRangeProto
 /// <summary>
 /// Represents an extend block: extend SomeMessage { fields... }
 /// </summary>
-internal sealed class ExtendBlockProto
+sealed class ExtendBlockProto
 {
     public string ExtendeeTypeName { get; init; } = "";
     public List<FieldDescriptorProto> Fields { get; } = [];

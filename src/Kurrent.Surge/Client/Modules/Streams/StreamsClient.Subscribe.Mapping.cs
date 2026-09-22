@@ -3,7 +3,7 @@ using Contracts = KurrentDB.Protocol.V1.Streams;
 namespace Kurrent.Surge.Client.Streams;
 
 static partial class StreamsClientMapping {
-    internal static partial class Requests {
+    static partial class Requests {
         /// <summary>
         /// Builds a subscription request. Dispatches between a single-stream subscription and a
         /// filtered log subscription based on the unwrapped filter. For a filtered subscription,

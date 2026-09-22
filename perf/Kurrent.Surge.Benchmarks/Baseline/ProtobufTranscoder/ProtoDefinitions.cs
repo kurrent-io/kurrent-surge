@@ -9,11 +9,11 @@ namespace ProtobufTranscoder;
 /// </summary>
 public sealed class ProtoDefinitions
 {
-    private readonly Dictionary<string, MessageDescriptor> _messages = new();
-    private readonly Dictionary<string, EnumDescriptor> _enums = new();
-    private readonly Dictionary<(string messageFullName, int fieldNumber), FieldDescriptor> _extensions = new();
+    readonly Dictionary<string, MessageDescriptor>                                  _messages   = new();
+    readonly Dictionary<string, EnumDescriptor>                                     _enums      = new();
+    readonly Dictionary<(string messageFullName, int fieldNumber), FieldDescriptor> _extensions = new();
 
-    private ProtoDefinitions() { }
+    ProtoDefinitions() { }
 
     public MessageDescriptor FindMessageType(string fullName)
     {
@@ -70,7 +70,7 @@ public sealed class ProtoDefinitions
         return pool;
     }
 
-    private static void ParseRecursive(
+    static void ParseRecursive(
         string fileName,
         IProtoSchemaResolver userResolver,
         WellKnownProtoResolver wellKnownResolver,
@@ -90,7 +90,7 @@ public sealed class ProtoDefinitions
             ParseRecursive(import, userResolver, wellKnownResolver, parsed);
     }
 
-    private static void ResolveFile(FileDescriptorProto file, ProtoDefinitions pool)
+    static void ResolveFile(FileDescriptorProto file, ProtoDefinitions pool)
     {
         var prefix = string.IsNullOrEmpty(file.Package) ? "" : file.Package + ".";
 
@@ -101,7 +101,7 @@ public sealed class ProtoDefinitions
             ResolveMessage(prefix, msgProto, pool);
     }
 
-    private static void ResolveEnum(string prefix, EnumDescriptorProto enumProto, ProtoDefinitions pool)
+    static void ResolveEnum(string prefix, EnumDescriptorProto enumProto, ProtoDefinitions pool)
     {
         var fullName = prefix + enumProto.Name;
         var values = enumProto.Values
@@ -110,7 +110,7 @@ public sealed class ProtoDefinitions
         pool._enums[fullName] = new EnumDescriptor(fullName, values);
     }
 
-    private static void ResolveMessage(string prefix, MessageDescriptorProto msgProto, ProtoDefinitions pool)
+    static void ResolveMessage(string prefix, MessageDescriptorProto msgProto, ProtoDefinitions pool)
     {
         var fullName = prefix + msgProto.Name;
         var nestedPrefix = fullName + ".";
@@ -167,7 +167,7 @@ public sealed class ProtoDefinitions
             ResolveExtendBlockInner(extendBlock, nestedPrefix, pool);
     }
 
-    private static void ResolveExtendBlocks(FileDescriptorProto file, ProtoDefinitions pool)
+    static void ResolveExtendBlocks(FileDescriptorProto file, ProtoDefinitions pool)
     {
         var prefix = string.IsNullOrEmpty(file.Package) ? "" : file.Package + ".";
 
@@ -178,7 +178,7 @@ public sealed class ProtoDefinitions
             ResolveExtendBlocksInMessage(msg, prefix + msg.Name + ".", pool);
     }
 
-    private static void ResolveExtendBlocksInMessage(MessageDescriptorProto msgProto, string prefix, ProtoDefinitions pool)
+    static void ResolveExtendBlocksInMessage(MessageDescriptorProto msgProto, string prefix, ProtoDefinitions pool)
     {
         foreach (var extendBlock in msgProto.ExtendBlocks)
             ResolveExtendBlockInner(extendBlock, prefix, pool);
@@ -187,7 +187,7 @@ public sealed class ProtoDefinitions
             ResolveExtendBlocksInMessage(nested, prefix + nested.Name + ".", pool);
     }
 
-    private static void ResolveExtendBlockInner(ExtendBlockProto extendBlock, string contextPrefix, ProtoDefinitions pool)
+    static void ResolveExtendBlockInner(ExtendBlockProto extendBlock, string contextPrefix, ProtoDefinitions pool)
     {
         var extendeeName = pool.ResolveTypeName(extendBlock.ExtendeeTypeName, contextPrefix.TrimEnd('.'));
         var extendee = pool.TryFindMessageType(extendeeName);
@@ -230,7 +230,7 @@ public sealed class ProtoDefinitions
         }
     }
 
-    private static void ResolveFeatures(FileDescriptorProto file, ProtoDefinitions pool)
+    static void ResolveFeatures(FileDescriptorProto file, ProtoDefinitions pool)
     {
         var fileFeatures = FeatureSet.GetDefault(file.Syntax);
         fileFeatures = FeatureSet.Resolve(fileFeatures, file.Features);
@@ -251,7 +251,7 @@ public sealed class ProtoDefinitions
             ResolveFeaturesForMessage(msgProto, prefix, fileFeatures, file, pool);
     }
 
-    private static void ResolveFeaturesForMessage(
+    static void ResolveFeaturesForMessage(
         MessageDescriptorProto msgProto, string prefix, FeatureSet parentFeatures,
         FileDescriptorProto file, ProtoDefinitions pool)
     {
@@ -293,7 +293,7 @@ public sealed class ProtoDefinitions
             ResolveFeaturesForMessage(nested, nestedPrefix, msgFeatures, file, pool);
     }
 
-    private static void ResolveFieldPresenceAndDefault(
+    static void ResolveFieldPresenceAndDefault(
         FieldDescriptor fieldDesc, FieldDescriptorProto fieldProto,
         FeatureSet resolvedFeatures, string syntax, ProtoDefinitions pool)
     {
@@ -327,7 +327,7 @@ public sealed class ProtoDefinitions
         }
     }
 
-    private static object? ParseDefaultValue(string rawDefault, FieldType type, EnumDescriptor? enumType)
+    static object? ParseDefaultValue(string rawDefault, FieldType type, EnumDescriptor? enumType)
     {
         return type switch
         {
@@ -365,7 +365,7 @@ public sealed class ProtoDefinitions
         };
     }
 
-    private static byte[] ParseBytesDefault(string rawDefault)
+    static byte[] ParseBytesDefault(string rawDefault)
     {
         // Strip quotes if present
         var s = rawDefault;
@@ -397,7 +397,7 @@ public sealed class ProtoDefinitions
         return bytes.ToArray();
     }
 
-    private static object ResolveEnumDefault(string rawDefault, EnumDescriptor? enumType)
+    static object ResolveEnumDefault(string rawDefault, EnumDescriptor? enumType)
     {
         if (enumType is null)
             return 0;
@@ -415,7 +415,7 @@ public sealed class ProtoDefinitions
         return enumType.Values.Count > 0 ? enumType.Values[0] : (object)0;
     }
 
-    private static bool IsPackableType(FieldType type) =>
+    static bool IsPackableType(FieldType type) =>
         type is not (FieldType.String or FieldType.Bytes or FieldType.Message or FieldType.Group);
 
     internal void LinkFieldTypes(IEnumerable<FileDescriptorProto> files)
@@ -427,7 +427,7 @@ public sealed class ProtoDefinitions
         }
     }
 
-    private void LinkFieldsInMessages(IReadOnlyList<MessageDescriptorProto> messages, string prefix)
+    void LinkFieldsInMessages(IReadOnlyList<MessageDescriptorProto> messages, string prefix)
     {
         foreach (var msgProto in messages)
         {
@@ -473,7 +473,7 @@ public sealed class ProtoDefinitions
         }
     }
 
-    private string ResolveTypeName(string typeName, string contextFullName)
+    string ResolveTypeName(string typeName, string contextFullName)
     {
         if (typeName.StartsWith('.'))
             return typeName[1..];
@@ -492,9 +492,9 @@ public sealed class ProtoDefinitions
         return typeName;
     }
 
-    private sealed class InlineResolver(ProtoSchema[] files) : IProtoSchemaResolver
+    sealed class InlineResolver(ProtoSchema[] files) : IProtoSchemaResolver
     {
-        private readonly Dictionary<string, string> _files = files.ToDictionary(f => f.Name, f => f.Content);
+        readonly Dictionary<string, string> _files = files.ToDictionary(f => f.Name, f => f.Content);
 
         public string? Resolve(string importPath) => _files.GetValueOrDefault(importPath);
     }

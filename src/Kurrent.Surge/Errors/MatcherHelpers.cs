@@ -10,7 +10,7 @@ namespace Kurrent.Surge.Client.Exceptions;
 static class MatcherHelpers {
     // The server named the error through ErrorInfo: match on the code, then build with the wire details
     // attached. The build callback adds any typed-detail unpack.
-    public static T? OnReason<T>(Status status, ErrorInfo? errorInfo, Errors.ErrorCode code, Func<KurrentErrorDetails, string, Exception?, T> build)
+    public static T? OnReason<T>(Status status, ErrorInfo? errorInfo, ErrorCode code, Func<KurrentErrorDetails, string, Exception?, T> build)
         where T : KurrentException =>
         code.MatchesRpcStatusReason(status, errorInfo)
             ? build(KurrentRpcStatusMapping.ToErrorDetails(code, status), status.Message, KurrentRpcStatusMapping.ToInnerException(status))
@@ -32,7 +32,7 @@ static class MatcherHelpers {
 
 [PublicAPI]
 public static class ErrorCodeExtensions {
-    extension(Errors.ErrorCode errorCode) {
+    extension(ErrorCode errorCode) {
         public bool MatchesRpcStatusReason(Status status, ErrorInfo? errorInfo = null) =>
             errorCode.Value.Equals(errorInfo?.Reason ?? "", StringComparison.OrdinalIgnoreCase) ||
             status.GetGrpcStatusCode().ToString().Underscore().ToUpperInvariant().Equals(errorCode.Value, StringComparison.OrdinalIgnoreCase);
@@ -49,7 +49,7 @@ public static class ErrorCodeExtensions {
 /// them from the <see cref="Kurrent.Surge.Client.Errors"/> domain types of the same name.
 /// </remarks>
 static class KurrentRpcStatusMapping {
-    public static KurrentErrorDetails ToErrorDetails(Errors.ErrorCode code, Status status) {
+    public static KurrentErrorDetails ToErrorDetails(ErrorCode code, Status status) {
         var details = new KurrentErrorDetails { ErrorCode = code };
 
         if (status.GetDetail<Google.Rpc.ResourceInfo>() is { ResourceType.Length: > 0, ResourceName.Length: > 0 } resourceInfo)

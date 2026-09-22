@@ -6,7 +6,7 @@ namespace ProtobufTranscoder.Parser;
 /// Hand-written recursive descent parser for .proto files.
 /// Supports proto2, proto3, and editions 2024.
 /// </summary>
-internal static class ProtoParser
+static class ProtoParser
 {
     public static FileDescriptorProto Parse(string fileName, string content)
     {
@@ -79,7 +79,7 @@ internal static class ProtoParser
         return file;
     }
 
-    private static MessageDescriptorProto ParseMessage(ProtoLexer lexer, string fileName, string syntax)
+    static MessageDescriptorProto ParseMessage(ProtoLexer lexer, string fileName, string syntax)
     {
         var name = ExpectIdent(lexer);
         Expect(lexer, "{");
@@ -162,7 +162,7 @@ internal static class ProtoParser
         return msg;
     }
 
-    private static void ParseField(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, FieldLabel label, string syntax)
+    static void ParseField(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, FieldLabel label, string syntax)
     {
         var typeToken = lexer.Next();
 
@@ -176,7 +176,7 @@ internal static class ProtoParser
         ParseFieldWithType(lexer, fileName, msg, label, typeToken, syntax);
     }
 
-    private static void ParseFieldWithType(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, FieldLabel label, Token typeToken, string syntax)
+    static void ParseFieldWithType(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, FieldLabel label, Token typeToken, string syntax)
     {
         var (fieldType, typeName) = ResolveFieldType(typeToken, lexer);
 
@@ -212,7 +212,7 @@ internal static class ProtoParser
         });
     }
 
-    private static void ParseGroupField(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, FieldLabel label, string syntax)
+    static void ParseGroupField(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, FieldLabel label, string syntax)
     {
         var groupName = ExpectIdent(lexer);
         Expect(lexer, "=");
@@ -288,7 +288,7 @@ internal static class ProtoParser
         });
     }
 
-    private static ExtendBlockProto ParseExtendBlock(ProtoLexer lexer, string fileName, string syntax)
+    static ExtendBlockProto ParseExtendBlock(ProtoLexer lexer, string fileName, string syntax)
     {
         var extendeeName = ReadFullIdentOrDotPrefixed(lexer);
         Expect(lexer, "{");
@@ -356,7 +356,7 @@ internal static class ProtoParser
         return block;
     }
 
-    private static void ParseExtensionsRange(ProtoLexer lexer, MessageDescriptorProto msg)
+    static void ParseExtensionsRange(ProtoLexer lexer, MessageDescriptorProto msg)
     {
         while (true)
         {
@@ -394,7 +394,7 @@ internal static class ProtoParser
         Expect(lexer, ";");
     }
 
-    private static void ParseMapField(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, string syntax)
+    static void ParseMapField(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, string syntax)
     {
         Expect(lexer, "<");
         var keyTypeToken = lexer.Next();
@@ -448,7 +448,7 @@ internal static class ProtoParser
         });
     }
 
-    private static void ParseOneof(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, string syntax)
+    static void ParseOneof(ProtoLexer lexer, string fileName, MessageDescriptorProto msg, string syntax)
     {
         var oneofName = ExpectIdent(lexer);
         Expect(lexer, "{");
@@ -500,7 +500,7 @@ internal static class ProtoParser
         }
     }
 
-    private static EnumDescriptorProto ParseEnum(ProtoLexer lexer, string fileName)
+    static EnumDescriptorProto ParseEnum(ProtoLexer lexer, string fileName)
     {
         var name = ExpectIdent(lexer);
         Expect(lexer, "{");
@@ -550,7 +550,7 @@ internal static class ProtoParser
         return enumProto;
     }
 
-    private static (FieldType type, string typeName) ResolveFieldType(Token typeToken, ProtoLexer lexer)
+    static (FieldType type, string typeName) ResolveFieldType(Token typeToken, ProtoLexer lexer)
     {
         // Handle fully-qualified names starting with '.'
         if (typeToken.Value == ".")
@@ -593,7 +593,7 @@ internal static class ProtoParser
         };
     }
 
-    private static (bool packed, string? jsonName, string? defaultValue, FeatureSetOverrides? features)
+    static (bool packed, string? jsonName, string? defaultValue, FeatureSetOverrides? features)
         ParseFieldOptions(ProtoLexer lexer, bool defaultPacked, FieldType fieldType, string syntax)
     {
         var packed = defaultPacked;
@@ -658,7 +658,7 @@ internal static class ProtoParser
         return (packed, jsonName, defaultValue, features);
     }
 
-    private static string ReadDefaultValue(ProtoLexer lexer)
+    static string ReadDefaultValue(ProtoLexer lexer)
     {
         var token = lexer.Next();
 
@@ -677,7 +677,7 @@ internal static class ProtoParser
         return token.Value;
     }
 
-    private static FeatureSetOverrides? TryParseFeatureOption(ProtoLexer lexer)
+    static FeatureSetOverrides? TryParseFeatureOption(ProtoLexer lexer)
     {
         // option features.field_presence = EXPLICIT;
         var peek = lexer.Peek();
@@ -694,7 +694,7 @@ internal static class ProtoParser
         return ApplyFeatureOverride(null, featureName, featureValue);
     }
 
-    private static FeatureSetOverrides ApplyFeatureOverride(FeatureSetOverrides? existing, string featureName, string featureValue)
+    static FeatureSetOverrides ApplyFeatureOverride(FeatureSetOverrides? existing, string featureName, string featureValue)
     {
         var overrides = existing ?? new FeatureSetOverrides();
 
@@ -750,7 +750,7 @@ internal static class ProtoParser
         };
     }
 
-    private static FeatureSetOverrides MergeOverrides(FeatureSetOverrides? existing, FeatureSetOverrides newOverrides)
+    static FeatureSetOverrides MergeOverrides(FeatureSetOverrides? existing, FeatureSetOverrides newOverrides)
     {
         if (existing is null)
             return newOverrides;
@@ -765,7 +765,7 @@ internal static class ProtoParser
         };
     }
 
-    private static bool TryParseMessageOption(ProtoLexer lexer, MessageDescriptorProto msg)
+    static bool TryParseMessageOption(ProtoLexer lexer, MessageDescriptorProto msg)
     {
         var peek = lexer.Peek();
         if (peek.Value == "map_entry")
@@ -781,7 +781,7 @@ internal static class ProtoParser
         return false;
     }
 
-    private static bool GetDefaultPacked(FieldLabel label, FieldType fieldType, string syntax)
+    static bool GetDefaultPacked(FieldLabel label, FieldType fieldType, string syntax)
     {
         if (label != FieldLabel.Repeated || !IsPackableType(fieldType))
             return false;
@@ -790,10 +790,10 @@ internal static class ProtoParser
         return syntax != "proto2";
     }
 
-    private static bool IsPackableType(FieldType type) =>
+    static bool IsPackableType(FieldType type) =>
         type is not (FieldType.String or FieldType.Bytes or FieldType.Message or FieldType.Group);
 
-    private static string ReadFullIdent(ProtoLexer lexer)
+    static string ReadFullIdent(ProtoLexer lexer)
     {
         var name = ExpectIdent(lexer);
         while (lexer.Peek().Value == ".")
@@ -804,7 +804,7 @@ internal static class ProtoParser
         return name;
     }
 
-    private static string ReadFullIdentOrDotPrefixed(ProtoLexer lexer)
+    static string ReadFullIdentOrDotPrefixed(ProtoLexer lexer)
     {
         var next = lexer.Peek();
         if (next.Value == ".")
@@ -815,7 +815,7 @@ internal static class ProtoParser
         return ReadFullIdent(lexer);
     }
 
-    private static string ExpectIdent(ProtoLexer lexer)
+    static string ExpectIdent(ProtoLexer lexer)
     {
         var token = lexer.Next();
         if (token.Kind != TokenKind.Identifier)
@@ -824,7 +824,7 @@ internal static class ProtoParser
         return token.Value;
     }
 
-    private static string ExpectString(ProtoLexer lexer)
+    static string ExpectString(ProtoLexer lexer)
     {
         var token = lexer.Next();
         if (token.Kind != TokenKind.StringLiteral)
@@ -833,7 +833,7 @@ internal static class ProtoParser
         return token.Value;
     }
 
-    private static int ExpectInt(ProtoLexer lexer)
+    static int ExpectInt(ProtoLexer lexer)
     {
         var token = lexer.Next();
         if (token.Kind != TokenKind.IntLiteral)
@@ -842,7 +842,7 @@ internal static class ProtoParser
         return ParseInt(token.Value);
     }
 
-    private static int ExpectSignedInt(ProtoLexer lexer)
+    static int ExpectSignedInt(ProtoLexer lexer)
     {
         var token = lexer.Next();
         var negative = false;
@@ -858,14 +858,14 @@ internal static class ProtoParser
         return negative ? -value : value;
     }
 
-    private static int ParseInt(string value)
+    static int ParseInt(string value)
     {
         if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             return Convert.ToInt32(value, 16);
         return int.Parse(value);
     }
 
-    private static void Expect(ProtoLexer lexer, string expected)
+    static void Expect(ProtoLexer lexer, string expected)
     {
         var token = lexer.Next();
         if (token.Value != expected)
@@ -873,10 +873,10 @@ internal static class ProtoParser
                 $"Expected '{expected}', got '{token.Value}'");
     }
 
-    private static void SkipOption(ProtoLexer lexer) =>
+    static void SkipOption(ProtoLexer lexer) =>
         SkipToSemicolon(lexer);
 
-    private static void SkipToSemicolon(ProtoLexer lexer)
+    static void SkipToSemicolon(ProtoLexer lexer)
     {
         while (true)
         {
@@ -886,7 +886,7 @@ internal static class ProtoParser
         }
     }
 
-    private static void SkipBlock(ProtoLexer lexer)
+    static void SkipBlock(ProtoLexer lexer)
     {
         while (true)
         {
@@ -897,7 +897,7 @@ internal static class ProtoParser
         SkipBlockBody(lexer);
     }
 
-    private static void SkipBlockBody(ProtoLexer lexer)
+    static void SkipBlockBody(ProtoLexer lexer)
     {
         var depth = 1;
         while (depth > 0)
@@ -909,7 +909,7 @@ internal static class ProtoParser
         }
     }
 
-    private static void SkipUntil(ProtoLexer lexer, string terminator)
+    static void SkipUntil(ProtoLexer lexer, string terminator)
     {
         var depth = 0;
         while (true)
@@ -922,7 +922,7 @@ internal static class ProtoParser
         }
     }
 
-    private static string ToPascalCase(string snakeCase)
+    static string ToPascalCase(string snakeCase)
     {
         var sb = new System.Text.StringBuilder(snakeCase.Length);
         var capitalize = true;

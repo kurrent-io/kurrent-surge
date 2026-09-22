@@ -1,6 +1,6 @@
 namespace ProtobufTranscoder.Parser;
 
-internal enum TokenKind
+enum TokenKind
 {
     Identifier,
     StringLiteral,
@@ -10,18 +10,18 @@ internal enum TokenKind
     Eof,
 }
 
-internal readonly record struct Token(TokenKind Kind, string Value, int Line, int Column);
+readonly record struct Token(TokenKind Kind, string Value, int Line, int Column);
 
 /// <summary>
 /// Simple lexer for .proto files. Handles identifiers, numbers, strings, and symbols.
 /// </summary>
-internal sealed class ProtoLexer
+sealed class ProtoLexer
 {
-    private readonly string _source;
-    private readonly string _fileName;
-    private int _pos;
-    private int _line = 1;
-    private int _col = 1;
+    readonly string _source;
+    readonly string _fileName;
+    int             _pos;
+    int             _line = 1;
+    int             _col  = 1;
 
     public ProtoLexer(string fileName, string source)
     {
@@ -78,7 +78,7 @@ internal sealed class ProtoLexer
         return token;
     }
 
-    private Token ReadString(int startLine, int startCol)
+    Token ReadString(int startLine, int startCol)
     {
         var quote = _source[_pos];
         Advance(); // skip opening quote
@@ -144,7 +144,7 @@ internal sealed class ProtoLexer
         return new Token(TokenKind.StringLiteral, sb.ToString(), startLine, startCol);
     }
 
-    private Token ReadNumber(int startLine, int startCol)
+    Token ReadNumber(int startLine, int startCol)
     {
         var start = _pos;
         if (_source[_pos] == '-') Advance();
@@ -180,7 +180,7 @@ internal sealed class ProtoLexer
         return new Token(kind, _source[start.._pos], startLine, startCol);
     }
 
-    private Token ReadIdentifier(int startLine, int startCol)
+    Token ReadIdentifier(int startLine, int startCol)
     {
         var start = _pos;
         while (_pos < _source.Length && (char.IsLetterOrDigit(_source[_pos]) || _source[_pos] == '_'))
@@ -188,7 +188,7 @@ internal sealed class ProtoLexer
         return new Token(TokenKind.Identifier, _source[start.._pos], startLine, startCol);
     }
 
-    private void SkipWhitespaceAndComments()
+    void SkipWhitespaceAndComments()
     {
         while (_pos < _source.Length)
         {
@@ -221,7 +221,7 @@ internal sealed class ProtoLexer
         }
     }
 
-    private void Advance()
+    void Advance()
     {
         if (_pos < _source.Length)
         {
@@ -238,6 +238,6 @@ internal sealed class ProtoLexer
         }
     }
 
-    private static bool IsHexDigit(char c) =>
+    static bool IsHexDigit(char c) =>
         char.IsDigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }

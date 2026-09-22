@@ -68,7 +68,7 @@ static partial class StreamsClientMapping {
                 UuidOption    = DefaultUuidOptions,
                 ControlOption = DefaultControlOption,
                 ReadDirection = ToReadDirection(options.Direction),
-                Count         = (ulong)long.MaxValue,
+                Count         = long.MaxValue,
             }};
 
             var targetsStream = RouteByFilter(req.Options, options.Filter, start, (uint)options.FilterMaxSearchWindow);

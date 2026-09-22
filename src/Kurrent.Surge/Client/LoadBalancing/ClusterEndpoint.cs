@@ -33,9 +33,10 @@ readonly record struct ClusterEndpoint {
         Span<char> chars = stackalloc char[102];
         
         var count = 0;
-        for (var c = '\0'; c <= '\x7F'; c++)
+        for (var c = '\0'; c <= '\x7F'; c++) {
             if (c is < 'A' or > 'Z')
                 chars[count++] = c;
+        }
 
         return SearchValues.Create(chars);
     }

@@ -23,7 +23,7 @@ public sealed partial class KurrentClientCompressionOptions {
     /// <remarks>
     /// Default value is <see langword="false"/>.
     /// </remarks>
-    public bool Enabled { get; set; } = false;
+    public bool Enabled { get; set; }
 
     /// <summary>
     /// The compression algorithm requested for outgoing calls when <see cref="Enabled"/> is <see langword="true"/>.

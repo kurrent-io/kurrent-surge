@@ -12,7 +12,7 @@ namespace Kurrent.Surge.Client.Exceptions;
 [PublicAPI]
 public sealed class KurrentClientNotConfiguredException()
     : KurrentException(
-        Errors.ErrorCode.FromType<KurrentClientNotConfiguredException>(),
+        ErrorCode.FromType<KurrentClientNotConfiguredException>(),
         "KurrentDB client is not configured. "
       + "Register a KurrentClientOptions instance, "
       + "set a connection string at 'ConnectionStrings:KurrentDB' in your IConfiguration, "

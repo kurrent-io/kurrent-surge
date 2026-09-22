@@ -3,9 +3,9 @@ namespace ProtobufTranscoder.WellKnownTypes;
 /// <summary>
 /// Resolves well-known .proto files embedded in the library.
 /// </summary>
-internal sealed class WellKnownProtoResolver : IProtoSchemaResolver
+sealed class WellKnownProtoResolver : IProtoSchemaResolver
 {
-    private static readonly Dictionary<string, string> Protos = new(StringComparer.Ordinal)
+    static readonly Dictionary<string, string> Protos = new(StringComparer.Ordinal)
     {
         ["google/protobuf/timestamp.proto"] = """
             syntax = "proto3";

@@ -11,17 +11,17 @@ namespace ProtobufTranscoder.Json;
 /// </summary>
 public sealed class DynamicMessageJsonSerializer
 {
-    private readonly JsonSerializeOptions _options;
+    readonly JsonSerializeOptions _options;
 
-    private const string TimestampType = "google.protobuf.Timestamp";
-    private const string DurationType = "google.protobuf.Duration";
-    private const string StructType = "google.protobuf.Struct";
-    private const string ValueType = "google.protobuf.Value";
-    private const string ListValueType = "google.protobuf.ListValue";
-    private const string FieldMaskType = "google.protobuf.FieldMask";
-    private const string EmptyType = "google.protobuf.Empty";
+    const string TimestampType = "google.protobuf.Timestamp";
+    const string DurationType  = "google.protobuf.Duration";
+    const string StructType    = "google.protobuf.Struct";
+    const string ValueType     = "google.protobuf.Value";
+    const string ListValueType = "google.protobuf.ListValue";
+    const string FieldMaskType = "google.protobuf.FieldMask";
+    const string EmptyType     = "google.protobuf.Empty";
 
-    private static readonly HashSet<string> WrapperTypes =
+    static readonly HashSet<string> WrapperTypes =
     [
         "google.protobuf.DoubleValue",
         "google.protobuf.FloatValue",
@@ -60,7 +60,7 @@ public sealed class DynamicMessageJsonSerializer
         return buffer.WrittenMemory;
     }
 
-    private void WriteMessage(Utf8JsonWriter writer, DynamicMessage message)
+    void WriteMessage(Utf8JsonWriter writer, DynamicMessage message)
     {
         var fullName = message.Descriptor.FullName;
 
@@ -114,7 +114,7 @@ public sealed class DynamicMessageJsonSerializer
         writer.WriteEndObject();
     }
 
-    private bool ShouldEmitField(DynamicMessage message, FieldDescriptor field)
+    bool ShouldEmitField(DynamicMessage message, FieldDescriptor field)
     {
         if (field.ContainingOneof is not null)
             return message.HasField(field);
@@ -138,7 +138,7 @@ public sealed class DynamicMessageJsonSerializer
         }
     }
 
-    private static bool IsDefaultValue(object value, FieldDescriptor field)
+    static bool IsDefaultValue(object value, FieldDescriptor field)
     {
         return value switch
         {
@@ -156,7 +156,7 @@ public sealed class DynamicMessageJsonSerializer
         };
     }
 
-    private bool TryWriteWellKnownType(Utf8JsonWriter writer, DynamicMessage message, string fullName)
+    bool TryWriteWellKnownType(Utf8JsonWriter writer, DynamicMessage message, string fullName)
     {
         switch (fullName)
         {
@@ -193,7 +193,7 @@ public sealed class DynamicMessageJsonSerializer
         return false;
     }
 
-    private void WriteTimestamp(Utf8JsonWriter writer, DynamicMessage message)
+    void WriteTimestamp(Utf8JsonWriter writer, DynamicMessage message)
     {
         long seconds = 0;
         var nanos = 0;
@@ -209,7 +209,7 @@ public sealed class DynamicMessageJsonSerializer
         writer.WriteStringValue(formatted);
     }
 
-    private static string FormatTimestamp(DateTimeOffset dt, int nanos)
+    static string FormatTimestamp(DateTimeOffset dt, int nanos)
     {
         if (nanos == 0)
             return dt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
@@ -224,7 +224,7 @@ public sealed class DynamicMessageJsonSerializer
         return nanoStr + "Z";
     }
 
-    private void WriteDuration(Utf8JsonWriter writer, DynamicMessage message)
+    void WriteDuration(Utf8JsonWriter writer, DynamicMessage message)
     {
         long seconds = 0;
         var nanos = 0;
@@ -254,7 +254,7 @@ public sealed class DynamicMessageJsonSerializer
         }
     }
 
-    private void WriteStruct(Utf8JsonWriter writer, DynamicMessage message)
+    void WriteStruct(Utf8JsonWriter writer, DynamicMessage message)
     {
         writer.WriteStartObject();
         var fieldsField = message.Descriptor.FindFieldByNumber(1);
@@ -282,7 +282,7 @@ public sealed class DynamicMessageJsonSerializer
         writer.WriteEndObject();
     }
 
-    private void WriteValue(Utf8JsonWriter writer, DynamicMessage message)
+    void WriteValue(Utf8JsonWriter writer, DynamicMessage message)
     {
         var nullField = message.Descriptor.FindFieldByNumber(1);
         var numberField = message.Descriptor.FindFieldByNumber(2);
@@ -328,7 +328,7 @@ public sealed class DynamicMessageJsonSerializer
         writer.WriteNullValue();
     }
 
-    private void WriteListValue(Utf8JsonWriter writer, DynamicMessage message)
+    void WriteListValue(Utf8JsonWriter writer, DynamicMessage message)
     {
         writer.WriteStartArray();
         var valuesField = message.Descriptor.FindFieldByNumber(1);
@@ -345,7 +345,7 @@ public sealed class DynamicMessageJsonSerializer
         writer.WriteEndArray();
     }
 
-    private void WriteFieldMask(Utf8JsonWriter writer, DynamicMessage message)
+    void WriteFieldMask(Utf8JsonWriter writer, DynamicMessage message)
     {
         var pathsField = message.Descriptor.FindFieldByNumber(1);
         if (pathsField is not null && message.GetField(pathsField) is List<object> paths)
@@ -360,7 +360,7 @@ public sealed class DynamicMessageJsonSerializer
         }
     }
 
-    private void WriteWrapper(Utf8JsonWriter writer, DynamicMessage message)
+    void WriteWrapper(Utf8JsonWriter writer, DynamicMessage message)
     {
         var valueField = message.Descriptor.FindFieldByNumber(1);
         if (valueField is null || !message.HasField(valueField))
@@ -373,12 +373,12 @@ public sealed class DynamicMessageJsonSerializer
         WriteScalarValue(writer, valueField, value);
     }
 
-    private void WriteFieldName(Utf8JsonWriter writer, FieldDescriptor field)
+    void WriteFieldName(Utf8JsonWriter writer, FieldDescriptor field)
     {
         writer.WritePropertyName(_options.UseProtoFieldNames ? field.Name : field.JsonName);
     }
 
-    private void WriteFieldValue(Utf8JsonWriter writer, FieldDescriptor field, object value)
+    void WriteFieldValue(Utf8JsonWriter writer, FieldDescriptor field, object value)
     {
         if (field.IsMap && field.MessageType is not null)
         {
@@ -401,7 +401,7 @@ public sealed class DynamicMessageJsonSerializer
         WriteSingleValue(writer, field, value);
     }
 
-    private void WriteMapField(Utf8JsonWriter writer, FieldDescriptor field, object value)
+    void WriteMapField(Utf8JsonWriter writer, FieldDescriptor field, object value)
     {
         writer.WriteStartObject();
         if (value is List<object> entries)
@@ -429,7 +429,7 @@ public sealed class DynamicMessageJsonSerializer
         writer.WriteEndObject();
     }
 
-    private void WriteSingleValue(Utf8JsonWriter writer, FieldDescriptor field, object value)
+    void WriteSingleValue(Utf8JsonWriter writer, FieldDescriptor field, object value)
     {
         if ((field.Type is FieldType.Message or FieldType.Group) && value is DynamicMessage msg)
         {
@@ -446,7 +446,7 @@ public sealed class DynamicMessageJsonSerializer
         WriteScalarValue(writer, field, value);
     }
 
-    private void WriteEnumValue(Utf8JsonWriter writer, FieldDescriptor field, object value)
+    void WriteEnumValue(Utf8JsonWriter writer, FieldDescriptor field, object value)
     {
         if (value is EnumValueDescriptor evd)
         {
@@ -466,7 +466,7 @@ public sealed class DynamicMessageJsonSerializer
         }
     }
 
-    private static void WriteScalarValue(Utf8JsonWriter writer, FieldDescriptor field, object value)
+    static void WriteScalarValue(Utf8JsonWriter writer, FieldDescriptor field, object value)
     {
         switch (field.Type)
         {
@@ -528,7 +528,7 @@ public sealed class DynamicMessageJsonSerializer
         }
     }
 
-    private static void WriteDefaultValue(Utf8JsonWriter writer, FieldDescriptor field)
+    static void WriteDefaultValue(Utf8JsonWriter writer, FieldDescriptor field)
     {
         if (field.IsRepeated)
         {

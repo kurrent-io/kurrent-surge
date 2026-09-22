@@ -12,9 +12,10 @@ sealed class Consumer(KurrentClientOptions options) : IConsumer {
     readonly KurrentClient _client = KurrentClient.Create(options);
 
     public async IAsyncEnumerable<Record> Consume(ConsumerOptions options, [EnumeratorCancellation] CancellationToken ct = default) {
-        await foreach (var message in _client.Streams.Subscribe(options, ct).ConfigureAwait(false))
+        await foreach (var message in _client.Streams.Subscribe(options, ct).ConfigureAwait(false)) {
             if (message.IsRecord)
                 yield return message.AsRecord;
+        }
     }
 
     public ValueTask DisposeAsync() => _client.DisposeAsync();

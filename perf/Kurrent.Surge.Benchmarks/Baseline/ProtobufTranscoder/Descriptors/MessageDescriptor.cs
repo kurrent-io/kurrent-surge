@@ -12,7 +12,7 @@ public sealed class MessageDescriptor
     /// <summary>True when this message is a synthetic map entry type.</summary>
     public bool IsMapEntry { get; internal set; }
 
-    private readonly Dictionary<int, FieldDescriptor> _byNumber;
+    readonly Dictionary<int, FieldDescriptor> _byNumber;
 
     // Set by ProtoDefinitions to enable extension lookup
     internal ProtoDefinitions? Pool { get; set; }
@@ -48,7 +48,7 @@ public sealed class MessageDescriptor
         return null;
     }
 
-    private bool IsInExtensionRange(int number)
+    bool IsInExtensionRange(int number)
     {
         foreach (var range in ExtensionRanges)
         {

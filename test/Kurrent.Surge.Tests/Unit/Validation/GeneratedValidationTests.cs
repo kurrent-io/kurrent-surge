@@ -1,6 +1,5 @@
 using Bogus;
 using Kurrent.Surge.Client.Indexes;
-using Kurrent.Surge.Validation;
 
 namespace Kurrent.Surge.Tests.Validation;
 

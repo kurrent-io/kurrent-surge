@@ -1,4 +1,3 @@
-using Kurrent.Surge.Schema;
 using Kurrent.Surge.Schema.Naming;
 using Kurrent.Surge.Validation;
 

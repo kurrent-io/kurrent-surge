@@ -6,9 +6,9 @@ namespace ProtobufTranscoder.Wire;
 /// <summary>Low-level protobuf wire format reader over a <see cref="ReadOnlySpan{T}">ReadOnlySpan&lt;byte&gt;</see>.</summary>
 public ref struct CodedReader
 {
-    private readonly ReadOnlySpan<byte> _buffer;
-    private int _position;
-    private readonly int _limit;
+    readonly         ReadOnlySpan<byte> _buffer;
+    int                                 _position;
+    readonly int                        _limit;
 
     public CodedReader(ReadOnlySpan<byte> buffer)
     {
@@ -127,7 +127,7 @@ public ref struct CodedReader
         }
     }
 
-    private static int TagSize(uint tag)
+    static int TagSize(uint tag)
     {
         if (tag < 0x80) return 1;
         if (tag < 0x4000) return 2;
@@ -164,7 +164,7 @@ public ref struct CodedReader
         }
     }
 
-    private void SkipGroup(uint startTag)
+    void SkipGroup(uint startTag)
     {
         var expectedFieldNumber = GetFieldNumber(startTag);
         while (true)
@@ -178,7 +178,7 @@ public ref struct CodedReader
         }
     }
 
-    private uint ReadRawVarint32()
+    uint ReadRawVarint32()
     {
         EnsureAvailable(1);
         uint result = _buffer[_position];
@@ -190,7 +190,7 @@ public ref struct CodedReader
         return ReadRawVarint32SlowPath();
     }
 
-    private uint ReadRawVarint32SlowPath()
+    uint ReadRawVarint32SlowPath()
     {
         var pos = _position;
         uint result = 0;
@@ -209,7 +209,7 @@ public ref struct CodedReader
         throw new DecodeException("Malformed varint (too many bytes).");
     }
 
-    private ulong ReadRawVarint64()
+    ulong ReadRawVarint64()
     {
         EnsureAvailable(1);
         ulong first = _buffer[_position];
@@ -221,7 +221,7 @@ public ref struct CodedReader
         return ReadRawVarint64SlowPath();
     }
 
-    private ulong ReadRawVarint64SlowPath()
+    ulong ReadRawVarint64SlowPath()
     {
         ulong result = 0;
         var pos = _position;
@@ -240,7 +240,7 @@ public ref struct CodedReader
         throw new DecodeException("Malformed varint (too many bytes).");
     }
 
-    private uint ReadRawLittleEndian32()
+    uint ReadRawLittleEndian32()
     {
         EnsureAvailable(4);
         var result = System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(
@@ -249,7 +249,7 @@ public ref struct CodedReader
         return result;
     }
 
-    private ulong ReadRawLittleEndian64()
+    ulong ReadRawLittleEndian64()
     {
         EnsureAvailable(8);
         var result = System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(
@@ -259,20 +259,20 @@ public ref struct CodedReader
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int DecodeZigZag32(uint n) => (int)(n >> 1) ^ -(int)(n & 1);
+    static int DecodeZigZag32(uint n) => (int)(n >> 1) ^ -(int)(n & 1);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static long DecodeZigZag64(ulong n) => (long)(n >> 1) ^ -(long)(n & 1);
+    static long DecodeZigZag64(ulong n) => (long)(n >> 1) ^ -(long)(n & 1);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void EnsureAvailable(int count)
+    void EnsureAvailable(int count)
     {
         if (_position + count > _limit)
             throw new DecodeException(
                 $"Truncated message: need {count} bytes at position {_position}, but only {_limit - _position} remaining.");
     }
 
-    private void SkipRawBytes(int count)
+    void SkipRawBytes(int count)
     {
         if (count < 0)
             throw new DecodeException("Negative skip size.");

@@ -6,14 +6,14 @@ namespace ProtobufTranscoder.Dynamic;
 /// <summary>Immutable decoded protobuf message.</summary>
 public sealed class DynamicMessage
 {
-    private readonly Dictionary<int, object> _fields;
-    private readonly HashSet<int> _presentFields;
+    readonly Dictionary<int, object> _fields;
+    readonly HashSet<int>            _presentFields;
 
     public MessageDescriptor Descriptor { get; }
 
     internal IEnumerable<int> AllFieldNumbers => _fields.Keys;
 
-    private DynamicMessage(MessageDescriptor descriptor, Dictionary<int, object> fields, HashSet<int> presentFields)
+    DynamicMessage(MessageDescriptor descriptor, Dictionary<int, object> fields, HashSet<int> presentFields)
     {
         Descriptor = descriptor;
         _fields = fields;
@@ -101,7 +101,7 @@ public sealed class DynamicMessage
         return builder.Build();
     }
 
-    private static object ReadValue(ref CodedReader reader, FieldDescriptor field)
+    static object ReadValue(ref CodedReader reader, FieldDescriptor field)
     {
         return field.Type switch
         {
@@ -128,7 +128,7 @@ public sealed class DynamicMessage
         };
     }
 
-    private static object ReadEnumValue(ref CodedReader reader, FieldDescriptor field)
+    static object ReadEnumValue(ref CodedReader reader, FieldDescriptor field)
     {
         var number = reader.ReadEnum();
         if (field.EnumType is not null)
@@ -136,7 +136,7 @@ public sealed class DynamicMessage
         return number;
     }
 
-    private static DynamicMessage DecodeSubMessage(ref CodedReader reader, FieldDescriptor field)
+    static DynamicMessage DecodeSubMessage(ref CodedReader reader, FieldDescriptor field)
     {
         if (field.MessageType is null)
             throw new DecodeException($"Field '{field.Name}' has message type but no MessageDescriptor linked.");
@@ -145,7 +145,7 @@ public sealed class DynamicMessage
         return Decode(field.MessageType, ref subReader);
     }
 
-    private static DynamicMessage DecodeGroupMessage(ref CodedReader reader, FieldDescriptor field)
+    static DynamicMessage DecodeGroupMessage(ref CodedReader reader, FieldDescriptor field)
     {
         if (field.MessageType is null)
             throw new DecodeException($"Field '{field.Name}' has group type but no MessageDescriptor linked.");
@@ -154,16 +154,16 @@ public sealed class DynamicMessage
         return Decode(field.MessageType, ref subReader);
     }
 
-    private static bool IsPackableType(FieldType type) =>
+    static bool IsPackableType(FieldType type) =>
         type is not (FieldType.String or FieldType.Bytes or FieldType.Message or FieldType.Group);
 
     public sealed class Builder
     {
-        private readonly MessageDescriptor _descriptor;
-        private readonly Dictionary<int, object> _fields = new();
-        private readonly HashSet<int> _presentFields = new();
+        readonly MessageDescriptor       _descriptor;
+        readonly Dictionary<int, object> _fields        = new();
+        readonly HashSet<int>            _presentFields = new();
 
-        private Builder(MessageDescriptor descriptor) => _descriptor = descriptor;
+        Builder(MessageDescriptor descriptor) => _descriptor = descriptor;
 
         public static Builder NewBuilder(MessageDescriptor type) => new(type);
 

@@ -56,20 +56,16 @@ sealed class ClientHeadersInterceptor : Interceptor {
             foreach (var entry in existing)
                 effective.Add(entry);
 
-        foreach (var header in _headers)
+        foreach (var header in _headers) {
             if (existing is null || !ContainsKey(existing, header.Key))
                 effective.Add(header);
+        }
 
         return new(context.Method, context.Host, context.Options.WithHeaders(effective));
 
         // Grpc.Core lowercases entry keys on construction and the static keys are declared
         // lowercase, so ordinal comparison is exact.
-        static bool ContainsKey(Metadata metadata, string key) {
-            foreach (var entry in metadata)
-                if (string.Equals(entry.Key, key, StringComparison.Ordinal))
-                    return true;
-
-            return false;
-        }
+        static bool ContainsKey(Metadata metadata, string key) =>
+            metadata.Any(entry => string.Equals(entry.Key, key, StringComparison.Ordinal));
     }
 }

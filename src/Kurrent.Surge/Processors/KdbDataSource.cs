@@ -9,10 +9,10 @@ using Polly;
 namespace Kurrent.Surge.Processors.Gateway;
 
 sealed class KdbDataSourceOptions {
-    public RecordFilter Filter               { get; set; } = RecordFilter.ExcludeSystemRecords;
-    public bool         SkipDecoding         { get; set; } = false;
+    public RecordFilter Filter                { get; set; } = RecordFilter.ExcludeSystemRecords;
+    public bool         SkipDecoding          { get; set; } = false;
     public int          FilterMaxSearchWindow { get; set; } = StreamDefaults.DefaultMaxSearchWindow;
-    public string       PartitionKeySelector { get; set; } = "";
+    public string       PartitionKeySelector  { get; set; } = "";
 
     public int MaxParallelism { get; set; } = 1;
 

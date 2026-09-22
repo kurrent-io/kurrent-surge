@@ -8,7 +8,7 @@ namespace ProtobufTranscoder;
 
 public static class ProtoTranscode
 {
-    private static readonly DynamicMessageJsonSerializer DefaultSerializer = new();
+    static readonly DynamicMessageJsonSerializer DefaultSerializer = new();
 
     public static DynamicMessage ToDynamicMessage(
         ReadOnlySpan<byte> bytes, ProtoDefinitions definitions, string messageTypeName)
@@ -49,6 +49,6 @@ public static class ProtoTranscode
         return JsonNode.Parse(GetSerializer(options).WriteToMemory(message).Span)!;
     }
 
-    private static DynamicMessageJsonSerializer GetSerializer(JsonSerializeOptions? options) =>
+    static DynamicMessageJsonSerializer GetSerializer(JsonSerializeOptions? options) =>
         options is null ? DefaultSerializer : new DynamicMessageJsonSerializer(options);
 }

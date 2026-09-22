@@ -1,6 +1,6 @@
 namespace ProtobufTranscoder.Descriptors;
 
-internal sealed class FeatureSet
+sealed class FeatureSet
 {
     public FieldPresence FieldPresence { get; init; }
     public EnumType EnumType { get; init; }
@@ -63,19 +63,19 @@ internal sealed class FeatureSet
     }
 }
 
-internal enum EnumType { Open, Closed }
+enum EnumType { Open, Closed }
 
-internal enum RepeatedFieldEncoding { Packed, Expanded }
+enum RepeatedFieldEncoding { Packed, Expanded }
 
-internal enum MessageEncoding { LengthPrefixed, Delimited }
+enum MessageEncoding { LengthPrefixed, Delimited }
 
-internal enum JsonFormat { Allow, LegacyBestEffort }
+enum JsonFormat { Allow, LegacyBestEffort }
 
 /// <summary>
 /// Nullable overrides parsed from features blocks.
 /// Null values mean "inherit from parent".
 /// </summary>
-internal sealed record FeatureSetOverrides
+sealed record FeatureSetOverrides
 {
     public FieldPresence? FieldPresence { get; init; }
     public EnumType? EnumType { get; init; }

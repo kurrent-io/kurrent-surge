@@ -6,7 +6,7 @@ public sealed class EnumDescriptor
     public IReadOnlyList<EnumValueDescriptor> Values { get; }
     public bool IsClosed { get; internal set; }
 
-    private readonly Dictionary<int, EnumValueDescriptor> _byNumber;
+    readonly Dictionary<int, EnumValueDescriptor> _byNumber;
 
     internal EnumDescriptor(string fullName, IReadOnlyList<EnumValueDescriptor> values)
     {
