@@ -57,15 +57,74 @@ public class SemVerBumpTests {
     }
 
     [Test]
-    public async Task check_pre_release_emits_labelled_version() {
-        // act
-        var result = await Execute("check", "--output", "json", "--no-progress", "--pre-release", "preview");
+    public async Task check_pre_release_appends_identifiers_verbatim() {
+        // act — CI passes the run number itself; the tool must not add a counter of its own
+        var result = await Execute("check", "--output", "json", "--no-progress", "--pre-release", "preview.381");
         var json = JsonDocument.Parse(result.StandardOutput.Trim());
         var version = json.RootElement.GetProperty("version").GetString();
 
         // assert
         await Assert.That(result.ExitCode).IsEqualTo(0);
-        await Assert.That(version).Contains("-preview.");
+        await Assert.That(version).EndsWith("-preview.381");
+    }
+
+    [Test]
+    public async Task check_minimum_major_minor_raises_computed_version_to_the_floor() {
+        // arrange — a floor no tag in the repository reaches, so the result must be the floor itself
+        var floor = "9000.0";
+
+        // act
+        var result = await Execute("check", "--output", "json", "--no-progress", "--minimum-major-minor", floor);
+        var json = JsonDocument.Parse(result.StandardOutput.Trim());
+
+        // assert
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("version").GetString()).IsEqualTo("9000.0.0");
+        await Assert.That(json.RootElement.GetProperty("tag").GetString()).IsEqualTo("v9000.0.0");
+    }
+
+    [Test]
+    public async Task check_minimum_major_minor_keeps_pre_release_identifiers() {
+        // act
+        var result = await Execute("check", "--output", "json", "--no-progress", "--minimum-major-minor", "9000.0", "--pre-release", "preview.7");
+        var json = JsonDocument.Parse(result.StandardOutput.Trim());
+
+        // assert
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("version").GetString()).IsEqualTo("9000.0.0-preview.7");
+    }
+
+    [Test]
+    public async Task check_bump_component_respects_the_floor() {
+        // act — the last stable tag is far below the floor, so the bump lands on the floor
+        var result = await Execute("check", "--output", "json", "--no-progress", "--bump", "major", "--minimum-major-minor", "9000.0");
+        var json = JsonDocument.Parse(result.StandardOutput.Trim());
+
+        // assert
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("version").GetString()).IsEqualTo("9000.0.0");
+        await Assert.That(json.RootElement.GetProperty("bump").GetString()).IsEqualTo("Major");
+    }
+
+    [Test]
+    public async Task check_version_override_ignores_the_floor() {
+        // act — an explicit version is published as typed
+        var result = await Execute("", "", ["check", "--output", "json", "--no-progress", "--version", "1.2.3", "--minimum-major-minor", "9000.0"]);
+        var json = JsonDocument.Parse(result.StandardOutput.Trim());
+
+        // assert
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("version").GetString()).IsEqualTo("1.2.3");
+    }
+
+    [Test]
+    public async Task check_rejects_invalid_minimum_major_minor() {
+        // act — validated before any git lookup, so no token required
+        var result = await Execute("", "", ["check", "--no-progress", "--minimum-major-minor", "2"]);
+
+        // assert
+        await Assert.That(result.ExitCode).IsNotEqualTo(0);
+        await Assert.That(result.StandardError).Contains("Invalid minimum-major-minor");
     }
 
     [Test]

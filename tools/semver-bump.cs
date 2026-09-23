@@ -42,7 +42,13 @@ Option<bool> noProgressOption = new("--no-progress") {
 };
 
 Option<string> preReleaseOption = new("--pre-release") {
-    Description = "Pre-release label, e.g. \"preview\" -> 0.1.0-preview.2; omit for a stable release.",
+    Description = "Pre-release identifiers appended verbatim, e.g. \"preview.381\" -> 2.0.0-preview.381; omit for a stable release.",
+    DefaultValueFactory = _ => "",
+    Recursive = true
+};
+
+Option<string> minimumMajorMinorOption = new("--minimum-major-minor") {
+    Description = "Version floor as major.minor, e.g. \"2.0\". A computed version below it becomes major.minor.0. Ignored with --version.",
     DefaultValueFactory = _ => "",
     Recursive = true
 };
@@ -58,11 +64,20 @@ Option<string> bumpOption = new("--bump") {
 };
 
 var root = new RootCommand("semver-bump") {
-    tokenOption, repoOption, outputOption, noProgressOption, preReleaseOption
+    tokenOption, repoOption, outputOption, noProgressOption, preReleaseOption, minimumMajorMinorOption
 };
 
 static bool IsValidPreReleaseLabel(string label) =>
     label.Length == 0 || Regex.IsMatch(label, @"^[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*$");
+
+static bool TryParseFloor(string value, out MajorMinor? floor) {
+    floor = null;
+    if (value.Length == 0) return true;
+    var match = Regex.Match(value, @"^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)$");
+    if (!match.Success) return false;
+    floor = new MajorMinor(int.Parse(match.Groups["major"].ValueSpan), int.Parse(match.Groups["minor"].ValueSpan));
+    return true;
+}
 
 const string PreReleaseId = "preview";
 
@@ -81,6 +96,12 @@ checkCommand.SetAction(async (parseResult, ct) => {
 
     var explicitVersion = parseResult.GetValue(versionOption)!;
     var bumpValue       = parseResult.GetValue(bumpOption)!;
+    var floorValue      = parseResult.GetValue(minimumMajorMinorOption)!;
+
+    if (!TryParseFloor(floorValue, out var floor)) {
+        await Console.Error.WriteLineAsync($"Invalid minimum-major-minor '{floorValue}': expected major.minor like 2.0.");
+        return 1;
+    }
 
     SemVerBumpResult result;
     if (explicitVersion.Length > 0) {
@@ -98,17 +119,17 @@ checkCommand.SetAction(async (parseResult, ct) => {
 
         IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
         var ctx        = await git.GetVersioningContext(ct);
-        result         = SemVerBumpResult.ForBump(component, ctx.LastStable, ctx.ExistingVersions, PreReleaseId);
+        result         = SemVerBumpResult.ForBump(component, ctx.LastStable, ctx.ExistingVersions, PreReleaseId, floor);
     } else {
-        var label = parseResult.GetValue(preReleaseOption)!;
-        if (!IsValidPreReleaseLabel(label)) {
-            await Console.Error.WriteLineAsync($"Invalid pre-release label '{label}': dot-separated alphanumerics and hyphens only.");
+        var identifiers = parseResult.GetValue(preReleaseOption)!;
+        if (!IsValidPreReleaseLabel(identifiers)) {
+            await Console.Error.WriteLineAsync($"Invalid pre-release identifiers '{identifiers}': dot-separated alphanumerics and hyphens only.");
             return 1;
         }
 
         IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
         var ctx        = await git.GetVersioningContext(ct);
-        result         = SemVerBumpResult.Calculate(ctx.LastStable, ctx.Commits, label, ctx.ExistingVersions);
+        result         = SemVerBumpResult.Calculate(ctx.LastStable, ctx.Commits, identifiers, floor);
     }
 
     await ResultWriter
@@ -126,14 +147,20 @@ bumpCommand.SetAction(async (parseResult, ct) => {
 
     IGitClient git = new GitClient(parseResult.GetValue(tokenOption)!, parseResult.GetValue(repoOption)!);
 
-    var label = parseResult.GetValue(preReleaseOption)!;
-    if (!IsValidPreReleaseLabel(label)) {
-        await Console.Error.WriteLineAsync($"Invalid pre-release label '{label}': dot-separated alphanumerics and hyphens only.");
+    var identifiers = parseResult.GetValue(preReleaseOption)!;
+    if (!IsValidPreReleaseLabel(identifiers)) {
+        await Console.Error.WriteLineAsync($"Invalid pre-release identifiers '{identifiers}': dot-separated alphanumerics and hyphens only.");
+        return 1;
+    }
+
+    var floorValue = parseResult.GetValue(minimumMajorMinorOption)!;
+    if (!TryParseFloor(floorValue, out var floor)) {
+        await Console.Error.WriteLineAsync($"Invalid minimum-major-minor '{floorValue}': expected major.minor like 2.0.");
         return 1;
     }
 
     var ctx    = await git.GetVersioningContext(ct);
-    var result = SemVerBumpResult.Calculate(ctx.LastStable, ctx.Commits, label, ctx.ExistingVersions);
+    var result = SemVerBumpResult.Calculate(ctx.LastStable, ctx.Commits, identifiers, floor);
 
     var nextTag = result.NextVersion.ToGitTag();
     stderr.MarkupLine($"\n[mediumpurple]Creating tag[/] [white]{Markup.Escape(nextTag)}[/]");
@@ -173,6 +200,11 @@ public enum BumpComponent { Major, Minor, Patch, PreMajor, PreMinor, PrePatch, P
 
 public enum OutputFormat { Json, GitHub, EnvVars }
 
+/// <summary>
+/// The version floor from minimum-major-minor. A computed version below it becomes major.minor.0.
+/// </summary>
+public readonly record struct MajorMinor(int Major, int Minor);
+
 public partial record SemVer : IComparable<SemVer> {
     public static readonly SemVer Unspecified = new() {
         Major = 0,
@@ -196,6 +228,15 @@ public partial record SemVer : IComparable<SemVer> {
     public SemVer NextMajor() => this with { Major = Major + 1, Minor = 0, Patch = 0, PreRelease = "" };
     public SemVer NextMinor() => this with { Minor = Minor + 1, Patch = 0, PreRelease = "" };
     public SemVer NextPatch() => this with { Patch = Patch + 1, PreRelease = "" };
+
+    /// <summary>
+    /// Raises the version to major.minor.0 when it sits below the floor. Pre-release identifiers are kept.
+    /// </summary>
+    public SemVer Floor(MajorMinor? floor) {
+        if (floor is not { } f) return this;
+        var below = Major < f.Major || (Major == f.Major && Minor < f.Minor);
+        return below ? this with { Major = f.Major, Minor = f.Minor, Patch = 0 } : this;
+    }
 
     public int CompareTo(SemVer? other) {
         if (other is null) return 1;
@@ -273,44 +314,45 @@ public record SemVerBumpResult {
         new() { NextVersion = version };
 
     public static SemVerBumpResult ForBump(
-        BumpComponent component, SemVer lastStable, IReadOnlyList<SemVer> existing, string preId
+        BumpComponent component, SemVer lastStable, IReadOnlyList<SemVer> existing, string preId, MajorMinor? floor = null
     ) {
         SemVer Pre(SemVer baseVersion) =>
             baseVersion.WithPreRelease($"{preId}.{NextPreReleaseNumber(baseVersion, preId, existing)}");
 
         // prerelease continues the highest in-flight pre-release line above the last
         // stable; with none in flight it opens a new one off the next patch.
-        SemVer NextPreRelease() {
-            var ongoing = existing
+        SemVer OngoingOrNextPatch() =>
+            existing
                 .Where(v => v.PreRelease != "" && v.CompareTo(lastStable) > 0)
                 .OrderByDescending(v => v)
                 .Select(v => v.WithPreRelease(""))
-                .FirstOrDefault();
+                .FirstOrDefault()
+            ?? lastStable.NextPatch();
 
-            return Pre(ongoing ?? lastStable.NextPatch());
-        }
-
-        var (next, bump) = component switch {
-            BumpComponent.Major      => (lastStable.NextMajor(), BumpType.Major),
-            BumpComponent.Minor      => (lastStable.NextMinor(), BumpType.Minor),
-            BumpComponent.Patch      => (lastStable.NextPatch(), BumpType.Patch),
-            BumpComponent.PreMajor   => (Pre(lastStable.NextMajor()), BumpType.Major),
-            BumpComponent.PreMinor   => (Pre(lastStable.NextMinor()), BumpType.Minor),
-            BumpComponent.PrePatch   => (Pre(lastStable.NextPatch()), BumpType.Patch),
-            BumpComponent.PreRelease => (NextPreRelease(), BumpType.Patch)
+        var (baseVersion, bump, isPre) = component switch {
+            BumpComponent.Major      => (lastStable.NextMajor(), BumpType.Major, false),
+            BumpComponent.Minor      => (lastStable.NextMinor(), BumpType.Minor, false),
+            BumpComponent.Patch      => (lastStable.NextPatch(), BumpType.Patch, false),
+            BumpComponent.PreMajor   => (lastStable.NextMajor(), BumpType.Major, true),
+            BumpComponent.PreMinor   => (lastStable.NextMinor(), BumpType.Minor, true),
+            BumpComponent.PrePatch   => (lastStable.NextPatch(), BumpType.Patch, true),
+            BumpComponent.PreRelease => (OngoingOrNextPatch(), BumpType.Patch, true)
         };
+
+        // The floor applies to the base so the preview counter counts tags of the floored line.
+        baseVersion = baseVersion.Floor(floor);
+        var next    = isPre ? Pre(baseVersion) : baseVersion;
 
         return new SemVerBumpResult { FromVersion = lastStable, Bump = bump, NextVersion = next };
     }
 
     public static SemVerBumpResult Calculate(
-        SemVer lastStable, GitCommit[] commits, string preReleaseLabel, IReadOnlyList<SemVer> existingVersions
+        SemVer lastStable, GitCommit[] commits, string preReleaseIdentifiers, MajorMinor? floor = null
     ) {
         var (bumpedBase, bumpType) = lastStable.Bump(commits);
 
-        var nextVersion = string.IsNullOrEmpty(preReleaseLabel)
-            ? bumpedBase
-            : bumpedBase.WithPreRelease($"{preReleaseLabel}.{NextPreReleaseNumber(bumpedBase, preReleaseLabel, existingVersions)}");
+        // Identifiers are appended verbatim; the caller owns the counter (CI passes the run number).
+        var nextVersion = bumpedBase.Floor(floor).WithPreRelease(preReleaseIdentifiers);
 
         return new SemVerBumpResult {
             FromVersion = lastStable,
@@ -401,10 +443,11 @@ sealed record EnvVarsResultWriter(IAnsiConsole Stderr, IAnsiConsole Stdout) : Re
 }
 
 sealed record JsonResultWriter(IAnsiConsole Stderr, IAnsiConsole Stdout) : ResultWriter(Stderr, Stdout) {
-    protected override ValueTask WriteResultAsync(SemVerBumpResult result, CancellationToken ct) {
+    protected override async ValueTask WriteResultAsync(SemVerBumpResult result, CancellationToken ct) {
         var output = new BumpResult(result.NextVersion.ToString(), result.NextVersion.ToGitTag(), result.Bump.ToString());
-        Stdout.WriteLine(JsonSerializer.Serialize(output, BumpResultJsonContext.Default.BumpResult));
-        return ValueTask.CompletedTask;
+        // Straight to the stream: Spectre wraps at 80 columns when stdout is not a terminal, which
+        // splits the JSON across lines for a consumer that reads one line.
+        await Console.Out.WriteLineAsync(JsonSerializer.Serialize(output, BumpResultJsonContext.Default.BumpResult));
     }
 }
 
