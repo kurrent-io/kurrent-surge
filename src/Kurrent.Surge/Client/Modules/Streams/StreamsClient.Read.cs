@@ -9,6 +9,7 @@ using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams.Checkpoints;
 using Kurrent.Toolkit.Grpc;
 using Kurrent.Surge.Client.Legacy;
+using Kurrent.Surge.Schema.Catalogs;
 using KurrentDB.Protocol.V1.Streams;
 using static Kurrent.Surge.Client.Streams.StreamsClientMapping;
 using static KurrentDB.Protocol.V1.Streams.ReadResp.ContentOneofCase;
@@ -163,17 +164,36 @@ public partial class StreamsClient {
         // into that target's currency: Unset = empty read (by definition, or nothing qualifies);
         // it throws when the start cannot address the target.
         async IAsyncEnumerable<ReadMessage> ReadRecordsCore() {
-            var start = await ResolveStartPosition(options.Filter, options.Start, options.Direction, ct).ConfigureAwait(false);
+            var (start, anchor) = await ResolveStartPosition(options.Filter, options.Start, options.Direction, ct).ConfigureAwait(false);
 
             if (start.IsUnset)
                 yield break;
+
+            var delivered = 0L;
+
+            // The read starts after the anchor, so the anchor passes the checks ReadCore applies on
+            // the log here. The filter always runs: no server filter saw this record.
+            if (anchor is not null) {
+                if (!options.SkipDecoding
+                 && await anchor.TryDecode(ct).ConfigureAwait(false) == DecodeOutcome.UnknownType
+                 && options.ThrowOnUnresolved)
+                    throw new MessageTypeResolutionException(anchor.Schema.Schema);
+
+                var dropSystem = options.Filter is not EmptyFilter && SystemRecordFilter.IsSystemRecord(anchor);
+
+                if (!dropSystem && options.Filter.IsMatch(anchor)) {
+                    yield return anchor;
+
+                    if (++delivered >= options.Limit)
+                        yield break;
+                }
+            }
 
             // The server streams the log. Limit counts the records delivered here, after the
             // system-record drop and the client-evaluated filter; ending the enumeration disposes the
             // call and the server stops. Sent as the wire count, Limit came back short whenever the
             // client dropped a row: a Limit = 1 read of a tombstoned tail returned nothing.
-            var request   = Requests.CreateReadRecordsRequest(options, start);
-            var delivered = 0L;
+            var request = Requests.CreateReadRecordsRequest(options, start);
 
             await foreach (var msg in ReadCore(request, options.SkipDecoding, options.ThrowOnUnresolved, options.Filter, (uint)options.FilterMaxSearchWindow, ct).ConfigureAwait(false)) {
                 yield return msg;

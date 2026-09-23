@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Kurrent.Surge.Client.Exceptions;
+using static Kurrent.Surge.Client.Streams.StreamsClientMapping;
 
 namespace Kurrent.Surge.Client.Streams;
 
@@ -10,8 +11,10 @@ public partial class StreamsClient {
     /// start into the target's currency, delegating the I/O to <see cref="ResolveReadStart"/>.
     /// Returns <see cref="RecordPosition.Unset"/> when the read is empty by definition (from the
     /// end forwards) or nothing qualifies; throws when the start cannot address the target at all.
+    /// A log read backwards from a stream anchor also returns the anchor record, which the read
+    /// must deliver first: the <c>$all</c> backwards read excludes its start position.
     /// </summary>
-    internal async ValueTask<RecordPosition> ResolveStartPosition(
+    internal async ValueTask<(RecordPosition Start, Record? Anchor)> ResolveStartPosition(
         RecordFilter filter,
         RecordPosition start,
         ReadDirection direction = ReadDirection.Forwards,
@@ -36,11 +39,11 @@ public partial class StreamsClient {
             // "From the end, forwards" reads nothing — the stream wire cannot even express it
             // (End + Forwards is rejected server-side). An empty read, not an error.
             if (start.Revision == Revision.Max && direction == ReadDirection.Forwards)
-                return RecordPosition.Unset;
+                return (RecordPosition.Unset, null);
 
             // Native: the stream half already names THIS target and carries a revision — trust it.
             if (start.Stream == target && start.Revision != Revision.Unset)
-                return start;
+                return (start, null);
 
             // Otherwise the log half is the address; a foreign stream half is never trusted.
             // Resolve the log position to the target's boundary record.
@@ -49,14 +52,16 @@ public partial class StreamsClient {
                     "Start position cannot address the target stream: it carries neither a " +
                     "matching stream revision nor a log position to resolve one from.", nameof(start));
 
-            return await ResolveReadStart(
+            var resolved = await ResolveReadStart(
                     RecordPosition.From(start.LogPosition, target, Revision.Unset), direction, cancellationToken)
                 .ConfigureAwait(false);
+
+            return (resolved, null);
         }
 
         // Log target. A log half is the address — use it directly (sentinels included).
         if (start.LogPosition != LogPosition.Unset)
-            return start;
+            return (start, null);
 
         // A named stream is a trusted anchor: translate it into a log position (stream→log) — the
         // direction a foreign-filtered ReadStream re-routes through $all. A missing revision means
@@ -67,15 +72,23 @@ public partial class StreamsClient {
                 ? start.Revision
                 : direction == ReadDirection.Forwards ? Revision.Min : Revision.Max;
 
-            return await ResolveReadStart(
-                    RecordPosition.From(LogPosition.Unset, start.Stream, revision), direction, cancellationToken)
-                .ConfigureAwait(false);
+            var anchor = await ReadOneFromStream(start.Stream, revision, direction, cancellationToken).ConfigureAwait(false);
+
+            if (anchor is null)
+                return (RecordPosition.Unset, null);
+
+            // The $all backwards read excludes the record at its start position, so the anchor is
+            // handed back for the read to deliver. The secondary-index route is inclusive and
+            // delivers the anchor itself.
+            var deliverAnchor = direction == ReadDirection.Backwards && filter.UnwrapFilter() is not IndexFilter;
+
+            return (anchor.Position, deliverAnchor ? anchor : null);
         }
 
         // No log half and no stream anchor → no position given: the log's natural edge for the
         // direction (beginning forwards, end backwards).
         if (start.IsUnset)
-            return direction == ReadDirection.Forwards ? RecordPosition.Earliest : RecordPosition.Latest;
+            return (direction == ReadDirection.Forwards ? RecordPosition.Earliest : RecordPosition.Latest, null);
 
         throw new ArgumentException(
             "Log-targeted read start carries neither a log position nor an addressable stream.", nameof(start));
@@ -101,8 +114,8 @@ public partial class StreamsClient {
         if (position.IsUnset || position.LogPosition == LogPosition.Unset && position.Stream == StreamName.Unset && position.Revision == Revision.Unset )
             throw new ArgumentException("Position must carry a log position or a stream position to resolve.", nameof(position));
 
-        // Sentinels resolve at the wire — Earliest/Latest map natively on both targets.
-        // WARNING!!!! WHAT ABOUT REVISION.MIN and REVISION.MAX?!
+        // Sentinels resolve at the wire — Earliest/Latest map natively on both targets. Revision
+        // sentinels (Min/Max) carry no log half and take the stream branch below.
         if (position.LogPosition == LogPosition.Earliest || position.LogPosition == LogPosition.Latest)
             return position;
 
@@ -116,8 +129,6 @@ public partial class StreamsClient {
         // Stream half only — fill the log half with one stream read at the revision. The read
         // direction follows the read: scavenged revision gaps land on the correct surviving
         // neighbour (forwards → next survivor, backwards → previous; stream reads are inclusive).
-        // A stream read resolves links, so on a pointer stream the record's Position is the
-        // target's; the start is the link's own revision.
         if (hasStream) {
             var record = await ReadOneFromStream(position.Stream, position.Revision, direction, ct).ConfigureAwait(false);
             return record?.CheckpointPosition ?? RecordPosition.Unset;
@@ -165,8 +176,7 @@ public partial class StreamsClient {
             return position;
 
         // Stream half only — at-or-before the revision: one backwards stream read (inclusive),
-        // landing on the closest surviving record at-or-below a scavenged gap. A stream read
-        // resolves links, so on a pointer stream the start is the link's own revision.
+        // landing on the closest surviving record at-or-below a scavenged gap.
         if (hasStream) {
             var record = await ReadOneFromStream(position.Stream, position.Revision, ReadDirection.Backwards, cancellationToken).ConfigureAwait(false);
             return record?.CheckpointPosition ?? RecordPosition.Unset;
@@ -205,19 +215,19 @@ public partial class StreamsClient {
     }
 
     /// <summary>
-    /// Single-record stream read at a revision. Missing/deleted/tombstoned streams are
+    /// Single-record stream read at a revision, links unresolved: the record is the row physically
+    /// in the stream, as a log read delivers it. Missing/deleted/tombstoned streams are
     /// "no record" — resolution reports outcomes, it does not police stream state.
     /// </summary>
     async ValueTask<Record?> ReadOneFromStream(StreamName stream, Revision revision, ReadDirection direction, CancellationToken ct) {
-        var options = new ReadStreamOptions {
-            Start        = revision,
-            Direction    = direction,
-            // Limit        = 1,
-            SkipDecoding = true
-        };
+        // "From the end, forwards" holds no record, and the stream wire rejects End + Forwards.
+        if (revision == Revision.Max && direction == ReadDirection.Forwards)
+            return null;
+
+        var request = Requests.CreateReadStreamRequest(stream, revision, direction, 1);
 
         try {
-            await foreach (var msg in ReadStream(stream, options, ct).Take(1).WithCancellation(ct).ConfigureAwait(false)) {
+            await foreach (var msg in ReadCore(request, skipDecoding: true, throwOnUnresolved: false, RecordFilter.None, DefaultMaxSearchWindow, ct).ConfigureAwait(false)) {
                 if (msg.Value is Record record)
                     return record;
             }

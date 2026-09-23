@@ -125,9 +125,9 @@ records when the resolved start is `Unset`.
 |-------------|----------|-----------|----------|------|
 | `Earliest` | full log from start | **empty** (see the note below the table) | no | 0 |
 | `Latest` | **empty** (head of log, nothing ahead) | from end backward | no | 0 |
-| log half present (log-only **or** full) | INCLUSIVE, the record AT the position | EXCLUSIVE, the record before the position (server quirk) | no, log half used directly and stream half ignored | 0 |
-| stream `S` + revision, no log half | resolved to the log position of S's record at the revision, then read from there | same | **yes, stream→log** | 1 |
-| stream name `S`, no revision, no log half | resolved from S's first record (`Min`) | resolved from S's last record (`Max`) | **yes, stream→log** | 1 |
+| log half present (log-only **or** full) | INCLUSIVE, the record AT the position | EXCLUSIVE on the plain `$all` route, the record before the position (server quirk). INCLUSIVE on the secondary-index route | no, log half used directly and stream half ignored | 0 |
+| stream `S` + revision, no log half | resolved to the log position of S's record at the revision, then read from there | same. The first record is S's record at the revision (the anchor) | **yes, stream→log** | 1 |
+| stream name `S`, no revision, no log half | resolved from S's first record (`Min`) | resolved from S's last record (`Max`). The first record is S's last record (the anchor) | **yes, stream→log** | 1 |
 | revision with no stream name, no log half | **throw** `ArgumentException` | **throw** | no | 0 |
 | **`Unset` / no position** | full log from start (`Earliest`) | from end backward (`Latest`) | no, substituted to the direction edge | 0 |
 
@@ -139,6 +139,32 @@ source. No test pins it.
 
 The stream→log rows do one single-record stream read at the revision, in the read direction. If the
 stream is missing, deleted, or tombstoned, the resolve returns `Unset` and the read is empty.
+
+The stream read does not resolve links. The record it returns is the row in S at the revision, the
+same row that a log read gives at that position. On a link stream such as `$ce-orders`, the row is
+the `$>` link, not its target.
+
+### Anchor delivery
+
+A read that goes backwards from a stream anchor must start with the anchor record. The plain `$all`
+backwards read excludes its start position, so the server never sends the anchor.
+
+The resolve read already has the anchor record, so `ResolveStartPosition` returns it with the start
+position. `ReadRecordsCore` then delivers the anchor before the `$all` read starts. There is no extra
+RPC.
+
+`ReadRecordsCore` applies to the anchor the checks that `ReadCore` applies to each log record:
+
+1. Decode the anchor, unless `SkipDecoding` is set. An unknown schema throws
+   `MessageTypeResolutionException` when `ThrowOnUnresolved` is set.
+2. Drop the anchor if it is a system record and the filter is not `RecordFilter.None`.
+3. Drop the anchor if `filter.IsMatch` rejects it. The filter always runs on the client here,
+   because no server filter saw the anchor.
+4. Count a delivered anchor against `Limit`.
+
+The secondary-index route (an `IndexFilter`, for example `RecordFilter.ByCategory`) reads backwards
+INCLUSIVE of its start position. The server sends the anchor, so `ReadRecordsCore` does not deliver
+it a second time. Forwards reads are inclusive on both routes and need no anchor delivery.
 
 ## When to resolve
 
@@ -222,7 +248,8 @@ backwards read from X gives the last S-record before X.
 | stream read forwards | INCLUSIVE (record at revision) |
 | stream read backwards | INCLUSIVE |
 | `$all` read forwards | INCLUSIVE (record AT position) |
-| `$all` read backwards | EXCLUSIVE (server quirk) |
+| `$all` read backwards, plain route | EXCLUSIVE (server quirk) |
+| `$all` read backwards, secondary-index route | INCLUSIVE |
 | stream subscribe | EXCLUSIVE (after the revision) |
 | `$all` subscribe | EXCLUSIVE (after the position) |
 
@@ -266,7 +293,9 @@ Only an exact position lookup is fragile after a scavenge. Every scan and range 
 - Tests: `test/Kurrent.Surge.Tests/Integration/Streams/Read/`. `StartSemanticsTests` (inclusivity),
   `StartRoutingTests` (routing + `log_targeted_read_resolves_stream_revision_start_to_log_position`),
   `ResolveStartTests` (the `ResolveReadStart` leaf), `ReadTests.reading_forwards_from_the_end_of_a_stream_returns_no_records`
-  (`Max`+Forwards → empty).
+  (`Max`+Forwards → empty). The `StartRoutingTests.log_targeted_read_backwards_*` tests pin anchor
+  delivery: with no position, from a revision, from `Revision.Min`, with the default filter, with a
+  filter that rejects the anchor, on the index route, with `Limit = 1`, and on a `$ce-` link stream.
 - Server-verified (KurrentDB source):
   - Stream `End`+Forwards is rejected (`IndexReader.ReadStreamEventsForwardInternal` `Ensure.Nonnegative`).
   - `$all` `End`+Forwards returns empty. `StorageReaderWorker` resolves `TFPos.HeadOfTf` to the writer
@@ -275,3 +304,8 @@ Only an exact position lookup is fragile after a scavenge. Every scan and range 
     (`IndexReader.ReadStreamEventsBackwardInternal`).
   - Subscriptions are exclusive. `Enumerator.AllSubscription` skips `position <= checkpoint`.
     `Enumerator.StreamSubscription` reads from `checkpoint + 1`.
+  - A plain `$all` read backwards excludes its start position. `AllReader.ReadAllEventsBackwardInternal`
+    keeps a record only when its post-position is at or before the start. A start inside a record
+    fails with `LogPositionNotFoundException`.
+  - A secondary-index read backwards includes its start position. `Enumerator.ReadIndex` reads the
+    first page with `excludeStart = false`, and the index SQL uses `log_position<=$2`.

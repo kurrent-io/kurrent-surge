@@ -1,5 +1,8 @@
+using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
+using Kurrent.Toolkit;
 using Microsoft.Extensions.Logging;
+using TUnit.Assertions.Enums;
 
 namespace Kurrent.Surge.Tests.Streams;
 
@@ -174,7 +177,242 @@ public class StartRoutingTests {
         await Assert.That(records[0].Id).IsEqualTo(expectedFirst.Id);
     }
 
+    [Test]
+    public async ValueTask log_targeted_read_backwards_without_a_position_includes_last_stream_record(CancellationToken ct) {
+        // Arrange — no start backwards anchors on the stream's last record (A4); a backwards $all
+        // read excludes its start position, so the anchor must still arrive first.
+        var seed = await SeedInterleaved(ct);
+
+        var expectedIds = Enumerable.Reverse(seed.A).Select(r => r.Id.ToString()).ToList(); // A4 .. A0
+
+        // Act — LIKE on the full (unique) stream name is a log-level regex filter (log target)
+        var records = await CollectBackTo(seed.A[0], Fixture.Client.Streams.ReadStream(seed.Stream, new ReadStreamOptions {
+            Direction    = ReadDirection.Backwards,
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{seed.Stream}%'"),
+            SkipDecoding = true
+        }, ct));
+
+        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+
+        // Assert
+        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async ValueTask log_targeted_read_backwards_from_a_stream_revision_includes_the_anchor(CancellationToken ct) {
+        // Arrange
+        var seed = await SeedInterleaved(ct);
+
+        var startRevision = seed.A[2].Position.Revision;
+        var expectedIds   = new[] { seed.A[2].Id.ToString(), seed.A[1].Id.ToString(), seed.A[0].Id.ToString() };
+
+        // Act
+        var records = await CollectBackTo(seed.A[0], Fixture.Client.Streams.ReadStream(seed.Stream, new ReadStreamOptions {
+            Start        = startRevision,
+            Direction    = ReadDirection.Backwards,
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{seed.Stream}%'"),
+            SkipDecoding = true
+        }, ct));
+
+        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+
+        // Assert
+        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async ValueTask log_targeted_read_backwards_from_revision_min_returns_the_first_stream_record(CancellationToken ct) {
+        // Arrange
+        var seed = await SeedInterleaved(ct);
+
+        var expectedIds = new[] { seed.A[0].Id.ToString() };
+
+        // Act
+        var records = await CollectBackTo(seed.A[0], Fixture.Client.Streams.ReadStream(seed.Stream, new ReadStreamOptions {
+            Start        = Revision.Min,
+            Direction    = ReadDirection.Backwards,
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{seed.Stream}%'"),
+            SkipDecoding = true
+        }, ct));
+
+        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+
+        // Assert
+        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async ValueTask log_targeted_read_backwards_from_a_stream_start_with_the_default_filter_includes_the_anchor(CancellationToken ct) {
+        // Arrange — the default filter reads the whole log: the anchor (A3), then every record
+        // before it in the log (B4 .. B0), down to A2.
+        var seed = await SeedInterleaved(ct);
+
+        var start       = RecordPosition.From(LogPosition.Unset, seed.Stream, seed.A[3].Position.Revision);
+        var seededIds   = seed.A.Concat(seed.B).Select(r => r.Id.ToString()).ToHashSet();
+        var expectedIds = new[] { seed.A[3] }.Concat(Enumerable.Reverse(seed.B)).Append(seed.A[2]).Select(r => r.Id.ToString()).ToList();
+
+        // Act
+        var records = await CollectBackTo(seed.A[2], Fixture.Client.Streams.ReadRecords(new ReadRecordsOptions {
+            Start        = start,
+            Direction    = ReadDirection.Backwards,
+            SkipDecoding = true
+        }, ct));
+
+        var ownIds = records.Select(r => r.Id.ToString()).Where(seededIds.Contains).ToList();
+
+        // Assert
+        await Assert.That(ownIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    public async ValueTask log_targeted_read_backwards_skips_an_anchor_its_filter_rejects(CancellationToken ct) {
+        // Arrange — anchored on A3, filtered to B: the anchor is not a match and never delivered.
+        var seed = await SeedInterleaved(ct);
+
+        var foreignStream = seed.B[0].Stream;
+        var start         = RecordPosition.From(LogPosition.Unset, seed.Stream, seed.A[3].Position.Revision);
+        var expectedIds   = Enumerable.Reverse(seed.B).Select(r => r.Id.ToString()).ToList(); // B4 .. B0
+
+        // Act
+        var records = await CollectBackTo(seed.B[0], Fixture.Client.Streams.ReadRecords(new ReadRecordsOptions {
+            Start        = start,
+            Direction    = ReadDirection.Backwards,
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{foreignStream}%'"),
+            SkipDecoding = true
+        }, ct));
+
+        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+
+        // Assert
+        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async ValueTask log_targeted_read_backwards_on_the_index_route_delivers_the_anchor_once(CancellationToken ct) {
+        // Arrange — the secondary-index route reads backwards INCLUSIVE of its start, so the
+        // anchor arrives from the server and must not be delivered a second time.
+        var seed = await SeedInterleaved(ct);
+
+        var streamIds   = seed.A.Select(r => r.Id.ToString()).ToHashSet();
+        var expectedIds = Enumerable.Reverse(seed.A).Select(r => r.Id.ToString()).ToList(); // A4 .. A0
+        var filter      = RecordFilter.ByCategory(seed.Stream.Category);
+
+        // Act + Assert — poll until the secondary index catches up (eventually consistent)
+        await Assert.That(async () => {
+            var records = await CollectBackTo(seed.A[0], Fixture.Client.Streams.ReadStream(seed.Stream, new ReadStreamOptions {
+                Direction    = ReadDirection.Backwards,
+                Filter       = filter,
+                SkipDecoding = true
+            }, ct));
+
+            var ownIds = records.Select(r => r.Id.ToString()).Where(streamIds.Contains).ToList();
+
+            await Assert.That(ownIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+        }).EventuallyPasses(CatchUp(ct));
+    }
+
+    [Test]
+    public async ValueTask log_targeted_read_backwards_with_limit_one_returns_only_the_anchor(CancellationToken ct) {
+        // Arrange
+        var seed = await SeedInterleaved(ct);
+
+        var expectedIds = new[] { seed.A[^1].Id.ToString() };
+
+        // Act
+        var records = new List<Record>();
+
+        await foreach (var msg in Fixture.Client.Streams.ReadStream(seed.Stream, new ReadStreamOptions {
+            Direction    = ReadDirection.Backwards,
+            Filter       = RecordFilter.ByExpression($"stream LIKE '{seed.Stream}%'"),
+            Limit        = 1,
+            SkipDecoding = true
+        }, ct)) {
+            if (msg.Value is Record record)
+                records.Add(record);
+        }
+
+        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+
+        // Assert
+        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async ValueTask log_targeted_read_backwards_anchored_on_a_link_stream_delivers_the_link_row_once(CancellationToken ct) {
+        // Arrange — a category unique to this test, so $ce-{category} holds only its links. The log
+        // route never resolves links: the anchor is the raw $> row, and its target appears once, at
+        // its own position.
+        var category   = $"anchorlink{Guid.NewGuid():N}";
+        var stream     = StreamName.From($"{category}-{Guid.NewGuid():N}");
+        var linkStream = StreamName.From($"$ce-{category}");
+        var generated  = await Fixture.TestData.GenerateSet(3, ct);
+
+        await Fixture.Client.Streams.AppendStream(stream, generated.Records, ct);
+
+        var seeded = await ReadAllStreamRecords(stream, ct);
+        var target = seeded[^1];
+
+        Record? lastLink = null;
+
+        await Assert.That(async () => {
+            lastLink = await Fixture.Client.Streams
+                .ReadStream(linkStream, new ReadStreamOptions { Direction = ReadDirection.Backwards, Limit = 1, SkipDecoding = true }, ct)
+                .Where(msg => msg.IsRecord).Select(msg => msg.AsRecord)
+                .FirstOrDefaultAsync(ct);
+
+            var linkedId = lastLink?.Id;
+
+            await Assert.That(linkedId).IsEqualTo(target.Id);
+        }).EventuallyPasses(CatchUp(ct).RetryOn<StreamNotFoundException>());
+
+        var expectedFirstPosition = lastLink!.Link.Position.LogPosition;
+
+        // Act
+        var records = await CollectBackTo(target, Fixture.Client.Streams.ReadRecords(new ReadRecordsOptions {
+            Start        = RecordPosition.From(LogPosition.Unset, linkStream, Revision.Unset),
+            Direction    = ReadDirection.Backwards,
+            Filter       = RecordFilter.None,
+            SkipDecoding = true
+        }, ct));
+
+        var first         = records[0];
+        var firstPosition = first.Position.LogPosition;
+        var firstIsLink   = first.IsLink;
+        var targetCount   = records.Count(r => r.Id == target.Id);
+
+        // Assert
+        await Assert.That(firstPosition).IsEqualTo(expectedFirstPosition);
+        await Assert.That(firstIsLink).IsTrue();
+        await Assert.That(targetCount).IsEqualTo(1);
+    }
+
     #region ->> Harness <<-
+
+    // Secondary indexes and the standard projections are eventually consistent.
+    static EventuallyOptions CatchUp(CancellationToken ct) => new() {
+        Timeout           = TimeSpan.FromSeconds(15),
+        PollingInterval   = TimeSpan.FromMilliseconds(500),
+        CancellationToken = ct
+    };
+
+    // A backwards read runs to the start of the log; stop once it reaches the boundary record.
+    static async ValueTask<List<Record>> CollectBackTo(Record boundary, IAsyncEnumerable<ReadMessage> read) {
+        var records = new List<Record>();
+
+        await foreach (var msg in read) {
+            if (msg.Value is not Record record)
+                continue;
+
+            records.Add(record);
+
+            if (record.Position.LogPosition <= boundary.Position.LogPosition)
+                break;
+        }
+
+        return records;
+    }
 
     record InterleavedSeed(StreamName Stream, List<Record> A, List<Record> B);
 

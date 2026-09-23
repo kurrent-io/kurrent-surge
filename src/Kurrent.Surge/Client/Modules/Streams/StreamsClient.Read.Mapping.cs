@@ -34,23 +34,29 @@ static partial class StreamsClientMapping {
         /// Builds a read from the edge of a stream — head (backwards) or tail (forwards).
         /// Used for stream info probes like finding the last or first event.
         /// </summary>
-        public static Contracts.ReadReq CreateReadStreamEdgeRequest(StreamName stream, ReadDirection direction, long? count = null) {
+        public static Contracts.ReadReq CreateReadStreamEdgeRequest(StreamName stream, ReadDirection direction, long? count = null) =>
+            CreateReadStreamRequest(
+                stream, direction switch {
+                    ReadDirection.Backwards => Revision.Max,
+                    ReadDirection.Forwards  => Revision.Min,
+                }, direction, count
+            );
+
+        /// <summary>
+        /// Builds a stream read from <paramref name="start"/> with link resolution disabled, so each
+        /// record is the one physically in the stream at its revision.
+        /// </summary>
+        public static Contracts.ReadReq CreateReadStreamRequest(StreamName stream, Revision start, ReadDirection direction, long? count = null) {
             return new() {
                 Options = new() {
                     UuidOption    = DefaultUuidOptions,
                     ControlOption = DefaultControlOption,
                     NoFilter      = DefaultEmpty,
                     Count         = count is null ? ulong.MaxValue : (ulong)count,
-                    // A stream edge is the record physically at that stream's head/tail; resolving
-                    // links would substitute a target event from another stream.
+                    // Resolving links would substitute a target event from another stream.
                     ResolveLinks  = false,
                     ReadDirection = ToReadDirection(direction),
-                    Stream = ConvertToStreamOptions(
-                        stream, start: direction switch {
-                            ReadDirection.Backwards => Revision.Max,
-                            ReadDirection.Forwards  => Revision.Min,
-                        }
-                    ),
+                    Stream        = ConvertToStreamOptions(stream, start),
                 }
             };
         }
