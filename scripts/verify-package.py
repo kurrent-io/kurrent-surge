@@ -4,6 +4,21 @@ verify-package.py — Pack a project (or use an existing .nupkg) and verify it
 matches the Vendor/Bundle/Analyzer contract declared in its csproj, including
 full transitive binary closure, per-TFM for multi-targeted libraries.
 
+Assertions derived from the csproj (with --csproj):
+  * Vendor="true" packages: absent from nuspec dependencies; full binary closure shipped.
+  * Bundle="true" projects, direct and nested (the whole Bundle closure): own DLL shipped under
+    every lib/<tfm>/, absent from nuspec dependencies; direct bundles also ship their package closure.
+  * Bundled build/*.props: shipped as build/<PackageId>.props.
+  * PackedAnalyzer="true" generators on the project and on its Bundle closure, including
+    @(PackedAnalyzerProject)-style item lists expanded from Directory.Build.props: each one shipped
+    by assembly name at analyzers/dotnet/cs/<AssemblyName>.dll and absent from nuspec dependencies.
+  * Analyzer="true" projects: absent from nuspec dependencies and from the package, unless a
+    bundled project packs the same generator.
+  * Plain package references: declared in nuspec dependencies.
+  * Symbol package (the sibling <name>.snupkg): <AssemblyName>.pdb under every lib/<tfm>/ for the
+    project and for each project in its Bundle closure. NuGet adds only the packed project's own PDB;
+    Directory.Build.targets adds the rest.
+
 Modes:
   Pack-and-verify (no positional nupkg):
     ./verify-package.py --csproj src/Pkg/Pkg.csproj
@@ -183,6 +198,54 @@ def _nuspec_package_id(nuspec_text: str) -> str:
     return m.group(1) if m else ""
 
 
+_ITEM_LIST_RE = re.compile(r"^@\((?P<name>[A-Za-z_][\w.-]*)\)$")
+_PROPERTY_RE = re.compile(r"\$\((?P<name>[A-Za-z_][\w.-]*)\)")
+
+
+def _directory_build_items(start_dir: Path, item_name: str) -> list[Path] | None:
+    """Resolve an MSBuild item list (e.g. @(PackedAnalyzerProject)) declared in the
+    Directory.Build.props chain above `start_dir`. Every Directory.Build.props from `start_dir` up to
+    the filesystem root is read, because the nested ones import the next one up. Returns None when
+    no props file declares the item, so the caller can report it as unresolved."""
+    found: list[Path] | None = None
+    for d in [start_dir, *start_dir.parents]:
+        props = d / "Directory.Build.props"
+        if not props.is_file():
+            continue
+        # The props file defines RepoRoot as its own directory through a property function, which
+        # this parser cannot evaluate, so both well-known locations are substituted directly.
+        props_dir = props.parent.resolve()
+        known = {"MSBuildThisFileDirectory": f"{props_dir}/", "RepoRoot": str(props_dir)}
+        for elem in ET.parse(props).getroot().iter():
+            if _strip_ns(elem.tag) != item_name:
+                continue
+            inc = elem.get("Include")
+            if not inc:
+                continue
+            found = found or []
+            for part in filter(None, (p.strip() for p in inc.split(";"))):
+                expanded = _PROPERTY_RE.sub(lambda m: known.get(m.group("name"), m.group(0)), part)
+                if "$(" in expanded:
+                    raise SystemExit(f"{props}: cannot resolve '{part}' in @({item_name})")
+                found.append(Path(expanded.replace("\\", "/")).resolve())
+    return found
+
+
+def _project_reference(proj_path: Path, raw_include: str, elem: ET.Element) -> CsprojReference:
+    proj_name = proj_path.stem
+    return CsprojReference(
+        kind="project",
+        identity=proj_name,
+        assembly_name=_resolve_assembly_name(proj_path) or proj_name,
+        raw_include=raw_include,
+        csproj_path=proj_path,
+        bundle=_flag(elem, "Bundle"),
+        analyzer=_flag(elem, "Analyzer"),
+        packed_analyzer=_flag(elem, "PackedAnalyzer"),
+        private_assets=_private_assets_all(elem),
+    )
+
+
 def parse_csproj(path: Path) -> CsprojContract:
     if not path.is_file():
         raise SystemExit(f"csproj not found: {path}")
@@ -209,21 +272,23 @@ def parse_csproj(path: Path) -> CsprojContract:
             inc = elem.get("Include")
             if not inc:
                 continue
-            inc_norm = inc.replace("\\", "/")
-            proj_path = (csproj_dir / inc_norm).resolve()
-            proj_name = Path(inc_norm).stem
-            asm_name = _resolve_assembly_name(proj_path) or proj_name
-            refs.append(CsprojReference(
-                kind="project",
-                identity=proj_name,
-                assembly_name=asm_name,
-                raw_include=inc,
-                csproj_path=proj_path,
-                bundle=_flag(elem, "Bundle"),
-                analyzer=_flag(elem, "Analyzer"),
-                packed_analyzer=_flag(elem, "PackedAnalyzer"),
-                private_assets=_private_assets_all(elem),
-            ))
+            item_list = _ITEM_LIST_RE.match(inc.strip())
+            if item_list:
+                # An item-list include (e.g. @(PackedAnalyzerProject)) expands to one reference per
+                # item declared in the Directory.Build.props chain. An item that cannot be found
+                # stays as a single unresolved reference with no csproj path.
+                items = _directory_build_items(csproj_dir, item_list.group("name"))
+                if items is None:
+                    refs.append(CsprojReference(
+                        kind="project", identity=inc, assembly_name=inc, raw_include=inc,
+                        csproj_path=None, bundle=_flag(elem, "Bundle"), analyzer=_flag(elem, "Analyzer"),
+                        packed_analyzer=_flag(elem, "PackedAnalyzer"), private_assets=_private_assets_all(elem),
+                    ))
+                    continue
+                refs.extend(_project_reference(p, inc, elem) for p in items)
+                continue
+            proj_path = (csproj_dir / inc.replace("\\", "/")).resolve()
+            refs.append(_project_reference(proj_path, inc, elem))
 
     return CsprojContract(refs=refs, csproj_path=path.resolve())
 
@@ -536,11 +601,14 @@ def run_csproj_checks(
     r: Report,
     *,
     check_transitive: bool,
-) -> None:
+) -> list[str]:
+    """Run the csproj-derived checks. Returns the assembly names of the Bundle closure, direct and
+    nested, for the symbol package check."""
+    bundled_assembly_names = [bp.assembly_name for bp in contract.bundled_projects]
     parent_tfms = pkg.lib_tfms()
     if not parent_tfms:
         r.bad("no lib/<tfm>/ entries found in package; cannot run TFM-aware checks")
-        return
+        return bundled_assembly_names
     r.note(f"package targets TFM(s): {', '.join(parent_tfms)}")
 
     main_assets: MultiTfmAssets | None = None
@@ -549,7 +617,7 @@ def run_csproj_checks(
             main_assets = load_all_assets(find_assets_file(contract.csproj_path))
         except SystemExit as e:
             r.bad(str(e))
-            return
+            return bundled_assembly_names
         r.note(f"main project assets resolved for TFM(s): {', '.join(main_assets.tfms)}")
 
     public_dep_ids = {p.identity.lower() for p in contract.normal_packages}
@@ -691,6 +759,14 @@ def run_csproj_checks(
     package_id = _nuspec_package_id(pkg.nuspec_text)
     nested_props_owners: list[str] = []
     nested_packed_names: set[str] = set()
+    # Expected generators: every PackedAnalyzer="true" reference on the packed project and on each
+    # project in its Bundle="true" closure, with item-list includes such as @(PackedAnalyzerProject)
+    # already expanded from Directory.Build.props by parse_csproj. This is the set that
+    # _GetPackedAnalyzerClosure in Directory.Build.targets ships. Analyzer="true" references ship
+    # nothing, so they are not in it. Keyed by lowercased assembly name: (reference, owner name).
+    expected_generators: dict[str, tuple[CsprojReference, str]] = {
+        pa.assembly_name.lower(): (pa, contract.csproj_path.stem) for pa in contract.packed_analyzer_projects
+    }
     seen_nested: set[Path] = set()
     stack = [(bp, bp.csproj_path) for bp in contract.bundled_projects if bp.csproj_path is not None]
     while stack:
@@ -701,6 +777,12 @@ def run_csproj_checks(
         nested = parse_csproj(owner_csproj)
 
         for nb in nested.bundled_projects:
+            bundled_assembly_names.append(nb.assembly_name)
+            leaked = {nb.identity.lower(), nb.assembly_name.lower()} & pkg.declared_deps
+            if leaked:
+                r.bad(f"nested bundle '{nb.identity}' (via {owner.identity}) is declared as a dependency '{next(iter(leaked))}' (should be hidden)")
+            else:
+                r.ok(f"nested bundle '{nb.identity}' (via {owner.identity}) correctly absent from nuspec dependencies")
             for tfm in parent_tfms:
                 expected = f"lib/{tfm}/{nb.assembly_name}.dll"
                 if pkg.has_path(expected):
@@ -711,15 +793,7 @@ def run_csproj_checks(
 
         for na in nested.packed_analyzer_projects:
             nested_packed_names.add(na.assembly_name.lower())
-            if na.raw_include.startswith("@("):
-                # An MSBuild item include cannot be resolved to one assembly statically; the
-                # analyzers/dotnet/cs/ population check below covers it.
-                continue
-            expected = f"analyzers/dotnet/cs/{na.assembly_name}.dll"
-            if pkg.has_path(expected):
-                r.ok(f"nested packed analyzer '{na.identity}' (via {owner.identity}) — present at {expected}")
-            else:
-                r.bad(f"nested packed analyzer '{na.identity}' (via {owner.identity}) — missing at {expected}")
+            expected_generators.setdefault(na.assembly_name.lower(), (na, owner.identity))
 
         if _ships_build_props(owner_csproj):
             nested_props_owners.append(owner.identity)
@@ -730,8 +804,6 @@ def run_csproj_checks(
             r.ok(f"bundled build props from {', '.join(nested_props_owners)} — present at {expected}")
         else:
             r.bad(f"bundled build props from {', '.join(nested_props_owners)} — missing at {expected}; NuGet imports only build/{{PackageId}}.props")
-
-    nested_packed = any(parse_csproj(p).packed_analyzer_projects for p in seen_nested)
 
     # ---- Analyzer projects ----
     for ap in contract.analyzer_projects:
@@ -759,21 +831,29 @@ def run_csproj_checks(
     # ---- Packed analyzers (PackedAnalyzer="true") ----
     # A project that packs a source generator must SHIP it under analyzers/dotnet/cs/ so the generator
     # runs in consumer compilations (analyzers don't flow transitively through a plain dependency edge).
-    # The generator's Include is typically an MSBuild item (e.g. @(PackedAnalyzerProject)), so it can't
-    # be resolved to a single assembly name statically — assert the payload folder is populated rather
-    # than matching each generator by name.
-    if contract.packed_analyzer_projects or nested_packed:
-        analyzer_dlls = [e for e in pkg.entries
-                         if e.lower().startswith("analyzers/dotnet/cs/") and e.lower().endswith(".dll")]
-        if analyzer_dlls:
-            r.ok(f"packed analyzer(s) shipped under analyzers/dotnet/cs/ ({len(analyzer_dlls)} dll(s))")
-            for dll in analyzer_dlls:
-                r.note(f"  {dll}")
-        else:
-            r.bad(
-                "a PackedAnalyzer=\"true\" reference exists (own or bundled) but the package ships no "
-                "analyzers/dotnet/cs/*.dll — the generator will not run in consumers"
-            )
+    # Each expected generator (own and bundled, derived above) must ship by name, and must not leak
+    # into the nuspec dependencies.
+    if expected_generators:
+        r.note(f"expected generator(s): {', '.join(sorted(ref.assembly_name for ref, _ in expected_generators.values()))}")
+        missing_generators: list[str] = []
+        for ref, owner_name in sorted(expected_generators.values(), key=lambda v: v[0].assembly_name.lower()):
+            if ref.csproj_path is None:
+                r.bad(f"packed analyzer '{ref.raw_include}' (via {owner_name}) — item list not declared in any Directory.Build.props")
+                continue
+            leaked = {ref.identity.lower(), ref.assembly_name.lower()} & pkg.declared_deps
+            if leaked:
+                r.bad(f"packed analyzer '{ref.identity}' (via {owner_name}) is declared as a dependency '{next(iter(leaked))}' (should be hidden)")
+            expected = f"analyzers/dotnet/cs/{ref.assembly_name}.dll"
+            if pkg.has_path(expected):
+                r.ok(f"packed analyzer '{ref.identity}' (via {owner_name}) — present at {expected}")
+            else:
+                missing_generators.append(expected)
+                r.bad(f"packed analyzer '{ref.identity}' (via {owner_name}) — missing at {expected}; the generator will not run in consumers")
+        if missing_generators:
+            r.note(f"missing generator DLL(s): {', '.join(missing_generators)}")
+        for dll in (e for e in pkg.entries
+                    if e.lower().startswith("analyzers/dotnet/cs/") and e.lower().endswith(".dll")):
+            r.note(f"  shipped: {dll}")
 
     # ---- Normal package references must be declared as deps ----
     for np in contract.normal_packages:
@@ -784,6 +864,28 @@ def run_csproj_checks(
                 f"public package '{np.identity}' is NOT in nuspec dependencies — "
                 "accidentally flagged Vendor=\"true\" or set PrivateAssets=\"all\"?"
             )
+
+    return bundled_assembly_names
+
+
+# ---------- symbol package ----------
+
+def run_symbol_package_checks(
+    snupkg: Path,
+    assembly_names: list[str],
+    tfms: list[str],
+    r: Report,
+) -> None:
+    """Each assembly in lib/<tfm>/ of the main package must have its PDB in the symbol package."""
+    with zipfile.ZipFile(snupkg) as z:
+        entries_lower = {n.lower() for n in z.namelist() if not n.endswith("/")}
+    for name in dict.fromkeys(assembly_names):
+        for tfm in tfms:
+            expected = f"lib/{tfm}/{name}.pdb"
+            if expected.lower() in entries_lower:
+                r.ok(f"symbols '{name}' [tfm={tfm}] — present at {expected} in {snupkg.name}")
+            else:
+                r.bad(f"symbols '{name}' [tfm={tfm}] — missing at {expected} in {snupkg.name}")
 
 
 # ---------- spec file ----------
@@ -988,7 +1090,18 @@ def main() -> int:
     if args.csproj:
         r.note(f"deriving expectations from {args.csproj}")
         contract = parse_csproj(args.csproj)
-        run_csproj_checks(pkg, contract, r, check_transitive=not args.no_transitive)
+        bundled_assembly_names = run_csproj_checks(pkg, contract, r, check_transitive=not args.no_transitive)
+
+        # The symbol package sits next to the main package under the same name.
+        snupkg_path = nupkg_path.with_suffix(".snupkg")
+        main_assembly = _resolve_assembly_name(args.csproj) or args.csproj.stem
+        if snupkg_path.is_file():
+            r.note(f"inspecting {snupkg_path}")
+            run_symbol_package_checks(snupkg_path, [main_assembly, *bundled_assembly_names], pkg.lib_tfms(), r)
+        elif args.nupkg is None:
+            r.bad(f"symbol package not found at {snupkg_path}")
+        else:
+            r.note(f"no symbol package at {snupkg_path}; symbol checks skipped")
 
     if args.spec:
         r.note(f"applying spec: {args.spec}")
