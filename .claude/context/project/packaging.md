@@ -108,8 +108,10 @@ on the way in. Two such files across the closure is an error. The three targets 
 `Directory.Build.targets`, so every project answers them.
 
 Use for internal libraries that are not published as their own package (e.g. `Variant`, which ships as
-`Kurrent.Variant.dll`). The library project stays `IsPackable=false` and uses
-`<DebugType>embedded</DebugType>` so debuggers can step into it when shipped inside another package.
+`Kurrent.Variant.dll`). The library project stays `IsPackable=false` and keeps the `portable` debug
+type from the root `Directory.Build.props`. NuGet adds only the packed project's own PDB to the symbol
+package. `_CollectBundledDebugSymbols` adds the PDB of each assembly in the bundle closure, so the
+`.snupkg` holds a PDB for each DLL in `lib/{tfm}/`.
 
 A bundled project's package dependencies do **not** flow into the nuspec (see [TL;DR](#tldr)). Declare
 on the packing project any that nothing else in its graph pulls; `verify-package.py` reports the exact
@@ -268,7 +270,10 @@ The targets that build this, all in the root `Directory.Build.targets`, auto-wir
    (`TargetFramework=netstandard2.0`).
 3. **`_CollectBundledBuildProps`** (`TargetsForTfmSpecificContentInPackage`). A bundled project's
    `build/*.props` → `build/{PackageId}.props` via `_GetBundledBuildProps`.
-4. **`_RestoreForPack`** (`BeforeTargets="GenerateNuspec"`). Guarantees the restore graph carries the
+4. **`_CollectBundledDebugSymbols`** (`TargetsForTfmSpecificDebugSymbolsInPackage`). The PDB of each
+   bundled DLL → `lib/{tfm}/` of the `.snupkg`. It uses the same closure as
+   `_CollectVendoredAndBundledFiles`, through `_ResolveBundledProjectAssemblies`.
+5. **`_RestoreForPack`** (`BeforeTargets="GenerateNuspec"`). Guarantees the restore graph carries the
    Bundle/Vendor suppression regardless of pack invocation (see [How Suppression Works](#how-suppression-works)).
 
 ## How To
@@ -287,8 +292,9 @@ not** add per-project pack targets.
 
 ### Add an internal library to a packable project
 
-1. Create the library with `IsPackable=false` (the default) and `<DebugType>embedded</DebugType>`.
-2. Reference it with `Bundle="true"`. Its DLL is embedded into `lib/{tfm}/` automatically.
+1. Create the library with `IsPackable=false` (the default). Do not set `DebugType`.
+2. Reference it with `Bundle="true"`. Its DLL goes into `lib/{tfm}/` of the `.nupkg`, and its PDB
+   goes into `lib/{tfm}/` of the `.snupkg`.
 
 ### Add a source generator to a packable project
 
@@ -330,6 +336,9 @@ pack-owned restore and can hide them, which is why the default is the CI path. I
 - every real dependency is declared
 - every package in a bundled project's closure is either reachable from the declared dependencies or
   shipped in `lib/`
+- the `.nupkg` holds no `.pdb`
+- the `.snupkg` with the same name as the `.nupkg` holds `lib/{tfm}/{AssemblyName}.pdb` for the
+  project and for each project in its bundle closure
 
 The script has two limits:
 
@@ -377,13 +386,12 @@ references. No custom pack targets.
 ### Internal library (embedded, not published)
 
 Ships inside a packable project's `lib/{tfm}/` via `Bundle="true"`. Inherits `net10.0` from the root
-`Directory.Build.props`. Use `DebugType=embedded` so debuggers can step into it inside another package.
+`Directory.Build.props`. Its PDB ships in the packing project's `.snupkg`.
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <IsPackable>false</IsPackable>
-    <DebugType>embedded</DebugType>
   </PropertyGroup>
 </Project>
 ```

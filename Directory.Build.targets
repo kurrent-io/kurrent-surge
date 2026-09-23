@@ -37,6 +37,9 @@
     <TargetsForTfmSpecificContentInPackage>
       $(TargetsForTfmSpecificContentInPackage);_CollectPackedAnalyzers;_CollectBundledBuildProps
     </TargetsForTfmSpecificContentInPackage>
+    <TargetsForTfmSpecificDebugSymbolsInPackage>
+      $(TargetsForTfmSpecificDebugSymbolsInPackage);_CollectBundledDebugSymbols
+    </TargetsForTfmSpecificDebugSymbolsInPackage>
   </PropertyGroup>
 
   <!--
@@ -112,16 +115,9 @@
              Properties="_SuppressFlaggedDeps=true;RestoreForce=true;Configuration=$(Configuration)" />
   </Target>
 
-  <!--
-    Collect the binaries that need to ship inside the package and place them
-    at the correct package paths (preserving lib/<tfm>/, runtimes/<rid>/native/,
-    satellite directories, etc).
-  -->
-  <Target Name="_CollectVendoredAndBundledFiles"
-          DependsOnTargets="ResolveAssemblyReferences;ResolveTargetingPackAssets">
-
-    <!-- Bundled projects: ask each for its own output and, recursively, for everything it bundles.
-         GetTargetPath underneath resolves AssemblyName correctly regardless of project filename. -->
+  <!-- Bundled projects: ask each for its own output and, recursively, for everything it bundles.
+       GetTargetPath underneath resolves AssemblyName correctly regardless of project filename. -->
+  <Target Name="_ResolveBundledProjectAssemblies">
     <MSBuild Projects="@(ProjectReference->WithMetadataValue('Bundle', 'true'))"
              Targets="_GetBundledClosure"
              Properties="TargetFramework=$(TargetFramework)">
@@ -130,6 +126,32 @@
     <RemoveDuplicates Inputs="@(_BundledProjectAssembly)">
       <Output TaskParameter="Filtered" ItemName="_BundledProjectAssemblyUnique" />
     </RemoveDuplicates>
+  </Target>
+
+  <!--
+    Ship the PDB of every bundled assembly in the symbol package, next to its DLL under
+    lib/<tfm>/. NuGet adds only the packed project's own PDB, so without this the bundled
+    assemblies ship with no symbols.
+  -->
+  <Target Name="_CollectBundledDebugSymbols" DependsOnTargets="_ResolveBundledProjectAssemblies">
+    <ItemGroup>
+      <TfmSpecificDebugSymbolsFile Include="@(_BundledProjectAssemblyUnique->'%(RootDir)%(Directory)%(Filename).pdb')"
+                                   Condition="Exists('%(RootDir)%(Directory)%(Filename).pdb')"
+                                   TargetFramework="$(TargetFramework)" />
+      <TfmSpecificDebugSymbolsFile Update="@(TfmSpecificDebugSymbolsFile)"
+                                   FinalOutputPath="%(FullPath)"
+                                   TargetPath="%(Filename)%(Extension)" />
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Collect the binaries that need to ship inside the package and place them
+    at the correct package paths (preserving lib/<tfm>/, runtimes/<rid>/native/,
+    satellite directories, etc).
+  -->
+  <Target Name="_CollectVendoredAndBundledFiles"
+          DependsOnTargets="ResolveAssemblyReferences;ResolveTargetingPackAssets;_ResolveBundledProjectAssemblies">
+
     <ItemGroup>
       <BuildOutputInPackage Include="@(_BundledProjectAssemblyUnique)" />
     </ItemGroup>

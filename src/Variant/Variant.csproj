@@ -5,9 +5,6 @@
     <RootNamespace>Kurrent</RootNamespace>
     <IsPackable>false</IsPackable>
     <AssemblyName>Kurrent.Variant</AssemblyName>
-    <!-- Embed PDB in the DLL so debuggers can step in when this assembly is -->
-    <!-- shipped inside another package (Kurrent.Surge.Client, Kurrent.Processors) -->
-    <DebugType>embedded</DebugType>
   </PropertyGroup>
 
   <!-- AOT/Trimming Support -->
