@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -23,14 +24,17 @@ public sealed class JsonSchemaCodecOptions : SchemaCodecOptions {
             : BuildOptions(UserJsonContexts);
 
     public bool UseProtobufFormatter { get; set; } = true;
-    
+
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "The reflection resolver is added only when JsonSerializer.IsReflectionEnabledByDefault is true. Trimming and Native AOT set that feature switch to false and remove the branch.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "The reflection resolver is added only when JsonSerializer.IsReflectionEnabledByDefault is true. Trimming and Native AOT set that feature switch to false and remove the branch.")]
     static JsonSerializerOptions BuildOptions(IReadOnlyList<JsonSerializerContext> userContexts) {
         var options = CreateSourceGenOptions(userContexts);
 
         // Reflection fallback for types not covered by any source-generated context.
-        // JsonSerializer.IsReflectionEnabledByDefault is a link-time feature switch: used inline it lets the
-        // analyzer prove this branch safe (no IL2026 / IL3050) and trimming / Native AOT folds it away so the
-        // reflection resolver is never rooted, while a default JIT consumer keeps reflection as a convenience.
+        // JsonSerializer.IsReflectionEnabledByDefault is a link-time feature switch: trimming and Native AOT
+        // fold this branch away, so the reflection resolver is never rooted, while a default JIT consumer keeps
+        // reflection as a convenience. The analyzer cannot see a feature switch (only a [FeatureGuard]), so it
+        // still reports IL2026 / IL3050 here; the suppressions above carry the reason.
         // https://learn.microsoft.com/dotnet/standard/serialization/system-text-json/source-generation#disable-reflection-defaults
         if (System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault)
             options.TypeInfoResolverChain.Add(new DefaultJsonTypeInfoResolver());
