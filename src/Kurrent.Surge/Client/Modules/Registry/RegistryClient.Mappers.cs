@@ -4,10 +4,9 @@ using Contracts = KurrentDB.Protocol.V2.Registry;
 
 namespace Kurrent.Surge.Client.Registry;
 
-static class RegistryClientMapper {
-    // The proto-facing halves of SchemaCompatibilityError(s): the models moved to the contract
-    // package with the schema subsystem, but these mappers speak proto-generated types compiled
-    // in this assembly, so they stay behind.
+static class RegistryClientMapping {
+    // The models live in Kurrent.Surge.Core, but these members use proto-generated types that
+    // compile only into this assembly, so the mapping lives here.
     internal static SchemaCompatibilityError ToSchemaCompatibilityError(this Contracts.SchemaCompatibilityError error) {
         ArgumentNullException.ThrowIfNull(error);
 

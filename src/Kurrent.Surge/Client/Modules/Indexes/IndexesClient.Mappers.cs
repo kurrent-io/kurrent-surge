@@ -2,10 +2,10 @@ using Contracts = KurrentDB.Protocol.V2.Indexes;
 
 namespace Kurrent.Surge.Client.Indexes;
 
-// Protobuf mappers for the Index/IndexField contract types. They live in the client (where the
-// protobuf Contracts are available) as C# 14 extension members on the protobuf-free Abstractions
+// Protobuf mapping for the Index/IndexField contract types. It lives in the client (where the
+// protobuf Contracts are available) as C# 14 extension members on the protobuf-free Core
 // types — a partial split would be illegal here, since those types compile into a different assembly.
-static class IndexMappers {
+static class IndexesClientMapping {
     extension(Index) {
         internal static Index FromProto(Contracts.Index index) =>
             new(

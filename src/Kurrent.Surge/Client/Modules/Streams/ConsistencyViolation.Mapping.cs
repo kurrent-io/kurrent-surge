@@ -3,10 +3,9 @@ using Kurrent.Surge.Client.Exceptions;
 
 namespace Kurrent.Surge.Client.Streams;
 
-// Maps a StreamStateViolation onto the typed stream exceptions. Those exceptions are gRPC-coupled
-// (they parse Google.Rpc.Status) and stay in the client, so the mapper lives here as a C# 14
-// extension member on the protobuf-free Abstractions StreamStateViolation.
-static class StreamStateViolationMappers {
+// Maps a StreamStateViolation onto the typed stream exceptions, as a C# 14 extension member on
+// the Core StreamStateViolation.
+static class ConsistencyViolationMapping {
     extension(StreamStateViolation violation) {
         [StackTraceHidden]
         internal Exception ToStreamException() {
