@@ -12,12 +12,6 @@
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <RootNamespace>Kurrent.Surge</RootNamespace>
 
-    <!-- Reflection-based config binding: FromConfiguration binds ProcessorOptions with
-         BindNonPublicProperties=true (internal MaxParallelism et al.), which the source-generated
-         binder does not support. Disabling the generator restores the reflection binder that does.
-         Tradeoff: config binding here is no longer AOT/trim-safe (IL2026/IL3050). -->
-    <EnableConfigurationBindingGenerator>false</EnableConfigurationBindingGenerator>
-
     <!-- The source-generated metric attributes (Unit, generic [Gauge<T>]) sit behind the
          EXTEXP0003 experimental gate (Microsoft.Extensions.Diagnostics.Metrics), used by the
          streaming instruments merged in from Kurrent.Surge.Streaming. -->
