@@ -1,21 +1,27 @@
 # Module Organization
 
-> File layout, naming, and mapping conventions for client modules. A module is split across **two
-> packages**. Get that split right first.
+> File layout, naming, and mapping conventions for client modules. One package, `Kurrent.Surge`, ships
+> from two projects, and a module is split across **both projects**. Get that split right first.
 
 ## The split
 
-Every module has a contract half in `Kurrent.Surge.Core` and an implementation half in
-`Kurrent.Surge`. The folder name is the same on both sides.
+Every module has a contract half in the `Kurrent.Surge.Core` project and an implementation half in the
+`Kurrent.Surge` project. `Kurrent.Surge` bundles the Core DLL, so both halves ship in the one package.
+The folder name is the same on both sides.
 
-| Package | Path | Holds |
+| Project | Path | Holds |
 |---|---|---|
-| `Kurrent.Surge.Core` | `Client/Modules/{Module}/` | The interface, the request, response, and options types, the shared domain types, the extension members, and the exceptions |
-| `Kurrent.Surge` | `Client/Modules/{Module}/` | The concrete client, its RPC glue, and the mapping between wire and model |
+| `Kurrent.Surge.Core` | `Client/Modules/{Module}/` | The interface, the request, response, and options types, the shared domain types, most convenience extension members, and the exceptions |
+| `Kurrent.Surge` | `Client/Modules/{Module}/` | The concrete client, its RPC glue, the mapping between wire and model, and more extension members, public and internal |
+
+Both projects hold extension members. Core holds most public convenience overloads. The implementation
+holds the mapping and exception-matcher extensions. It also declares a second public
+`StreamsClientExtensions` class, with the `FoldAsync` members in `StreamsClient.Folding.cs` and read
+overloads in `StreamsClient.Read.cs`.
 
 Streams shows the weight. Core holds roughly twice as many of its files as the implementation does.
 
-**A model type never goes in the implementation package.** If a consumer can name the type, it belongs
+**A model type never goes in the implementation project.** If a consumer can name the type, it belongs
 in Core.
 
 ## Core side: `Kurrent.Surge.Core/Client/Modules/{Module}/`
@@ -42,10 +48,12 @@ Core/Client/Modules/Streams/
 ├── StreamsClient.Extensions.cs
 ├── StreamsClient.Records.Extensions.cs
 ├── Models/          LogPosition, Record, RecordPosition, StreamName, Revision, StreamInfo,
-│                    StreamState, Partition, RecordId, SequenceId, ReadDirection, LinkTo
-├── Metadata/        Metadata, MetadataDecoder, MetadataJsonConverter, SystemMetadataKeys
-└── Filters/         RecordFilter, ExpressionFilter, StreamFilter, IndexFilter
+│                    StreamState, Partition, RecordId, SequenceId, ReadDirection, LinkTo, …
+├── Metadata/        Metadata, MetadataDecoder, MetadataJsonConverter, SystemMetadataKeys, …
+└── Filters/         RecordFilter, ExpressionFilter, StreamFilter, IndexFilter, …
 ```
+
+The `Models/`, `Metadata/`, and `Filters/` lists are partial.
 
 ## Implementation side: `Kurrent.Surge/Client/Modules/{Module}/`
 
@@ -67,12 +75,12 @@ Kurrent.Surge/Client/Modules/Streams/
 ├── StreamsClient.Subscribe.cs       with .Subscribe.Mapping.cs
 ├── StreamsClient.Manage.cs          with .Manage.Mapping.cs
 ├── StreamsClient.Resolve.cs         start-position routing
-├── StreamsClient.Folding.cs
+├── StreamsClient.Folding.cs         StreamsClientExtensions members (FoldAsync), no operation methods
 ├── StreamsClientMapping.cs
 ├── ConsistencyViolation.Mapping.cs
 ├── ExceptionMatchers.cs
 ├── StreamIdentifier.cs
-├── Models/     RecordBatchStream, RedactionExtensions
+├── Models/     RedactionExtensions, RecordBatchStream (the file is all comments)
 ├── Metadata/   MetadataJsonExtensions
 └── Pipeline/   ReadRecordPipeline, ReadRecordSteps, WriteRecordPipeline, WriteRecordSteps
 ```
@@ -94,14 +102,14 @@ A suffix encodes the **target scope**. It never encodes a resource split.
 | `*Records` | the log, or several streams. This is the protocol-native form. | `ReadRecords`, `AppendRecords` |
 | `*Stream` | a single stream. This is the convenience form. | `ReadStream`, `AppendStream` |
 
-Edge queries such as `FirstRecord` and `LastRecord` take a `StreamName` target instead.
-`StreamName.Log` selects the log, and any other name selects that stream.
+Edge queries such as `FirstRecord` and `LastRecord` take a `StreamName` target instead. The overloads
+without a stream parameter, such as `FirstRecord(CancellationToken)`, target the log.
 
 ## Result-type suffixes
 
 | Suffix | Meaning | Examples |
 |---|---|---|
-| `*Response` | one per call, for a unary outcome | `AppendRecordsResponse`, `FoldResponse` |
+| `*Response` | one per call, for a unary outcome | `AppendRecordsResponse`, `FoldResponse<TState>` |
 | `*Message` | one per stream element, for a server-streamed outcome | `ReadMessage`, `SubscribeMessage` |
 
 Never introduce a `*Result` type. It is always one of the two above.
@@ -118,8 +126,8 @@ parameter genuinely do not work.
 
 ### The MappingContext pattern
 
-An operation that needs dependencies for mapping bundles them, and the cancellation token, into one
-value that it creates once per call:
+A mapping that needs dependencies gets them, and the cancellation token, in one value.
+`StreamsClientMapping.cs` declares the type, and `StreamsClient.CreateMappingContext(ct)` creates it:
 
 ```csharp
 readonly record struct MappingContext(
@@ -127,29 +135,47 @@ readonly record struct MappingContext(
     IRecordDecoder Decoder,
     CancellationToken CancellationToken
 );
+
+internal MappingContext CreateMappingContext(CancellationToken ct) =>
+    new(MetadataDecoder, RecordDecoder, ct);
 ```
 
-Mapping extensions take that context explicitly:
+Mapping extensions take that context explicitly. The shared record mapping in `StreamsClientMapping.cs`
+is the example:
+
+```csharp
+static partial class StreamsClientMapping {
+    public static async ValueTask<Record> MapToRecordAsync(
+        this Contracts.ReadResp.Types.ReadEvent readEvent,
+        SequenceId sequenceId,
+        MappingContext ctx,
+        bool skipDecoding = false,
+        bool throwOnUnresolved = false
+    ) { … }
+}
+```
+
+A pure conversion needs no context. Append builds the `Contracts.AppendRecordsRequest` inline in
+`StreamsClient.Append.cs`. Its mapping file converts only the consistency checks and the response:
 
 ```csharp
 static class AppendRecordsMapping {
-    extension(AppendRecordsRequest source) {
-        public async ValueTask<Contracts.AppendRecordsRequest> ToContract(MappingContext ctx) { … }
+    extension(ConsistencyCheck source) {
+        public Contracts.ConsistencyCheck ToContract() => …
     }
 
     extension(Contracts.AppendRecordsResponse source) {
-        public AppendRecordsResponse ToResponse() { … }   // pure, so it needs no context
+        public AppendRecordsResponse ToResponse() { … }
     }
 }
 ```
 
-At the call site:
+Read, subscribe, and manage call `CreateMappingContext(ct)` where they map a record:
 
 ```csharp
-var ctx            = new MappingContext(MetadataDecoder, Decoder, cancellationToken);
-var serviceRequest = await request.ToContract(ctx).ConfigureAwait(false);
-var rsp            = await ServiceClient.AppendRecordsAsync(serviceRequest, cancellationToken: cancellationToken).ConfigureAwait(false);
-return rsp.ToResponse();
+var record = await rsp.Event
+    .MapToRecordAsync(sequencer.FetchNext(), CreateMappingContext(ct), skipDecoding, throwOnUnresolved)
+    .ConfigureAwait(false);
 ```
 
 Every dependency is visible at the call site. A test can build a context from doubles and call the
@@ -166,7 +192,7 @@ extension directly. The `readonly record struct` does not allocate.
 | Module exceptions | `Core/…/Exceptions.cs` |
 | Client methods for an operation | `Kurrent.Surge/…/{Module}Client.{Op}.cs` |
 | Stateless mapping for that operation | `Kurrent.Surge/…/{Module}Client.{Op}.Mapping.cs` |
-| Shared stateless mapping | `Kurrent.Surge/…/{Module}Mapping.cs` |
+| Shared stateless mapping | `Kurrent.Surge/…/{Module}ClientMapping.cs` |
 | A self-contained subsystem | its own subfolder, on whichever side owns it |
 
 ## What this convention rules out
@@ -175,4 +201,4 @@ extension directly. The `readonly record struct` does not allocate.
 - **A `Models/Maps/` subfolder.** Mapping folds into the `*.Mapping.cs` files.
 - **Placeholder folders** such as `Models/NotSureYet/`. Resolve them into `Models/` or delete them.
 - **Stateful mapper classes.** Use `MappingContext` and stateless extensions instead.
-- **Model types in the implementation package.** They go in Core.
+- **Model types in the implementation project.** They go in Core.

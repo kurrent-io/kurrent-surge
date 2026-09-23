@@ -1,9 +1,11 @@
 # Packaging
 
 > How project references become NuGet package contents. Read before adding dependencies to packable
-> projects or creating new ones. The mechanism lives entirely in the root `Directory.Build.targets`;
-> packable projects only set `IsPackable=true` and flag their references. There are no per-project pack
-> targets.
+> projects or creating new ones. The mechanism lives in three files. The root `Directory.Build.targets`
+> holds the pack targets and the suppression. The root `Directory.Build.props` holds
+> `@(PackedAnalyzerProject)` and the README, icon, and license items. `src/NonPackable.targets` holds the
+> `--no-build` workaround. Packable projects only set `IsPackable=true` and flag their references. There
+> are no per-project pack targets.
 
 ## TL;DR
 
@@ -67,8 +69,7 @@ All projects default to `IsPackable=false` (root `Directory.Build.props`). A pro
 setting `<IsPackable>true</IsPackable>` and adding package metadata (`PackageId`, `Title`, `Description`,
 `PackageTags`) plus a `README.md`. **That is all the project needs.** The root `Directory.Build.targets`
 detects `IsPackable=true` and wires the pack pipeline (`_CollectVendoredAndBundledFiles`,
-`_CollectPackedAnalyzers`) automatically. There are no per-project `PackProjectDependencies` /
-`PackSourceGenerators` targets to copy anymore; everything is centralized.
+`_CollectPackedAnalyzers`) automatically. There are no per-project pack targets.
 
 Currently packable: `Kurrent.Surge`. `Kurrent.Surge.Core` is a project bundled inside it.
 
@@ -169,7 +170,7 @@ item are additionally wired for source consumers (below).
 ### In-repo source consumers (`@(PackedAnalyzerProject)`)
 
 A packed generator reaches real NuGet consumers automatically (it ships under `analyzers/dotnet/cs/`). But
-**in-repo** projects (examples, tests, sibling packages) reference the SDK by *source* (`ProjectReference`),
+**in-repo** projects (examples, tests, and `Kurrent.Surge` itself) reference the SDK by *source* (`ProjectReference`),
 and **Roslyn analyzers are NOT transitive through a `ProjectReference`**, by design in the SDK. So a
 project that references `Kurrent.Surge`/`Kurrent.Surge.Core` from source does not get the catalog generator
 the way a packaged consumer does; without help its `[MessageCatalog]` / `[MessageType]` declarations would
@@ -180,9 +181,11 @@ The fix is centralized:
 - **`@(PackedAnalyzerProject)`** (`Directory.Build.props`) is the single source of truth for the generators
   that ship to consumers. `Kurrent.Surge.Core` references it with `PackedAnalyzer="true"`.
 - A rule in `Directory.Build.targets` wires that **same list** as analyzers onto any in-repo project that
-  references `Kurrent.Surge` or `Kurrent.Surge.Core` by source. It is skipped when `TestPackages=true` (in
-  package mode the package already supplies the generator; adding it again would emit the types twice →
-  `CS0101`).
+  references `Kurrent.Surge` or `Kurrent.Surge.Core` by source. The rule collects those references as
+  `_SdkSourceRef` items. `Kurrent.Surge` references `Kurrent.Surge.Core` by source, so the rule matches
+  it too, and the catalog generator runs on `Kurrent.Surge`. The rule does not apply when
+  `TestPackages=true`. In package mode, the package supplies the generator, and a second copy emits the
+  types twice (`CS0101`).
 
 Detection filters `@(ProjectReference)` by filename via an item-to-item transform
 (`@(ProjectReference->WithMetadataValue('Filename', 'Kurrent.Surge'))`), **not** a property: MSBuild
@@ -199,23 +202,29 @@ in-repo `ProjectReference` consumers is the one subtle part of the pipeline.
 
 - **Analyzer / PackedAnalyzer** refs get `PrivateAssets="all"` **unconditionally** (eval-time). They never
   become nuspec dependencies and never flow at runtime. That is exactly what an analyzer should do.
-- **Bundle / Vendor** refs get `PrivateAssets="all"` **only while packing** (`Condition="'$(_IsPacking)' == 'true'"`).
-  During a normal `build`/`run`/`test` (`_IsPacking` unset) the refs carry no `PrivateAssets`, so their
-  types flow transitively to consumers like any ordinary reference. At pack, `PrivateAssets="all"` excludes
-  them from the nuspec.
+- **Bundle / Vendor** refs get `PrivateAssets="all"` **only in the pack-context restore**
+  (`Condition="'$(_SuppressFlaggedDeps)' == 'true'"`). Only `_RestoreForPack` passes
+  `_SuppressFlaggedDeps`. The CLI never sets it. During a normal `build`/`run`/`test` the refs carry no
+  `PrivateAssets`, so their types flow transitively to consumers like any ordinary reference. At pack,
+  `PrivateAssets="all"` excludes them from the nuspec.
+
+The gate is not `_IsPacking`. The SDK sets `_IsPacking` as a global property, so it flows into every
+referenced project. A gate on `_IsPacking` makes `dotnet pack Kurrent.Surge` restore `Kurrent.Surge.Core`
+with its bundled edges private. That restore writes `PrivateAssets="all"` into the downstream assets file
+and removes the bundled types from a compilation that needs them (`CS0234` on `Kurrent.Variant`).
 
 The catch: **NuGet's `PackTask` computes project→project dependencies from the restore graph
 (`project.assets.json` → `RestoreMetadata.TargetFrameworks[].ProjectReferences[].PrivateAssets`)**, not from
 a pack-time MSBuild item. `PrivateAssets` lands in that file only when the **restore** that produced it ran
-under `_IsPacking`. A pack that reuses a non-pack restore graph, such as `dotnet pack --no-restore` or
+under `_SuppressFlaggedDeps`. A pack that reuses a non-pack restore graph, such as `dotnet pack --no-restore` or
 `--no-build` (which skips the restore that would rewrite it), as CI and release do, reads
 `PrivateAssets="None"` and **leaks the bundled project into the nuspec** (the `NU1101` bug).
 
 The **`_RestoreForPack`** target closes this: when `_IsPacking` is set and the project has any Bundle/Vendor
-refs, it forces a pack-context restore (`Restore` with `_IsPacking=true; RestoreForce=true`) before
-`GenerateNuspec`, so the assets file always carries the suppression, **regardless of how pack was invoked**.
-Normal `build`/`test`/`run` never set `_IsPacking`, so their restore graph keeps `PrivateAssets="None"` and
-the refs keep flowing.
+refs, it forces a pack-context restore (`Restore` with `_SuppressFlaggedDeps=true;RestoreForce=true`)
+before `GenerateNuspec`, so the assets file always carries the suppression, **regardless of how pack was
+invoked**. Normal `build`/`test`/`run` never run `_RestoreForPack`, so their restore graph keeps
+`PrivateAssets="None"` and the refs keep flowing.
 
 > Pack-time MSBuild item edits do NOT work for this: `@(_ProjectReferencesWithVersions)` (the item
 > `GenerateNuspec` passes to `PackTask`) only supplies version overrides. Removing an entry from it does
@@ -245,6 +254,8 @@ Kurrent.Surge.nupkg
 `Analyzer="true"` on Surge (runs there) and `PackedAnalyzer="true"` on Core (ships). The nuspec lists only
 the real external dependencies (`Google.*`, `Grpc.*`, `Microsoft.Extensions.*`, `NJsonSchema`, `NodaTime`,
 `Ulid`, …); `Kurrent.Surge.Core`, `Kurrent.Variant`, and the generators are absent.
+`Kurrent.Surge.Schema.Catalogs.Generators` also runs on Surge through the `_SdkSourceRef` rule (see
+[In-repo source consumers](#in-repo-source-consumers-packedanalyzerproject)).
 
 The targets that build this, all in the root `Directory.Build.targets`, auto-wired for every
 `IsPackable=true` project:
@@ -272,7 +283,7 @@ The targets that build this, all in the root `Directory.Build.targets`, auto-wir
 
 That's it. The root `Directory.Build.targets` wires the pack targets and `Directory.Build.props` provides
 shared NuGet metadata (authors, license, icon, SourceLink, symbol packages, `EnablePackageValidation`). **Do
-not** add `PackProjectDependencies` / `PackSourceGenerators` targets. They no longer exist.
+not** add per-project pack targets.
 
 ### Add an internal library to a packable project
 
@@ -299,25 +310,35 @@ Never use a bare reference for an unpublished project. Use `Bundle="true"`.
 Bundle/Vendor/Analyzer contract declared in its csproj, including the full transitive binary closure.
 
 ```sh
-# Pack and verify (default: packs the CI way, standalone restore then --no-build --no-restore pack)
+# Pack and verify (default: packs the CI way: standalone restore, build --no-restore, then --no-build --no-restore pack)
 python3 scripts/verify-package.py --csproj src/Kurrent.Surge/Kurrent.Surge.csproj --output-dir .artifacts/local-packages
 
 # Verify an existing package
 python3 scripts/verify-package.py path/to/Kurrent.Surge.1.2.3.nupkg --csproj src/Kurrent.Surge/Kurrent.Surge.csproj
 ```
 
-By default it packs **the way CI ships** (standalone restore, then `--no-build --no-restore`). That is the path
+By default it packs **the way CI ships**: a standalone `dotnet restore`, then `dotnet build --no-restore`,
+then `dotnet pack --no-build --no-restore`. That is the path
 that surfaces restore-graph-dependent leaks. A plain `dotnet pack` (`--fresh-pack`) does its own
 pack-owned restore and can hide them, which is why the default is the CI path. It asserts that:
 
 - bundled DLLs are present in `lib/`, including a bundle's own nested bundles
 - vendored binaries and native assets are present
-- analyzers and bundles are absent from the nuspec dependencies
+- analyzers and direct bundles are absent from the nuspec dependencies
 - packed generators are present in `analyzers/dotnet/cs/`, nested ones included
 - a bundled `build/*.props` is present under this package's id
 - every real dependency is declared
 - every package in a bundled project's closure is either reachable from the declared dependencies or
   shipped in `lib/`
+
+The script has two limits:
+
+- If a `PackedAnalyzer` reference names a project path, the script looks for that generator's DLL by
+  name. It cannot resolve an `@(PackedAnalyzerProject)` include to one DLL. For those includes, it checks
+  only that `analyzers/dotnet/cs/` holds at least one DLL. A missing `Kurrent.Surge.Schema.Catalogs.Generators.dll`
+  passes when `Kurrent.Surge.Generators.dll` is present.
+- It checks that nested bundles are present in `lib/`. It does not check that they are absent from the
+  nuspec dependencies.
 
 ## Project Templates
 
@@ -401,4 +422,4 @@ SDK redefines the target. `Directory.Build.targets` cannot be used because it im
 definition and gets overwritten.
 
 This fix is automatic for all projects that inherit from the root `Directory.Build.props` (`src/`, `test/`,
-`perf/`). No per-project changes needed.
+`perf/`, `examples/`). No per-project changes needed.

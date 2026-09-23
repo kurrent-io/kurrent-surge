@@ -111,7 +111,7 @@ validation.
 
 `Kurrent.Surge/Client/Legacy/` holds V1 gRPC compatibility. It is a folder, not a package.
 
-The Streams module is split across 13 partial class files. The naming convention is in
+The Streams module is split across partial class files. The naming convention is in
 [Module Organization](.claude/context/project/module-organization.md).
 
 Sum types use source-generated `IVariant` discriminated unions.
@@ -119,8 +119,8 @@ Sum types use source-generated `IVariant` discriminated unions.
 ### Documentation site
 
 `docs/` is the live documentation site, built with Astro and Starlight.
-`.github/workflows/docs.yml` builds it on any push that touches `docs/**` and publishes it to GitHub
-Pages.
+`.github/workflows/docs.yml` builds it on a push to `main` that touches `docs/**` or the workflow
+file, and publishes it to GitHub Pages. You can also start it by hand with `workflow_dispatch`.
 
 ### Examples
 

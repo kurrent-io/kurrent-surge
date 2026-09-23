@@ -5,9 +5,11 @@
 ## Where the docs live
 
 `docs/` is the live documentation site. Astro and Starlight, published to GitHub Pages by
-`.github/workflows/docs.yml`. The workflow fires on any push that touches `docs/**`.
+`.github/workflows/docs.yml`. The workflow runs on a push to `main` that touches `docs/**` or the
+workflow file. It also runs on a manual `workflow_dispatch`. For site-specific guidance, read
+`docs/CLAUDE.md`.
 
-Internal development docs go in neither tree. Designs, research, reports, and postmortems live under
+Internal development docs do not go in `docs/`. Designs, research, reports, and postmortems live under
 `.claude/context/`.
 
 ## Keep docs in sync with code

@@ -1,8 +1,8 @@
 # Contributing
 
-Thanks for contributing to the Kurrent .NET SDK. This guide covers setup, the test runner, and the
-commit and pull-request conventions. Engineering conventions (style, async rules, AOT constraints, module
-layout) live in [`AGENTS.md`](AGENTS.md) — read that before writing code.
+Thanks for contributing to Kurrent Surge. This guide covers setup, the test runner, and the
+commit and pull-request conventions. [`.editorconfig`](.editorconfig) defines the code style.
+[Module organization](.claude/context/project/module-organization.md) describes where files go in a module.
 
 ## Prerequisites
 
@@ -45,7 +45,7 @@ dotnet scripts/testing/test-runner.cs -- run unit --treenode-filter "/*/*/*/*[Ca
 
 Results are written to `.artifacts/test-results/<run-id>/` as `.trx` and markdown reports.
 
-Unit and integration tests live in the same project per package, split into `Unit/` and `Integration/`
+Unit and integration tests live in the same test project, split into `Unit/` and `Integration/`
 folders; integration tests carry `[Category("Integration")]`. There are no separate `*.Integration.Tests`
 projects.
 
@@ -59,9 +59,10 @@ tables, and examples are in [`.github/git-commit-instructions.md`](.github/git-c
 ```
 
 - Past tense, lowercase, no trailing period — `feat(client.streams): added bidirectional read support`.
-- Scopes are lowercase; use `package.module` for module-level precision (e.g. `client.registry`).
-- Never put issue IDs (`DEV-XXXX`, `[DEV-1046]`) in the subject line — it breaks `semver-bump` parsing. Reference
-  them in the body instead.
+- Scopes are lowercase and name an area of the SDK. Use `area.module` for module-level precision, for
+  example `client.registry`.
+- Never put issue references (`#123`, `DEV-1046`) in the subject line. `semver-bump` does not recognize the
+  subject, so a `feat` or a breaking change bumps only the patch version. Reference issues in the body instead.
 
 ## Pull requests
 
@@ -72,7 +73,7 @@ tables, and examples are in [`.github/git-commit-instructions.md`](.github/git-c
    every new or modified `public` member needs XML documentation, and the full suite must pass.
 
 The PR title becomes the squash commit on `main`, so it must itself be a valid conventional commit with no
-issue IDs. Linear links PRs to issues via the branch name.
+issue references.
 
 ## Packaging
 
@@ -110,19 +111,14 @@ Tailwind documentation. None of them is required. Install the ones you want.
 
 ## Project layout
 
-One package ships:
+`Kurrent.Surge` is the only published package. The other projects in `src/` are not published. To list
+the packable projects:
 
-| Package                                                             | What it does                                                       |
-|---------------------------------------------------------------------|--------------------------------------------------------------------|
-| [Kurrent.Surge](src/Kurrent.Surge/)                                 | gRPC client and stream processing: streams, schema registry, indexes, connectors, admin. The contract layer is bundled inside |
+```bash
+grep -l "IsPackable>true" src/*/*.csproj
+```
 
-`src/Kurrent.Surge.Core` holds the contract layer, the message declaration layer with its catalog
-generator, and the JSON, Protobuf, and Avro codecs. It is a project, not a package. `Kurrent.Surge`
-bundles it.
-
-Everything else under `src/` (source generators, `Variant`, `Kurrent.CodeAnalysis`) is shared
-solution infrastructure, not shipped as standalone packages. Proto definitions live in
-`proto/kurrentdb/protocol/{v0,v1,v2}/`.
+Proto definitions live in `proto/kurrentdb/protocol/`.
 
 ## Reporting issues and security
 

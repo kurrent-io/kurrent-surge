@@ -144,17 +144,17 @@ body with a lowercase prefix indicating its nature (fixed, updated, refactored, 
 
 ## Issue tracker references
 
-Never put Linear issue IDs in the commit subject line — the subject must remain a clean conventional commit
-for `semver-bump` to parse correctly. Reference issues in the commit body if needed:
+Never put issue references in the commit subject line. `semver-bump` parses only a clean conventional
+commit subject. Reference issues in the commit body if needed:
 
 ```
 feat(client.streams): added bidirectional read support
 
-- Closes DEV-1046
+- Closes #123
 ```
 
-The PR title (which becomes the squash commit on main) follows the same rule: conventional commit only,
-no issue IDs. Linear links PRs to issues automatically via branch names.
+The PR title becomes the squash commit on main, so it follows the same rule: a conventional commit only,
+with no issue references.
 
 ## Common Pitfalls to Avoid
 
@@ -165,4 +165,4 @@ no issue IDs. Linear links PRs to issues automatically via branch names.
 5. **Inconsistent scopes:** Use established scope names
 6. **Forgetting breaking changes:** Always mark API-breaking changes
 7. **Excessive scope:** Commits should be atomic and focused
-8. **Linear ID in subject:** Never prefix with `[DEV-XXXX]` — breaks CI validation and version detection
+8. **Issue reference in subject:** Never prefix with `[#123]`. It fails the PR title check and version detection
