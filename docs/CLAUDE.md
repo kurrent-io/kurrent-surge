@@ -7,12 +7,12 @@ senior developer can guess it from `astro.config.mjs`, leave it out.
 
 ## Read the docs before you touch anything
 
-Use the Astro and Starlight tooling before, during, and after every change here:
+Use the Astro and Starlight documentation before, during, and after every change here. The optional
+agent tooling is listed in the root `CONTRIBUTING.md`, under "Work on the docs site".
 
-- The `astro-docs` MCP (`search_astro_docs`) for any API, config key, or default. Never answer from
-  memory. Astro 7 and Starlight move fast, and the answers depend on the version.
-- The `astro-dev` skills (`astro-dev:lookup`, `astro-dev:astro-coding`) for patterns and the
-  critical-rules checklist.
+- The `astro-docs` MCP (`search_astro_docs`), when it is installed, for any API, config key, or
+  default. Never answer from memory. Astro 7 and Starlight move fast, and the answers depend on the
+  version.
 - The source in `node_modules` when the docs are ambiguous. Read the integration's code.
 
 Every expensive mistake below came from solving a problem from first principles when one
@@ -95,7 +95,7 @@ footer preference controls. The footer's own CSS still owns the look. Every rule
 specificity. A gallery of all 55 free styled components, rendered live, lives in the probe copy
 under `.claude/context/.scratch/starwind-probe` at `/starwind/` when its preview runs.
 
-- **MCP.** The repo-root `.mcp.json` registers `starwind-ui` as `npx -y @starwind-ui/mcp`. It has
+- **MCP.** The `starwind-ui` MCP server is optional. `CONTRIBUTING.md` gives the install command. It has
   five tools: `starwind_search`, `starwind_docs`, `starwind_init`, `starwind_add`, and
   `starwind_migrate`. Each tool reads data or generates a command. None executes anything.
   `starwind_docs` allows about ten calls a minute.

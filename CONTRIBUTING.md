@@ -84,6 +84,30 @@ python3 scripts/verify-package.py --csproj src/Kurrent.Surge/Kurrent.Surge.cspro
 
 Pass an existing `.nupkg` as a positional argument to verify a pre-built package instead of packing.
 
+## Work on the docs site
+
+The documentation site is in `docs/`. It uses Astro, Starlight, and Starwind UI. Install
+[Bun](https://bun.sh), then start the dev server:
+
+```bash
+bun install --cwd docs
+bun run --cwd docs dev
+```
+
+The dev server runs at `http://localhost:4400/kurrent-surge/` and reloads when you save a file.
+
+### Optional agent tooling
+
+If you use an AI coding agent on the site, these tools give it current Astro, Starwind, and
+Tailwind documentation. None of them is required. Install the ones you want.
+
+| Tool                   | What it gives the agent                  | Install (Claude Code)                                                                      |
+|------------------------|------------------------------------------|--------------------------------------------------------------------------------------------|
+| Astro docs MCP server  | Search over the Astro documentation      | `claude mcp add --transport http astro-docs https://mcp.docs.astro.build/mcp`              |
+| Starwind UI MCP server | Starwind component docs and CLI commands | `claude mcp add starwind-ui -- npx -y @starwind-ui/mcp@0.5.1`                              |
+| Impeccable             | UI design and review skills              | `/plugin marketplace add pbakaus/impeccable`, then `/plugin install impeccable@impeccable` |
+| `tailwind-4-docs`      | Tailwind CSS v4 documentation            | `npx skills add Lombiq/Tailwind-Agent-Skills`                                              |
+
 ## Project layout
 
 One package ships:
