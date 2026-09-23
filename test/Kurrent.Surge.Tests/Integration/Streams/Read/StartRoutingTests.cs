@@ -2,7 +2,6 @@ using Kurrent.Surge.Client.Exceptions;
 using Kurrent.Surge.Client.Streams;
 using Kurrent.Toolkit;
 using Microsoft.Extensions.Logging;
-using TUnit.Assertions.Enums;
 
 namespace Kurrent.Surge.Tests.Streams;
 
@@ -183,7 +182,7 @@ public class StartRoutingTests {
         // read excludes its start position, so the anchor must still arrive first.
         var seed = await SeedInterleaved(ct);
 
-        var expectedIds = Enumerable.Reverse(seed.A).Select(r => r.Id.ToString()).ToList(); // A4 .. A0
+        var expectedIds = Enumerable.Reverse(seed.A).Select(r => r.Id).ToList(); // A4 .. A0
 
         // Act — LIKE on the full (unique) stream name is a log-level regex filter (log target)
         var records = await CollectBackTo(seed.A[0], Fixture.Client.Streams.ReadStream(seed.Stream, new ReadStreamOptions {
@@ -192,10 +191,10 @@ public class StartRoutingTests {
             SkipDecoding = true
         }, ct));
 
-        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+        var actualIds = records.Select(r => r.Id).ToList();
 
         // Assert
-        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+        await Assert.That(actualIds).IsDeepEquivalentTo(expectedIds);
     }
 
     [Test]
@@ -204,7 +203,7 @@ public class StartRoutingTests {
         var seed = await SeedInterleaved(ct);
 
         var startRevision = seed.A[2].Position.Revision;
-        var expectedIds   = new[] { seed.A[2].Id.ToString(), seed.A[1].Id.ToString(), seed.A[0].Id.ToString() };
+        var expectedIds   = new[] { seed.A[2].Id, seed.A[1].Id, seed.A[0].Id };
 
         // Act
         var records = await CollectBackTo(seed.A[0], Fixture.Client.Streams.ReadStream(seed.Stream, new ReadStreamOptions {
@@ -214,10 +213,10 @@ public class StartRoutingTests {
             SkipDecoding = true
         }, ct));
 
-        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+        var actualIds = records.Select(r => r.Id).ToList();
 
         // Assert
-        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+        await Assert.That(actualIds).IsDeepEquivalentTo(expectedIds);
     }
 
     [Test]
@@ -225,7 +224,7 @@ public class StartRoutingTests {
         // Arrange
         var seed = await SeedInterleaved(ct);
 
-        var expectedIds = new[] { seed.A[0].Id.ToString() };
+        var expectedIds = new[] { seed.A[0].Id };
 
         // Act
         var records = await CollectBackTo(seed.A[0], Fixture.Client.Streams.ReadStream(seed.Stream, new ReadStreamOptions {
@@ -235,10 +234,10 @@ public class StartRoutingTests {
             SkipDecoding = true
         }, ct));
 
-        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+        var actualIds = records.Select(r => r.Id).ToList();
 
         // Assert
-        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+        await Assert.That(actualIds).IsDeepEquivalentTo(expectedIds);
     }
 
     [Test]
@@ -248,8 +247,8 @@ public class StartRoutingTests {
         var seed = await SeedInterleaved(ct);
 
         var start       = RecordPosition.From(LogPosition.Unset, seed.Stream, seed.A[3].Position.Revision);
-        var seededIds   = seed.A.Concat(seed.B).Select(r => r.Id.ToString()).ToHashSet();
-        var expectedIds = new[] { seed.A[3] }.Concat(Enumerable.Reverse(seed.B)).Append(seed.A[2]).Select(r => r.Id.ToString()).ToList();
+        var seededIds   = seed.A.Concat(seed.B).Select(r => r.Id).ToHashSet();
+        var expectedIds = new[] { seed.A[3] }.Concat(Enumerable.Reverse(seed.B)).Append(seed.A[2]).Select(r => r.Id).ToList();
 
         // Act
         var records = await CollectBackTo(seed.A[2], Fixture.Client.Streams.ReadRecords(new ReadRecordsOptions {
@@ -258,10 +257,10 @@ public class StartRoutingTests {
             SkipDecoding = true
         }, ct));
 
-        var ownIds = records.Select(r => r.Id.ToString()).Where(seededIds.Contains).ToList();
+        var ownIds = records.Select(r => r.Id).Where(seededIds.Contains).ToList();
 
         // Assert
-        await Assert.That(ownIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+        await Assert.That(ownIds).IsDeepEquivalentTo(expectedIds);
     }
 
     [Test]
@@ -271,7 +270,7 @@ public class StartRoutingTests {
 
         var foreignStream = seed.B[0].Stream;
         var start         = RecordPosition.From(LogPosition.Unset, seed.Stream, seed.A[3].Position.Revision);
-        var expectedIds   = Enumerable.Reverse(seed.B).Select(r => r.Id.ToString()).ToList(); // B4 .. B0
+        var expectedIds   = Enumerable.Reverse(seed.B).Select(r => r.Id).ToList(); // B4 .. B0
 
         // Act
         var records = await CollectBackTo(seed.B[0], Fixture.Client.Streams.ReadRecords(new ReadRecordsOptions {
@@ -281,10 +280,10 @@ public class StartRoutingTests {
             SkipDecoding = true
         }, ct));
 
-        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+        var actualIds = records.Select(r => r.Id).ToList();
 
         // Assert
-        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+        await Assert.That(actualIds).IsDeepEquivalentTo(expectedIds);
     }
 
     [Test]
@@ -294,8 +293,8 @@ public class StartRoutingTests {
         // anchor arrives from the server and must not be delivered a second time.
         var seed = await SeedInterleaved(ct);
 
-        var streamIds   = seed.A.Select(r => r.Id.ToString()).ToHashSet();
-        var expectedIds = Enumerable.Reverse(seed.A).Select(r => r.Id.ToString()).ToList(); // A4 .. A0
+        var streamIds   = seed.A.Select(r => r.Id).ToHashSet();
+        var expectedIds = Enumerable.Reverse(seed.A).Select(r => r.Id).ToList(); // A4 .. A0
         var filter      = RecordFilter.ByCategory(seed.Stream.Category);
 
         // Act + Assert — poll until the secondary index catches up (eventually consistent)
@@ -306,9 +305,9 @@ public class StartRoutingTests {
                 SkipDecoding = true
             }, ct));
 
-            var ownIds = records.Select(r => r.Id.ToString()).Where(streamIds.Contains).ToList();
+            var ownIds = records.Select(r => r.Id).Where(streamIds.Contains).ToList();
 
-            await Assert.That(ownIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+            await Assert.That(ownIds).IsDeepEquivalentTo(expectedIds);
         }).EventuallyPasses(CatchUp(ct));
     }
 
@@ -317,7 +316,7 @@ public class StartRoutingTests {
         // Arrange
         var seed = await SeedInterleaved(ct);
 
-        var expectedIds = new[] { seed.A[^1].Id.ToString() };
+        var expectedIds = new[] { seed.A[^1].Id };
 
         // Act
         var records = new List<Record>();
@@ -332,10 +331,10 @@ public class StartRoutingTests {
                 records.Add(record);
         }
 
-        var actualIds = records.Select(r => r.Id.ToString()).ToList();
+        var actualIds = records.Select(r => r.Id).ToList();
 
         // Assert
-        await Assert.That(actualIds).IsEquivalentTo(expectedIds, CollectionOrdering.Matching);
+        await Assert.That(actualIds).IsDeepEquivalentTo(expectedIds);
     }
 
     [Test]
