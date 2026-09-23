@@ -42,12 +42,16 @@ Each rule cost real time.
   `ThemeProvider.astro` reads `localStorage['starlight-theme']` and paints dark for any truthy
   value other than `"light"`. A footer that stored `"auto"` made every page start dark on a
   light OS. `Head.astro` migrates a stored `"auto"` to `""` before paint.
-- **The landing page is not a Starlight page.** `src/pages/index.astro` sits outside the content
-  collection. It has its own `<head>`, its own stylesheets, and a hardcoded dark theme. Apply
-  every global change there too: fonts, tokens, stylesheets. Removing font packages once broke the
-  build on that one page while every Starlight page was fine. The same gap hides metadata:
-  Starlight's `head` config, its og/twitter tags and its `<link rel="sitemap">` never reach this
-  page. Anything added for the docs pages has to be written into that `<head>` by hand.
+- **The landing page is a Starlight page.** `src/content/docs/index.mdx`, `template: splash`,
+  composed from the three components under `src/components/home/` plus `MotionField`. It inherits
+  the header, the footer, `customCss`, the `head` config and the per-page `og:image` like any
+  other page. Its section furniture is `src/styles/home-v2.css`, imported by the page itself so it
+  never loads on a docs page, and the components carry `:root:has(.home-v2)` rules that release
+  the content-width cap and hide the docs-page footer chrome. The previous landing page lived
+  outside the collection at `src/pages/index.astro` with its own `<head>`. Every global change had
+  to be duplicated there by hand, and one font removal broke the build on that page alone. That
+  file is gone. `src/styles/home.css` was its stylesheet and now has one importer, the
+  `src/dev/motion-lab.astro` lab page.
 - **The `logo` config option does nothing here.** It feeds only
   `virtual:starlight/user-images`, which is read by exactly one component — `SiteTitle` — and this
   site overrides it to colour "Surge". Setting `logo` would be a config entry nothing renders.

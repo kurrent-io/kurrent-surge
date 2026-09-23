@@ -55,7 +55,7 @@ await client.Streams.AppendRecords(records, default);`;
 const consumer = `var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddKurrentSurge("kurrentdb", surge => surge
-    .AddProcessor(new FleetWatch(), opts =>
+    .AddProcessor<FleetWatch>(opts =>
         opts.Subscription.Filter = RecordFilter.ByCategory("bike")));
 
 await builder.Build().RunAsync();
