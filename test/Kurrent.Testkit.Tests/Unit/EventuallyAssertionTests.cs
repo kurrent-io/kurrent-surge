@@ -10,9 +10,18 @@ public class EventuallyAssertionTests {
     // Stand-in for a domain transient error (e.g. a not-found while the server catches up).
     sealed class TransientTestException(string message) : Exception(message);
 
-    // Tight polling so every test completes in milliseconds.
+    // For tests that must eventually pass. The timeout is a failure bound only: they return as soon
+    // as the value resolves, so a generous budget costs nothing and survives a starved runner, where
+    // a 10 ms poll delay can wait hundreds of milliseconds for a thread.
     // Property (not field): options are mutable, each test needs its own instance.
     static EventuallyOptions TestOptions =>
+        new EventuallyOptions {
+            Timeout         = TimeSpan.FromSeconds(10),
+            PollingInterval = TimeSpan.FromMilliseconds(10)
+        }.RetryOn<TransientTestException>();
+
+    // For tests that wait the timeout out on purpose. Tight, so they still finish in milliseconds.
+    static EventuallyOptions TimeoutOptions =>
         new EventuallyOptions {
             Timeout         = TimeSpan.FromMilliseconds(500),
             PollingInterval = TimeSpan.FromMilliseconds(10)
@@ -85,7 +94,7 @@ public class EventuallyAssertionTests {
 
         // Act & Assert: delegate always throws transient; assertion accepts the default value.
         await Assert.That(async () => await Assert.That(action)
-                .EventuallyPasses(s => s.IsEqualTo(expected), TestOptions))
+                .EventuallyPasses(s => s.IsEqualTo(expected), TimeoutOptions))
             .Throws<AssertionException>();
     }
 
@@ -98,7 +107,7 @@ public class EventuallyAssertionTests {
 
         // Act & Assert: the timeout message must carry the REAL cause, not "found null".
         await Assert.That(async () => await Assert.That(action)
-                .EventuallyPasses(s => s.IsNotNull(), TestOptions))
+                .EventuallyPasses(s => s.IsNotNull(), TimeoutOptions))
             .Throws<AssertionException>()
             .WithMessageContaining(message);
     }
@@ -217,7 +226,7 @@ public class EventuallyAssertionTests {
 
         Func<Task<int>> action = () => Task.FromResult(wrong);
 
-        var options = TestOptions;
+        var options = TimeoutOptions;
         options.Timeout = TimeSpan.FromMilliseconds(100);
 
         // Act & Assert
@@ -261,7 +270,7 @@ public class EventuallyAssertionTests {
         // Act: uses the configure-delegate overload.
         var result = await Assert.That(action)
             .EventuallyPasses(s => s.IsEqualTo(expected), options => {
-                options.Timeout         = TimeSpan.FromMilliseconds(500);
+                options.Timeout         = TimeSpan.FromSeconds(10);
                 options.PollingInterval = TimeSpan.FromMilliseconds(10);
                 options.IsTransient     = ex => ex is InvalidOperationException or BaseAssertionException;
             });
