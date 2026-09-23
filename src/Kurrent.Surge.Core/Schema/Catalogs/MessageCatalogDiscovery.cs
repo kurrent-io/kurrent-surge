@@ -19,7 +19,7 @@ static class MessageCatalogDiscovery {
 
     public static IReadOnlyList<MessageCatalog> GetCatalogs() => Cached.Value;
 
-    [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "<Pending>")]
+    [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "GetReferencedAssemblies only forces lazily loaded assemblies in under JIT. A reference the trimmer removed has no catalogs to contribute, and a failed load is skipped. Catalogs come from generated attributes, which trimming keeps.")]
     static IReadOnlyList<MessageCatalog> Discover() {
         // On JIT, assemblies load lazily — a contracts assembly untouched before the first
         // client is constructed would be missed. Walking the reference closure forces them
