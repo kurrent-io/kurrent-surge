@@ -12,11 +12,12 @@ on:
         type: boolean
         default: true
       bump:
-        description: "Version component to update (or 'custom' to provide exact version)"
+        description: "auto computes the version from the commits since the last stable tag. A component bumps that part instead. custom publishes the exact version below."
         required: true
         type: choice
-        default: patch
+        default: auto
         options:
+          - auto
           - patch
           - minor
           - major

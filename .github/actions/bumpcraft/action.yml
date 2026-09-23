@@ -1,14 +1,17 @@
 name: Bumpcraft
 description: >
-  Computes a semver package version from git tags and a configuration file.
+  Computes a semver package version with semver-bump and a configuration file.
   Supports two modes: pre-release (CI builds) and release (stable builds).
   Sets the version as step outputs and writes a summary to the job log.
+
+  Both modes start from the last stable tag and the conventional commits since it:
+  a breaking change bumps the major, a feat bumps the minor, anything else the patch.
+  The floor in minimum-major-minor raises a computed version that sits below it.
 
   Configuration can be passed as action inputs or read from .github/version.yml.
   Inputs take priority over the config file. Supported keys:
 
-    auto-increment:      Which part to bump: major, minor, or patch
-    minimum-major-minor: Minimum version floor (e.g., "1.0")
+    minimum-major-minor: Version floor (e.g., "2.0")
     pre-release:         Format template or preset for push events
     pull-request:        Format template or preset for PR events
 
@@ -31,23 +34,24 @@ description: >
     {attempt} - Workflow run attempt (increments on re-runs)
 
   Examples:
-    pre-release: @simple                  -> 1.0.0-preview.42
-    pull-request: @traceable              -> 1.0.0-pr.7.42.abc1234
-    pre-release: preview.{date}.{run}     -> 1.0.0-preview.26075.42
+    pre-release: @simple                  -> 2.0.0-preview.42
+    pull-request: @traceable              -> 2.0.0-pr.7.42.abc1234
+    pre-release: preview.{date}.{run}     -> 2.0.0-preview.26075.42
 
 inputs:
   mode:
     description: >
       Version computation mode.
-        pre-release: uses MinVer + templates for CI builds (default).
+        pre-release: appends the pre-release identifiers from the template (default).
         release: computes a stable version for publishing.
     required: false
     default: pre-release
   bump:
     description: >
-      Release-mode component to bump off the last tag (npm-style): major, minor, patch,
-      premajor, preminor, prepatch, or prerelease. Use "custom" to publish the exact
-      "version" input instead. Ignored on tag-push releases (the tag drives the version).
+      Release-mode selector. "auto" (or empty) computes the bump from the conventional commits
+      since the last stable tag. A component (major, minor, patch, premajor, preminor, prepatch,
+      prerelease) bumps that component off the last stable tag instead. "custom" publishes the
+      exact "version" input. Ignored on tag-push releases (the tag drives the version).
     required: false
     default: ''
   version:
@@ -59,12 +63,8 @@ inputs:
     description: Path to the version configuration file.
     required: false
     default: .github/version.yml
-  auto-increment:
-    description: 'Which semver component to bump beyond a tag: major, minor, or patch. Overrides config file.'
-    required: false
-    default: ''
   minimum-major-minor:
-    description: 'Version floor as major.minor (e.g., "1.0"). Overrides config file.'
+    description: 'Version floor as major.minor (e.g., "2.0"). Overrides config file.'
     required: false
     default: ''
   pre-release:
@@ -78,16 +78,16 @@ inputs:
 
 outputs:
   version:
-    description: Full semver version string (e.g., 1.2.3-preview.42 or 1.2.3)
+    description: Full semver version string (e.g., 2.0.0-preview.42 or 2.0.0)
     value: ${{ steps.compute.outputs.version }}
   is-pre-release:
     description: Whether this is a pre-release version (true/false)
     value: ${{ steps.compute.outputs.is-pre-release }}
   tag:
-    description: Git tag for this version (e.g., v1.2.3)
+    description: Git tag for this version (e.g., v2.0.0)
     value: ${{ steps.compute.outputs.tag }}
   bump:
-    description: What drove the version bump — Major, Minor, or Patch (release mode only)
+    description: What drove the version bump — Major, Minor, or Patch
     value: ${{ steps.compute.outputs.bump }}
 
 runs:
@@ -108,31 +108,41 @@ runs:
         RUN_ATTEMPT: ${{ github.run_attempt }}
         REF_TYPE: ${{ github.ref_type }}
         REF_NAME: ${{ github.ref_name }}
-        INPUT_AUTO_INCREMENT: ${{ inputs.auto-increment }}
         INPUT_MIN_MAJOR_MINOR: ${{ inputs.minimum-major-minor }}
         INPUT_PRE_RELEASE: ${{ inputs.pre-release }}
         INPUT_PULL_REQUEST: ${{ inputs.pull-request }}
       run: |
+        # semver-bump reads tags and commits through the GitHub API; the caller passes GITHUB_TOKEN.
+        if ! command -v semver-bump &>/dev/null; then
+          echo "::error::semver-bump not found on PATH. Run the install-tools action before this step."
+          exit 1
+        fi
+
         config="${{ inputs.config }}"
         if [[ ! -f "$config" ]]; then
           config="$GITHUB_ACTION_PATH/version.yml"
         fi
 
+        # Reads one top-level key from the config, e.g.
+        #   minimum-major-minor: 2.0
+        #   pre-release: @simple
         read_config() {
           if [[ -f "$config" ]]; then
             grep "^${1}:" "$config" 2>/dev/null | sed 's/^[^:]*: *//' | tr -d '"'"'" || echo ""
           fi
         }
 
-        if [[ "$MODE" == "release" ]]; then
-          if ! command -v semver-bump &>/dev/null; then
-            echo "::error::semver-bump not found on PATH. Run the install-tools action before this step."
-            exit 1
-          fi
+        # Priority: inputs > config file > built-in defaults
+        floor="${INPUT_MIN_MAJOR_MINOR:-$(read_config minimum-major-minor)}"
+        pre_release_tpl="${INPUT_PRE_RELEASE:-$(read_config pre-release)}"
+        pull_request_tpl="${INPUT_PULL_REQUEST:-$(read_config pull-request)}"
 
-          # semver-bump owns version computation, validation, and output mapping
-          # (version, tag, bump, is-pre-release, and the job summary).
-          args=(check --output github --no-progress)
+        # semver-bump owns version computation, validation, and output mapping
+        # (version, tag, bump, is-pre-release, and the job summary).
+        args=(check --output github --no-progress)
+        [[ -n "$floor" ]] && args+=(--minimum-major-minor "$floor")
+
+        if [[ "$MODE" == "release" ]]; then
           if [[ "$REF_TYPE" == "tag" ]]; then
             args+=(--version "${REF_NAME#v}")
           elif [[ "$INPUT_BUMP" == "custom" ]]; then
@@ -141,23 +151,15 @@ runs:
               exit 1
             fi
             args+=(--version "$INPUT_VERSION")
-          elif [[ -n "$INPUT_BUMP" ]]; then
+          elif [[ -n "$INPUT_BUMP" && "$INPUT_BUMP" != "auto" ]]; then
             args+=(--bump "$INPUT_BUMP")
-          else
-            echo "::error::release mode needs a bump component, a custom version, or a tag ref."
-            exit 1
           fi
-
+          # auto, or no bump at all: the commits since the last stable tag decide.
           semver-bump "${args[@]}"
           exit 0
         fi
 
-        # Pre-release mode — MinVer height-based versioning with config templates.
-        # Priority: inputs > config file > built-in defaults
-        auto_increment="${INPUT_AUTO_INCREMENT:-$(read_config auto-increment)}"
-        minimum_major_minor="${INPUT_MIN_MAJOR_MINOR:-$(read_config minimum-major-minor)}"
-        pre_release_tpl="${INPUT_PRE_RELEASE:-$(read_config pre-release)}"
-        pull_request_tpl="${INPUT_PULL_REQUEST:-$(read_config pull-request)}"
+        # Pre-release mode: the template becomes the pre-release identifiers, verbatim.
 
         # Resolve presets (@name -> template)
         resolve_preset() {
@@ -178,8 +180,9 @@ runs:
         [[ "$pre_release_tpl" == @* ]]  && pre_release_tpl=$(resolve_preset "$pre_release_tpl" "pre-release")
         [[ "$pull_request_tpl" == @* ]] && pull_request_tpl=$(resolve_preset "$pull_request_tpl" "pull-request")
 
-        # Resolve template variables
-        short_sha="${PR_SHA:0:7}"
+        # Resolve template variables. {sha} is the PR head on pull requests and the pushed commit otherwise.
+        short_sha="${PR_SHA:-$GITHUB_SHA}"
+        short_sha="${short_sha:0:7}"
         date_stamp=$(date -u +"%y%j")
         resolve_template() {
           echo "$1" \
@@ -191,28 +194,12 @@ runs:
             | sed "s/{attempt}/$RUN_ATTEMPT/g"
         }
 
-        # Build pre-release identifiers from template
         if [[ "$EVENT_NAME" == "pull_request" && -n "$PR_NUMBER" && -n "$pull_request_tpl" ]]; then
           pre_release=$(resolve_template "$pull_request_tpl")
         elif [[ -n "$pre_release_tpl" ]]; then
           pre_release=$(resolve_template "$pre_release_tpl")
         fi
 
-        # Build minver args
-        args=(--tag-prefix v)
-        [[ -n "$auto_increment" ]]      && args+=(--auto-increment "$auto_increment")
-        [[ -n "$minimum_major_minor" ]] && args+=(--minimum-major-minor "$minimum_major_minor")
-        if [[ -n "$pre_release" ]]; then
-          args+=(--default-pre-release-identifiers "$pre_release")
-          args+=(--ignore-height)
-        fi
+        [[ -n "$pre_release" ]] && args+=(--pre-release "$pre_release")
 
-        version=$(dnx minver-cli -y -- "${args[@]}")
-
-        echo "### Version: \`$version\`" >> "$GITHUB_STEP_SUMMARY"
-
-        {
-          echo "version=$version"
-          echo "tag=v${version%%-*}"
-          [[ "$version" == *-* ]] && echo "is-pre-release=true" || echo "is-pre-release=false"
-        } >> "$GITHUB_OUTPUT"
+        semver-bump "${args[@]}"

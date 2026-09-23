@@ -4,7 +4,6 @@
 # See actions/bumpcraft/README.md for full documentation.
 # =============================================================================
 
-auto-increment: patch
 minimum-major-minor: 1.0
 pre-release: @simple
 pull-request: @traceable

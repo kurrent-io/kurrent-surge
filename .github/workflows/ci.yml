@@ -8,9 +8,11 @@ on:
     types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
 
+# A new push supersedes an in-flight PR run. Pushes to main queue instead: a run on main ends in a
+# preview publish, and cancelling it mid-push leaves a half-published version on nuget.org.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   markdown:
@@ -38,6 +40,10 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+
+    outputs:
+      build: ${{ steps.changes.outputs.build }}
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout
@@ -117,11 +123,18 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: dotnet restore --ignore-failed-sources
 
+      - name: Install Local Tools
+        if: steps.changes.outputs.build == 'true'
+        uses: ./.github/actions/install-tools
+
+      # semver-bump reads tags and commits through the GitHub API with the job's read-only token.
       - name: Version
         if: steps.changes.outputs.build == 'true'
         id: version
-        timeout-minutes: 1
+        timeout-minutes: 2
         uses: ./.github/actions/bumpcraft
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Build
         if: steps.changes.outputs.build == 'true'
@@ -133,6 +146,19 @@ jobs:
           dotnet pack -c Release --no-build --no-restore
           -o .artifacts/packages
           -p:Version=${{ steps.version.outputs.version }}
+
+      # The publish job runs on a separate runner and pushes exactly the packages this run
+      # validated below, so they travel as a run artifact.
+      - name: Upload Packages
+        if: steps.changes.outputs.build == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: |
+            .artifacts/packages/*.nupkg
+            .artifacts/packages/*.snupkg
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Build Examples (Package Validation)
         if: steps.changes.outputs.build == 'true'
@@ -255,3 +281,50 @@ jobs:
         uses: ./.github/actions/cleanup-containers
         with:
           max-age-hours: 72
+
+  # Every green run on main publishes its preview to nuget.org. The job sits in the `preview`
+  # environment, which GitHub restricts to main, and the nuget.org trusted publishing policy for
+  # this workflow requires that environment in the OIDC token. A pull request that edits this
+  # file to publish therefore gets no key: its ref is not main, so it cannot enter the
+  # environment, and without the environment claim nuget.org refuses the exchange.
+  publish:
+    name: Publish Preview
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.ci.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: preview
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      # Local composite actions need the checkout; nothing else here reads the source.
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/actions
+
+      - name: Download Packages
+        uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: .artifacts/packages
+
+      - name: NuGet Trusted Publishing Login
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Publish Packages
+        uses: ./.github/actions/publish-packages
+        with:
+          pack: 'false'
+          push-to: nuget
+          nuget-api-key: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+
+      - name: Summary
+        run: echo "### Published \`${{ needs.ci.outputs.version }}\` to nuget.org" >> "$GITHUB_STEP_SUMMARY"
