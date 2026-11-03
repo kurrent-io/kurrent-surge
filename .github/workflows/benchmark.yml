@@ -15,7 +15,7 @@ jobs:
             filter: '"*Read*"'
 
     name: benchmark (${{ matrix.category }})
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
 
     permissions:
       contents: read
