@@ -79,8 +79,8 @@ publishes to nuget.org, and creates a GitHub Release. Capped at `timeout-minutes
 ### [`benchmark.yml`](benchmark.yml) — Performance Benchmarks
 
 Triggers on manual dispatch only. Dispatch needs write access to the repository. Never runs on a push or
-a pull request, so no fork code reaches the self-hosted runners. Runs BenchmarkDotNet on the self-hosted
-runners across a category matrix, generates an HTML report, and uploads the results as artifacts.
+a pull request. Runs BenchmarkDotNet on GitHub-hosted runners across a category matrix, generates an HTML
+report, and uploads the results as artifacts.
 
 ### Auxiliary workflows
 
