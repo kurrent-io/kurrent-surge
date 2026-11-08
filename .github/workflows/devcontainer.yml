@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Generate Token
@@ -27,14 +27,6 @@ jobs:
           client-id: ${{ vars.KURRENT_CI_APP_CLIENT_ID }}
           private-key: ${{ secrets.KURRENT_CI_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-
-      # Self-hosted runners may have root-owned artifacts from previous
-      # Docker-based builds. Clean the workspace via a container since
-      # the runner user has no sudo.
-      - name: Clean workspace
-        run: |
-          docker run --rm -v "${GITHUB_WORKSPACE}:/workspace" alpine \
-            sh -c "rm -rf /workspace/* /workspace/.[!.]* 2>/dev/null; chown -R $(id -u):$(id -g) /workspace" || true
 
       - name: Checkout
         uses: actions/checkout@v6
