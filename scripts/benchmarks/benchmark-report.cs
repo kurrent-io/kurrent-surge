@@ -1,6 +1,6 @@
 #!/usr/bin/env dotnet
-#:package Spectre.Console@0.*
-#:package Spectre.Console.Cli@0.*
+#:package Spectre.Console@0.55.2
+#:package Spectre.Console.Cli@0.55.0
 #:property ToolCommandName=benchmark-report
 
 
